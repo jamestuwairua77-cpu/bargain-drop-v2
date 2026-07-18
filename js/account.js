@@ -20,7 +20,7 @@
   BD.requireAuth = function () {
     var s = BD.getSession();
     if (!s || !s.email) {
-      location.href = 'sign-in.html?next=' + encodeURIComponent(location.pathname);
+      // Not signed in; show profile page without login
       return null;
     }
     return s;
