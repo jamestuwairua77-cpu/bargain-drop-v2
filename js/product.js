@@ -218,7 +218,7 @@ function renderRelatedProducts(){
       related=related.slice(0,8);grid.innerHTML='';
       related.forEach(function(p){
         var a=document.createElement('a');a.className='product-card fade-in';a.href='product.html?id='+p.id;
-        var ri=p.image||(p.images||[])[0]||'';
+        var ri=p.image||(Array.isArray(p.images)?p.images[0]:'')||'';
         var pc=p.compare_at_price&&p.compare_at_price>p.price?'<span class="prod-compare">'+money(p.compare_at_price||0)+'</span>':'';
         if(ri){a.innerHTML='<div class="prod-img"><img src="'+esc(ri)+'" alt="'+esc(p.title)+'" width="200" height="200" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'"></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span>'+pc+'</div></div>'}
         else{a.innerHTML='<div class="prod-img"><div class="prod-img-placeholder">📦</div></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span>'+pc+'</div></div>'}
@@ -237,7 +237,7 @@ function showProduct(){
   if(metaDesc)metaDesc.setAttribute('content',p.title+' — only '+money(p.price)+' at Bargain Drop. '+(p.body_html||'').replace(/<[^>]*>/g,'').substring(0,150)+'...');
   var ogTitle=document.querySelector('meta[property="og:title"]');if(ogTitle)ogTitle.setAttribute('content',p.title+' — Bargain Drop');
   var ogDesc=document.querySelector('meta[property="og:description"]');if(ogDesc)ogDesc.setAttribute('content','Shop '+p.title+' for only '+money(p.price)+' at Bargain Drop. Fast shipping, best prices.');
-  var ogImage=document.querySelector('meta[property="og:image"]');if(!ogImage){ogImage=document.createElement('meta');ogImage.setAttribute('property','og:image');document.head.appendChild(ogImage)}ogImage.setAttribute('content',p.image||(p.images||[])[0]||'');
+  var ogImage=document.querySelector('meta[property="og:image"]');if(!ogImage){ogImage=document.createElement('meta');ogImage.setAttribute('property','og:image');document.head.appendChild(ogImage)}ogImage.setAttribute('content',p.image||(Array.isArray(p.images)?p.images[0]:'')||'');
   var canonical=document.querySelector('link[rel="canonical"]');if(canonical)canonical.setAttribute('href','https://bargain-drop.online/product.html?id='+p.id);
   // Inject Product schema
   var existing=document.getElementById('product-schema');if(existing)existing.remove();
@@ -245,7 +245,7 @@ function showProduct(){
   schema.textContent=JSON.stringify({
     '@context':'https://schema.org','@type':'Product',
     'name':p.title,'description':(p.body_html||'').replace(/<[^>]*>/g,'').substring(0,200),
-    'image':p.image||(p.images||[])[0]||'',
+    'image':p.image||(Array.isArray(p.images)?p.images[0]:'')||'',
     'offers':{'@type':'Offer','price':p.price,'priceCurrency':'AUD','availability':'https://schema.org/InStock'},
     'sku':String(p.id)
   });
@@ -258,7 +258,7 @@ function showProduct(){
     var sv=document.getElementById('savings');if(sv){sv.innerHTML='Save '+money(save)+' ('+pct+'%)';sv.style.display=''}
   }
 
-  var imgs=p.images||[p.image];if(imgs.length>0){
+  var imgs=Array.isArray(p.images)?p.images:[p.image];if(imgs.length>0){
     allImages=imgs;var pi=document.getElementById('product-img');if(pi)pi.src=imgs[0];
     var dotsContainer=document.getElementById('gallery-dots');if(dotsContainer){dotsContainer.innerHTML='';
     if(imgs.length>1){
