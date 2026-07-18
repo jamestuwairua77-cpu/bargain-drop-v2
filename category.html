@@ -111,7 +111,8 @@ function fmtPrice(p){return 'A$'+Number(p||0).toFixed(2)}
       a.className = 'product-card fade-in';
       a.href = 'product.html?id=' + p.id;
       a.style.animationDelay = (i * 0.03) + 's';
-      var imgHtml = p.image
+      var img = p.image || (Array.isArray(p.images) ? p.images[0] : '') || '';
+       var imgHtml = img
         ? '<div class="prod-img"><img src="' + p.image + '" alt="' + esc(p.title) + '" width="200" height="200" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'"></div>'
         : '<div class="prod-img"><div class="prod-img-placeholder">📦</div></div>';
       var priceHtml = 'A$' + (Number(p.price||0).toFixed(2));
