@@ -50,7 +50,7 @@ for(var i=0;i<C.length;i++){
   a.className="cat-card";
   a.href="category.html?cat="+slug+"&name="+encodeURIComponent(name);
   var imgHtml=img?'<div class="cat-img"><img src="'+img+'" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=cat-img-placeholder>'+icon+'</div>\'"></div>':'<div class="cat-img-placeholder">'+icon+'</div>';
-  a.innerHTML=imgHtml+'<div class="cat-info"><div class="cat-name">'+name+'</div><div class="cat-count">'+count+' products →</div></div>';
+  a.innerHTML=imgHtml+'<div class="cat-info"><div class="cat-name">'+name+'</div><div class="cat-count">'Shop →</div></div>';
   g.appendChild(a);
 }
 </script>
