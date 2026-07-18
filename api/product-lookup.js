@@ -132,14 +132,57 @@ export default async function handler(req, res) {
 
     // Fallback 2: search in all-products.json (full product list with proper images)
     if (all && Array.isArray(all)) {
-      const product = all.find(p => String(p.id) === String(id))
-        || (category ? (() => {
-          try {
-            const catFile = require(`../../data/${category}.json`);
-            const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
-            return prods.find(p => String(p.id) === String(id));
-          } catch(e) { return null; }
-        })() : null);
+      let product = all.find(p => String(p.id) === String(id));
+    if (!product && category) {
+      try {
+        const catFile = require(`../../data/${category}.json`);
+        const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
+        product = prods.find(p => String(p.id) === String(id));
+        if (product) {
+          if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
+        }
+      } catch(e) {}
+    }
+    if (!product) {
+      // Brute force: search all known category files
+      const ALL_CATS = ['basic-jacket','man-jeans','man-shorts','man-sandals','mens-jackets',
+        'mens-long-sleeved','mens-shirts','mens-sweaters','lady-dresses','blazers','rompers',
+        'sweaters','skirts','blouses-and-shirts','flats','pumps','rings','earrings',
+        'bracelets-and-bangles','necklace-and-pendants','home-garden-and-furniture',
+        'home-improvement','home-office-storage','kitchen-storage','tool-sets',
+        'garden-tools','bags-and-shoes','womens-clothing','jewelry-and-watches',
+        'toys-kids-and-babies','sports-and-outdoors','health-beauty-and-hair',
+        'other','phones-and-accessories','consumer-electronics','night-lights',
+        'pet-furniture-tools','human-hair-wigs','synthetic-wigs','bikini-sets',
+        'body-care','facial-care','wigs','casual-shoes','womans-socks','womans-slippers',
+        'womans-sandals','woman-shorts','woman-hats-and-caps','scarves-and-wraps',
+        'womans-hoodies-and-sweatshirts','womans-long-sleeved','womans-short-sleeved',
+        'wide-leg-pants','cargo-pants','casual-pants','leggings','pants-and-capris',
+        'stage-and-dance-wear','dance-shoes','girl-clothing-sets','makeup-set',
+        'womens-bracelet-watches','dress-watches','quartz-watches','men-sports-watches',
+        'fashion-jewelry-sets','body-jewelry','leather-cases','silicone-cases',
+        'womens-crossbody-bags','totes','fashion-backpacks','baseball-caps',
+        'sports-accessories','vulcanize-shoe','pet-supplies','pet-toy-set',
+        'action-and-toy-figures','air-conditioning-appliances','smart-home-appliances',
+        'bathroom-storage','holders-and-stands','other-replacement-parts',
+        'other-maintenance-products','seasonal-products','storage-bottles-and-jars',
+        'face-skin-care-tools','massage-and-relaxation','audio-amplifiers',
+        'earphones-and-headphones','eyeshadow','lipstick','home-improvement-materials',
+        'cooking-tools','stationeries','solid','print','automobiles-motorcycles'
+      ];
+      for (const cat of ALL_CATS) {
+        try {
+          const catFile = require(`../../data/${cat}.json`);
+          const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
+          const p = prods.find(p => String(p.id) === String(id));
+          if (p) {
+            product = p;
+            if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
+            break;
+          }
+        } catch(e) { continue; }
+      }
+    }
       if (product) {
         if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
         const category = product.product_type || product.category || (typeof product.tags === 'string' ? product.tags : '');
