@@ -6,7 +6,7 @@ import { cors, shopifyFetch, SHOPIFY_TOKEN } from './_sync-lib.js';
 import crypto from 'crypto';
 
 const GH_TOKEN = process.env.GITHUB_TOKEN || '';
-const REPO = 'jamestuwairua77-cpu/bargain-drop-preview';
+const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 const GHAPI = 'https://api.github.com/repos/' + REPO;
 
 export const config = { api: { bodyParser: false } };
