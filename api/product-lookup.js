@@ -133,12 +133,7 @@ export default async function handler(req, res) {
     // Fallback 2: search in all-products.json (full product list with proper images)
     if (all && Array.isArray(all)) {
       let product = all.find(p => String(p.id) === String(id));
-    if (!product && category) {
-      try {
-        const catFile = await (await fetch(`${BASE}/data/${category}.json`)).json();
-        const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
-        product = prods.find(p => String(p.id) === String(id));
-        if (product) {
+    if (product) {
           if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
         }
       } catch(e) {}
