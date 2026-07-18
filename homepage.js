@@ -14,7 +14,7 @@ if(typeof BD!="undefined")BD.initCurrency();var C={"womens-clothing":"👗","men
     document.getElementById("product-grid").innerHTML="<div class=\"loading-text\">Products unavailable</div>"
   };
   x.send();
-})();function renderSubcatSlider(cats,catData){var g=document.getElementById("subcat-slider");if(!g)return;g.innerHTML="";var slugs=Object.keys(C);for(var k=0;k<slugs.length;k++){var s=slugs[k],c=catData[s]||{name:s,count:0};var a=document.createElement("a");a.className="subcat-btn fade-in";a.href="category.html?cat="+encodeURIComponent(s)+"&name="+encodeURIComponent(c.name||s);a.innerHTML=(C[s]||"📦")+esc(c.name||s)+"<span class=\"subcat-count\">"+(c.count||0)+"</span>";g.appendChild(a);}}
+})();function renderSubcatSlider(cats,catData){var g=document.getElementById("subcat-slider");if(!g)return;g.innerHTML="";var slugs=Object.keys(C);for(var k=0;k<slugs.length;k++){var s=slugs[k],c=catData[s]||{name:s,count:0};var a=document.createElement("a");a.className="subcat-btn fade-in";a.href="category.html?cat="+encodeURIComponent(s)+"&name="+encodeURIComponent(c.name||s);a.innerHTML=(C[s]||"📦")+esc(c.name||s);g.appendChild(a);}}
 
 
 
