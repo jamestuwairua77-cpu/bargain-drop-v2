@@ -111,20 +111,11 @@ function fmtPrice(p){return 'A$'+Number(p||0).toFixed(2)}
       a.className = 'product-card fade-in';
       a.href = 'product.html?id=' + p.id;
       a.style.animationDelay = (i * 0.03) + 's';
-      var img = p.image || (Array.isArray(p.images) && p.images.length ? p.images[0] : '') || '';
-       var imgHtml = img
-        ? '<div class="prod-img"><img src="' + (p.image || (Array.isArray(p.images)&&p.images.length&&p.images[0]) || '') + '" alt="' + esc(p.title) + '" width="200" height="200" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'"></div>'
+      var img = p.image || '';
+       var imgsArr = Array.isArray(p.images) && p.images.length ? p.images : [];
+       if (!img && imgsArr.length) img = imgsArr[0];
+       var imgHtml = img 
+        ? '<div class="prod-img"><img src="' + img + '" alt="' + esc(p.title) + '" width="200" height="200" loading="lazy" onerror="var fb=this.getAttribute(\'data-fb\');if(fb){var a=fb.split(\',\');var t=parseInt(this.getAttribute(\'data-tried\')||\'0\');if(t<a.length&&a[t]){this.src=a[t];this.setAttribute(\'data-tried\',t+1);return}}this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'" data-fb="' + imgsArr.join(',') + '" data-tried="0"></div>'
         : '<div class="prod-img"><div class="prod-img-placeholder">📦</div></div>';
-      var priceHtml = 'A$' + (Number(p.price||0).toFixed(2));
-      var pc = p.compare_at_price && p.compare_at_price > p.price ? '<span class="prod-compare">A$' + (p.compare_at_price||0).toFixed(2) + '</span>' : '';
-      a.innerHTML = imgHtml + '<div class="prod-info"><div class="prod-title">' + esc(p.title) + '</div><div class="prod-price-row"><span class="prod-price">' + priceHtml + '</span>' + pc + '</div></div>';
-      grid.appendChild(a);
-    }
-  }
-})();
-</script>
-<script>
-(function(){try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]");var n=c.reduce(function(s,i){return s+(i.qty||1)},0);var b=document.getElementById("nav-cart-count");if(b){b.textContent=n;b.style.display=n>0?"":"none"}}catch(e){}})();
-</script>
-
-</body></html>
+      
+>
