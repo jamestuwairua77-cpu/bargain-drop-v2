@@ -4,22 +4,26 @@
 
 let cachedData = null;
 let cachedIndex = null;
+let cachedAll = null; // fallback: all-products.json
 let cacheTime = 0;
 
 async function loadData() {
   const now = Date.now();
   if (cachedData && cachedIndex && (now - cacheTime) < 120000) {
-    return { data: cachedData, index: cachedIndex };
+    return { data: cachedData, index: cachedIndex, all: cachedAll };
   }
 
   const BASE = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main';
 
   try {
-    const [dataResp, idxResp] = await Promise.all([
+    const [dataResp, idxResp, allResp] = await Promise.all([
       fetch(`${BASE}/categories-data.json`, {
         headers: { 'Accept-Encoding': 'br', 'Cache-Control': 'no-cache' }
       }),
       fetch(`${BASE}/products-index.json`, {
+        headers: { 'Accept-Encoding': 'br', 'Cache-Control': 'no-cache' }
+      }),
+      fetch(`${BASE}/all-products.json`, {
         headers: { 'Accept-Encoding': 'br', 'Cache-Control': 'no-cache' }
       })
     ]);
@@ -30,6 +34,7 @@ async function loadData() {
 
     cachedData = await dataResp.json();
     cachedIndex = await idxResp.json();
+    if (allResp.ok) cachedAll = await allResp.json();
     cacheTime = now;
   } catch (e) {
     console.error('Failed to load data:', e.message);
@@ -38,18 +43,20 @@ async function loadData() {
       ? `https://${process.env.VERCEL_URL}`
       : 'https://bargain-drop.online';
     try {
-      const [dataResp2, idxResp2] = await Promise.all([
+      const [dataResp2, idxResp2, allResp2] = await Promise.all([
         fetch(`${base}/categories-data.json`, { headers: { 'Accept-Encoding': 'br' } }),
-        fetch(`${base}/products-index.json`, { headers: { 'Accept-Encoding': 'br' } })
+        fetch(`${base}/products-index.json`, { headers: { 'Accept-Encoding': 'br' } }),
+        fetch(`${base}/all-products.json`, { headers: { 'Accept-Encoding': 'br' } })
       ]);
       cachedData = await dataResp2.json();
       cachedIndex = await idxResp2.json();
+      if (allResp2.ok) cachedAll = await allResp2.json();
     } catch (e2) {
       console.error('Fallback also failed:', e2.message);
     }
   }
 
-  return { data: cachedData, index: cachedIndex };
+  return { data: cachedData, index: cachedIndex, all: cachedAll };
 }
 
 export default async function handler(req, res) {
@@ -60,7 +67,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data, index } = await loadData();
+    const { data, index, all } = await loadData();
 
     if (!data || !index) {
       return res.status(503).json({ error: 'Data not yet available' });
@@ -81,13 +88,24 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fallback: linear search
+    // Fallback 1: linear search in categories-data
     for (const [catName, catData] of Object.entries(data)) {
       const products = Array.isArray(catData) ? catData : (catData.products || []);
       const product = products.find(p => String(p.id) === String(id));
       if (product) {
         if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
         return res.status(200).json({ product, category: catName });
+      }
+    }
+
+    // Fallback 2: search in all-products.json (full product list)
+    if (all && Array.isArray(all)) {
+      const product = all.find(p => String(p.id) === String(id));
+      if (product) {
+        if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
+        // Infer category from product type or tags
+        const category = product.product_type || product.category || (typeof product.tags === 'string' ? product.tags : '');
+        return res.status(200).json({ product, category });
       }
     }
 
