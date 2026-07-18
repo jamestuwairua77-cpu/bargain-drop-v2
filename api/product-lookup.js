@@ -135,7 +135,7 @@ export default async function handler(req, res) {
       let product = all.find(p => String(p.id) === String(id));
     if (!product && category) {
       try {
-        const catFile = require(`../../data/${category}.json`);
+        const catFile = require(`../data/${category}.json`);
         const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
         product = prods.find(p => String(p.id) === String(id));
         if (product) {
@@ -172,7 +172,7 @@ export default async function handler(req, res) {
       ];
       for (const cat of ALL_CATS) {
         try {
-          const catFile = require(`../../data/${cat}.json`);
+          const catFile = require(`../data/${cat}.json`);
           const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
           const p = prods.find(p => String(p.id) === String(id));
           if (p) {
