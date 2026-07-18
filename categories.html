@@ -42,6 +42,7 @@ a{color:inherit;text-decoration:none}img{display:block;max-width:100%}
 <a href="profile.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="#777" stroke-width="2" fill="none"/></svg>Me</a>
 </nav>
 <script>
+(function(){
 var C=[["womens-clothing","Women's Clothing",300,"👗","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/a2327462-23ba-481e-ac4d-e049ee90d802.jpg?v=1784285826"],["mens-clothing","Men's Clothing",50,"👔","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/e7930618-2e49-4f89-a73d-5673ecb06fa6.jpg?v=1784285970"],["bags-shoes","Bags & Shoes",25,"👜","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/d3e501b3-a67a-43cf-b53f-b87cad3d77f6_cace79e8-033b-4655-8491-e69a3a563730.jpg?v=1784285902"],["jewelry-watches","Jewelry & Watches",55,"💍","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/aaebd6e7-80c3-4b23-8a31-085f1326da9d_6fd4517b-4f15-4772-a8b1-65daf49bc7e1.jpg?v=1784285898"],["home-garden-furniture","Home, Garden & Furniture",87,"🏡","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/856b557d-5507-4707-8aa6-9a316dabfd5c.jpg?v=1784286161"],["home-improvement","Home Improvement",63,"🔧","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/33217e99-303c-45ce-92c6-06f5d463610d_trans_7ec9341d-5822-4248-8b20-255c71e0210a.jpg?v=1784286297"],["health-beauty-hair","Health, Beauty & Hair",64,"💄","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/5f7c3486-60e0-4fb2-9262-6cadfcee8efa.jpg?v=1784285906"],["sports-outdoors","Sports & Outdoors",58,"⚽","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/5c77813d-8602-4caf-a526-eae440bf240c.jpg?v=1784285898"],["toys-kids-babies","Toys, Kids & Babies",50,"🧸","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/b2c6860c-4fa6-48b2-935b-3051e832e230_trans.jpg?v=1784286144"],["phones-accessories","Phones & Accessories",47,"📱","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/d703ac08-69cd-4a41-ac38-95b9b57e72f2_2c4a51f4-fbd2-4324-9809-a019e1f32097.jpg?v=1784286490"],["consumer-electronics","Consumer Electronics",74,"🎧","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/8aa99454-0ecc-4ecf-97e7-f94202af0b5d.png?v=1784304311"],["automobiles-motorcycles","Automobiles & Motorcycles",13,"🚗","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/d3970e07-fa75-40ab-a4bd-7d02ae841876.jpg?v=1784287531"],["pet-supplies","Pet Supplies",51,"🐾","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/81134403-be5c-4a3c-acfd-4795b47a0a52.jpg?v=1784287262"],["other","Other",78,"📦","https://cdn.shopify.com/s/files/1/0735/9404/4547/files/0143e773-ddee-4bef-b6f9-8092bbf19ccb_41ceff46-2496-4d64-912e-710617d0a83b.jpg?v=1784285889"]];
 var g=document.getElementById("cat-grid");
 for(var i=0;i<C.length;i++){
@@ -49,10 +50,16 @@ for(var i=0;i<C.length;i++){
   var a=document.createElement("a");
   a.className="cat-card";
   a.href="category.html?cat="+slug+"&name="+encodeURIComponent(name);
-  var imgHtml=img?'<div class="cat-img"><img src="'+img+'" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=cat-img-placeholder>'+icon+'</div>\'"></div>':'<div class="cat-img-placeholder">'+icon+'</div>';
-  a.innerHTML=imgHtml+'<div class="cat-info"><div class="cat-name">'+name+'</div><div class="cat-count">'Shop &rarr;</div></div>';
+  var imgHtml='';
+  if(img){
+    imgHtml='<div class="cat-img"><img src="'+img+'" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=cat-img-placeholder>'+icon+'<\/div>\'"><\/div>';
+  } else {
+    imgHtml='<div class="cat-img-placeholder">'+icon+'<\/div>';
+  }
+  a.innerHTML=imgHtml+'<div class="cat-info"><div class="cat-name">'+name+'<\/div><div class="cat-count">Shop \u2192<\/div><\/div>';
   g.appendChild(a);
 }
+})();
 </script>
 </body>
 </html>
