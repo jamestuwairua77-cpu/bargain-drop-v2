@@ -1,5 +1,5 @@
 // v1784408348
-if(typeof BD!="undefined")BD.initCurrency();var C={"Women's Clothing":"[dress]","Home,Garden&Furniture":"[home]","Jewelry&Watches":"[ring]","Automobiles&Motorcycles":"[car]","Health,Beauty&Hair":"[makeup]","Men's Clothing":"[shirt]","Bags&Shoes":"[bag]","Pet Supplies":"[paw]","Toys,Kids&Babies":"[toy]","Home Improvement":"[wrench]","Sports&Outdoors":"[ball]","Phones&Accessories":"[phone]","Consumer Electronics":"[headphones]","Other":"[box]"};function esc(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}var ALL=[];(function loadCats(){var x=new XMLHttpRequest();x.open("GET","/categories-index.json",true);x.timeout=10000;x.onload=function(){if(x.status>=200&&x.status<400){var d=JSON.parse(x.responseText);var cats=Object.keys(d);renderSubcatSlider(cats,d);renderSubcatGrid(cats,d);}};x.onerror=function(){document.getElementById("subcat-slider").innerHTML="<div class=\"loading-text\">Subcategories loading...</div>";document.getElementById("subcat-scroll-wrap").innerHTML="<div class=\"loading-text\">Categories loading...</div>";};x.send();})();(function loadProds(){
+if(typeof BD!="undefined")BD.initCurrency();var C={"womens-clothing":"👗","mens-clothing":"👔","bags-shoes":"👜","jewelry-watches":"💍","home-garden-furniture":"🏡","home-improvement":"🔧","health-beauty-hair":"💄","sports-outdoors":"⚽","toys-kids-babies":"🧸","phones-accessories":"📱","consumer-electronics":"🎧","automobiles-motorcycles":"🚗","pet-supplies":"🐾","other":"📦"};function esc(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}var ALL=[];(function loadCats(){var x=new XMLHttpRequest();x.open("GET","/categories-data.json",true);x.timeout=10000;x.onload=function(){if(x.status>=200&&x.status<400){var d=JSON.parse(x.responseText);var cats=Object.keys(d);renderSubcatSlider(cats,d);renderSubcatGrid(cats,d);}};x.onerror=function(){document.getElementById("subcat-slider").innerHTML="<div class=\"loading-text\">Subcategories loading...</div>";document.getElementById("subcat-scroll-wrap").innerHTML="<div class=\"loading-text\">Categories loading...</div>";};x.send();})();(function loadProds(){
   var x=new XMLHttpRequest();
   x.open("GET","/data/all-products.json",true);
   x.timeout=15000;
@@ -18,12 +18,11 @@ if(typeof BD!="undefined")BD.initCurrency();var C={"Women's Clothing":"[dress]",
   var g=document.getElementById("subcat-scroll-wrap");
   if(!g)return;
   g.innerHTML="";
-  var slugs=Object.keys(catData);
-  slugs.sort(function(a,b){return (catData[b].count||0)-(catData[a].count||0)});
+  var slugs=Object.keys(C);
   for(var i=0;i<slugs.length;i++){
-    var s=slugs[i],c=catData[s];
+    var s=slugs[i],c=catData[s]||{name:s,count:0};
     var img=c.image||"";
-    var imgHtml=img?'<div class="cat-card-img"><img src="'+img+'" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=cat-card-placeholder>📦</div>\'"></div>':'<div class="cat-card-placeholder">📦</div>';
+    var imgHtml=img?'<div class="cat-card-img"><img src="'+img+'" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=cat-card-placeholder>'+C[s]+'</div>\'"></div>':'<div class="cat-card-placeholder">'+(C[s]||"📦")+'</div>';
     var a=document.createElement("a");
     a.className="category-card-new fade-in";
     a.href="category.html?cat="+encodeURIComponent(s)+"&name="+encodeURIComponent(c.name||s);
