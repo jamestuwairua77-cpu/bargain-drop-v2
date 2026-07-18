@@ -132,7 +132,14 @@ export default async function handler(req, res) {
 
     // Fallback 2: search in all-products.json (full product list with proper images)
     if (all && Array.isArray(all)) {
-      const product = all.find(p => String(p.id) === String(id));
+      const product = all.find(p => String(p.id) === String(id))
+        || (category ? (() => {
+          try {
+            const catFile = require(`../../data/${category}.json`);
+            const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
+            return prods.find(p => String(p.id) === String(id));
+          } catch(e) { return null; }
+        })() : null);
       if (product) {
         if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
         const category = product.product_type || product.category || (typeof product.tags === 'string' ? product.tags : '');
@@ -140,18 +147,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fallback: search in categories-data.json
-    if (catData) {
-      for (const [catName, catEntry] of Object.entries(catData)) {
-        const prods = Array.isArray(catEntry) ? catEntry : (catEntry.products || []);
-        const product = prods.find(p => String(p.id) === String(id));
-        if (product) {
-          if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
-          const category = product.product_type || product.category || catName;
-          return res.status(200).json({ product, category });
-        }
-      }
-    }
     return res.status(404).json({ error: 'Product not found' });
   } catch (e) {
     return res.status(500).json({ error: 'Internal error', message: e.message });
