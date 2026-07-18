@@ -219,8 +219,9 @@ function renderRelatedProducts(){
       related.forEach(function(p){
         var a=document.createElement('a');a.className='product-card fade-in';a.href='product.html?id='+p.id;
         var ri=p.image||(p.images||[])[0]||'';
-        if(ri){a.innerHTML='<div class="prod-img"><img src="'+esc(ri)+'" alt="'+esc(p.title)+'" width="200" height="200" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'"></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span></div></div>'}
-        else{a.innerHTML='<div class="prod-img"><div class="prod-img-placeholder">📦</div></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span></div></div>'}
+        var pc=p.compare_at_price&&p.compare_at_price>p.price?'<span class="prod-compare">'+money(p.compare_at_price||0)+'</span>':'';
+        if(ri){a.innerHTML='<div class="prod-img"><img src="'+esc(ri)+'" alt="'+esc(p.title)+'" width="200" height="200" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'"></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span>'+pc+'</div></div>'}
+        else{a.innerHTML='<div class="prod-img"><div class="prod-img-placeholder">📦</div></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span>'+pc+'</div></div>'}
         grid.appendChild(a)
       })
     }catch(e){}

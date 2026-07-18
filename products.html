@@ -59,7 +59,7 @@ var all=[],display=[],pageSize=50,current=1;
     if(x.status>=200&&x.status<400){
       try{all=JSON.parse(x.responseText)}catch(e){all=[]}
       display=all.slice(0,pageSize);
-      renderProducts();
+      renderProds(display);
       document.getElementById("result-count").textContent=all.length+" products";
     }else{showEmpty()}
   };
