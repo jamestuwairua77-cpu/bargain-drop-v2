@@ -4,7 +4,7 @@
 
 let cachedData = null;
 let cachedIndex = null;
-let cachedAll = null; // fallback: all-products.json
+let cachedAll = null; // fallback: all-products.json; also used to merge proper images arrays
 let cacheTime = 0;
 
 async function loadData() {
@@ -59,6 +59,37 @@ async function loadData() {
   return { data: cachedData, index: cachedIndex, all: cachedAll };
 }
 
+// Build a lookup map from all-products for fast images array merging
+let allMap = null;
+function getAllMap() {
+  if (allMap && cachedAll) return allMap;
+  if (!cachedAll || !Array.isArray(cachedAll)) return null;
+  allMap = {};
+  for (const p of cachedAll) {
+    if (p.id) allMap[String(p.id)] = p;
+  }
+  return allMap;
+}
+
+// Enrich a product with proper images array from all-products.json
+function enrichProduct(product) {
+  if (!allMap) return product;
+  const full = allMap[String(product.id)];
+  if (!full) return product;
+  // Merge in the proper images array from all-products.json
+  if (Array.isArray(full.images) && full.images.length > 0) {
+    product.images = full.images;
+    // Also ensure primary image is set
+    if (!product.image && full.images.length > 0) {
+      product.image = full.images[0];
+    }
+  }
+  if (!product.image && full.image && full.image.trim()) {
+    product.image = full.image;
+  }
+  return product;
+}
+
 export default async function handler(req, res) {
   const { id } = req.query;
 
@@ -68,6 +99,7 @@ export default async function handler(req, res) {
 
   try {
     const { data, index, all } = await loadData();
+    getAllMap(); // ensure lookup map is built
 
     if (!data || !index) {
       return res.status(503).json({ error: 'Data not yet available' });
@@ -83,7 +115,7 @@ export default async function handler(req, res) {
         const product = products[idx];
         if (product && String(product.id) === String(id)) {
           if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
-          return res.status(200).json({ product, category: entry.category });
+          return res.status(200).json({ product: enrichProduct(product), category: entry.category });
         }
       }
     }
@@ -94,16 +126,15 @@ export default async function handler(req, res) {
       const product = products.find(p => String(p.id) === String(id));
       if (product) {
         if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
-        return res.status(200).json({ product, category: catName });
+        return res.status(200).json({ product: enrichProduct(product), category: catName });
       }
     }
 
-    // Fallback 2: search in all-products.json (full product list)
+    // Fallback 2: search in all-products.json (full product list with proper images)
     if (all && Array.isArray(all)) {
       const product = all.find(p => String(p.id) === String(id));
       if (product) {
         if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
-        // Infer category from product type or tags
         const category = product.product_type || product.category || (typeof product.tags === 'string' ? product.tags : '');
         return res.status(200).json({ product, category });
       }
