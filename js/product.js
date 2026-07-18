@@ -208,7 +208,7 @@ function renderRelatedProducts(){
   grid.innerHTML='<div class="loading-text">Loading related...</div>';
   var catFile=category.toLowerCase().replace(', ','-').replace(' & ','-').replace(' ','-').replace("'","")+'.json';
   var x=new XMLHttpRequest();
-  x.open('GET','https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-preview/main/data/'+catFile,true);
+  x.open('GET','https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/data/'+catFile,true);
   x.timeout=15000;
   x.onload=function(){
     if(x.status!==200)return;
