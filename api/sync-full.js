@@ -5,7 +5,7 @@
 const TOKEN = process.env.SHOPIFY_TOKEN || process.env.SHOPIFY_ACCESS_TOKEN || '';
 const SD = process.env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com';
 const GHTOKEN = process.env.GITHUB_TOKEN || '';
-const REPO = 'jamestuwairua77-cpu/bargain-drop-preview';
+const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 const API = 'https://' + SD + '/admin/api/2025-10';
 const GHAPI = 'https://api.github.com/repos/' + REPO;
 
