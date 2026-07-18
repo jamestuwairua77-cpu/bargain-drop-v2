@@ -1,7 +1,7 @@
 // Categories API - fetches from CDN directly
 export default async function handler(req, res) {
   try {
-    const r = await fetch("https://cdn.jsdelivr.net/gh/jamestuwairua77-cpu/bargain-drop-preview@main/categories-index.json");
+    const r = await fetch("https://cdn.jsdelivr.net/gh/jamestuwairua77-cpu/bargain-drop-v2@main/categories-index.json");
     const data = await r.json();
     res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600");
     res.setHeader("Access-Control-Allow-Origin", "*");
