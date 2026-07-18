@@ -12,7 +12,7 @@ async function loadData() {
     return { data: cachedData, index: cachedIndex };
   }
 
-  const BASE = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-preview/main';
+  const BASE = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main';
 
   try {
     const [dataResp, idxResp] = await Promise.all([
