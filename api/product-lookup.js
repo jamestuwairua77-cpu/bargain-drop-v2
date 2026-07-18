@@ -16,25 +16,30 @@ async function loadData() {
   const BASE = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main';
 
   try {
-    const [dataResp, idxResp, allResp] = await Promise.all([
-      fetch(`${BASE}/categories-data.json`, {
+    const [allResp, idxResp] = await Promise.all([
+      fetch(`${BASE}/data/all-products.json`, {
         headers: { 'Accept-Encoding': 'br', 'Cache-Control': 'no-cache' }
       }),
       fetch(`${BASE}/products-index.json`, {
         headers: { 'Accept-Encoding': 'br', 'Cache-Control': 'no-cache' }
-      }),
-      fetch(`${BASE}/all-products.json`, {
-        headers: { 'Accept-Encoding': 'br', 'Cache-Control': 'no-cache' }
       })
     ]);
 
-    if (!dataResp.ok || !idxResp.ok) {
-      throw new Error(`GitHub fetch failed: ${dataResp.status}/${idxResp.status}`);
+    if (!allResp.ok) {
+      throw new Error(`GitHub fetch failed: ${allResp.status}`);
     }
 
-    cachedData = await dataResp.json();
-    cachedIndex = await idxResp.json();
-    if (allResp.ok) cachedAll = await allResp.json();
+    cachedAll = await allResp.json();
+    if (idxResp.ok) cachedIndex = await idxResp.json();
+    
+    // Also load categories-data.json for category names/metadata
+    try {
+      const catResp = await fetch(`${BASE}/categories-data.json`, {
+        headers: { 'Accept-Encoding': 'br', 'Cache-Control': 'no-cache' }
+      });
+      if (catResp.ok) cachedData = await catResp.json();
+    } catch(catErr) {}
+    
     cacheTime = now;
   } catch (e) {
     console.error('Failed to load data:', e.message);
@@ -105,32 +110,19 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: 'Data not yet available' });
     }
 
-    // Try index lookup first
-    const entry = index[String(id)];
-    if (entry) {
-      const idx = entry.idx !== undefined ? entry.idx : entry.index;
-      const catData = data[entry.category];
-      if (catData && idx !== undefined) {
-        const products = Array.isArray(catData) ? catData : (catData.products || []);
-        const product = products[idx];
-        if (product && String(product.id) === String(id)) {
-          if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
-          return res.status(200).json({ product: enrichProduct(product), category: entry.category });
-        }
-      }
-    }
-
-    // Fallback 1: linear search in categories-data
-    for (const [catName, catData] of Object.entries(data)) {
-      const products = Array.isArray(catData) ? catData : (catData.products || []);
-      const product = products.find(p => String(p.id) === String(id));
+    // Primary: search in all-products.json (full product list with proper images)
+    if (all && Array.isArray(all)) {
+      const product = all.find(p => String(p.id) === String(id));
       if (product) {
         if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
-        return res.status(200).json({ product: enrichProduct(product), category: catName });
+        const category = product.product_type || product.category || '';
+        // Map product_type to main category slug for the "related products" feature
+        return res.status(200).json({ product: enrichProduct(product), category });
       }
     }
 
-    // Fallback 2: search in all-products.json (full product list with proper images)
+    // Fallback 1: search categories-data.json for category info, but products from all-products
+
     if (all && Array.isArray(all)) {
       const product = all.find(p => String(p.id) === String(id));
       if (product) {
