@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0,  user-scalable=no">
+<title>Checkout — Bargain Drop</title><link rel="canonical" href="https://bargain-drop.online/checkout.html">
+<meta name="description" content="Secure checkout at Bargain Drop — complete your order safely with Apple Pay, Google Pay, or credit card.">
+<style>
+:root{--bg:#fff;--fg:#111;--muted:#777;--line:#eee;--red:#e60023;--green:#10b981;--shopay:#5a31f4;--apple:#000}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8f8f8;color:var(--fg);padding-bottom:80px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:6px;text-decoration:none}
+.logo-text{font-size:1.15rem;font-weight:900}
+.logo-text .bd-b{background:linear-gradient(135deg,#e60023,#ff4757);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-text .bd-d{color:#111}
+.logo-icon{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#e60023,#ff6b81);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.65rem;font-weight:900;flex-shrink:0}
+.back-link{display:flex;align-items:center;gap:4px;color:#2563eb;font-size:.75rem;font-weight:600;text-decoration:none;padding:14px 14px 0}
+.checkout-wrap{padding:16px;max-width:700px;margin:0 auto}
+.section-title{font-size:.82rem;font-weight:800;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.form-card{background:#fff;border-radius:14px;border:1.5px solid var(--line);padding:18px;margin-bottom:12px}
+.form-row{display:flex;gap:10px;margin-bottom:12px}
+.form-group{flex:1;margin-bottom:12px}
+.form-group label{display:block;font-size:.65rem;font-weight:700;margin-bottom:4px;color:var(--muted)}
+.form-group input,.form-group select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:.72rem;outline:none}
+.summary-card{background:#fff;border-radius:14px;border:1.5px solid var(--line);padding:18px}
+.summary-row{display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:8px;color:var(--muted)}
+.summary-row.total{font-size:.9rem;font-weight:800;color:var(--fg);border-top:1px solid var(--line);padding-top:12px;margin-top:8px;margin-bottom:0}
+.pay-btns{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.pay-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:15px 20px;border:none;border-radius:14px;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;letter-spacing:.3px}
+.pay-btn:active{transform:scale(.985)}
+.pay-btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(1)}
+.pay-btn .btn-logo{flex-shrink:0;display:flex;align-items:center}
+.pay-btn .btn-text{line-height:1}
+.pay-btn .btn-sub{display:block;font-size:.58rem;font-weight:500;opacity:.75;margin-top:1px}
+/* Apple Pay */
+.btn-applepay{background:#000;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.btn-applepay:hover{box-shadow:0 4px 16px rgba(0,0,0,.3)}
+/* Google Pay */
+.btn-gpay{background:#fff;color:#3c4043;border:1.5px solid #dadce0;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.btn-gpay:hover{box-shadow:0 2px 8px rgba(0,0,0,.15);border-color:#bdc1c6}
+.btn-gpay .spinner{border-color:#5f6368;border-top-color:transparent}
+/* PayPal */
+.btn-paypal{background:#ffc439;color:#003087;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.btn-paypal:hover{box-shadow:0 4px 16px rgba(0,0,0,.18);background:#f5bb2a}
+.btn-paypal .spinner{border-color:#003087;border-top-color:transparent}
+.pay-paypal-wrapper{width:100%}
+.pay-paypal-wrapper .paypal-button{width:100%!important;border-radius:14px!important;overflow:hidden!important}
+/* Stripe */
+.btn-stripe{background:#635bff;color:#fff;box-shadow:0 2px 8px rgba(99,91,255,.25)}
+.btn-stripe:hover{box-shadow:0 4px 16px rgba(99,91,255,.4);background:#574deb}
+.pay-or{display:flex;align-items:center;gap:10px;font-size:.65rem;color:var(--muted)}
+.pay-or::before,.pay-or::after{content:'';flex:1;height:1px;background:var(--line)}
+.spinner{display:none;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+.pay-btn.loading .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pay-badges{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pay-badge{font-size:.6rem;color:var(--muted);display:flex;align-items:center;gap:4px}
+.error-box{display:none;color:var(--red);font-size:.7rem;text-align:center;margin-top:10px;padding:10px 14px;background:#fef2f2;border-radius:8px;line-height:1.5}
+.toast{position:fixed;bottom:140px;left:50%;transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:12px 22px;border-radius:30px;font-size:.78rem;font-weight:600;opacity:0;transition:all .25s;z-index:300;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.pp-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center}
+.pp-overlay.show{display:flex}
+.pp-dialog{background:#fff;border-radius:18px;padding:28px 20px 20px;max-width:380px;width:92%;position:relative;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.pp-dialog h3{font-size:.95rem;font-weight:800;margin-bottom:6px}
+.pp-dialog .pp-amount{font-size:1.2rem;font-weight:800;color:var(--red);margin-bottom:16px}
+.pp-dialog .pp-close{position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);line-height:1}
+.pp-dialog .pp-sub{font-size:.7rem;color:var(--muted);margin-top:10px}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:120;padding:4px 0 env(safe-area-inset-bottom,0)}
+.bottom-nav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px;font-size:.58rem;color:var(--muted);text-decoration:none}
+.nav-icon{width:20px;height:20px}
+</style>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=Afb8aEAzOEhf6Y80Sx3a4xNIVFIsyKGqXGAASYxlrg1O-K5hSxfqQCit-ClqREEhiWdLEw7lU49EXZFG&currency=AUD&intent=capture"></script>
+  <script src="https://pay.google.com/gp/p/js/pay.js"></script>
+
+<script src="js/currency.js"></script>
+</head>
+<body>
+<div class="header"><a href="/" class="logo"><div class="logo-icon">BD</div><span class="logo-text"><span class="bd-b">BARGAIN</span><span class="bd-d">DROP</span></span></a></div>
+<a href="cart.html" class="back-link">← Back to Cart</a>
+<div class="checkout-wrap">
+<div class="section-title">📦 Shipping Info</div>
+<div class="form-card">
+<div class="form-row"><div class="form-group"><label>First Name</label><input type="text" id="fname" placeholder="John"></div><div class="form-group"><label>Last Name</label><input type="text" id="lname" placeholder="Doe"></div></div>
+<div class="form-group"><label>Email</label><input type="email" id="email" placeholder="you@example.com"></div>
+<div class="form-group"><label>Address</label><input type="text" id="address" placeholder="123 Main Street"></div>
+<div class="form-row"><div class="form-group"><label>City</label><input type="text" id="city" placeholder="New York"></div><div class="form-group"><label>State</label><input type="text" id="state" placeholder="NY"></div><div class="form-group"><label>ZIP</label><input type="text" id="zip" placeholder="10001"></div></div>
+<div class="form-group"><label>Phone</label><input type="tel" id="phone" placeholder="+1 (555) 000-0000"></div>
+</div>
+<div class="section-title">💳 Payment</div>
+<div class="summary-card" id="summary">
+<div class="summary-row"><span>Subtotal</span><span id="summary-subtotal">$0.00</span></div>
+<div class="summary-row"><span>Shipping</span><span id="summary-shipping">—</span></div>
+<div class="summary-row total"><span>Total</span><span id="summary-total">$0.00</span></div>
+<div class="error-box" id="checkout-error"></div>
+<div class="pay-btns">
+  <!-- Apple Pay -->
+  <button class="pay-btn btn-applepay" id="pay-applepay" onclick="payWithApplePay()"><span class="spinner"></span><span class="btn-logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.52-3.24 0-1.44.67-2.2.48-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" fill="#fff"/></svg></span><span class="btn-text">Apple Pay</span><span class="btn-sub">Safari · iPhone · Mac</span></button>
+  <!-- Google Pay -->
+  <button class="pay-btn btn-gpay" id="pay-gpay" onclick="payWithGPay()"><span class="spinner"></span><span class="btn-logo"><svg width="24" height="24" viewBox="0 0 32 12.5"><path fill="#4285F4" d="M29.17 5.07c-.09-.42-.26-.8-.52-1.12H22.7v2.63h3.74a3.2 3.2 0 01-.92 1.6l.01.01v1.33h2.06c1.58-1.46 2.48-3.6 2.48-6.15 0-.62-.1-1.2-.25-1.73"/><path fill="#34A853" d="M22.7 11.77c2.25 0 4.14-.74 5.52-2.01l-2.06-1.6c-.57.38-1.3.61-2.13.61-1.64 0-3.04-1.1-3.54-2.6h-2.1v1.36c1.37 2.72 4.2 4.64 8.31 4.64z"/><path fill="#FBBC05" d="M19.53 7.55c-.13-.38-.2-.78-.2-1.2s.07-.83.2-1.2V4.25h-2.11a5.98 5.98 0 000 6.63l1.47-1.14a3.58 3.58 0 01.64-2.19z"/><path fill="#EA4335" d="M22.7 4.28c1.22 0 2.32.42 3.18 1.25l2.4-2.4C26.85 1.94 24.95 1.1 22.7 1.1c-4.1 0-6.94 2.53-8.31 5.24l2.11 1.64c.5-1.49 1.9-2.6 3.54-2.6"/></svg></span><span class="btn-text">Google Pay</span><span class="btn-sub">Chrome · Android</span></button>
+  <!-- PayPal -->
+  <div id="paypal-btn-container" class="pay-paypal-wrapper" style="width:100%;min-height:52px"></div>
+  <!-- Stripe -->
+  <button class="pay-btn btn-stripe" id="pay-stripe" onclick="payWithStripe()"><span class="spinner"></span><span class="btn-logo"><svg width="22" height="22" viewBox="0 0 32 14" fill="none"><rect x="1.5" y="1.5" width="29" height="11" rx="2.5" stroke="#fff" stroke-width="1.8" fill="none"/><path d="M11 4h-1.8l-.8 6h1.8l.8-6z" fill="#fff"/><path d="M15 4l-1.2 3-1-3h-1.8l2 5-1.2 2h1.8l3.2-7h-2z" fill="#fff"/><path d="M19.5 4v6.5h1.8v-2.5l2 2.5h2.2l-2.5-3 2.5-3.5h-2.2l-2 3v-3h-1.8z" fill="#fff"/></svg></span><span class="btn-text">Pay with Stripe</span><span class="btn-sub">Card • Afterpay • Klarna • Zip • Link</span></button>
+</div>
+<div class="pay-badges">
+<div class="pay-badge">🔒 SSL Encrypted &bull; Secure Checkout</div>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="pp-overlay" id="pp-overlay">
+<div class="pp-dialog">
+<button class="pp-close" onclick="closePayPal()">&times;</button>
+<h3>Pay with PayPal</h3>
+<div class="pp-amount" id="pp-amount">$0.00</div>
+<div id="pp-btn-container"></div>
+<div class="pp-sub">You will be redirected to PayPal to complete payment</div>
+</div>
+</div>
+
+<nav class="bottom-nav">
+<a href="/" class="active"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3" stroke="#777" stroke-width="2" fill="none"/></svg>Home</a>
+<a href="products.html"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="#777" stroke-width="1.5" fill="none"/></svg>Products</a>
+<a href="categories.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#777" stroke-width="2"/></svg>Categories</a>
+<a href="wishlist.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="#777" stroke-width="1.5" fill="none"/></svg>Wishlist</a>
+<a href="cart.html" style="position:relative"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="#777"/><circle cx="20" cy="21" r="1" fill="#777"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" stroke="#777" stroke-width="1.8" fill="none"/></svg><span id="nav-cart-count" style="position:absolute;top:-2px;right:-2px;background:#e60023;color:#fff;font-size:.55rem;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;font-weight:700">0</span></a>
+<a href="profile.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="#777" stroke-width="2" fill="none"/></svg>Me</a>
+</nav>
+<script>
+var API_BASE = window.location.origin;
+var STRIPE_PK='';
+fetch(API_BASE+'/api/stripe-pk').then(function(r){return r.json()}).then(function(d){STRIPE_PK=d.key;}).catch(function(){});
+try { BD.initCurrency().then(function(){
+var cart=JSON.parse(localStorage.getItem('bd_cart')||'[]');
+var subtotal=cart.reduce(function(s,i){return s+(i.price||0)*(i.qty||1)},0);
+var shipping=subtotal>BD.convert(41)?0:BD.convert(8.44);
+var total=subtotal+shipping;
+document.getElementById('summary-subtotal').textContent=BD.formatMoneyCompact(subtotal);
+document.getElementById('summary-shipping').textContent=shipping===0?'FREE':BD.formatMoneyCompact(shipping);
+document.getElementById('summary-total').textContent=BD.formatMoneyCompact(total);
+
+// --- Toast ---
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2500);}
+
+// --- Error display ---
+function showError(msg){
+  var el=document.getElementById('checkout-error');
+  el.textContent=msg;el.style.display='block';
+  setTimeout(function(){el.style.display='none'},8000);
+}
+
+// --- Shipping info ---
+function getShippingInfo(){
+  return {
+    fname:document.getElementById('fname').value.trim(),
+    lname:document.getElementById('lname').value.trim(),
+    email:document.getElementById('email').value.trim(),
+    addr:document.getElementById('address').value.trim(),
+    city:document.getElementById('city').value.trim(),
+    state:document.getElementById('state').value.trim(),
+    zip:document.getElementById('zip').value.trim(),
+    phone:document.getElementById('phone').value.trim()
+  };
+}
+
+function validateShip(s){
+  if(!s.fname||!s.lname||!s.email||!s.addr){showError('Please fill in all shipping fields');return false}
+  if(!s.email.includes('@')){showError('Please enter a valid email address');return false}
+  return true;
+}
+
+// --- Order saving ---
+function saveOrder(oid,email,fname,lname,method){
+  var order={id:oid,status:'unpaid',count:cart.length,total:total,date:new Date().toISOString(),items:cart.slice(),email:email,name:fname+' '+lname,payment:method};
+  var orders=JSON.parse(localStorage.getItem('bd_orders')||'[]');orders.push(order);
+  localStorage.setItem('bd_orders',JSON.stringify(orders));
+  return order;
+}
+
+// --- Disable all payment buttons during processing ---
+function setAllBtnsDisabled(d){
+  var btns=['pay-applepay','pay-gpay','pay-stripe'];
+  btns.forEach(function(id){var b=document.getElementById(id);if(b)b.disabled=d;});
+}
+
+// --- Build line items ---
+function buildLineItems(){
+  return cart.map(function(item){
+    return {
+      price_data:{
+        currency:(BD.getCurrency()||'AUD').toLowerCase(),
+        product_data:{name:(item.title||'Product').substring(0,200),images:item.image?[item.image]:[]},
+        unit_amount:Math.round((item.price||0)*100)
+      },
+      quantity:item.qty||1
+    };
+  });
+}
+
+// Payment functions below
+// --- Stripe Checkout (automatic payment methods: card + all activated in dashboard) ---
+async function stripeCheckout(oid,s,pm){
+  var label=pm==='paypal'?'PayPal':pm==='card'?'Card':'Stripe';
+  try{
+    var shipping_options=shipping>0?[{
+      shipping_rate_data:{display_name:'Standard Shipping',type:'fixed_amount',
+      fixed_amount:{amount:Math.round(shipping*100),currency:(BD.getCurrency()||'AUD').toLowerCase()}}
+    }]:[];
+
+    var body={
+      line_items:buildLineItems(),
+      customer_email:s.email,
+      success_url:API_BASE+'/order-success.html?id='+oid,
+      cancel_url:API_BASE+'/checkout.html',
+      metadata:{order_id:oid,source:'bargain-drop-v10'},
+      payment_method:pm||null,
+      shipping_options:shipping_options
+    };
+
+    var resp=await fetch(API_BASE+'/api/create-checkout-session',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+
+    if(!resp.ok){
+      var errText='';
+      try{var ed=await resp.json();errText=ed.error||JSON.stringify(ed)}catch(e){errText='Server error ('+resp.status+')'}
+      throw new Error(errText);
+    }
+
+    var data=await resp.json();
+    if(data.url){
+      window.location.href=data.url;
+    }else{
+      throw new Error('No checkout URL returned');
+    }
+  }catch(e){
+    showError(label+' failed: '+e.message+' — Please try another method');
+    setAllBtnsDisabled(false);
+    ['pay-applepay','pay-gpay','pay-stripe'].forEach(function(id){var b=document.getElementById(id);if(b)b.classList.remove('loading');});
+  }
+}
+
+// --- PAYMENT BUTTON HANDLERS ---
+
+window.payWithApplePay = async function(){
+  if(cart.length===0){showError('Your cart is empty');return}
+  var s=getShippingInfo();if(!validateShip(s))return;
+  var btn=document.getElementById('pay-applepay');
+  
+  if(!window.ApplePaySession||!ApplePaySession.canMakePayments()){
+    showError('Apple Pay requires Safari on iPhone, iPad, or Mac');
+    return;
+  }
+  
+  btn.classList.add('loading');setAllBtnsDisabled(true);
+  var totalCents=Math.round(total*100);
+  
+  try{
+    var session=new ApplePaySession(6,{
+      countryCode:'AU',currencyCode:(BD.getCurrency()||'AUD'),
+      supportedNetworks:['visa','masterCard','amex'],
+      merchantCapabilities:['supports3DS','supportsCredit','supportsDebit','supportsEMV'],
+      total:{label:'Bargain Drop',amount:(totalCents/100).toFixed(2)},
+      requiredBillingContactFields:['postalAddress','name','email']
+    });
+
+    session.onvalidatemerchant=async function(ev){
+      try{
+        var mr=await fetch(API_BASE+'/api/apple-pay-session',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({validationURL:ev.validationURL})
+        });
+        var ms=await mr.json();
+        session.completeMerchantValidation(ms);
+      }catch(ve){session.abort();btn.classList.remove('loading');setAllBtnsDisabled(false);showError('Apple Pay merchant validation failed');}
+    };
+
+    session.onpaymentauthorized=async function(ev){
+      try{
+        // Send Apple Pay token to our server (ZERO Stripe.js)
+        var resp=await fetch(API_BASE+'/api/apple-pay-process',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            paymentData:btoa(JSON.stringify(ev.payment.token.paymentData)),
+            paymentMethod:ev.payment.token.paymentMethod,
+            transactionIdentifier:ev.payment.token.transactionIdentifier,
+            amount:totalCents,
+            currency:(BD.getCurrency()||'AUD'),
+            email:s.email
+          })
+        });
+        var data=await resp.json();
+        if(!data.success){session.completePayment(ApplePaySession.STATUS_FAILURE);throw new Error(data.error||'Payment failed')}
+        session.completePayment(ApplePaySession.STATUS_SUCCESS);
+        var oid='BD-AP-'+Date.now().toString(36).toUpperCase();
+        saveOrder(oid,s.email,s.fname,s.lname,'Apple Pay');
+        window.location.href=API_BASE+'/order-success.html?id='+oid;
+      }catch(er){
+        session.completePayment(ApplePaySession.STATUS_FAILURE);
+        btn.classList.remove('loading');setAllBtnsDisabled(false);
+        showError('Apple Pay: '+er.message);
+      }
+    };
+
+    session.oncancel=function(){btn.classList.remove('loading');setAllBtnsDisabled(false)};
+    session.begin();
+  }catch(e){
+    btn.classList.remove('loading');setAllBtnsDisabled(false);
+    showError('Apple Pay error: '+e.message);
+  }
+};
+window.payWithGPay = async function(){
+  if(cart.length===0){showError('Your cart is empty');return}
+  var s=getShippingInfo();if(!validateShip(s))return;
+  var btn=document.getElementById('pay-gpay');
+  btn.classList.add('loading');setAllBtnsDisabled(true);
+  var totalCents=Math.round(total*100);
+
+  if(typeof google==='undefined'||!google.payments||!google.payments.api){
+    btn.classList.remove('loading');setAllBtnsDisabled(false);
+    showError('Google Pay requires Chrome browser');
+    return;
+  }
+
+  try{
+    var pkResp=await fetch(API_BASE+'/api/stripe-pk');
+    var pkData=await pkResp.json();
+    var pubKey=pkData.key||STRIPE_PK;
+
+    var gpayClient=new google.payments.api.PaymentsClient({environment:'PRODUCTION'});
+    var gpayReq={
+      apiVersion:2,apiVersionMinor:0,
+      allowedPaymentMethods:[{
+        type:'CARD',
+        parameters:{allowedAuthMethods:['PAN_ONLY','CRYPTOGRAM_3DS'],allowedCardNetworks:['VISA','MASTERCARD','AMEX'],billingAddressRequired:true},
+        tokenizationSpecification:{type:'PAYMENT_GATEWAY',parameters:{gateway:'stripe','stripe:version':'2018-11-08','stripe:publishableKey':pubKey}}
+      }],
+      merchantInfo:{merchantName:'Bargain Drop'},
+      transactionInfo:{totalPriceStatus:'FINAL',totalPriceLabel:'Total',totalPrice:(totalCents/100).toFixed(2),currencyCode:(BD.getCurrency()||'AUD'),countryCode:'AU'}
+    };
+
+    var readyReq={apiVersion:2,apiVersionMinor:0,allowedPaymentMethods:gpayReq.allowedPaymentMethods,existingPaymentMethodRequired:false};
+    var ready=await gpayClient.isReadyToPay(readyReq);
+    
+    if(!ready.result){
+      btn.classList.remove('loading');setAllBtnsDisabled(false);
+      showError('Google Pay requires a saved card in Chrome. Go to pay.google.com, add a card, then refresh.');
+      return;
+    }
+
+    var paymentData=await gpayClient.loadPaymentData(gpayReq);
+    var gpToken=JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
+    
+    var resp=await fetch(API_BASE+'/api/gpay-stripe-process',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:gpToken.id,amount:totalCents,currency:(BD.getCurrency()||'AUD'),email:s.email})
+    });
+    var data=await resp.json();
+    if(!data.success)throw new Error(data.error||'Payment failed');
+    
+    var oid='BD-GP-'+Date.now().toString(36).toUpperCase();
+    saveOrder(oid,s.email,s.fname,s.lname,'Google Pay');
+    window.location.href=API_BASE+'/order-success.html?id='+oid;
+
+  }catch(e){
+    btn.classList.remove('loading');setAllBtnsDisabled(false);
+    showError('Google Pay: '+e.message);
+  }
+};// PayPal SDK — authentic PayPal native popup
+// PayPal — SDK loaded in <head>, just render once available
+(function initPayPal(){
+  function renderPP(){
+    if(typeof paypal==='undefined'){setTimeout(renderPP,200);return;}
+    paypal.Buttons({
+      style:{layout:'horizontal',color:'gold',shape:'rect',label:'paypal',height:48,tagline:false},
+      onClick:function(data,actions){
+        if(cart.length===0){showError('Cart is empty');return actions.reject();}
+        var s=getShippingInfo();
+        if(!s.fname||!s.lname||!s.email||!s.addr){showError('Fill in shipping info');return actions.reject();}
+        setAllBtnsDisabled(true);
+        var oid='BD-PP-'+Date.now().toString(36).toUpperCase();
+        saveOrder(oid,s.email,s.fname,s.lname,'PayPal');
+        window._ppOid=oid;
+        return actions.resolve();
+      },
+      createOrder:function(data,actions){
+        return actions.order.create({
+          purchase_units:[{amount:{value:total.toFixed(2),currency_code:'AUD'},description:'Bargain Drop Order'}]
+        });
+      },
+      onApprove:function(data,actions){
+        return actions.order.capture().then(function(){
+          window.location.href=API_BASE+'/order-success.html?id='+(window._ppOid||'');
+        });
+      },
+      onError:function(err){setAllBtnsDisabled(false);showError('PayPal: '+(err.message||err));},
+      onCancel:function(){setAllBtnsDisabled(false);}
+    }).render('#paypal-btn-container');
+  }
+  renderPP();
+})();
+
+window.payWithStripe = async function(){
+  if(cart.length===0){showError('Your cart is empty');return}
+  var s=getShippingInfo();if(!validateShip(s))return;
+  var btn=document.getElementById('pay-stripe');
+  btn.classList.add('loading');setAllBtnsDisabled(true);
+  var oid='BD-CC-'+Date.now().toString(36).toUpperCase();
+  saveOrder(oid,s.email,s.fname,s.lname,'Stripe');
+  await stripeCheckout(oid,s);
+};
+
+// Apple Pay availability
+// Always show — error message handles unsupported devices
+(function(){
+  var ap=document.getElementById('pay-applepay');
+  var gp=document.getElementById('pay-gpay');
+  ap.style.display='flex';gp.style.display='flex';
+  ap.style.opacity='1';gp.style.opacity='1';
+})();
+
+
+}).catch(function(e){console.error('Init failed:',e);document.getElementById('checkout-error').style.display='block';document.getElementById('checkout-error').textContent='Loading error — please refresh the page';});
+}catch(e){console.error('BD error:',e);}
+</script>
+
+</body></html>
