@@ -30,7 +30,7 @@ function renderSubcatGrid(cats,catData){
     var a=document.createElement("a");
     a.className="category-card-new fade-in";
     a.href="category.html?cat="+encodeURIComponent(s)+"&name="+encodeURIComponent(c.name||s);
-    a.innerHTML=imgHtml+'<div class="cat-card-info"><div class="cat-card-name">'+esc(c.name||s)+'</div><div class="cat-card-count">'+(c.count||0)+' products →</div></div>';
+    a.innerHTML=imgHtml+'<div class="cat-card-info"><div class="cat-card-name">'+esc(c.name||s)+'</div><div class="cat-card-count">'+(c.count||0)+' →</div></div>';
     g.appendChild(a);
   }
 }
