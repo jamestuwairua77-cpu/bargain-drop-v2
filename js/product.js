@@ -15,7 +15,7 @@ function addToCart(){
   if(!product)return;
   var c=JSON.parse(localStorage.getItem('bd_cart')||'[]'),e=c.findIndex(function(x){return x.id===product.id});
   var sv=Object.keys(selectedVariants).length>0?Object.values(selectedVariants).filter(Boolean).join(' / '):null;
-  if(e>=0)c[e].qty+=qty;else c.push({id:product.id,title:product.title,price:product.price,image:product.image||(product.images||[])[0]||'',qty:qty,variant:sv});
+  if(e>=0)c[e].qty+=qty;else c.push({id:product.id,title:product.title,price:product.price,image:product.image||(Array.isArray(product.images)?product.images[0]:'')||'',qty:qty,variant:sv});
   localStorage.setItem('bd_cart',JSON.stringify(c));updateCartCount();showToast('Added '+qty+' to cart!')
 }
 function buyNow(){addToCart();location.href='checkout.html'}
@@ -23,7 +23,7 @@ function toggleWishlist(){
   var b=document.getElementById('wishlist-btn');if(!product){showToast('Product still loading...');return}
   var w=JSON.parse(localStorage.getItem('bd_wishlist')||'[]'),idx=w.findIndex(function(x){return x.id===product.id});
   if(idx>=0){w.splice(idx,1);b.classList.remove('wishlisted');showToast('Removed from wishlist')}
-  else{w.push({id:product.id,title:product.title,price:product.price,image:product.image||(product.images||[])[0]||'',category:product.category,added:new Date().toISOString()});b.classList.add('wishlisted');showToast('Added to wishlist ♡')}
+  else{w.push({id:product.id,title:product.title,price:product.price,image:product.image||(Array.isArray(product.images)?product.images[0]:'')||'',category:product.category,added:new Date().toISOString()});b.classList.add('wishlisted');showToast('Added to wishlist ♡')}
   localStorage.setItem('bd_wishlist',JSON.stringify(w))
 }
 function changeQty(d){qty=Math.max(1,qty+d);var e=document.getElementById('qty-value');if(e)e.textContent=qty;var m=document.getElementById('qty-minus');if(m)m.disabled=qty<=1;var p=document.getElementById('qty-plus');if(p)p.disabled=qty>=99}
@@ -258,7 +258,7 @@ function showProduct(){
     var sv=document.getElementById('savings');if(sv){sv.innerHTML='Save '+money(save)+' ('+pct+'%)';sv.style.display=''}
   }
 
-  var imgs=Array.isArray(p.images)?p.images:[p.image];if(imgs.length>0){
+  var imgs=Array.isArray(p.images)?p.images:(p.image?[p.image]:[]);if(imgs.length>0){
     allImages=imgs;var pi=document.getElementById('product-img');if(pi)pi.src=imgs[0];
     var dotsContainer=document.getElementById('gallery-dots');if(dotsContainer){dotsContainer.innerHTML='';
     if(imgs.length>1){
