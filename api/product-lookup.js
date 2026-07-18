@@ -135,7 +135,7 @@ export default async function handler(req, res) {
       let product = all.find(p => String(p.id) === String(id));
     if (!product && category) {
       try {
-        const catFile = require(`../data/${category}.json`);
+        const catFile = await (await fetch(`${BASE}/data/${category}.json`)).json();
         const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
         product = prods.find(p => String(p.id) === String(id));
         if (product) {
@@ -144,7 +144,8 @@ export default async function handler(req, res) {
       } catch(e) {}
     }
     if (!product) {
-      // Brute force: search all known category files
+      // Brute force: fetch from GitHub raw
+      const BASE = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/data';
       const ALL_CATS = ['basic-jacket','man-jeans','man-shorts','man-sandals','mens-jackets',
         'mens-long-sleeved','mens-shirts','mens-sweaters','lady-dresses','blazers','rompers',
         'sweaters','skirts','blouses-and-shirts','flats','pumps','rings','earrings',
@@ -170,20 +171,20 @@ export default async function handler(req, res) {
         'earphones-and-headphones','eyeshadow','lipstick','home-improvement-materials',
         'cooking-tools','stationeries','solid','print','automobiles-motorcycles'
       ];
-      for (const cat of ALL_CATS) {
-        try {
-          const catFile = require(`../data/${cat}.json`);
-          const prods = Array.isArray(catFile) ? catFile : (catFile.products || []);
-          const p = prods.find(p => String(p.id) === String(id));
-          if (p) {
-            product = p;
-            if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
-            break;
-          }
-        } catch(e) { continue; }
+      const results = await Promise.allSettled(
+        ALL_CATS.map(cat => fetch(`${BASE}/${cat}.json`).then(r => r.ok ? r.json() : null).catch(() => null))
+      );
+      for (const r of results) {
+        if (!r.value) continue;
+        const prods = Array.isArray(r.value) ? r.value : (r.value.products || []);
+        const p = prods.find(p => String(p.id) === String(id));
+        if (p) {
+          product = p;
+          if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
+          break;
+        }
       }
-    }
-      if (product) {
+    }      if (product) {
         if (Array.isArray(product.tags)) product.tags = product.tags.join(',');
         const category = product.product_type || product.category || (typeof product.tags === 'string' ? product.tags : '');
         return res.status(200).json({ product, category });
