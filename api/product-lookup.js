@@ -140,7 +140,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fallback: try fetching from the category data files on GitHub
+    // Fallback 1: search category data files on GitHub raw
     const CATS = ['basic-jacket','man-jeans','man-shorts','man-sandals','mens-jackets',
       'mens-long-sleeved','mens-shirts','mens-sweaters'];
     for (const c of CATS) {
@@ -156,13 +156,11 @@ export default async function handler(req, res) {
         }
       } catch(e) { continue; }
     }
-    return res.status(404).json({ error: 'Product not found' });
-    }
 
-    // Final fallback: try CJ Dropshipping API for this product
-    try {
-      const CJ_KEY = process.env.CJ_ACCESS_TOKEN || '';
-      if (CJ_KEY) {
+    // Fallback 2: try CJ Dropshipping API
+    const CJ_KEY = process.env.CJ_ACCESS_TOKEN || '';
+    if (CJ_KEY) {
+      try {
         const cjAuth = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -175,22 +173,22 @@ export default async function handler(req, res) {
           }).then(r => r.json());
           if (cjProd?.data) {
             const p = cjProd.data;
-            const product = {
-              id: String(id),
-              title: p.productNameEn || p.productName || '',
-              price: Number(p.sellPrice || p.variants?.[0]?.sellPrice || 0),
-              image: p.mainImage || p.images?.[0] || '',
-              images: p.images || [],
-              body_html: p.description || p.brief || '',
-              vendor: 'CJ Dropshipping',
-              product_type: p.categoryName || '',
-            };
-            return res.status(200).json({ product, category: product.product_type });
+            return res.status(200).json({
+              product: {
+                id: String(id),
+                title: p.productNameEn || p.productName || '',
+                price: Number(p.sellPrice || p.variants?.[0]?.sellPrice || 0),
+                image: p.mainImage || p.images?.[0] || '',
+                images: p.images || [],
+                body_html: p.description || p.brief || '',
+                vendor: 'CJ Dropshipping',
+                product_type: p.categoryName || '',
+              },
+              category: p.categoryName || ''
+            });
           }
         }
-      }
-    } catch(e) {
-      // CJ fallback failed, continue to 404
+      } catch(e) {}
     }
 
     return res.status(404).json({ error: 'Product not found' });
