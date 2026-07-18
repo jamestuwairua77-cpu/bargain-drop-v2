@@ -157,6 +157,43 @@ export default async function handler(req, res) {
       } catch(e) { continue; }
     }
     return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Final fallback: try CJ Dropshipping API for this product
+    try {
+      const CJ_KEY = process.env.CJ_ACCESS_TOKEN || '';
+      if (CJ_KEY) {
+        const cjAuth = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: CJ_KEY }),
+        }).then(r => r.json());
+        const cjToken = cjAuth?.data?.accessToken;
+        if (cjToken) {
+          const cjProd = await fetch(`https://developers.cjdropshipping.com/api2.0/v1/product/${encodeURIComponent(id)}`, {
+            headers: { 'CJ-Access-Token': cjToken },
+          }).then(r => r.json());
+          if (cjProd?.data) {
+            const p = cjProd.data;
+            const product = {
+              id: String(id),
+              title: p.productNameEn || p.productName || '',
+              price: Number(p.sellPrice || p.variants?.[0]?.sellPrice || 0),
+              image: p.mainImage || p.images?.[0] || '',
+              images: p.images || [],
+              body_html: p.description || p.brief || '',
+              vendor: 'CJ Dropshipping',
+              product_type: p.categoryName || '',
+            };
+            return res.status(200).json({ product, category: product.product_type });
+          }
+        }
+      }
+    } catch(e) {
+      // CJ fallback failed, continue to 404
+    }
+
+    return res.status(404).json({ error: 'Product not found' });
   } catch (e) {
     return res.status(500).json({ error: 'Internal error', message: e.message });
   }
