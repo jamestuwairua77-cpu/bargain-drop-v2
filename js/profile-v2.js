@@ -1,0 +1,8 @@
+var _nl=0;window.addEventListener("scroll",function(){var n=document.getElementById("nb"),s=window.scrollY;if(!n)return;if(s<_nl||s<100)n.classList.remove("hi");else if(s>_nl&&s>200)n.classList.add("hi");_nl=s},{passive:true});
+function tm(){var m=document.getElementById("nm"),o=document.getElementById("nmo");if(!m||!o)return;m.classList.toggle("on");o.classList.toggle("on");document.body.style.overflow=m.classList.contains("on")?"hidden":""}
+function signOut(){localStorage.clear();toast("Signed out");setTimeout(function(){location.href="/"},1500)}
+function toast(m){var t=document.getElementById("to");t.textContent=m;t.classList.add("on");clearTimeout(t._tid);t._tid=setTimeout(function(){t.classList.remove("on")},2000)}
+try{var cart=JSON.parse(localStorage.getItem("bd_cart")||"[]"),cn=cart.reduce(function(s,i){return s+(i.qty||1)},0),cb=document.getElementById("ncb");if(cb&&cn>0){cb.textContent=cn;cb.style.display=""}}catch(e){}
+try{var wl=JSON.parse(localStorage.getItem("bd_wishlists_v2")||"null");if(wl&&wl.items)document.getElementById("wl-badge").textContent=wl.items.length+" items"}catch(e){}
+document.querySelectorAll(".currency-pill").forEach(function(p){p.onclick=function(){document.querySelectorAll(".currency-pill").forEach(function(x){x.classList.remove("active")});p.classList.add("active");localStorage.setItem("bd_currency",p.dataset.curr);toast("Currency: "+p.dataset.curr)}});
+try{var curr=localStorage.getItem("bd_currency");if(curr){var cp=document.querySelector('.currency-pill[data-curr="'+curr+'"]');if(cp){document.querySelectorAll(".currency-pill").forEach(function(x){x.classList.remove("active")});cp.classList.add("active")}}}catch(e){}
