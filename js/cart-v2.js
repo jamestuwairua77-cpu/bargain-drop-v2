@@ -13,5 +13,5 @@ function tp(){document.getElementById('pf').classList.toggle('on')}
 function ap(){var c=(document.getElementById('pi').value||'').trim().toUpperCase();if(!c){toast('Enter code');return}var it=getCart(),sub=it.reduce(function(s,i){return s+toNum(i.price)*(i.qty||1)},0);if(c==='SAVE10'){pd=Math.round(sub*0.1*100)/100;pc='SAVE10'}else if(c==='FREESHIP'){pd=0;pc='FREESHIP'}else{toast('Invalid');return}document.getElementById('pf').classList.remove('on');document.getElementById('pa').classList.add('on');document.getElementById('pcn').textContent=pc;document.getElementById('psv').textContent=pd>0?'-'+fmt(pd):'Free';document.getElementById('pi').value='';us();toast('Applied')}
 function rp(){pc='';pd=0;document.getElementById('pa').classList.remove('on');us();toast('Removed')}
 function toast(msg){var t=document.getElementById('to');t.textContent=msg;t.classList.add('on');clearTimeout(t._tid);t._tid=setTimeout(function(){t.classList.remove('on')},2000)}
-function un(){try{var it=getCart(),n=it.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById('ncb');if(b){b.textContent=n;b.style.display=n>0?''':''none'}}catch(e){}}
+function un(){try{var it=getCart(),n=it.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById('ncb');if(b){b.textContent=n;b.style.display=n>0?''':'none'}}catch(e){}}
 renderCart();un();
