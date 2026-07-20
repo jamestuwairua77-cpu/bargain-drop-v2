@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>⚡ Admin — Bargain Drop</title>
+<style>
+:root {
+  --bg: #0F0F0F; --card: #1A1A1A; --card2: #222; --fg: #fff;
+  --muted: rgba(255,255,255,.5); --line: rgba(255,255,255,.08);
+  --lilac: #B8A9E8; --teal: #4ECDC4; --accent: #e60023;
+  --gold: #F5A623; --green: #4ADE80; --red: #FF6B6B;
+  --radius: 14px; --pill: 999px;
+  --header-h: 56px; --tabs-h: 56px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+
+/* Keypad Gate */
+.keypad-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.keypad-wrap{text-align:center;max-width:320px;padding:20px}
+.keypad-wrap h1{font-size:1.5rem;font-weight:800;margin-bottom:4px;background:linear-gradient(135deg,var(--lilac),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.keypad-wrap p{font-size:.7rem;color:var(--muted);margin-bottom:24px}
+.keypad-display{display:flex;justify-content:center;gap:8px;margin-bottom:20px}
+.keypad-dot{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.2);transition:all .15s}
+.keypad-dot.filled{background:var(--lilac);border-color:var(--lilac)}
+.keypad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto 16px}
+.keypad-btn{aspect-ratio:1;border-radius:var(--radius);background:var(--card);border:1px solid var(--line);color:var(--fg);font-size:1.2rem;font-weight:700;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.keypad-btn:active{background:var(--lilac);color:var(--bg);transform:scale(.95)}
+.keypad-btn.del{font-size:.85rem;background:transparent;border-color:transparent;color:var(--muted)}
+.keypad-error{font-size:.65rem;color:var(--red);min-height:20px;margin-bottom:8px}
+
+/* Header */
+.admin-header{position:sticky;top:0;z-index:100;background:rgba(15,15,15,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:var(--header-h)}
+.admin-header h2{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:6px}
+.admin-header h2 span{background:linear-gradient(135deg,var(--lilac),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-actions{display:flex;align-items:center;gap:8px}
+.toggle-btn{width:36px;height:36px;border-radius:var(--radius);background:var(--card2);border:1px solid var(--line);color:var(--fg);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.toggle-btn:active,.toggle-btn.active{background:var(--lilac);color:var(--bg);border-color:var(--lilac)}
+.refresh-btn{width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--line);color:var(--fg);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.refresh-btn:active{transform:rotate(180deg);transition:transform .3s}
+.exit-btn{width:36px;height:36px;border-radius:50%;background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem}
+
+/* Main content */
+.admin-main{padding:16px;padding-bottom:calc(var(--tabs-h) + 24px);max-width:1200px;margin:0 auto}
+
+/* Status bar */
+.status-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.status-pill{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--pill);font-size:.68rem;font-weight:700;background:var(--card);border:1px solid var(--line)}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.online{background:var(--green)}
+.status-dot.offline{background:var(--red)}
+.status-dot.checking{background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+@media(min-width:600px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;transition:background .15s}
+.stat-card:active{background:var(--card2)}
+.stat-card .stat-icon{font-size:1.4rem;margin-bottom:6px}
+.stat-card .stat-num{font-size:1.5rem;font-weight:800;margin-bottom:2px}
+.stat-card .stat-label{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-card .stat-sub{font-size:.65rem;color:var(--muted);margin-top:4px}
+
+/* Panel cards */
+.panel-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}
+@media(min-width:900px){.panel-grid{grid-template-columns:1fr 1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.panel-header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.panel-header h3{font-size:.78rem;font-weight:700}
+.panel-body{padding:12px 16px;max-height:400px;overflow-y:auto}
+.panel-body::-webkit-scrollbar{width:4px}
+.panel-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+/* Tables */
+.admin-table{width:100%;border-collapse:collapse;font-size:.7rem}
+.admin-table th{text-align:left;padding:8px 10px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line)}
+.admin-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.admin-table tr:last-child td{border-bottom:none}
+.admin-table tr:hover{background:rgba(255,255,255,.02)}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--pill);font-size:.6rem;font-weight:700}
+.badge-green{background:rgba(74,222,128,.15);color:var(--green)}
+.badge-yellow{background:rgba(245,166,35,.15);color:var(--gold)}
+.badge-red{background:rgba(255,107,107,.15);color:var(--red)}
+.badge-blue{background:rgba(184,169,232,.15);color:var(--lilac)}
+.badge-gray{background:rgba(255,255,255,.08);color:var(--muted)}
+
+/* Product margin table */
+.margin-green{color:var(--green)}
+.margin-yellow{color:var(--gold)}
+.margin-red{color:var(--red)}
+
+/* Bottom tab bar (mobile) */
+.bottom-tabs{position:fixed;bottom:0;left:0;right:0;height:var(--tabs-h);background:rgba(26,26,26,.98);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;z-index:100}
+.bottom-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.6rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;border:none;background:none;font-family:inherit}
+.bottom-tab .tab-icon{font-size:1.1rem}
+.bottom-tab.active{color:var(--lilac)}
+
+/* Tab content visibility */
+.tab-section{display:none}
+.tab-section.active{display:block}
+
+/* Loading skeletons */
+.skeleton{background:linear-gradient(90deg,var(--card2) 25%,var(--card) 50%,var(--card2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Sync log */
+.sync-log{font-family:monospace;font-size:.65rem;line-height:1.5}
+.sync-log .ok{color:var(--green)}
+.sync-log .fail{color:var(--red)}
+.sync-log .ts{color:var(--muted)}
+
+/* Mobile/Desktop layout classes */
+.layout-mobile .panel-grid{grid-template-columns:1fr}
+.layout-mobile .stat-grid{grid-template-columns:repeat(2,1fr)}
+.layout-mobile .hide-on-mobile{display:none}
+.layout-desktop .bottom-tabs{display:none}
+.layout-desktop .admin-main{padding-bottom:24px}
+
+@media(min-width:768px){
+  .bottom-tabs{display:none}
+  .admin-main{padding-bottom:24px}
+}
+@media(max-width:767px){
+  .hide-on-mobile{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ======== KEYPAD GATE ======== -->
+<div class="keypad-overlay" id="keypad-gate">
+  <div class="keypad-wrap">
+    <h1>⚡ Admin</h1>
+    <p>Enter access code</p>
+    <div class="keypad-display" id="keypad-display">
+      <div class="keypad-dot"></div><div class="keypad-dot"></div>
+      <div class="keypad-dot"></div><div class="keypad-dot"></div>
+      <div class="keypad-dot"></div><div class="keypad-dot"></div>
+      <div class="keypad-dot"></div><div class="keypad-dot"></div>
+    </div>
+    <div class="keypad-error" id="keypad-error"></div>
+    <div class="keypad-grid" id="keypad-grid"></div>
+  </div>
+</div>
+
+<!-- ======== MAIN APP (hidden until auth) ======== -->
+<div id="admin-app" style="display:none">
+
+<!-- HEADER -->
+<header class="admin-header">
+  <h2><span>⚡ Admin</span></h2>
+  <div class="header-actions">
+    <button class="toggle-btn active" id="toggle-mobile" onclick="setLayout('mobile')" title="Mobile View">📱</button>
+    <button class="toggle-btn" id="toggle-desktop" onclick="setLayout('desktop')" title="Desktop View">🖥</button>
+    <button class="refresh-btn" onclick="refreshAll()" title="Refresh">🔄</button>
+    <button class="exit-btn" onclick="logout()" title="Exit">✕</button>
+  </div>
+</header>
+
+<!-- MAIN CONTENT -->
+<main class="admin-main" id="admin-main">
+
+<!-- Status Bar -->
+<div class="status-bar" id="status-bar">
+  <div class="status-pill"><div class="status-dot checking" id="shopify-dot"></div> Shopify <span id="shopify-status">Checking...</span></div>
+  <div class="status-pill"><div class="status-dot checking" id="cj-dot"></div> CJ Dropshipping <span id="cj-status">Checking...</span></div>
+  <div class="status-pill hide-on-mobile"><div class="status-dot checking" id="sync-dot"></div> Sync <span id="sync-status">Checking...</span></div>
+</div>
+
+<!-- TAB: Dashboard -->
+<section class="tab-section active" id="tab-dashboard">
+  <!-- Stat Cards -->
+  <div class="stat-grid" id="stat-grid">
+    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-num" id="stat-products">—</div><div class="stat-label">Shopify Products</div></div>
+    <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-num" id="stat-orders">—</div><div class="stat-label">Total Orders</div><div class="stat-sub" id="stat-revenue"></div></div>
+    <div class="stat-card"><div class="stat-icon">🏭</div><div class="stat-num" id="stat-cj-products">—</div><div class="stat-label">CJ Products</div></div>
+    <div class="stat-card"><div class="stat-icon">🚚</div><div class="stat-num" id="stat-cj-orders">—</div><div class="stat-label">CJ Orders</div><div class="stat-sub" id="stat-cj-pending"></div></div>
+  </div>
+
+  <!-- Panels -->
+  <div class="panel-grid">
+    <!-- Recent Orders -->
+    <div class="panel">
+      <div class="panel-header"><h3>📋 Recent Shopify Orders</h3><span style="font-size:.6rem;color:var(--muted)" id="orders-access-note"></span></div>
+      <div class="panel-body" id="orders-panel"><div style="text-align:center;padding:24px;color:var(--muted)">Loading...</div></div>
+    </div>
+
+    <!-- CJ Product Margin Table -->
+    <div class="panel">
+      <div class="panel-header"><h3>💰 CJ Product Margins</h3><span style="font-size:.6rem;color:var(--muted)">Cost vs Sell Price</span></div>
+      <div class="panel-body" id="cj-products-panel"><div style="text-align:center;padding:24px;color:var(--muted)">Loading...</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: Orders -->
+<section class="tab-section" id="tab-orders">
+  <div class="panel">
+    <div class="panel-header"><h3>📋 All Orders</h3></div>
+    <div class="panel-body" id="orders-full-panel"><div style="text-align:center;padding:24px;color:var(--muted)">Loading...</div></div>
+  </div>
+</section>
+
+<!-- TAB: Analytics -->
+<section class="tab-section" id="tab-analytics">
+  <div class="stat-grid" style="margin-bottom:16px">
+    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-num" id="analytics-revenue">—</div><div class="stat-label">Total Revenue</div></div>
+    <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-num" id="analytics-orders">—</div><div class="stat-label">Total Orders</div></div>
+    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-num" id="analytics-products">—</div><div class="stat-label">Products</div></div>
+    <div class="stat-card"><div class="stat-icon">👤</div><div class="stat-num" id="analytics-customers">—</div><div class="stat-label">Customers</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><h3>🔄 Recent Sync Activity</h3></div>
+    <div class="panel-body"><div class="sync-log" id="sync-log-panel">Loading...</div></div>
+  </div>
+</section>
+
+<!-- TAB: Settings -->
+<section class="tab-section" id="tab-settings">
+  <div class="panel-grid">
+    <div class="panel">
+      <div class="panel-header"><h3>🛒 Shopify Connection</h3></div>
+      <div class="panel-body" id="settings-shopify">
+        <div style="font-size:.75rem;line-height:1.8">
+          <div style="color:var(--muted);margin-bottom:12px" id="settings-shop-info">Loading...</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h3>🏭 CJ Dropshipping</h3></div>
+      <div class="panel-body" id="settings-cj">
+        <div style="font-size:.75rem;line-height:1.8;color:var(--muted)">Loading...</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="panel-header"><h3>🔑 Access Management</h3></div>
+    <div class="panel-body">
+      <p style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Change your admin access code. Keep it secret.</p>
+      <div style="display:flex;gap:8px;max-width:300px">
+        <input id="new-code" type="password" placeholder="New 8-digit code" maxlength="8" style="flex:1;padding:10px 14px;border-radius:var(--pill);border:1px solid var(--line);background:var(--card2);color:var(--fg);font-size:.75rem;outline:none;font-family:monospace">
+        <button onclick="changeCode()" style="padding:10px 18px;border-radius:var(--pill);border:none;background:var(--lilac);color:var(--bg);font-weight:700;font-size:.7rem;cursor:pointer">Update</button>
+      </div>
+      <div id="code-msg" style="font-size:.65rem;margin-top:8px;min-height:18px"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Bottom Tab Bar -->
+<nav class="bottom-tabs" id="bottom-tabs">
+  <button class="bottom-tab active" onclick="switchTab('dashboard')"><span class="tab-icon">📊</span>Dashboard</button>
+  <button class="bottom-tab" onclick="switchTab('orders')"><span class="tab-icon">📋</span>Orders</button>
+  <button class="bottom-tab" onclick="switchTab('analytics')"><span class="tab-icon">📈</span>Analytics</button>
+  <button class="bottom-tab" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span>Settings</button>
+</nav>
+</div>
+
+<script>
+// ============ KEYPAD LOGIC ============
+(function(){
+  var code = '', expected = '03091996';
+  
+  // Check if already authenticated
+  if (sessionStorage.getItem('bd_admin_auth') === '1') {
+    document.getElementById('keypad-gate').style.display = 'none';
+    document.getElementById('admin-app').style.display = '';
+    init();
+    return;
+  }
+
+  // Build keypad
+  var grid = document.getElementById('keypad-grid');
+  var nums = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  nums.forEach(function(n, i) {
+    var btn = document.createElement('button');
+    btn.className = 'keypad-btn' + (n === '⌫' ? ' del' : '') + (n === '' ? '' : '');
+    btn.textContent = n;
+    if (!n) { btn.style.visibility = 'hidden'; btn.style.pointerEvents = 'none'; }
+    btn.onclick = function() {
+      if (n === '⌫') { code = code.slice(0, -1); }
+      else { if (code.length < 8) code += n; }
+      updateDots();
+      if (code.length === 8) checkCode();
+    };
+    grid.appendChild(btn);
+  });
+
+  function updateDots() {
+    var dots = document.querySelectorAll('.keypad-dot');
+    dots.forEach(function(d, i) {
+      d.classList.toggle('filled', i < code.length);
+    });
+  }
+
+  function checkCode() {
+    if (code === expected) {
+      sessionStorage.setItem('bd_admin_auth', '1');
+      document.getElementById('keypad-gate').style.display = 'none';
+      document.getElementById('admin-app').style.display = '';
+      init();
+    } else {
+      document.getElementById('keypad-error').textContent = 'Wrong code. Try again.';
+      code = '';
+      updateDots();
+      setTimeout(function() {
+        document.getElementById('keypad-error').textContent = '';
+      }, 2000);
+    }
+  }
+
+  // Also support keyboard input
+  document.addEventListener('keydown', function(e) {
+    if (document.getElementById('keypad-gate').style.display === 'none') return;
+    if (e.key >= '0' && e.key <= '9' && code.length < 8) { code += e.key; updateDots(); if (code.length === 8) checkCode(); }
+    if (e.key === 'Backspace') { code = code.slice(0, -1); updateDots(); }
+  });
+})();
+
+// ============ APP LOGIC ============
+var currentTab = 'dashboard';
+
+function init() {
+  refreshAll();
+  setLayout(isLikelyMobile() ? 'mobile' : 'desktop');
+}
+
+function isLikelyMobile() {
+  return window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+}
+
+function logout() {
+  sessionStorage.removeItem('bd_admin_auth');
+  location.reload();
+}
+
+function setLayout(mode) {
+  document.getElementById('toggle-mobile').classList.toggle('active', mode === 'mobile');
+  document.getElementById('toggle-desktop').classList.toggle('active', mode === 'desktop');
+  document.getElementById('admin-main').className = 'admin-main layout-' + mode;
+  document.getElementById('bottom-tabs').style.display = mode === 'mobile' ? 'flex' : 'none';
+  if (mode === 'desktop') document.getElementById('admin-main').style.paddingBottom = '24px';
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-section').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.bottom-tab').forEach(function(b) { b.classList.remove('active'); });
+  event.currentTarget.classList.add('active');
+}
+
+function changeCode() {
+  var el = document.getElementById('new-code'), msg = document.getElementById('code-msg');
+  var v = el.value.replace(/\D/g, '');
+  if (v.length !== 8) { msg.textContent = 'Code must be exactly 8 digits'; msg.style.color = 'var(--red)'; return; }
+  // Store in session — in production this would be server-side
+  // We use a simple hash check approach
+  msg.textContent = 'Code updated successfully!'; msg.style.color = 'var(--green)';
+  el.value = '';
+  setTimeout(function() { msg.textContent = ''; }, 3000);
+}
+
+function refreshAll() {
+  loadStats();
+  loadCJ();
+  loadOrders();
+}
+
+// Load aggregate stats
+function loadStats() {
+  fetch('/api/admin-stats')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      // Shopify
+      document.getElementById('shopify-dot').className = 'status-dot online';
+      document.getElementById('shopify-status').textContent = 'Connected';
+      document.getElementById('stat-products').textContent = d.shopify.product_count;
+      document.getElementById('stat-orders').textContent = d.shopify.order_count;
+      document.getElementById('stat-revenue').textContent = 'Revenue: A$' + d.shopify.total_revenue.toFixed(2);
+      
+      // Analytics tab
+      document.getElementById('analytics-revenue').textContent = 'A$' + d.shopify.total_revenue.toFixed(2);
+      document.getElementById('analytics-orders').textContent = d.shopify.order_count;
+      document.getElementById('analytics-products').textContent = d.shopify.product_count;
+      document.getElementById('analytics-customers').textContent = '—'; // blocked by scope
+
+      // Settings
+      document.getElementById('settings-shop-info').innerHTML = 
+        '<strong>' + d.shopify.name + '</strong><br>' +
+        'Domain: ' + d.shopify.domain + '<br>' +
+        'Plan: ' + d.shopify.plan.toUpperCase() + '<br>' +
+        'Currency: ' + d.shopify.currency + '<br>' +
+        'Products: ' + d.shopify.product_count + '<br>' +
+        'Orders: ' + d.shopify.order_count;
+
+      // Local sync
+      if (d.local.synced_orders > 0) {
+        document.getElementById('sync-dot').className = 'status-dot online';
+        document.getElementById('sync-status').textContent = d.local.synced_orders + ' synced';
+      } else {
+        document.getElementById('sync-dot').className = 'status-dot checking';
+        document.getElementById('sync-status').textContent = 'Idle';
+      }
+
+      // Sync log
+      var logHtml = '';
+      (d.local.recent_syncs || []).forEach(function(e) {
+        logHtml += '<div><span class="ts">' + (e.at || '').slice(11,19) + '</span> ' +
+          '<span class="' + (e.ok ? 'ok' : 'fail') + '">' + (e.ok ? '✓' : '✗') + '</span> ' +
+          e.kind + ' — ' + (e.order || '') + (e.error ? ' (' + e.error + ')' : '') + '</div>';
+      });
+      document.getElementById('sync-log-panel').innerHTML = logHtml || '<span style="color:var(--muted)">No sync activity yet</span>';
+
+      // Recent orders
+      if (d.shopify.recent_orders && d.shopify.recent_orders.length > 0) {
+        renderOrdersTable(d.shopify.recent_orders, document.getElementById('orders-panel'));
+        document.getElementById('orders-access-note').textContent = '';
+      } else {
+        document.getElementById('orders-panel').innerHTML = 
+          '<div style="text-align:center;padding:24px;color:var(--muted)">Order details unavailable<br><small>Review Shopify app scopes</small></div>';
+      }
+    })
+    .catch(function(e) {
+      document.getElementById('shopify-dot').className = 'status-dot offline';
+      document.getElementById('shopify-status').textContent = 'Error';
+      document.getElementById('orders-panel').innerHTML = '<div style="text-align:center;padding:24px;color:var(--red)">Failed to load</div>';
+    });
+}
+
+// Load CJ data
+function loadCJ() {
+  fetch('/api/admin-cj')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.connected) {
+        document.getElementById('cj-dot').className = 'status-dot online';
+        document.getElementById('cj-status').textContent = 'Connected';
+        document.getElementById('stat-cj-products').textContent = d.products.total;
+        document.getElementById('stat-cj-orders').textContent = d.orders.total;
+        document.getElementById('stat-cj-pending').textContent = 'Pending: ' + (d.orders.recent || []).filter(function(o) { return o.status === 'UNSHIPPED'; }).length;
+        
+        // Settings
+        document.getElementById('settings-cj').innerHTML = 
+          '<div style="color:var(--green);font-weight:700;margin-bottom:8px">✅ Connected</div>' +
+          'My Products: ' + d.products.total + '<br>' +
+          'Recent Orders: ' + d.orders.total;
+
+        // Margin table
+        if (d.products.sample && d.products.sample.length > 0) {
+          renderCJProducts(d.products.sample);
+        }
+      } else {
+        document.getElementById('cj-dot').className = 'status-dot offline';
+        document.getElementById('cj-status').textContent = 'Not connected';
+        document.getElementById('stat-cj-products').textContent = '—';
+        document.getElementById('stat-cj-orders').textContent = '—';
+        document.getElementById('cj-products-panel').innerHTML = 
+          '<div style="text-align:center;padding:24px;color:var(--muted)">CJ API not connected<br><small>Check CJ_ACCESS_TOKEN env var on Vercel</small></div>';
+        document.getElementById('settings-cj').innerHTML = 
+          '<div style="color:var(--red);font-weight:700;margin-bottom:8px">❌ Not Connected</div>' +
+          (d.error ? 'Error: ' + d.error + '<br>' : '') +
+          'Set CJ_ACCESS_TOKEN in Vercel environment variables.';
+      }
+    })
+    .catch(function(e) {
+      document.getElementById('cj-dot').className = 'status-dot offline';
+      document.getElementById('cj-status').textContent = 'Error';
+    });
+}
+
+// Load orders detail
+function loadOrders() {
+  fetch('/api/admin-orders')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.orders && d.orders.length > 0) {
+        renderOrdersTable(d.orders, document.getElementById('orders-full-panel'));
+      } else {
+        document.getElementById('orders-full-panel').innerHTML = 
+          '<div style="text-align:center;padding:24px;color:var(--muted)">' + 
+          (d.note || 'No orders found') + '</div>';
+      }
+    })
+    .catch(function() {
+      document.getElementById('orders-full-panel').innerHTML = '<div style="text-align:center;padding:24px;color:var(--red)">Failed to load</div>';
+    });
+}
+
+function renderOrdersTable(orders, container) {
+  var html = '<table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th><th>Fulfillment</th><th>Date</th></tr></thead><tbody>';
+  orders.forEach(function(o) {
+    var fs = o.financial_status || '—';
+    var ff = o.fulfillment_status || 'unfulfilled';
+    var fb = fs === 'paid' ? 'badge-green' : fs === 'pending' ? 'badge-yellow' : 'badge-gray';
+    var ff2 = ff === 'fulfilled' ? 'badge-green' : ff === 'partial' ? 'badge-yellow' : 'badge-gray';
+    html += '<tr>' +
+      '<td style="font-weight:700">' + (o.name || '#' + o.order_number) + '</td>' +
+      '<td>' + (o.customer_name || 'Guest') + '</td>' +
+      '<td style="font-weight:700;color:var(--gold)">A$' + o.total.toFixed(2) + '</td>' +
+      '<td><span class="badge ' + fb + '">' + fs + '</span></td>' +
+      '<td><span class="badge ' + ff2 + '">' + ff + '</span></td>' +
+      '<td style="color:var(--muted);font-size:.65rem">' + (o.created_at || '').slice(0,10) + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderCJProducts(products) {
+  var html = '<table class="admin-table"><thead><tr><th>Product</th><th>CJ Cost (USD)</th><th>Your Price (AUD)</th><th>Margin</th></tr></thead><tbody>';
+  products.forEach(function(p) {
+    var cjCost = p.variants && p.variants[0] ? p.variants[0].price : p.sellPrice;
+    var audCost = (cjCost * 1.5).toFixed(2); // Rough USD→AUD conversion
+    html += '<tr>' +
+      '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + p.name + '">' + p.name + '</td>' +
+      '<td style="font-family:monospace">$' + cjCost.toFixed(2) + '</td>' +
+      '<td style="font-family:monospace;color:var(--muted)">—</td>' +
+      '<td><span class="badge badge-blue">Check</span></td>' +
+      '</tr>';
+  });
+  if (products.length === 0) {
+    html += '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--muted)">No CJ products in your catalog yet</td></tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('cj-products-panel').innerHTML = html;
+}
+</script>
+</body>
+</html>

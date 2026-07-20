@@ -84,7 +84,7 @@
 <a class="product-card" href="product.html?id=9193047097475"><div class="prod-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/6ae9cc05-4ae6-4fc0-8196-a2020fef02e1.jpg?v=1784285835" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=prod-placeholder>📦</div>'" /><button class="wishlist-btn" onclick="event.preventDefault();toggleWish('9193047097475')" title="Save"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><button class="quick-add" onclick="event.preventDefault();quickAdd('9193047097475')" title="Quick Add">+</button></div><div class="product-info"><div class="product-stars">★★★★★</div><div class="product-title">Off-shoulder Slim-fit Asymmetrical Cropped Bottoming Top</div><div class="product-price">A$2.19</div></div></a>
 <a class="product-card" href="product.html?id=9193047163011"><div class="prod-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/b7aed0c9-8d6a-43e6-96ac-7f1cd64c7aa0.jpg?v=1784286174" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=prod-placeholder>📦</div>'" /><button class="wishlist-btn" onclick="event.preventDefault();toggleWish('9193047163011')" title="Save"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><button class="quick-add" onclick="event.preventDefault();quickAdd('9193047163011')" title="Quick Add">+</button></div><div class="product-info"><div class="product-stars">★★★★★</div><div class="product-title">Deep V-neck Cross-Strap Rose-Printed Long Dress</div><div class="product-price">A$8.13</div></div></a></div><div class="product-grid" id="dynamic-grid" style="display:none"></div><div id="search-results-header" style="display:none"><div class="section-title"><h3>🔍 Search Results</h3><span id="search-count" style="font-size:.7rem;color:var(--meta)"></span></div></div></section>
 </main>
-<footer class="site-footer"><div class="footer-newsletter"><h4>📬 Join the Drop</h4><p>Get exclusive deals and new arrivals first.</p><form class="newsletter-form" onsubmit="event.preventDefault();alert('Thanks for subscribing!')"><input type="email" placeholder="Enter your email" required><button type="submit">Join</button></form></div><div class="footer-links"><div class="footer-col"><h5>Shop</h5><a href="products.html">All Products</a><a href="category.html?cat=womens-clothing&name=Women%27s%20Clothing">Women's Clothing</a><a href="category.html?cat=mens-clothing&name=Men%27s%20Clothing">Men's Clothing</a><a href="category.html?cat=consumer-electronics&name=Consumer%20Electronics">Electronics</a><a href="categories.html">All Categories</a></div><div class="footer-col"><h5>Help</h5><a href="customer-service.html">Contact Us</a><a href="order-tracking.html">Track Order</a><a href="returns.html">Returns</a><a href="policy.html">Privacy Policy</a><a href="customer-service.html">FAQs</a></div><div class="footer-col"><h5>Account</h5><a href="profile.html">My Account</a><a href="orders.html">Orders</a><a href="wishlist.html">Wishlist</a><a href="cart.html">Cart</a></div><div class="footer-col"><h5>About</h5><a href="/">Home</a><a href="products.html">New Arrivals</a><a href="products.html">Best Sellers</a></div></div><div class="footer-bottom"><div class="footer-payments">💳 Visa · Mastercard · PayPal · Apple Pay · Google Pay</div><div class="footer-legal">&copy; 2026 Bargain Drop. All rights reserved.</div></div></footer>
+<footer class="site-footer"><div class="footer-newsletter"><h4>📬 Join the Drop</h4><p>Get exclusive deals and new arrivals first.</p><form class="newsletter-form" onsubmit="event.preventDefault();alert('Thanks for subscribing!')"><input type="email" placeholder="Enter your email" required><button type="submit">Join</button></form></div><div class="footer-links"><div class="footer-col"><h5>Shop</h5><a href="products.html">All Products</a><a href="category.html?cat=womens-clothing&name=Women%27s%20Clothing">Women's Clothing</a><a href="category.html?cat=mens-clothing&name=Men%27s%20Clothing">Men's Clothing</a><a href="category.html?cat=consumer-electronics&name=Consumer%20Electronics">Electronics</a><a href="categories.html">All Categories</a></div><div class="footer-col"><h5>Help</h5><a href="customer-service.html">Contact Us</a><a href="order-tracking.html">Track Order</a><a href="returns.html">Returns</a><a href="policy.html">Privacy Policy</a><a href="customer-service.html">FAQs</a></div><div class="footer-col"><h5>Account</h5><a href="profile.html">My Account</a><a href="orders.html">Orders</a><a href="wishlist.html">Wishlist</a><a href="cart.html">Cart</a></div><div class="footer-col"><h5>About</h5><a href="/">Home</a><a href="products.html">New Arrivals</a><a href="products.html">Best Sellers</a> <a href="#" onclick="openAdminGate();return false" style="font-size:.7rem;color:rgba(255,255,255,.5);text-decoration:none" title="Admin">🔒</a></div></div><div class="footer-bottom"><div class="footer-payments">💳 Visa · Mastercard · PayPal · Apple Pay · Google Pay</div><div class="footer-legal">&copy; 2026 Bargain Drop. All rights reserved.</div></div></footer>
 <script>
 window.__PRELOAD_DATA={heroCount:6};
 var ALL=[],currentSlide=0,heroTimer,lastScroll=0;
@@ -159,4 +159,66 @@ function expandSearch(){
 function collapseSearch(e){
   if(!document.getElementById("search-input").value)
     document.getElementById("nav-search").classList.remove("expanded");
-}</script></body></html>
+}</script><!-- ============ ADMIN KEYPAD GATE ============ -->
+<div id="admin-gate-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,15,15,.98);z-index:99999;align-items:center;justify-content:center">
+<div style="text-align:center;max-width:320px;padding:20px">
+<h2 style="font-size:1.4rem;font-weight:800;margin-bottom:4px;background:linear-gradient(135deg,#B8A9E8,#4ECDC4);-webkit-background-clip:text;-webkit-text-fill-color:transparent">🔒 Admin Access</h2>
+<p style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:20px">Enter 8-digit code</p>
+<div style="display:flex;justify-content:center;gap:8px;margin-bottom:16px" id="ag-dots"></div>
+<div style="font-size:.65rem;color:#FF6B6B;min-height:18px;margin-bottom:8px" id="ag-error"></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:220px;margin:0 auto 16px" id="ag-pad"></div>
+<button onclick="closeAdminGate()" style="background:transparent;border:none;color:rgba(255,255,255,.3);font-size:.7rem;cursor:pointer;margin-top:8px">Cancel</button>
+</div></div>
+<script>
+(function(){
+var agCode='',agExpected='03091996';
+// Build dots
+var d=document.getElementById('ag-dots');
+for(var i=0;i<8;i++){var dot=document.createElement('div');dot.style.cssText='width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,.2);transition:all .15s';d.appendChild(dot);}
+// Build keypad
+var p=document.getElementById('ag-pad');
+var nums=['1','2','3','4','5','6','7','8','9','','0','⌫'];
+nums.forEach(function(n){
+var b=document.createElement('button');
+b.style.cssText='aspect-ratio:1;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:1.1rem;font-weight:700;cursor:pointer;transition:all .1s';
+b.textContent=n;
+if(!n){b.style.visibility='hidden';b.style.pointerEvents='none';}
+b.onclick=function(){
+if(n==='⌫'){agCode=agCode.slice(0,-1)}
+else{if(agCode.length<8)agCode+=n}
+updateDots();
+if(agCode.length===8)check();
+};
+b.addEventListener('touchstart',function(){b.style.background='#B8A9E8';b.style.color='#0F0F0F';b.style.transform='scale(.95)'});
+b.addEventListener('touchend',function(){b.style.background='';b.style.color='';b.style.transform=''});
+p.appendChild(b);
+});
+function updateDots(){var ds=d.querySelectorAll('div');for(var i=0;i<8;i++){var fill=i<agCode.length;ds[i].style.background=fill?'#B8A9E8':'';ds[i].style.borderColor=fill?'#B8A9E8':'rgba(255,255,255,.2)'}}
+function check(){
+if(agCode===agExpected){
+document.getElementById('admin-gate-overlay').style.display='none';
+document.body.style.overflow='';
+document.body.style.position='';
+window.location.href='/admin.html';
+}else{
+document.getElementById('ag-error').textContent='Wrong code. Try again.';
+agCode='';updateDots();
+setTimeout(function(){document.getElementById('ag-error').textContent=''},2000);
+}
+}
+window.openAdminGate=function(){
+document.getElementById('admin-gate-overlay').style.display='flex';
+document.body.style.overflow='hidden';
+document.body.style.position='fixed';
+agCode='';updateDots();document.getElementById('ag-error').textContent='';
+};
+window.closeAdminGate=function(){
+document.getElementById('admin-gate-overlay').style.display='none';
+document.body.style.overflow='';
+document.body.style.position='';
+};
+})();
+</script>
+<!-- ============ END ADMIN KEYPAD GATE ============ -->
+
+</body></html>
