@@ -28,6 +28,12 @@
       ]
     }
   ],
+  "rewrites": [
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    }
+  ],
   "functions": {
     "api/sync-full.js": {
       "maxDuration": 300
