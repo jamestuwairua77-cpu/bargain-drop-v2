@@ -1,5 +1,5 @@
 // Admin CJ Products + Orders endpoint
-import { cors, cjFetch } from '../_sync-lib.js';
+import { cors, cjFetch } from './_sync-lib.js';
 
 export default async function handler(req, res) {
   cors(res);

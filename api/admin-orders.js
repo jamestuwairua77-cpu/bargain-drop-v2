@@ -1,5 +1,5 @@
 // Admin Shopify orders endpoint — handles the protected-data scope issue
-import { cors, shopifyFetch } from '../_sync-lib.js';
+import { cors, shopifyFetch } from './_sync-lib.js';
 
 export default async function handler(req, res) {
   cors(res);

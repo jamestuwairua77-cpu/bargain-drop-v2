@@ -1,5 +1,5 @@
 // Admin stats aggregator — Shopify + CJ + local product data
-import { cors, shopifyFetch, cjFetch, loadJSON } from '../_sync-lib.js';
+import { cors, shopifyFetch, cjFetch, loadJSON } from './_sync-lib.js';
 
 export default async function handler(req, res) {
   cors(res);
