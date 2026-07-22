@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CJ → Shopify Sync · Bargain Drop</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #2a323d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --lilac: #b8a9e8;
+    --amber: #f5a623;
+    --teal: #4ecdc4;
+    --coral: #ff6b6b;
+    --green: #4ade80;
+    --console-bg: #05070a;
+    --console-line-hover: #0f1520;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  body { min-height: 100vh; }
+  a { color: var(--lilac); text-decoration: none; }
+
+  header.top {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px;
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  header .logo {
+    width: 34px; height: 34px; border-radius: 10px; background: var(--lilac);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  header h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  header .sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+  header .spacer { flex: 1; }
+  header a.nav {
+    font-size: 13px; padding: 6px 12px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text);
+  }
+  header a.nav:hover { background: var(--panel-2); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 18px;
+    padding: 18px;
+    max-width: 1600px; margin: 0 auto;
+  }
+  @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .panel h2 {
+    margin: 0 0 12px 0;
+    font-size: 12px; font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel h2::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--lilac);
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-size: 11px; color: var(--text-dim);
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .field input[type="number"], .field input[type="text"] {
+    width: 100%; padding: 10px 12px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: inherit; font-size: 14px;
+  }
+  .field input:focus { outline: none; border-color: var(--lilac); }
+
+  /* Category multi-select */
+  #catSearch { margin-bottom: 8px; }
+  .cat-tree {
+    max-height: 380px; overflow-y: auto;
+    background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px 0;
+  }
+  .cat-tree details { margin: 0; padding: 0; }
+  .cat-tree summary {
+    cursor: pointer; padding: 6px 12px;
+    font-size: 12px; color: var(--text-dim);
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .cat-tree summary:hover { background: var(--console-line-hover); }
+  .cat-tree summary::-webkit-details-marker { display: none; }
+  .cat-tree summary::before { content: '▸'; font-size: 10px; transition: transform 0.15s; }
+  .cat-tree details[open] > summary::before { transform: rotate(90deg); }
+  .cat-tree .l2 { padding-left: 8px; }
+  .cat-tree .cat {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 12px 4px 34px;
+    font-size: 12px; color: var(--text);
+    cursor: pointer;
+  }
+  .cat-tree .cat:hover { background: var(--console-line-hover); }
+  .cat-tree .cat.selected { background: rgba(184, 169, 232, 0.1); color: var(--lilac); }
+  .cat-tree .cat input[type="checkbox"] { accent-color: var(--lilac); }
+
+  .selected-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .selected-tags .tag {
+    font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    background: rgba(184, 169, 232, 0.15);
+    border: 1px solid rgba(184, 169, 232, 0.3);
+    color: var(--lilac);
+  }
+  .selected-tags .tag .x { cursor: pointer; margin-left: 4px; opacity: 0.7; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .status-lights {
+    display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .light {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .light .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .light.active { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); color: var(--green); }
+  .light.active .dot { background: var(--green); animation: pulse 1.5s ease-in-out infinite; }
+  .light.idle    { background: rgba(245, 166, 35, 0.1); border-color: rgba(245, 166, 35, 0.3); color: var(--amber); }
+  .light.idle .dot { background: var(--amber); }
+  .light.error   { background: rgba(255, 107, 107, 0.1); border-color: rgba(255, 107, 107, 0.3); color: var(--coral); }
+  .light.error .dot { background: var(--coral); animation: pulse 0.6s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .err-msg {
+    font-size: 11px; color: var(--coral);
+    margin-bottom: 12px; padding: 8px 12px;
+    background: rgba(255, 107, 107, 0.08); border: 1px solid rgba(255, 107, 107, 0.25);
+    border-radius: 8px; display: none;
+  }
+  .err-msg.show { display: block; }
+
+  button.primary, button.secondary {
+    width: 100%; padding: 12px; border-radius: 10px;
+    font-family: inherit; font-size: 14px; font-weight: 700;
+    cursor: pointer; border: 1px solid transparent;
+    transition: all 0.15s ease-out;
+  }
+  button.primary {
+    background: var(--lilac); color: #1a1a1a;
+    box-shadow: 0 2px 8px rgba(184, 169, 232, 0.25);
+  }
+  button.primary:hover:not(:disabled) { background: #a89ad8; transform: translateY(-1px); }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  button.secondary {
+    background: var(--panel-2); color: var(--text);
+    border-color: var(--border);
+  }
+  button.secondary:hover { background: var(--console-line-hover); }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    margin-bottom: 14px;
+  }
+  .stat {
+    background: var(--panel-2); border: 1px solid var(--border);
+    padding: 10px 12px; border-radius: 10px;
+  }
+  .stat .num { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .label { font-size: 10px; color: var(--text-dim); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat.success .num { color: var(--green); }
+  .stat.error .num   { color: var(--coral); }
+  .stat.pending .num { color: var(--amber); }
+
+  .progress-wrap { margin-bottom: 14px; }
+  .progress-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .progress-header .task {
+    font-size: 11px; color: var(--text-dim);
+    max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .progress-header .count { font-size: 12px; font-weight: 600; color: var(--lilac); }
+  .progress-bar {
+    height: 6px; background: var(--panel-2);
+    border-radius: 999px; overflow: hidden;
+  }
+  .progress-bar .fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--lilac), var(--teal));
+    transition: width 300ms ease-out;
+  }
+
+  /* Console */
+  .console-wrap { display: flex; flex-direction: column; height: calc(100vh - 260px); min-height: 400px; }
+  .console {
+    flex: 1; overflow-y: auto;
+    background: var(--console-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+    font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace;
+    font-size: 12px; line-height: 1.55;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .console .ln {
+    display: flex; gap: 8px; padding: 1px 0;
+    animation: slideIn 0.2s ease-out;
+  }
+  .console .ln:hover { background: var(--console-line-hover); }
+  .console .ts { color: #4a5666; flex-shrink: 0; }
+  .console .ln.info    .msg { color: var(--text); }
+  .console .ln.section .msg { color: var(--lilac); font-weight: 700; }
+  .console .ln.header  .msg { color: var(--teal); font-weight: 700; }
+  .console .ln.success .msg { color: var(--green); }
+  .console .ln.warn    .msg { color: var(--amber); }
+  .console .ln.error   .msg { color: var(--coral); font-weight: 600; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+
+  .console-controls { display: flex; gap: 8px; margin-top: 8px; }
+  .console-controls button {
+    flex: 1; padding: 8px; border-radius: 8px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); cursor: pointer;
+    font-size: 12px; font-family: inherit;
+  }
+  .console-controls button:hover { background: var(--console-line-hover); }
+  .console-controls .autoscroll { display: flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 11px; color: var(--text-dim); }
+
+  /* Product-preview list (after scan, before import) */
+  .preview {
+    margin-top: 14px;
+    max-height: 240px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--panel-2);
+  }
+  .preview .item {
+    display: flex; gap: 10px; padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .preview .item:last-child { border-bottom: none; }
+  .preview img { width: 34px; height: 34px; border-radius: 6px; object-fit: cover; background: var(--panel); }
+  .preview .info { flex: 1; overflow: hidden; }
+  .preview .title-line { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preview .meta { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+  .preview .price { color: var(--teal); font-weight: 700; }
+
+  /* Small helper text */
+  .hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo">⚡</div>
+  <div>
+    <h1>CJ → Shopify Sync</h1>
+    <div class="sub">bargain-drop.online · live import dashboard</div>
+  </div>
+  <div class="spacer"></div>
+  <a href="/admin.html" class="nav">← Admin</a>
+</header>
+
+<div class="grid">
+
+  <!-- ────────────────────  LEFT: CONTROLS  ──────────────────── -->
+  <div class="panel">
+    <h2>Configuration</h2>
+
+    <div class="status-lights">
+      <div id="lightState" class="light idle"><span class="dot"></span><span id="lightLabel">Idle · ready</span></div>
+      <div id="lightShopify" class="light"><span class="dot"></span>Shopify</div>
+      <div id="lightCJ" class="light"><span class="dot"></span>CJ</div>
+    </div>
+    <div id="errMsg" class="err-msg"></div>
+
+    <div class="field">
+      <label>Categories (multi-select)</label>
+      <input id="catSearch" type="text" placeholder="Filter categories…">
+      <div id="catTree" class="cat-tree">
+        <div style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px;">Loading categories…</div>
+      </div>
+      <div id="selectedTags" class="selected-tags"></div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Import limit</label>
+        <input id="limitInput" type="number" min="1" max="500" value="50">
+      </div>
+      <div class="field">
+        <label>Price markup</label>
+        <input id="markupInput" type="number" min="1" max="10" step="0.1" value="2.5">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Default stock per variant</label>
+      <input id="stockInput" type="number" min="0" max="9999" value="100">
+    </div>
+
+    <button id="btnScan" class="secondary" style="margin-bottom:8px">🔍 Scan (preview candidates)</button>
+    <button id="btnImport" class="primary" disabled>⚡ Start Import</button>
+
+    <div id="preview" class="preview" style="display:none"></div>
+
+    <p class="hint">Pre-scan compares CJ SKUs against your Shopify catalog and skips products already imported. Background sync runs every 12 hours (cron).</p>
+  </div>
+
+  <!-- ────────────────────  RIGHT: LIVE OUTPUT  ──────────────────── -->
+  <div class="panel">
+    <h2>Live Console</h2>
+
+    <div class="stats">
+      <div class="stat"><div id="statTotal" class="num">0</div><div class="label">Total</div></div>
+      <div class="stat success"><div id="statOk" class="num">0</div><div class="label">Imported</div></div>
+      <div class="stat error"><div id="statFail" class="num">0</div><div class="label">Failed</div></div>
+      <div class="stat pending"><div id="statPending" class="num">0</div><div class="label">Pending</div></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-header">
+        <div class="task" id="taskLabel">Idle — awaiting configuration</div>
+        <div class="count" id="progressCount">0 / 0</div>
+      </div>
+      <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="console-wrap">
+      <div id="console" class="console">
+<div class="ln info"><span class="ts">--:--:--</span><span class="msg">Waiting for commands...</span></div>
+      </div>
+      <div class="console-controls">
+        <button id="btnClear">Clear</button>
+        <button id="btnCopy">Copy log</button>
+        <button id="btnCron">Trigger cron sync</button>
+        <label class="autoscroll"><input id="autoScroll" type="checkbox" checked> auto-scroll</label>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── State ─────────────────────────────────────────────────────────
+const state = {
+  categories: [],       // flat list
+  selected: new Set(),  // categoryIds
+  candidates: [],       // pre-scanned products
+  importing: false,
+};
+
+// ─── DOM refs ──────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const consoleEl = $('console');
+const errEl = $('errMsg');
+
+// ─── Log helpers ───────────────────────────────────────────────────
+function log(line, level = 'info') {
+  const now = new Date();
+  const ts = now.toTimeString().slice(0, 8);
+  const div = document.createElement('div');
+  div.className = 'ln ' + level;
+  div.innerHTML = `<span class="ts">${ts}</span><span class="msg"></span>`;
+  div.querySelector('.msg').textContent = line;
+  consoleEl.appendChild(div);
+  if ($('autoScroll').checked) consoleEl.scrollTop = consoleEl.scrollHeight;
+  // Cap to 2000 lines to avoid DOM blowup
+  while (consoleEl.children.length > 2000) consoleEl.removeChild(consoleEl.firstChild);
+}
+function clearLog() { consoleEl.innerHTML = ''; log('Cleared', 'info'); }
+
+function setLight(id, cls, text) {
+  const el = $(id);
+  el.className = 'light ' + cls;
+  if (text) {
+    // First child is the dot, second is the text
+    const t = el.querySelector(':not(.dot)') || document.createTextNode('');
+    el.innerHTML = '<span class="dot"></span>' + text;
+  }
+}
+function setMainLight(cls, text) {
+  $('lightState').className = 'light ' + cls;
+  $('lightLabel').textContent = text;
+}
+function showError(msg) {
+  errEl.textContent = msg;
+  errEl.classList.add('show');
+  setMainLight('error', 'Error');
+}
+function clearError() {
+  errEl.classList.remove('show');
+}
+
+// ─── Categories ────────────────────────────────────────────────────
+async function loadCategories() {
+  log('Fetching CJ categories from server…');
+  try {
+    const r = await fetch('/api/cj-categories');
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    state.categories = data.categories || [];
+    log(`✓ ${state.categories.length} categories loaded (${data.grouped.length} top-level groups)`, 'success');
+    renderCategories(data.grouped);
+    setLight('lightCJ', 'active', 'CJ');
+  } catch (e) {
+    log(`✗ Category load failed: ${e.message}`, 'error');
+    setLight('lightCJ', 'error', 'CJ');
+    $('catTree').innerHTML = `<div style="padding:20px;text-align:center;color:var(--coral);font-size:12px">${e.message}</div>`;
+  }
+}
+
+function renderCategories(grouped, filter = '') {
+  const tree = $('catTree');
+  const q = filter.toLowerCase();
+  tree.innerHTML = '';
+  for (const g of grouped) {
+    // Filter subs and cats
+    const subs = g.subs.map(s => ({
+      ...s,
+      cats: s.cats.filter(c => !q || c.name.toLowerCase().includes(q) || s.l2.toLowerCase().includes(q) || g.l1.toLowerCase().includes(q)),
+    })).filter(s => s.cats.length);
+    if (!subs.length) continue;
+    const details = document.createElement('details');
+    if (q) details.open = true;
+    const l1 = subs.reduce((a, s) => a + s.cats.length, 0);
+    details.innerHTML = `<summary>${g.l1} · ${l1}</summary>`;
+    for (const s of subs) {
+      const sub = document.createElement('details');
+      sub.className = 'l2';
+      sub.innerHTML = `<summary>${s.l2} · ${s.cats.length}</summary>`;
+      for (const c of s.cats) {
+        const row = document.createElement('label');
+        row.className = 'cat' + (state.selected.has(c.id) ? ' selected' : '');
+        row.innerHTML = `<input type="checkbox" data-cid="${c.id}" data-cname="${c.name.replace(/"/g,'&quot;')}" ${state.selected.has(c.id) ? 'checked' : ''}><span>${c.name}</span>`;
+        row.querySelector('input').addEventListener('change', e => toggleCat(c.id, c.name, e.target.checked));
+        sub.appendChild(row);
+      }
+      details.appendChild(sub);
+    }
+    tree.appendChild(details);
+  }
+}
+
+function toggleCat(id, name, checked) {
+  if (checked) state.selected.add(id);
+  else state.selected.delete(id);
+  renderSelectedTags();
+  // Update visual state on the row
+  document.querySelectorAll('.cat').forEach(el => {
+    const cb = el.querySelector('input');
+    if (cb && cb.dataset.cid === id) el.classList.toggle('selected', checked);
+  });
+}
+
+function renderSelectedTags() {
+  const wrap = $('selectedTags');
+  wrap.innerHTML = '';
+  for (const id of state.selected) {
+    const cat = state.categories.find(c => c.id === id);
+    const name = cat?.name || id;
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.innerHTML = `${name} <span class="x">✕</span>`;
+    tag.querySelector('.x').addEventListener('click', () => {
+      state.selected.delete(id);
+      renderSelectedTags();
+      // Refresh the tree to uncheck it visually
+      $('catSearch').dispatchEvent(new Event('input'));
+    });
+    wrap.appendChild(tag);
+  }
+}
+
+$('catSearch').addEventListener('input', async e => {
+  const q = e.target.value;
+  // We need the grouped form again — refetch once and cache
+  if (!state._grouped) {
+    const r = await fetch('/api/cj-categories');
+    const d = await r.json();
+    state._grouped = d.grouped;
+  }
+  renderCategories(state._grouped, q);
+});
+
+// ─── Shopify status probe ──────────────────────────────────────────
+async function pingShopify() {
+  try {
+    const r = await fetch('/api/admin-stats');
+    const d = await r.json();
+    if (d.shopify?.product_count != null) {
+      setLight('lightShopify', 'active', `Shopify · ${d.shopify.product_count}`);
+      log(`✓ Shopify connected — ${d.shopify.product_count} products, ${d.shopify.order_count} orders`, 'success');
+    }
+  } catch (e) {
+    setLight('lightShopify', 'error', 'Shopify');
+    log(`✗ Shopify ping failed: ${e.message}`, 'error');
+  }
+}
+
+// ─── Scan (preview) ────────────────────────────────────────────────
+$('btnScan').addEventListener('click', async () => {
+  clearError();
+  if (state.selected.size === 0) return showError('Select at least one category.');
+  const limit = parseInt($('limitInput').value, 10) || 50;
+
+  $('btnScan').disabled = true;
+  $('btnImport').disabled = true;
+  setMainLight('active', 'Scanning…');
+  log(`━━━ SCAN starting — ${state.selected.size} category/categories, limit ${limit} ━━━`, 'header');
+  log('Pulling current Shopify inventory for duplicate check…');
+
+  try {
+    const r = await fetch('/api/cj-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryIds: [...state.selected], limit }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+
+    log(`✓ Shopify inventory: ${d.shopifySkuCount} unique SKUs indexed`, 'success');
+    log(`✓ CJ candidates scanned: ${d.cjCandidatesScanned} (across ${d.cjPagesFetched} pages)`, 'info');
+    log(`⚠ Duplicates skipped (SKU already in Shopify): ${d.duplicatesSkipped}`, d.duplicatesSkipped ? 'warn' : 'info');
+    log(`✓ Ready to import: ${d.readyToImport} unique products`, 'success');
+
+    state.candidates = d.products || [];
+    renderPreview(state.candidates);
+    $('statTotal').textContent = state.candidates.length;
+    $('statPending').textContent = state.candidates.length;
+    $('statOk').textContent = 0;
+    $('statFail').textContent = 0;
+    $('btnImport').disabled = state.candidates.length === 0;
+    setMainLight('idle', state.candidates.length ? 'Ready to import' : 'Nothing to import');
+  } catch (e) {
+    log(`✗ Scan failed: ${e.message}`, 'error');
+    showError(e.message);
+  } finally {
+    $('btnScan').disabled = false;
+  }
+});
+
+function renderPreview(items) {
+  const box = $('preview');
+  if (!items.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = items.map(p => `
+    <div class="item">
+      <img src="${p.image || ''}" onerror="this.style.opacity=0.2" alt="">
+      <div class="info">
+        <div class="title-line">${escapeHtml(p.title || 'Untitled')}</div>
+        <div class="meta">SKU ${p.sku} · <span class="price">$${p.price.toFixed(2)}</span> · listed ${p.listedByOthers}×</div>
+      </div>
+    </div>`).join('');
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ─── Import (SSE stream) ───────────────────────────────────────────
+$('btnImport').addEventListener('click', async () => {
+  clearError();
+  if (!state.candidates.length) return showError('Run Scan first.');
+  const markup = parseFloat($('markupInput').value) || 2.5;
+  const defaultStock = parseInt($('stockInput').value, 10) || 100;
+  const pids = state.candidates.map(c => c.pid);
+
+  $('btnScan').disabled = true;
+  $('btnImport').disabled = true;
+  state.importing = true;
+  setMainLight('active', `Importing 0/${pids.length}`);
+  $('progressFill').style.width = '0%';
+  $('progressCount').textContent = `0 / ${pids.length}`;
+  $('taskLabel').textContent = 'Starting import…';
+  $('statTotal').textContent = pids.length;
+  $('statOk').textContent = 0;
+  $('statFail').textContent = 0;
+  $('statPending').textContent = pids.length;
+
+  log(`━━━ IMPORT starting — ${pids.length} product(s) · markup ×${markup} · stock ${defaultStock} ━━━`, 'header');
+
+  // ── SSE via fetch + streaming reader ─────────────────────────────
+  let ok = 0, fail = 0;
+  try {
+    const res = await fetch('/api/cj-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pids, markup, defaultStock }),
+    });
+    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // Parse SSE frames separated by blank line
+      const frames = buffer.split(/\n\n/);
+      buffer = frames.pop() || '';
+      for (const frame of frames) {
+        const evtMatch = frame.match(/^event:\s*(\S+)/m);
+        const dataMatch = frame.match(/^data:\s*(.+)$/m);
+        if (!evtMatch || !dataMatch) continue;
+        const type = evtMatch[1];
+        let payload;
+        try { payload = JSON.parse(dataMatch[1]); } catch { continue; }
+        handleSse(type, payload);
+        if (type === 'product') {
+          if (payload.status === 'success') { ok++; $('statOk').textContent = ok; }
+          else if (payload.status === 'error') { fail++; $('statFail').textContent = fail; }
+          $('statPending').textContent = pids.length - ok - fail;
+        }
+      }
+    }
+    log(`━━━ IMPORT complete — ${ok} succeeded, ${fail} failed ━━━`, 'header');
+    setMainLight(fail ? 'error' : 'idle', fail ? `Done · ${fail} error(s)` : 'Done');
+  } catch (e) {
+    log(`✗ Import stream error: ${e.message}`, 'error');
+    showError(e.message);
+  } finally {
+    state.importing = false;
+    $('btnScan').disabled = false;
+    $('btnImport').disabled = state.candidates.length === 0;
+  }
+});
+
+function handleSse(type, p) {
+  if (type === 'log') {
+    log(p.line, p.level || 'info');
+  } else if (type === 'progress') {
+    const pct = p.total ? (p.current / p.total * 100) : 0;
+    $('progressFill').style.width = pct + '%';
+    $('progressCount').textContent = `${p.current} / ${p.total}`;
+    $('taskLabel').textContent = p.task || '…';
+    setMainLight('active', `Importing ${p.current}/${p.total}`);
+  } else if (type === 'done') {
+    $('progressFill').style.width = '100%';
+  }
+}
+
+// ─── Console controls ──────────────────────────────────────────────
+$('btnClear').addEventListener('click', clearLog);
+$('btnCopy').addEventListener('click', async () => {
+  const txt = [...consoleEl.children].map(el => el.textContent).join('\n');
+  await navigator.clipboard.writeText(txt);
+  log('✓ Copied ' + consoleEl.children.length + ' lines to clipboard', 'success');
+});
+$('btnCron').addEventListener('click', async () => {
+  log('▶ Manually triggering /api/cron-sync-cj (partial, limit 20)…', 'header');
+  try {
+    const r = await fetch('/api/cron-sync-cj?limit=20');
+    const d = await r.json();
+    log(`✓ Cron sync: scanned ${d.scanned}, price updates ${d.priceUpdates}, stock updates ${d.stockUpdates}, unchanged ${d.noChange}`, 'success');
+    if (d.errors?.length) log(`  ⚠ ${d.errors.length} error(s)`, 'warn');
+  } catch (e) {
+    log(`✗ Cron trigger failed: ${e.message}`, 'error');
+  }
+});
+
+// ─── Init ──────────────────────────────────────────────────────────
+(async () => {
+  log('🚀 CJ → Shopify sync dashboard loaded', 'header');
+  await Promise.all([loadCategories(), pingShopify()]);
+})();
+</script>
+
+</body>
+</html>
