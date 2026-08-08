@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Product — Bargain Drop</title>
+<link rel="icon" href="favicon.svg">
+<meta name="theme-color" content="#0F0F0F">
+<style>
+:root{--bg:#f8f7f4;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--nav-h:54px;--promo-h:28px;--pill:999px;--radius:14px}
+*,::before,::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);padding-top:calc(var(--nav-h)+var(--promo-h))}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#c0392b);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;z-index:300;overflow:hidden}
+.navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:rgba(15,15,15,.97);backdrop-filter:blur(14px);display:flex;align-items:center;padding:0 16px;z-index:299;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.nav-logo{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:auto;color:inherit}
+.nav-logo .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--lilac),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff}
+.nav-logo .logo-text{font-size:.8rem;font-weight:800;color:#fff}
+.nav-actions{display:flex;gap:4px;align-items:center}
+.nav-btn{position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.7);background:none;border:none;cursor:pointer;text-decoration:none}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-badge{position:absolute;top:3px;right:3px;background:var(--accent);color:#fff;font-size:.5rem;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;padding:0 3px}
+.gallery{position:relative;background:#fff;aspect-ratio:1/1;overflow:hidden}
+.gallery img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .3s}
+.gallery img.active{opacity:1}
+.gallery-nav{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.85);border:none;font-size:1.1rem;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.gallery-nav.prev{left:8px}.gallery-nav.next{right:8px}
+.gallery-dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:5px;z-index:2}
+.gallery-dot{width:7px;height:7px;border-radius:50%;background:rgba(0,0,0,.2)}
+.gallery-dot.active{background:var(--accent)}
+.product-body{padding:16px 16px 120px}
+.breadcrumb{font-size:.68rem;color:var(--muted);margin-bottom:6px}
+.breadcrumb a{color:var(--lilac)}
+.product-title{font-size:1.1rem;font-weight:800;line-height:1.3;margin-bottom:8px}
+.price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:16px}
+.current-price{font-size:1.4rem;font-weight:800;color:var(--accent)}
+.original-price{font-size:.8rem;color:var(--muted);text-decoration:line-through}
+.stock-badge{font-size:.68rem;font-weight:700;padding:4px 10px;border-radius:var(--pill)}
+.stock-badge.in-stock{background:#e6f7ee;color:#10b981}
+.stock-badge.oos{background:#fde8e8;color:var(--accent)}
+.variant-section{margin-bottom:18px}
+.variant-label{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.variant-label .selected-val{color:var(--fg);font-weight:800;text-transform:none}
+.size-grid,.opt-grid{display:flex;flex-wrap:wrap;gap:8px}
+.size-btn,.opt-btn{padding:10px 18px;border:1.5px solid #e0dcd5;border-radius:var(--pill);background:var(--white);font-size:.78rem;font-weight:600;cursor:pointer;min-width:48px;text-align:center;transition:all .12s}
+.size-btn.selected,.opt-btn.selected{border-color:var(--dark);background:var(--dark);color:#fff}
+.size-btn.oos,.opt-btn.oos{opacity:.35;pointer-events:none;text-decoration:line-through}
+.color-grid{display:flex;flex-wrap:wrap;gap:10px}
+.color-swatch{width:42px;height:42px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:all .12s;position:relative}
+.color-swatch.selected{border-color:var(--dark);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--dark)}
+.color-swatch.oos{opacity:.3;pointer-events:none}
+.color-swatch-inner{width:100%;height:100%;border-radius:50%}
+.qty-row{display:flex;align-items:center;gap:12px;margin:20px 0}
+.qty-label{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.qty-picker{display:flex;align-items:center;border:1.5px solid #e0dcd5;border-radius:var(--pill);overflow:hidden}
+.qty-btn{width:38px;height:38px;border:none;background:transparent;font-size:1.1rem;cursor:pointer;color:var(--fg)}
+.qty-btn:disabled{color:#ccc;cursor:default}
+.qty-input{width:44px;height:38px;border:none;border-left:1.5px solid #e0dcd5;border-right:1.5px solid #e0dcd5;text-align:center;font-size:.85rem;font-weight:700;font-family:inherit}
+.action-row{display:flex;gap:10px;margin-top:8px}
+.btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:15px 20px;border-radius:var(--pill);font-size:.8rem;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-dark{background:var(--dark);color:#fff}.btn-dark:hover{opacity:.9}
+.btn-outline{background:transparent;border:1.5px solid #e0dcd5;color:var(--fg)}
+.btn-outline:hover{border-color:#bbb}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.descr-section{margin-top:28px}
+.descr-section h2{font-size:.95rem;font-weight:800;margin-bottom:10px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 28px;border-radius:var(--pill);font-size:.75rem;font-weight:700;z-index:999;transition:.3s;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+.slide-menu.open{pointer-events:auto}
+.slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+.slide-menu.open .slide-backdrop{opacity:1}
+.slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+.slide-menu.open .slide-panel{transform:translateX(0)}
+.slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+.slide-item:hover{background:#f8f7f4}
+.slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+.search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+.search-overlay.show{display:flex}
+.search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+.search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+.search-box input:focus{border-color:#B8A9E8}
+</style>
+</head>
+<body><div class="promo-strip"><span>🚚 Free Shipping A$29+ · 🔒 SSL Encrypted · ✅ Verified Seller · 🔄 30-Day Returns</span></div>
+<nav class="navbar">
+  <a href="/" class="nav-logo"><div class="logo-icon">BD</div><div class="logo-text">BARGAIN DROP</div></a>
+  <div class="nav-actions">
+    <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+    <a href="wishlist.html" class="nav-btn" aria-label="Wishlist"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a>
+    <a href="cart.html" class="nav-btn" aria-label="Cart"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span class="nav-badge" id="nav-cart-count" style="display:none">0</span></a>
+    <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  </div>
+</nav>
+<div class="slide-menu" id="slide-menu">
+  <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+  <div class="slide-panel">
+    <a href="/" class="slide-item">🏠 Home</a><a href="category.html" class="slide-item">🛍️ Categories</a>
+    <a href="wishlist.html" class="slide-item">❤️ Wishlist</a><a href="cart.html" class="slide-item">🛒 Cart</a>
+    <a href="orders.html" class="slide-item">📦 Orders</a><a href="profile.html" class="slide-item">👤 Account</a>
+    <a href="sign-in.html" class="slide-item">🔑 Sign In</a><div class="slide-divider"></div>
+    <a href="account-info.html" class="slide-item">📋 Profile</a><a href="addresses.html" class="slide-item">📍 Addresses</a>
+    <a href="wallet.html" class="slide-item">💰 Wallet</a><a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
+    <a href="customer-service.html" class="slide-item">💬 Support</a>
+  </div>
+</div>
+<div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+<div class="toast" id="toast"></div>
+<div class="gallery" id="gallery">
+  <img id="gallery-img-0" src="" alt="Product image">
+  <button class="gallery-nav prev" onclick="navGallery(-1)" style="display:none" id="gallery-prev">‹</button>
+  <button class="gallery-nav next" onclick="navGallery(1)" style="display:none" id="gallery-next">›</button>
+  <div class="gallery-dots" id="gallery-dots"></div>
+</div>
+<div class="product-body">
+  <div class="breadcrumb"><a href="/">Home</a> / <a href="category.html">Products</a> / <span id="breadcrumb-name">...</span></div>
+  <h1 class="product-title" id="prod-title">Loading...</h1>
+  <div class="price-row">
+    <span class="current-price" id="prod-price">$--</span>
+    <span class="original-price" id="prod-compare" style="display:none"></span>
+    <span class="stock-badge in-stock" id="stock-badge">● In stock</span>
+  </div>
+  <div id="variant-options"></div>
+  <div class="qty-row">
+    <span class="qty-label">Qty</span>
+    <div class="qty-picker">
+      <button class="qty-btn" onclick="changeQty(-1)">−</button>
+      <input class="qty-input" type="number" id="qty-input" value="1" min="1" max="99">
+      <button class="qty-btn" onclick="changeQty(1)">+</button>
+    </div>
+  </div>
+  <div class="action-row">
+    <button class="btn btn-dark" id="add-cart-btn" onclick="addToCart()">🛒 Add to Cart</button>
+    <button class="btn btn-outline" id="wishlist-btn" onclick="toggleWishlist()">♡ Save</button>
+  </div>
+  <div class="descr-section">
+    <h2>Description</h2>
+    <div id="prod-description" style="font-size:.8rem;line-height:1.7"></div>
+  </div>
+</div>
+<script>// ===== STATE =====
+var product=null,variants=[],selectedOpts={},curImageIdx=0,images=[],qty=1;
+
+function toast(m){var e=document.getElementById('toast');if(!e)return;e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove('show')},2500)}
+try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("nav-cart-count");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}
+
+// ===== LOAD =====
+var pid=new URLSearchParams(location.search).get('id');
+var sku=new URLSearchParams(location.search).get('sku');
+
+function loadFromCategories(data){
+  var cats=Array.isArray(data)?data:(data.categories||Object.values(data));
+  for(var ci=0;ci<cats.length;ci++){
+    var prods=cats[ci].products||cats[ci].items||[];
+    for(var pi=0;pi<prods.length;pi++){
+      var p=prods[pi];
+      if(String(p.id)===String(pid)||(sku&&p.sku===sku)){renderProduct(p);return}
+    }
+  }
+  // If not found in categories-data, fetch from Shopify API
+  loadFromShopify(pid);
+}
+
+function loadFromShopify(id){
+  document.getElementById('prod-title').textContent='Loading from Shopify...';
+  var x=new XMLHttpRequest();
+  x.open('GET','/api/product-lookup?id='+encodeURIComponent(id));
+  x.onload=function(){
+    if(x.status===200){try{var _r=JSON.parse(x.responseText);var _p=_r&&_r.product?_r.product:_r;if(_p&&_p.id){renderProduct(_p)}else{document.getElementById('prod-title').textContent='Product not found (ID: '+id+')'}}catch(e){document.getElementById('prod-title').textContent='Failed to load product'}}
+    else{document.getElementById('prod-title').textContent='Product not found (ID: '+id+')'}
+  };
+  x.onerror=function(){document.getElementById('prod-title').textContent='Error loading product'};
+  x.send();
+}
+
+fetch('/api/product-data').then(function(r){return r.json()}).then(loadFromCategories).catch(function(){loadFromShopify(pid)});
+
+// ===== RENDER =====
+function normalizeProduct(raw){
+  var v=raw.variants||[],opts=raw.options||[],imgs=raw.images||[];
+  return{
+    id:raw.id,title:raw.title||raw.name||'',
+    description:(raw.body_html||raw.description||'').replace(/<[^>]*>/g,''),
+    images:imgs.map(function(i){return i.src||i}),
+    options:opts.map(function(o){return{name:o.name||o,values:Array.isArray(o.values)?o.values:[o.value||o]}}),
+    variants:v.map(function(vr){return{
+      id:vr.id,title:vr.title||'',
+      price:parseFloat(vr.price)||0,
+      compare_at_price:parseFloat(vr.compare_at_price)||0,
+      available:vr.available!==undefined?vr.available:(vr.inventory_quantity>0||!vr.inventory_management),
+      inventory_quantity:vr.inventory_quantity||0,
+      option1:vr.option1||'',option2:vr.option2||'',option3:vr.option3||''
+    }})
+  };
+}
+
+function renderProduct(raw){
+  var p=normalizeProduct(raw);
+  product=p;variants=p.variants;images=p.images;
+  document.getElementById('prod-title').textContent=p.title;
+  document.getElementById('breadcrumb-name').textContent=p.title;
+  document.getElementById('prod-description').innerHTML=p.description||'No description available.';
+  selectedOpts={};
+  renderGallery();
+  renderOptions();
+  updateVariantState();
+  updateWishlistBtn();
+}
+
+function renderGallery(){
+  var g=document.getElementById('gallery'),dots=document.getElementById('gallery-dots');
+  var prev=document.getElementById('gallery-prev'),next=document.getElementById('gallery-next');
+  g.querySelectorAll('img').forEach(function(im){if(im.id.indexOf('gallery-img-')===0)im.remove()});
+  if(!images.length){
+    var img=document.createElement('img');img.className='active';img.alt='Product image';
+    g.insertBefore(img,prev);dots.innerHTML='';prev.style.display='none';next.style.display='none';return;
+  }
+  images.forEach(function(src,i){
+    var img=document.createElement('img');
+    img.id='gallery-img-'+i;img.src=src;img.alt=product.title;
+    if(i===0)img.className='active';g.insertBefore(img,prev);
+  });
+  curImageIdx=0;dots.innerHTML='';
+  if(images.length>1){
+    images.forEach(function(_,i){
+      var d=document.createElement('div');
+      d.className='gallery-dot'+(i===0?' active':'');
+      d.onclick=function(){setImage(i)};dots.appendChild(d);
+    });
+    prev.style.display='flex';next.style.display='flex';
+  }else{prev.style.display='none';next.style.display='none'}
+}
+
+function setImage(idx){
+  document.querySelectorAll('#gallery img').forEach(function(im){im.className=''});
+  var img=document.getElementById('gallery-img-'+idx);if(img)img.className='active';
+  document.querySelectorAll('.gallery-dot').forEach(function(d,i){d.className='gallery-dot'+(i===idx?' active':'')});
+  curImageIdx=idx;
+}
+function navGallery(dir){
+  var ni=curImageIdx+dir;
+  if(ni<0)ni=images.length-1;if(ni>=images.length)ni=0;setImage(ni);
+}
+
+// ===== VARIANT PICKERS =====
+function isSizeOpt(n,values){
+  var l=n.toLowerCase();
+  if(l==='size'||l.indexOf('size')>=0)return true;
+  if(!values||!values.length)return false;
+  var sz='S M L XL XXL XXXL 2XL 3XL 4XL 5XL 6XL 7XL 1X 2X 3X 4X XS SML MEDIUM LARGE XLARGE'.split(' ');
+  var h=0;
+  for(var i=0;i<values.length;i++){
+    if(sz.indexOf(values[i].toString().trim().toUpperCase())>=0)h++;
+  }
+  return h>=2;
+}
+function isColorOpt(n){var l=n.toLowerCase();return l==='color'||l==='colour'||l.indexOf('color')>=0}
+
+function colorHex(n){
+  var m={'black':'#1a1a1a','white':'#f5f5f5','red':'#d63031','blue':'#0984e3','green':'#00b894','yellow':'#fdcb6e','purple':'#6c5ce7','pink':'#fd79a8','orange':'#e17055','grey':'#b2bec3','gray':'#636e72','brown':'#8b4513','navy':'#003366','gold':'#ffd700','silver':'#c0c0c0','beige':'#f5f5dc','khaki':'#c3b091','teal':'#008080','maroon':'#800000','burgundy':'#800020','lavender':'#e6e6fa','mint':'#98ff98','coral':'#ff7f50','olive':'#808000','ivory':'#fffff0','charcoal':'#36454f','wood color':'#deb887','walnut color':'#5c4033'};
+  var l=n.toLowerCase().trim();if(m[l])return m[l];
+  var h=0;for(var i=0;i<l.length;i++)h=l.charCodeAt(i)+((h<<5)-h);return 'hsl('+(Math.abs(h)%360)+',55%,60%)';
+}
+
+function hasAvail(optName,optVal){
+  for(var i=0;i<variants.length;i++){
+    var v=variants[i],match=false;
+    var on=(product.options||[]).map(function(o){return o.name});
+    if(on.length>=1&&v.option1===optVal&&on[0]===optName)match=true;
+    if(on.length>=2&&v.option2===optVal&&on[1]===optName)match=true;
+    if(on.length>=3&&v.option3===optVal&&on[2]===optName)match=true;
+    if(match&&v.available)return true;
+  }
+  return false;
+}
+
+function selectOption(name,value){
+  if(selectedOpts[name]===value){delete selectedOpts[name]}else{selectedOpts[name]=value}
+  renderOptions();updateVariantState();
+}
+
+function findVariant(){
+  if(!variants.length)return null;
+  var on=(product.options||[]).map(function(o){return o.name});
+  if(!on.length)return variants[0];
+  var exact=null;
+  for(var i=0;i<variants.length;i++){
+    var v=variants[i],allMatch=true;
+    for(var j=0;j<on.length;j++){var sel=selectedOpts[on[j]];if(sel&&[v.option1,v.option2,v.option3][j]!==sel){allMatch=false;break}}
+    if(allMatch){exact=v;break}
+  }
+  return exact||variants[0];
+}
+
+function escapeQ(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+
+function renderOptions(){
+  var c=document.getElementById('variant-options');
+  var opts=product?product.options:[];
+  if(!opts.length||!variants.length){c.innerHTML='';return}
+  var h='';
+  opts.forEach(function(opt){
+    if(opt.name==='Title'&&opt.values.length<=1)return;
+    if(opt.name==='Variant'&&opt.values.length===1)return;
+    var isSize=isSizeOpt(opt.name,opt.values),isCol=isColorOpt(opt.name);
+    var sv=selectedOpts[opt.name]||'';
+    h+='<div class="variant-section"><div class="variant-label">'+escapeQ(opt.name);
+    if(sv)h+=': <span class="selected-val">'+escapeQ(sv)+'</span>';
+    h+='</div>';
+    if(isCol&&opt.values.length<=15){
+      h+='<div class="color-grid">';
+      opt.values.forEach(function(v){
+        var av=hasAvail(opt.name,v);
+        h+='<div class="color-swatch'+(v===sv?' selected':'')+(av?'':' oos')+'" title="'+escapeQ(v)+'" onclick="selectOption(\''+escapeQ(opt.name)+'\',\''+v.replace(/'/g,"\\'")+'\')"><div class="color-swatch-inner" style="background:'+colorHex(v)+'"></div></div>';
+      });
+      h+='</div>';
+    }else{
+      h+='<div class="'+(isSize?'size-grid':'opt-grid')+'">';
+      opt.values.forEach(function(v){
+        var av=hasAvail(opt.name,v);
+        h+='<div class="'+(isSize?'size-btn':'opt-btn')+(v===sv?' selected':'')+(av?'':' oos')+'" onclick="selectOption(\''+escapeQ(opt.name)+'\',\''+v.replace(/'/g,"\\'")+'\')">'+escapeQ(v)+'</div>';
+      });
+      h+='</div>';
+    }
+    h+='</div>';
+  });
+  c.innerHTML=h;
+}
+
+function updateVariantState(){
+  var v=findVariant(),pe=document.getElementById('prod-price'),ce=document.getElementById('prod-compare');
+  var se=document.getElementById('stock-badge'),ab=document.getElementById('add-cart-btn');
+  if(!v){pe.textContent='$--';ce.style.display='none';se.textContent='● Unavailable';se.className='stock-badge oos';ab.disabled=true;return}
+  pe.textContent='$'+v.price.toFixed(2);
+  if(v.compare_at_price&&v.compare_at_price>v.price){ce.textContent='$'+v.compare_at_price.toFixed(2);ce.style.display=''}else{ce.style.display='none'}
+  if(v.available){se.textContent='● In stock';se.className='stock-badge in-stock';ab.disabled=false}else{se.textContent='● Out of stock';se.className='stock-badge oos';ab.disabled=true}
+}
+
+// ===== QTY =====
+function changeQty(d){var i=document.getElementById('qty-input');var v=Math.max(1,Math.min(99,(parseInt(i.value)||1)+d));i.value=v;qty=v}
+
+// ===== CART =====
+function addToCart(){
+  var v=findVariant();if(!v||!v.available){toast('Please select an available variant');return}
+  var cart=[];try{cart=JSON.parse(localStorage.getItem('bd_cart')||'[]')}catch(e){}
+  var idx=cart.findIndex(function(c){return String(c.variant_id)===String(v.id)});
+  if(idx>=0){cart[idx].qty+=qty}else{
+    cart.push({variant_id:v.id,product_id:product.id,title:product.title,variant_title:v.title,price:v.price,qty:qty,image:images.length?images[0]:''});
+  }
+  localStorage.setItem('bd_cart',JSON.stringify(cart));
+  toast('✅ Added to cart!');
+  // Update badge
+  var n=cart.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById('nav-cart-count');
+  if(b&&n>0){b.textContent=n;b.style.display=''}
+}
+
+// ===== WISHLIST =====
+function toggleWishlist(){
+  var wl=[];try{wl=JSON.parse(localStorage.getItem('bd_wishlist')||'[]')}catch(e){}
+  var vid=product?product.id:0,idx=wl.findIndex(function(w){return String(w.id)===String(vid)});
+  if(idx>=0){wl.splice(idx,1);toast('Removed from wishlist')}else{
+    wl.push({id:product.id,title:product.title,price:variants.length?variants[0].price:0,image:images.length?images[0]:''});
+    toast('❤️ Added to wishlist')
+  }
+  localStorage.setItem('bd_wishlist',JSON.stringify(wl));updateWishlistBtn();
+}
+function updateWishlistBtn(){
+  var wl=[];try{wl=JSON.parse(localStorage.getItem('bd_wishlist')||'[]')}catch(e){}
+  var inWl=wl.some(function(w){return String(w.id)===String(product?product.id:0)});
+  var b=document.getElementById('wishlist-btn');if(b)b.textContent=inWl?'❤️ Saved':'♡ Save';
+}
+</script>
+</body></html>

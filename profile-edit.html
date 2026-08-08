@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Edit Profile — Bargain Drop</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#0F0F0F">
+<style>
+:root{--bg:#f8f7f4;--fg:#111;--muted:#666;--meta:#999;--line:#e8e5e0;--accent:#d90429;--dark:#0F0F0F;--white:#fff;--green:#059669;--nav-h:54px;--promo-h:28px;--radius:14px;--pill:9999px;--shadow:0 1px 3px rgba(0,0,0,.06)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;background:var(--bg);color:var(--fg);padding-top:calc(var(--nav-h)+var(--promo-h));-webkit-font-smoothing:antialiased;line-height:1.5}
+a{color:inherit;text-decoration:none}button{font-family:inherit}
+.promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#a0021a);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:600;letter-spacing:.5px;z-index:300}
+.navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:var(--dark);display:flex;align-items:center;padding:0 14px;z-index:299}
+.nav-logo{display:flex;align-items:center;gap:6px;margin-right:auto}
+.nav-logo .li{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),#a0021a);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff}
+.nav-logo .lt{font-size:.78rem;font-weight:800;color:#fff;letter-spacing:-.3px}
+.nav-actions{display:flex;align-items:center;gap:2px}
+.nav-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.65);background:none;border:none;cursor:pointer;font-size:1.05rem;text-decoration:none}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-btn .badge{position:absolute;top:4px;right:4px;min-width:16px;height:16px;background:var(--accent);color:#fff;border-radius:8px;font-size:.5rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.container{margin-top:8px;max-width:620px;margin:0 auto;padding:16px 14px 100px}
+.back-link{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;margin-bottom:16px;background:var(--white);border-radius:var(--pill);font-size:.7rem;font-weight:700;color:var(--muted);text-decoration:none;box-shadow:var(--shadow)}
+.page-header h1{font-size:1.2rem;font-weight:800;margin-bottom:4px}
+.page-sub{font-size:.73rem;color:var(--muted);margin-bottom:18px}
+.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:14px;border:1px solid var(--line)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.7rem;font-weight:700;margin-bottom:4px;color:var(--muted)}
+.form-group input,.form-group select{width:100%;padding:10px 14px;border:1.5px solid var(--line);border-radius:8px;font-size:.73rem;font-family:inherit;outline:none;background:var(--white)}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+.form-row{display:flex;gap:10px}
+.form-row .form-group{flex:1}
+.btn{display:inline-block;padding:12px 28px;border-radius:var(--pill);font-size:.73rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;background:var(--dark);color:#fff;width:100%}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 28px;border-radius:var(--pill);font-size:.75rem;font-weight:700;z-index:999;transition:transform .3s ease}
+.toast.on{transform:translateX(-50%) translateY(0)}
+
+    .hamburger-btn svg line{transition:all .2s}
+    .slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+    .slide-menu.open{pointer-events:auto}
+    .slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+    .slide-menu.open .slide-backdrop{opacity:1}
+    .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+    .slide-menu.open .slide-panel{transform:translateX(0)}
+    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+    .slide-item:hover{background:#f8f7f4}
+    .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+    .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
+    .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+    .search-overlay.show{display:flex}
+    .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+    .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+    .search-box input:focus{border-color:#B8A9E8}
+    </style></head><body>
+    <div class="promo-strip"><span>🚚 Free Shipping A$29+ · 🔒 SSL Encrypted · ✅ Verified Seller · 🔄 30-Day Returns</span></div>
+    <nav class="navbar">
+      <a href="/" class="nav-logo">
+        <div class="logo-icon">BD</div>
+        <div class="logo-text">BARGAIN DROP</div>
+      </a>
+      <div class="nav-actions">
+        <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        </button>
+        <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        </a>
+        <a href="cart.html" class="nav-btn" aria-label="Cart">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span class="nav-badge" id="nav-cart-count" style="display:none">0</span>
+        </a>
+        <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </nav>
+    <div class="slide-menu" id="slide-menu">
+      <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+      <div class="slide-panel">
+        <a href="/" class="slide-item">🏠 Home</a>
+        <a href="category.html" class="slide-item">🛍️ All Categories</a>
+        <a href="wishlist.html" class="slide-item">❤️ Wishlist</a>
+        <a href="cart.html" class="slide-item">🛒 Cart</a>
+        <a href="orders.html" class="slide-item">📦 Orders</a>
+        <a href="profile.html" class="slide-item">👤 My Account</a>
+        <a href="sign-in.html" class="slide-item">🔑 Sign In</a>
+        <div class="slide-divider"></div>
+        <a href="profile.html" class="slide-item">📋 Profile Information</a>
+        <a href="addresses.html" class="slide-item">📍 Addresses</a>
+        <a href="payment-methods.html" class="slide-item">💳 Payment Methods</a>
+        <a href="returns.html" class="slide-item">🔄 Returns</a>
+        <a href="wallet.html" class="slide-item">💰 Wallet</a>
+        <a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
+        <a href="customer-service.html" class="slide-item">💬 Customer Service</a>
+        <a href="policy.html" class="slide-item">📜 Privacy Policy</a>
+      </div>
+    </div>
+  <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+<div class="container">
+<a href="profile.html" class="back-link">← Back to Profile</a>
+<div class="page-header"><h1>✏️ Profile Information</h1></div>
+<p class="page-sub">Update your name, phone, birthday, and more</p>
+<div class="card">
+<div class="form-group"><label>Full Name</label><input type="text" id="edit-name" placeholder="Your name"></div>
+<div class="form-group"><label>Email</label><input type="email" id="edit-email" placeholder="your@email.com" disabled style="opacity:.6"></div>
+<div class="form-group"><label>Phone</label><input type="tel" id="edit-phone" placeholder="+61 4XX XXX XXX"></div>
+<div class="form-row">
+<div class="form-group"><label>Date of Birth</label><input type="date" id="edit-dob"></div>
+<div class="form-group"><label>Gender</label><select id="edit-gender"><option value="">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+</div>
+<button class="btn" onclick="saveProfile()">💾 Save Changes</button>
+</div></div>
+<div class="toast" id="to"></div>
+<script>
+function toast(m){var t=document.getElementById("to");t.textContent=m;t.classList.add("on");setTimeout(function(){t.classList.remove("on")},2000)}
+(function load(){
+  try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("ncb");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}
+  try{var s=JSON.parse(localStorage.getItem("bd_session")||"null"),p=JSON.parse(localStorage.getItem("bd_profile_extra")||"{}");if(s){document.getElementById("edit-name").value=s.name||"";document.getElementById("edit-email").value=s.email||""}document.getElementById("edit-phone").value=p.phone||"";document.getElementById("edit-dob").value=p.dob||"";document.getElementById("edit-gender").value=p.gender||""}catch(e){}
+})();
+function saveProfile(){
+  var n=document.getElementById("edit-name").value.trim(),ph=document.getElementById("edit-phone").value.trim(),dob=document.getElementById("edit-dob").value,g=document.getElementById("edit-gender").value;
+  if(!n)return toast("Name is required");
+  try{
+    var s=JSON.parse(localStorage.getItem("bd_session")||"{}");s.name=n;localStorage.setItem("bd_session",JSON.stringify(s));localStorage.setItem("bd_user_name",n);
+    localStorage.setItem("bd_profile_extra",JSON.stringify({phone:ph,dob:dob,gender:g}));
+    toast("Profile saved!");setTimeout(function(){location.href="profile.html"},1000)
+  }catch(e){toast("Could not save profile")}
+}
+</script></body></html>

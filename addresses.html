@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Address Book — Bargain Drop</title>
+<link rel="icon" href="favicon.svg">
+<meta name="theme-color" content="#0F0F0F">
+<script src="js/account.js"></script>
+<style>
+:root{--bg:#f8f7f4;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--green:#10b981;--nav-h:54px;--promo-h:28px;--radius:14px;--pill:999px}
+*,::before,::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);padding-top:calc(var(--nav-h) + var(--promo-h))}
+a{color:inherit;text-decoration:none}
+.promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#c0392b);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;z-index:300;overflow:hidden}
+.promo-strip span{display:flex;gap:4px;animation:marquee 20s linear infinite}
+@keyframes marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+.promo-strip .sep{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.5)}
+.navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:rgba(15,15,15,.97);backdrop-filter:blur(14px);display:flex;align-items:center;padding:0 16px;z-index:299;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.nav-logo{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:auto;text-decoration:none;color:inherit}
+.nav-logo .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--lilac),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff}
+.nav-logo .logo-text{font-size:.8rem;font-weight:800;color:#fff}
+.nav-actions{display:flex;gap:4px;align-items:center}
+.nav-btn{position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.7);background:none;border:none;cursor:pointer;text-decoration:none}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-badge{position:absolute;top:3px;right:3px;background:var(--accent);color:#fff;font-size:.5rem;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;padding:0 3px}
+.container{max-width:580px;margin:0 auto;padding:20px 16px 100px}
+.page-header{margin-bottom:24px}
+.breadcrumb{font-size:.7rem;color:var(--muted);margin-bottom:8px}
+.breadcrumb a{color:var(--lilac)}
+.page-header h1{font-size:1.25rem;font-weight:800;margin-bottom:4px}
+.subtitle{font-size:.75rem;color:var(--muted)}
+.add-btn{display:flex;align-items:center;gap:8px;width:100%;padding:14px 18px;border:2px dashed #d0ccc5;border-radius:var(--radius);background:transparent;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer;margin-bottom:16px;transition:all .15s}
+.add-btn:hover{border-color:var(--lilac);color:var(--fg);background:rgba(184,169,232,.05)}
+.add-btn .plus{width:28px;height:28px;border-radius:50%;background:var(--lilac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.address-card{background:var(--white);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;border:1.5px solid #e8e5e0;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative}
+.address-card.default{border-color:var(--lilac);background:rgba(184,169,232,.04)}
+.address-name{font-size:.82rem;font-weight:800;margin-bottom:2px}
+.address-street{font-size:.78rem;color:var(--fg);line-height:1.5}
+.address-meta{font-size:.7rem;color:var(--muted);margin-top:8px}
+.default-badge{display:inline-block;padding:3px 10px;background:rgba(184,169,232,.15);color:var(--lilac);border-radius:var(--pill);font-size:.62rem;font-weight:700;margin-top:6px}
+.address-actions{display:flex;gap:6px;margin-top:10px}
+.action-btn{padding:7px 14px;border:1.5px solid #e8e5e0;border-radius:var(--pill);background:var(--white);font-size:.68rem;font-weight:600;color:var(--muted);cursor:pointer}
+.action-btn:hover{border-color:var(--lilac);color:var(--fg)}
+.action-btn.danger:hover{border-color:var(--accent);color:var(--accent)}
+.empty-state{text-align:center;padding:50px 20px}
+.empty-state .empty-icon{font-size:3rem;margin-bottom:12px}
+.empty-state h2{font-size:1rem;font-weight:800;margin-bottom:4px}
+.empty-state p{font-size:.75rem;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:14px 32px;border-radius:var(--pill);font-size:.78rem;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--dark);color:#fff;width:100%}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:transparent;color:var(--muted);border:1.5px solid #e0dcd5}
+.btn-back{background:none;color:var(--muted);font-size:.75rem;font-weight:600;padding:12px 0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 28px;border-radius:var(--pill);font-size:.75rem;font-weight:700;z-index:999;transition:.3s;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:350;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--white);border-radius:var(--radius);padding:24px 20px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.modal-box h2{font-size:1.05rem;font-weight:800;margin-bottom:18px}
+.modal-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.05);cursor:pointer;font-size:1rem;color:var(--muted);z-index:10}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select{width:100%;padding:11px 14px;border:1.5px solid #e0dcd5;border-radius:10px;font-size:.85rem;background:var(--white);font-family:inherit;color:var(--fg);transition:border-color .15s}
+.form-group input:focus,.form-group select:focus{border-color:var(--lilac);outline:none}
+.form-group input::placeholder{color:#ccc}
+.form-row{display:flex;gap:8px}
+.form-row .form-group{flex:1}
+.checkbox-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.checkbox-row input[type=checkbox]{width:auto}
+.checkbox-row label{text-transform:none;letter-spacing:0;margin:0;font-size:.75rem;font-weight:500}
+.modal-footer{display:flex;gap:10px;margin-top:20px}
+.modal-footer .btn{flex:1}
+/* Slide */
+.hamburger-btn svg line{transition:all .2s}
+.slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+.slide-menu.open{pointer-events:auto}
+.slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+.slide-menu.open .slide-backdrop{opacity:1}
+.slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+.slide-menu.open .slide-panel{transform:translateX(0)}
+.slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+.slide-item:hover{background:#f8f7f4}
+.slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+.search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+.search-overlay.show{display:flex}
+.search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+.search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+.search-box input:focus{border-color:#B8A9E8}
+</style>
+</head>
+<body>
+<div class="promo-strip"><span>🚚 Free Shipping A$29+<span class="sep"></span>🔒 SSL Encrypted<span class="sep"></span>✅ Verified Seller<span class="sep"></span>🔄 30-Day Returns</span></div>
+<nav class="navbar">
+  <a href="/" class="nav-logo"><div class="logo-icon">BD</div><div class="logo-text">BARGAIN DROP</div></a>
+  <div class="nav-actions">
+    <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+    <a href="wishlist.html" class="nav-btn" aria-label="Wishlist"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a>
+    <a href="cart.html" class="nav-btn" aria-label="Cart"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span class="nav-badge" id="nav-cart-count" style="display:none">0</span></a>
+    <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  </div>
+</nav>
+<div class="slide-menu" id="slide-menu">
+  <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+  <div class="slide-panel">
+    <a href="/" class="slide-item">🏠 Home</a>
+    <a href="category.html" class="slide-item">🛍️ Categories</a>
+    <a href="wishlist.html" class="slide-item">❤️ Wishlist</a>
+    <a href="cart.html" class="slide-item">🛒 Cart</a>
+    <a href="orders.html" class="slide-item">📦 Orders</a>
+    <a href="profile.html" class="slide-item">👤 Account</a>
+    <a href="sign-in.html" class="slide-item">🔑 Sign In</a>
+    <div class="slide-divider"></div>
+    <a href="account-info.html" class="slide-item">📋 Profile</a>
+    <a href="addresses.html" class="slide-item">📍 Addresses</a>
+    <a href="payment-methods.html" class="slide-item">💳 Payments</a>
+    <a href="returns.html" class="slide-item">🔄 Returns</a>
+    <a href="wallet.html" class="slide-item">💰 Wallet</a>
+    <a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
+    <a href="customer-service.html" class="slide-item">💬 Support</a>
+    <a href="policy.html" class="slide-item">📜 Privacy</a>
+  </div>
+</div>
+<div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="addr-modal">
+  <div class="modal-box">
+    <h2 id="modal-title">Add New Address</h2>
+    <div class="form-group"><label>Full Name</label><input type="text" id="addr-name" placeholder="Recipient name" autocomplete="name"></div>
+    <div class="form-group"><label>Phone</label><input type="tel" id="addr-phone" placeholder="+61 4XX XXX XXX" autocomplete="tel"></div>
+    <div class="form-group"><label>Street Address</label><input type="text" id="addr-line1" placeholder="House/flat number & street" autocomplete="address-line1"></div>
+    <div class="form-group"><label>Apt, Suite, Unit (optional)</label><input type="text" id="addr-line2" placeholder="Building name, floor" autocomplete="address-line2"></div>
+    <div class="form-row">
+      <div class="form-group"><label>City</label><input type="text" id="addr-city" placeholder="City" autocomplete="address-level2"></div>
+      <div class="form-group"><label>State</label><input type="text" id="addr-state" placeholder="State / Province" autocomplete="address-level1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Postal Code</label><input type="text" id="addr-zip" placeholder="Postcode" autocomplete="postal-code"></div>
+      <div class="form-group"><label>Country</label>
+        <select id="addr-country"><option value="AU">🇦🇺 Australia</option><option value="US">🇺🇸 United States</option><option value="GB">🇬🇧 United Kingdom</option><option value="CA">🇨🇦 Canada</option><option value="NZ">🇳🇿 New Zealand</option></select>
+      </div>
+    </div>
+    <div class="checkbox-row"><input type="checkbox" id="addr-default"><label for="addr-default">Set as default address</label></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--dark);color:#fff" onclick="saveAddr()">Save Address</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="page-header">
+    <div class="breadcrumb"><a href="profile.html">← My Account</a></div>
+    <h1>📍 Address Book</h1>
+    <p class="subtitle">Manage your delivery addresses</p>
+  </div>
+  <button class="add-btn" onclick="openAdd()"><span class="plus">+</span> Add New Address</button>
+  <div id="address-list"></div>
+  <div class="empty-state" id="empty"><div class="empty-icon">📬</div><h2>No addresses yet</h2><p>Add one to check out faster</p></div>
+  <div style="text-align:center;margin-top:24px"><a href="profile.html" class="btn btn-back">← Go Back</a></div>
+</div>
+
+<script>
+try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("nav-cart-count");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}
+
+function toast(m){
+  var e=document.getElementById("toast");if(!e)return;
+  e.textContent=m;e.classList.add("show");
+  clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},2500);
+}
+
+// Address storage
+function getL(){try{return JSON.parse(localStorage.getItem("bd_addresses")||"[]")}catch(e){return[]}}
+function setL(l){localStorage.setItem("bd_addresses",JSON.stringify(l))}
+
+var editIdx=-1;
+
+function openAdd(){
+  editIdx=-1;
+  document.getElementById("modal-title").textContent="Add New Address";
+  ["name","phone","line1","line2","city","state","zip"].forEach(function(id){document.getElementById("addr-"+id).value=""});
+  document.getElementById("addr-country").value="AU";
+  document.getElementById("addr-default").checked=false;
+  document.getElementById("addr-modal").classList.add("show");
+}
+
+function openEdit(idx){
+  var list=getL(),a=list[idx];if(!a)return;
+  editIdx=idx;
+  document.getElementById("modal-title").textContent="Edit Address";
+  document.getElementById("addr-name").value=a.name||"";
+  document.getElementById("addr-phone").value=a.phone||"";
+  document.getElementById("addr-line1").value=a.line1||"";
+  document.getElementById("addr-line2").value=a.line2||"";
+  document.getElementById("addr-city").value=a.city||"";
+  document.getElementById("addr-state").value=a.state||"";
+  document.getElementById("addr-zip").value=a.zip||"";
+  document.getElementById("addr-country").value=a.country||"AU";
+  document.getElementById("addr-default").checked=!!a.isDefault;
+  document.getElementById("addr-modal").classList.add("show");
+}
+
+function closeModal(){document.getElementById("addr-modal").classList.remove("show")}
+
+function saveAddr(){
+  var a={
+    name:document.getElementById("addr-name").value.trim(),
+    phone:document.getElementById("addr-phone").value.trim(),
+    line1:document.getElementById("addr-line1").value.trim(),
+    line2:document.getElementById("addr-line2").value.trim(),
+    city:document.getElementById("addr-city").value.trim(),
+    state:document.getElementById("addr-state").value.trim(),
+    zip:document.getElementById("addr-zip").value.trim(),
+    country:document.getElementById("addr-country").value,
+    isDefault:document.getElementById("addr-default").checked
+  };
+  if(!a.name||!a.line1||!a.city){toast("⚠️ Name, street and city required");return}
+  
+  var list=getL();
+  if(a.isDefault)list.forEach(function(x){x.isDefault=false});
+  if(editIdx>=0){list[editIdx]=Object.assign(list[editIdx],a)}
+  else{if(list.length===0)a.isDefault=true;list.push(a)}
+  setL(list);closeModal();render();
+  toast(editIdx>=0?"✅ Address updated":"✅ Address added");
+}
+
+function removeAddr(idx){
+  if(!confirm("Delete this address?"))return;
+  var list=getL();list.splice(idx,1);
+  if(list.length&&!list.some(function(x){return x.isDefault}))list[0].isDefault=true;
+  setL(list);render();toast("🗑️ Address removed");
+}
+
+function render(){
+  var list=getL(),c=document.getElementById("address-list"),e=document.getElementById("empty");
+  if(!list.length){c.innerHTML="";e.style.display="";return}
+  e.style.display="none";c.innerHTML="";
+  list.forEach(function(a,i){
+    var div=document.createElement("div");
+    div.className="address-card"+(a.isDefault?" default":"");
+    var street=a.line1+(a.line2?", "+a.line2:"")+", "+a.city+" "+a.state+" "+a.zip;
+    var meta=(a.phone?"📞 "+a.phone+" · ":"")+(a.country==="AU"?"🇦🇺 Australia":a.country==="US"?"🇺🇸 United States":a.country==="GB"?"🇬🇧 UK":a.country==="CA"?"🇨🇦 Canada":a.country==="NZ"?"🇳🇿 New Zealand":a.country);
+    div.innerHTML='<div class="address-name">'+a.name.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})+'</div><div class="address-street">'+street.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})+'</div><div class="address-meta">'+meta+'</div>'+(a.isDefault?'<div class="default-badge">⭐ Default</div>':'')+'<div class="address-actions"><button class="action-btn" onclick="openEdit('+i+')">✏️ Edit</button><button class="action-btn danger" onclick="removeAddr('+i+')">🗑️ Delete</button></div>';
+    c.appendChild(div);
+  });
+}
+
+// Close modal on overlay click
+document.getElementById("addr-modal").addEventListener("click",function(e){if(e.target===this)closeModal()});
+
+render();
+</script>
+</body>
+</html>

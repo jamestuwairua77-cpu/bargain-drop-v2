@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+  <title>Wishlist — Bargain Drop</title>
+  <link rel="icon" href="favicon.svg">
+  <meta name="theme-color" content="#0F0F0F">
+  <script src="js/cart-count.js" defer></script>
+  <style>
+    :root{--bg:#f8f7f4;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--nav-h:54px;--promo-h:28px;--radius:14px;--pill:9999px}
+    *,::before,::after{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);padding-top:calc(var(--nav-h) + var(--promo-h));line-height:1.5}
+    a{color:inherit;text-decoration:none}
+    .promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#c0392b);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;z-index:300;overflow:hidden}
+    .promo-strip span{display:flex;gap:4px;animation:marquee 20s linear infinite}
+    @keyframes marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+    .promo-strip .sep{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.5)}
+    .navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:rgba(15,15,15,.97);backdrop-filter:blur(14px);display:flex;align-items:center;padding:0 16px;z-index:299}
+    .nav-logo{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:auto}
+    .nav-logo .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--lilac),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff}
+    .nav-logo .logo-text{font-size:.8rem;font-weight:800;color:#fff}
+    .nav-actions{display:flex;gap:4px}
+    .nav-btn{position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.7);background:none;border:none;cursor:pointer;text-decoration:none}
+    .nav-btn.active{color:var(--accent)}
+    .nav-badge{position:absolute;top:3px;right:3px;background:var(--accent);color:#fff;font-size:.5rem;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;padding:0 3px}
+    .container{max-width:620px;margin:0 auto;padding:16px 14px 100px}
+    .page-header h1{font-size:1.15rem;font-weight:800;margin-bottom:4px}
+    .page-sub{font-size:.72rem;color:var(--muted);margin-bottom:16px}
+    .wishlist-item{display:flex;gap:12px;background:var(--white);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.06);padding:12px;margin-bottom:10px;border:1px solid #e8e5e0;align-items:center}
+    .wishlist-img{width:72px;height:72px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#f0f0f0}
+    .wishlist-info{flex:1;min-width:0}
+    .wishlist-title{font-size:.78rem;font-weight:700;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .wishlist-price{font-size:.85rem;font-weight:800;color:var(--fg)}
+    .wishlist-remove{width:32px;height:32px;border-radius:50%;border:none;background:rgba(230,0,35,.08);color:var(--accent);cursor:pointer;flex-shrink:0;font-size:1rem}
+    .empty-state{text-align:center;padding:60px 20px}
+    .empty-state .empty-icon{font-size:3rem;margin-bottom:12px}
+    .empty-state h2{font-size:1rem;font-weight:700;margin-bottom:6px}
+    .empty-state p{font-size:.75rem;color:var(--muted);margin-bottom:20px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 28px;border-radius:var(--pill);font-size:.73rem;font-weight:700;cursor:pointer;border:none}
+    .btn-primary{background:var(--dark);color:#fff;text-decoration:none}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 28px;border-radius:var(--pill);font-size:.75rem;font-weight:700;z-index:999;transition:.3s}
+    .toast.show{transform:translateX(-50%) translateY(0)}
+  
+    .hamburger-btn svg line{transition:all .2s}
+    .slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+    .slide-menu.open{pointer-events:auto}
+    .slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+    .slide-menu.open .slide-backdrop{opacity:1}
+    .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+    .slide-menu.open .slide-panel{transform:translateX(0)}
+    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+    .slide-item:hover{background:#f8f7f4}
+    .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+    .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
+    .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+    .search-overlay.show{display:flex}
+    .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+    .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+    .search-box input:focus{border-color:#B8A9E8}
+    </style>
+</head>
+<body>
+      <div class="promo-strip"><span>🚚 Free Shipping A$29+ · 🔒 SSL Encrypted · ✅ Verified Seller · 🔄 30-Day Returns</span></div>
+    <nav class="navbar">
+      <a href="/" class="nav-logo">
+        <div class="logo-icon">BD</div>
+        <div class="logo-text">BARGAIN DROP</div>
+      </a>
+      <div class="nav-actions">
+        <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        </button>
+        <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        </a>
+        <a href="cart.html" class="nav-btn" aria-label="Cart">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span class="nav-badge" id="nav-cart-count" style="display:none">0</span>
+        </a>
+        <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </nav>
+    <div class="slide-menu" id="slide-menu">
+      <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+      <div class="slide-panel">
+        <a href="/" class="slide-item">🏠 Home</a>
+        <a href="category.html" class="slide-item">🛍️ All Categories</a>
+        <a href="wishlist.html" class="slide-item">❤️ Wishlist</a>
+        <a href="cart.html" class="slide-item">🛒 Cart</a>
+        <a href="orders.html" class="slide-item">📦 Orders</a>
+        <a href="profile.html" class="slide-item">👤 My Account</a>
+        <a href="sign-in.html" class="slide-item">🔑 Sign In</a>
+        <div class="slide-divider"></div>
+        <a href="profile.html" class="slide-item">📋 Profile Information</a>
+        <a href="addresses.html" class="slide-item">📍 Addresses</a>
+        <a href="payment-methods.html" class="slide-item">💳 Payment Methods</a>
+        <a href="returns.html" class="slide-item">🔄 Returns</a>
+        <a href="wallet.html" class="slide-item">💰 Wallet</a>
+        <a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
+        <a href="customer-service.html" class="slide-item">💬 Customer Service</a>
+        <a href="policy.html" class="slide-item">📜 Privacy Policy</a>
+      </div>
+    </div>
+  <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+  <div class="toast" id="toast"></div>
+  <div class="container">
+    <div class="page-header">
+      <h1>❤️ My Wishlist</h1>
+      <p class="page-sub" id="wishlist-count">0 items saved</p>
+    </div>
+    <div id="wishlist-items"></div>
+    <div class="empty-state" id="empty" style="display:none">
+      <div class="empty-icon">💝</div>
+      <h2>Your wishlist is empty</h2>
+      <p>Find products you love and save them for later.</p>
+      <a href="category.html" class="btn btn-primary">Browse Products</a>
+    </div>
+  </div>
+  <script>
+(function(){
+  try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("nav-cart-count");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}
+  function t(m){var e=document.getElementById("toast");if(!e)return;e.textContent=m;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},2000)}
+  function mn(n){return"A$"+Number(n||0).toFixed(2)}
+  function es(s){return String(s||"").replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+  function gw(){try{return JSON.parse(localStorage.getItem("bd_wishlist")||"[]")}catch(e){return[]}}
+  function sw(l){localStorage.setItem("bd_wishlist",JSON.stringify(l))}
+  function render(){
+    var items=gw(),c=document.getElementById("wishlist-items"),e=document.getElementById("empty"),ce=document.getElementById("wishlist-count");
+    ce.textContent=items.length+" item"+(items.length!==1?"s":"")+" saved";
+    if(!items.length){c.innerHTML="";e.style.display="";return}
+    e.style.display="none";c.innerHTML="";
+    items.forEach(function(p,i){
+      var d=document.createElement("div");d.className="wishlist-item";
+      d.innerHTML=(p.image?'<img class="wishlist-img" src="'+es(p.image)+'" alt="" loading="lazy" onerror="this.outerHTML=\'<div class=wishlist-img style=display:flex;align-items:center;justify-content:center;font-size:1.5rem>📦</div>\'">':'<div class="wishlist-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">📦</div>')+'<div class="wishlist-info"><a href="product.html?id='+encodeURIComponent(p.id||"")+'" class="wishlist-title">'+es(p.title||"Product")+'</a><div class="wishlist-price">'+mn(p.price||0)+'</div></div><button class="wishlist-remove" onclick="document.__rw('+i+')" title="Remove">✕</button>';
+      c.appendChild(d)
+    })
+  }
+  document.__rw=function(i){var items=gw(),r=items[i];items.splice(i,1);sw(items);render();if(r)t("Removed from wishlist")};
+  render()
+})();
+  </script>
+</body>
+</html>

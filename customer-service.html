@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Service — Bargain Drop</title>
+<style>
+:root{--bg:#fff;--fg:#111;--muted:#777;--line:#eee;--accent:#111}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);padding-bottom:80px}
+a{color:inherit;text-decoration:none}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:#111;color:#fff;font-size:0.7rem;position:sticky;top:0;z-index:110}
+.top-bar a{color:#fff}
+
+.page-header{padding:16px;border-bottom:1px solid var(--line)}
+.page-header h1{font-size:1.1rem;font-weight:800}
+.page-header .breadcrumb{font-size:0.7rem;color:var(--muted)}
+
+.contact-hero{padding:24px 16px;text-align:center;background:linear-gradient(135deg,#fafafa,#f0f0f0)}
+.contact-hero .hero-icon{font-size:3rem;margin-bottom:8px}
+.contact-hero h2{font-size:1rem;font-weight:800;margin-bottom:4px}
+.contact-hero p{font-size:0.75rem;color:var(--muted);line-height:1.5}
+
+.contact-methods{padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.contact-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 12px;background:#fff;border:1.5px solid var(--line);border-radius:12px;text-align:center;transition:all .15s;cursor:pointer}
+.contact-card:hover{border-color:#ccc;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.contact-card .cc-icon{font-size:2rem}
+.contact-card .cc-label{font-size:0.72rem;font-weight:600}
+.contact-card .cc-detail{font-size:0.62rem;color:var(--muted)}
+
+.faq-section{padding:16px}
+.faq-section h3{font-size:0.85rem;font-weight:700;margin-bottom:10px}
+.faq-item{border:1.5px solid var(--line);border-radius:10px;margin-bottom:6px;overflow:hidden}
+.faq-q{padding:14px 16px;background:#fafafa;font-size:0.75rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .15s}
+.faq-q:hover{background:#f0f0f0}
+.faq-q .faq-arrow{font-size:1rem;color:var(--muted);transition:transform .2s}
+.faq-q.open .faq-arrow{transform:rotate(45deg)}
+.faq-a{display:none;padding:14px 16px;font-size:0.72rem;color:#555;line-height:1.7;background:#fff}
+.faq-a.open{display:block}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:120;padding:4px 0}
+.bottom-nav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px;font-size:0.6rem;color:var(--muted);text-decoration:none}
+.bottom-nav a.active{color:var(--fg)}
+.nav-icon{width:20px;height:20px;flex-shrink:0}
+
+    .hamburger-btn svg line{transition:all .2s}
+    .slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+    .slide-menu.open{pointer-events:auto}
+    .slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+    .slide-menu.open .slide-backdrop{opacity:1}
+    .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+    .slide-menu.open .slide-panel{transform:translateX(0)}
+    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+    .slide-item:hover{background:#f8f7f4}
+    .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+    .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
+    .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+    .search-overlay.show{display:flex}
+    .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+    .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+    .search-box input:focus{border-color:#B8A9E8}
+    </style>
+  
+<style>
+:root{--nav-h:54px;--promo-h:28px;--lilac:#B8A9E8;--teal:#4ECDC4;--accent:#e60023;--dark:#0F0F0F;--pill:9999px}
+body{padding-top:calc(var(--nav-h) + var(--promo-h))}
+.promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#c0392b);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;letter-spacing:.3px;z-index:300;overflow:hidden;white-space:nowrap}
+.promo-strip span{display:flex;align-items:center;gap:4px;animation:marquee 20s linear infinite}
+.promo-strip .sep{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.5)}
+@keyframes marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+.navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:rgba(15,15,15,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;padding:0 16px;z-index:299;transition:transform .3s ease,box-shadow .3s ease;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.navbar.hidden{transform:translateY(-100%)}.navbar.scrolled{box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.nav-logo{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:auto;text-decoration:none;color:inherit}
+.nav-logo .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--lilac),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:900;color:#fff}
+.nav-logo .logo-text{font-size:.8rem;font-weight:800;color:#fff;letter-spacing:-.3px}
+.nav-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.nav-btn{position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.7);transition:all .15s;background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:none}
+.nav-btn:active,.nav-btn:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-badge{position:absolute;top:3px;right:3px;background:var(--accent);color:#fff;font-size:.5rem;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;padding:0 3px;line-height:1}
+.nav-search-wrap{flex:1;display:flex;justify-content:center;margin:0 8px;max-width:300px}
+.nav-search{display:flex;align-items:center;background:rgba(255,255,255,.08);border-radius:var(--pill);height:34px;padding:0 12px;gap:6px;border:1px solid transparent;transition:all .25s;width:100%;max-width:34px;overflow:hidden;cursor:pointer}
+.nav-search.expanded{max-width:300px;border-color:var(--lilac);background:rgba(255,255,255,.14);cursor:text}.nav-search svg{flex-shrink:0;width:16px;height:16px;color:rgba(255,255,255,.5)}
+.nav-search input{border:none;background:none;outline:none;flex:1;font-size:.73rem;font-family:inherit;color:#fff;width:0;opacity:0;transition:all .25s;min-width:0}
+.nav-search.expanded input{width:auto;opacity:1}.nav-search input::placeholder{color:rgba(255,255,255,.35)}
+.nav-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;opacity:0;pointer-events:none;transition:opacity .25s}
+.nav-menu-overlay.open{opacity:1;pointer-events:auto}
+.nav-menu{position:fixed;top:0;right:-280px;width:280px;height:100%;background:#161616;z-index:401;transition:right .3s ease;overflow-y:auto;padding:60px 20px 20px}
+.nav-menu.open{right:0}.nav-menu-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nav-menu h3{color:rgba(255,255,255,.4);font-size:.65rem;text-transform:uppercase;letter-spacing:.8px;margin:20px 0 10px}
+.nav-menu h3:first-of-type{margin-top:0}
+.nav-menu a{display:flex;align-items:center;gap:10px;padding:10px 0;color:rgba(255,255,255,.8);font-size:.78rem;font-weight:600;border-bottom:1px solid rgba(255,255,255,.06);transition:color .15s;text-decoration:none}
+.nav-menu a:hover{color:#fff}.nav-menu .menu-emoji{font-size:.9rem;width:22px;text-align:center}
+
+    .hamburger-btn svg line{transition:all .2s}
+    .slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+    .slide-menu.open{pointer-events:auto}
+    .slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+    .slide-menu.open .slide-backdrop{opacity:1}
+    .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+    .slide-menu.open .slide-panel{transform:translateX(0)}
+    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+    .slide-item:hover{background:#f8f7f4}
+    .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+    .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
+    .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+    .search-overlay.show{display:flex}
+    .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+    .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+    .search-box input:focus{border-color:#B8A9E8}
+    </style>
+</head>
+<body>
+<!-- PROMO STRIP -->
+    <div class="promo-strip"><span>🚚 Free Shipping A$29+ · 🔒 SSL Encrypted · ✅ Verified Seller · 🔄 30-Day Returns</span></div>
+    <nav class="navbar">
+      <a href="/" class="nav-logo">
+        <div class="logo-icon">BD</div>
+        <div class="logo-text">BARGAIN DROP</div>
+      </a>
+      <div class="nav-actions">
+        <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        </button>
+        <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        </a>
+        <a href="cart.html" class="nav-btn" aria-label="Cart">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span class="nav-badge" id="nav-cart-count" style="display:none">0</span>
+        </a>
+        <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </nav>
+    <div class="slide-menu" id="slide-menu">
+      <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+      <div class="slide-panel">
+        <a href="/" class="slide-item">🏠 Home</a>
+        <a href="category.html" class="slide-item">🛍️ All Categories</a>
+        <a href="wishlist.html" class="slide-item">❤️ Wishlist</a>
+        <a href="cart.html" class="slide-item">🛒 Cart</a>
+        <a href="orders.html" class="slide-item">📦 Orders</a>
+        <a href="profile.html" class="slide-item">👤 My Account</a>
+        <a href="sign-in.html" class="slide-item">🔑 Sign In</a>
+        <div class="slide-divider"></div>
+        <a href="profile.html" class="slide-item">📋 Profile Information</a>
+        <a href="addresses.html" class="slide-item">📍 Addresses</a>
+        <a href="payment-methods.html" class="slide-item">💳 Payment Methods</a>
+        <a href="returns.html" class="slide-item">🔄 Returns</a>
+        <a href="wallet.html" class="slide-item">💰 Wallet</a>
+        <a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
+        <a href="customer-service.html" class="slide-item">💬 Customer Service</a>
+        <a href="policy.html" class="slide-item">📜 Privacy Policy</a>
+      </div>
+    </div>
+  <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+<!-- SLIDE-OUT MENU -->
+<div class="nav-menu-overlay" id="nav-menu-overlay" onclick="toggleMenu()"></div>
+<div class="nav-menu" id="nav-menu">
+  <button class="nav-menu-close" onclick="toggleMenu()">✕</button>
+  <h3>Categories</h3>
+  <a href="category.html?cat=womens-clothing&name=Women%27s%20Clothing"><span class="menu-emoji">👗</span> Women's Clothing</a>
+  <a href="category.html?cat=mens-clothing&name=Men%27s%20Clothing"><span class="menu-emoji">👔</span> Men's Clothing</a>
+  <a href="category.html?cat=bags-shoes&name=Bags%20%26%20Shoes"><span class="menu-emoji">👜</span> Bags &amp; Shoes</a>
+  <a href="category.html?cat=jewelry-watches&name=Jewelry%20%26%20Watches"><span class="menu-emoji">💍</span> Jewelry &amp; Watches</a>
+  <a href="category.html?cat=home-garden-furniture&name=Home%2C%20Garden%20%26%20Furniture"><span class="menu-emoji">🏡</span> Home &amp; Garden</a>
+  <a href="category.html?cat=consumer-electronics&name=Consumer%20Electronics"><span class="menu-emoji">🎧</span> Electronics</a>
+  <a href="category.html?cat=sports-outdoors&name=Sports%20%26%20Outdoors"><span class="menu-emoji">⚽</span> Sports &amp; Outdoors</a>
+  <a href="category.html?cat=health-beauty-hair&name=Health%2C%20Beauty%20%26%20Hair"><span class="menu-emoji">💄</span> Beauty &amp; Health</a>
+  <a href="categories.html"><span class="menu-emoji">📂</span> All Categories</a>
+  <h3>Account</h3>
+  <a href="profile.html"><span class="menu-emoji">👤</span> My Account</a>
+  <a href="orders.html"><span class="menu-emoji">📦</span> Orders</a>
+  <a href="wishlist.html"><span class="menu-emoji">❤️</span> Wishlist</a>
+  <a href="customer-service.html"><span class="menu-emoji">💬</span> Help &amp; Support</a>
+</div>
+
+<div class="top-bar"><a href="profile.html">← Profile</a><div>Free Shipping $29+</div></div>
+<div class="page-header"><div class="breadcrumb"><a href="/">Home</a> → <a href="profile.html">Profile</a> → Customer Service</div><h1>Customer Service</h1></div>
+<div class="contact-hero"><div class="hero-icon">💬</div><h2>How can we help you?</h2><p>We're here to assist with orders, returns, and any questions</p></div>
+<div class="contact-methods">
+<div class="contact-card"><div class="cc-icon">📧</div><div class="cc-label">Email Us</div><div class="cc-detail">support@bargaindrop.com<br>Usually replies in 24-48 hours</div></div>
+<div class="contact-card"><div class="cc-icon">💬</div><div class="cc-label">Live Chat</div><div class="cc-detail">Available 9AM-6PM EST<br>Get help instantly</div></div>
+<div class="contact-card"><div class="cc-icon">📞</div><div class="cc-label">Phone Support</div><div class="cc-detail">1-800-BARGAIN<br>Mon-Fri 9AM-6PM EST</div></div>
+<div class="contact-card"><div class="cc-icon">📦</div><div class="cc-label">Track Order</div><div class="cc-detail">Enter your order number<br>to get live tracking</div></div>
+</div>
+<div class="faq-section">
+<h3>Frequently Asked Questions</h3>
+<div class="faq-item" onclick="toggleFAQ(this)"><div class="faq-q">📦 How do I track my order? <span class="faq-arrow">+</span></div><div class="faq-a">Once your order ships, you'll receive a tracking number via email. You can also check your order status in the <a href="orders.html" style="color:var(--accent);font-weight:600">My Orders</a> section.</div></div>
+<div class="faq-item" onclick="toggleFAQ(this)"><div class="faq-q">↩️ What is your return policy? <span class="faq-arrow">+</span></div><div class="faq-a">We offer a 30-day return window from the date of delivery. Items must be unused and in original packaging. Check our <a href="settings.html" style="color:var(--accent);font-weight:600">Return Policy</a> for full details.</div></div>
+<div class="faq-item" onclick="toggleFAQ(this)"><div class="faq-q">🚚 How long does shipping take? <span class="faq-arrow">+</span></div><div class="faq-a"><b>Standard:</b> 7-15 business days. <b>Express:</b> 3-7 business days. Free standard shipping on orders over $29.</div></div>
+<div class="faq-item" onclick="toggleFAQ(this)"><div class="faq-q">💳 What payment methods are accepted? <span class="faq-arrow">+</span></div><div class="faq-a">We accept Visa, Mastercard, American Express, Discover, PayPal, Apple Pay, and Google Pay.</div></div>
+<div class="faq-item" onclick="toggleFAQ(this)"><div class="faq-q">🔄 Can I cancel or change my order? <span class="faq-arrow">+</span></div><div class="faq-a">Orders can be cancelled within 2 hours of placement. After that, please contact support and we'll do our best to help.</div></div>
+</div>
+
+<script>function toggleFAQ(el){el.querySelector('.faq-q').classList.toggle('open');el.querySelector('.faq-a').classList.toggle('open')}</script>
+
+
+<script>
+(function(){try{var cart=JSON.parse(localStorage.getItem("bd_cart")||"[]");var n=cart.reduce(function(s,i){return s+(i.qty||1)},0);var b=document.getElementById("nav-cart-count");if(b){b.textContent=n;b.style.display=n>0?"":"none"}}catch(e){}})();
+</script>
+
+<script>
+/* === STICKY NAVBAR UNIVERSAL JS === */
+var __navLastScroll=0;
+window.addEventListener("scroll",function(){
+  var n=document.getElementById("navbar"),s=window.scrollY;
+  if(!n)return;
+  if(s<__navLastScroll||s<100)n.classList.remove("hidden");
+  else if(s>__navLastScroll&&s>200)n.classList.add("hidden");
+  if(s>10)n.classList.add("scrolled");else n.classList.remove("scrolled");
+  __navLastScroll=s;
+},{passive:true});
+function toggleMenu(){
+  var m=document.getElementById("nav-menu"),o=document.getElementById("nav-menu-overlay");
+  if(!m||!o)return;
+  m.classList.toggle("open");o.classList.toggle("open");
+  document.body.style.overflow=m.classList.contains("open")?"hidden":"";
+}
+function expandSearch(){
+  var s=document.getElementById("nav-search");if(s)s.classList.add("expanded");
+  var i=document.getElementById("search-input");if(i)i.focus();
+}
+function collapseSearch(e){
+  var i=document.getElementById("search-input");
+  if(!i||!i.value)document.getElementById("nav-search").classList.remove("expanded");
+}
+/* Cart badge init */
+(function(){
+  try{
+    var c=JSON.parse(localStorage.getItem("bd_cart")||"[]");
+    var n=c.reduce(function(s,i){return s+(i.qty||1)},0);
+    var b=document.getElementById("nav-cart-count");
+    if(b&&n>0){b.textContent=n;b.style.display=""}
+  }catch(e){}
+})();
+</script>
+
+</body>
+</html>

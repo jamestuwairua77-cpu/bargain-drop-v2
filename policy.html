@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policies — Bargain Drop</title>
+<style>
+:root{--bg:#fff;--fg:#111;--muted:#777;--line:#eee;--accent:#111}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);padding-bottom:80px}
+a{color:inherit;text-decoration:none}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:#111;color:#fff;font-size:0.7rem;position:sticky;top:0;z-index:110}
+.top-bar a{color:#fff}
+.page-header{padding:16px;border-bottom:1px solid var(--line)}
+.page-header h1{font-size:1.1rem;font-weight:800}
+.page-header .breadcrumb{font-size:0.7rem;color:var(--muted)}
+.policy-nav{padding:8px 16px;display:flex;overflow-x:auto;gap:8px;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.policy-nav::-webkit-scrollbar{display:none}
+.policy-tab{padding:10px 18px;border-radius:20px;font-size:0.7rem;font-weight:600;background:#f5f5f5;color:var(--muted);white-space:nowrap;cursor:pointer;transition:all .15s;border:none}
+.policy-tab:hover{background:#e8e8e8}
+.policy-tab.active{background:var(--accent);color:#fff}
+.policy-content{padding:16px;max-width:720px}
+.policy-section{margin-bottom:24px}
+.policy-section h2{font-size:0.9rem;font-weight:700;margin-bottom:10px;color:var(--fg)}
+.policy-section p,.policy-section li{font-size:0.74rem;line-height:1.7;color:#555;margin-bottom:6px}
+.policy-section ul{padding-left:20px;margin-bottom:8px}
+.policy-section li{margin-bottom:4px}
+.policy-section b{color:var(--fg)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:120;padding:4px 0}
+.bottom-nav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px;font-size:0.6rem;color:var(--muted);text-decoration:none}
+.bottom-nav a.active{color:var(--fg)}
+.nav-icon{width:20px;height:20px;flex-shrink:0}
+
+    .hamburger-btn svg line{transition:all .2s}
+    .slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+    .slide-menu.open{pointer-events:auto}
+    .slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+    .slide-menu.open .slide-backdrop{opacity:1}
+    .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+    .slide-menu.open .slide-panel{transform:translateX(0)}
+    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+    .slide-item:hover{background:#f8f7f4}
+    .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+    .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
+    .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+    .search-overlay.show{display:flex}
+    .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+    .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+    .search-box input:focus{border-color:#B8A9E8}
+    </style>
+  
+<style>
+:root{--nav-h:54px;--promo-h:28px;--lilac:#B8A9E8;--teal:#4ECDC4;--accent:#e60023;--dark:#0F0F0F;--pill:9999px}
+body{padding-top:calc(var(--nav-h) + var(--promo-h))}
+.promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#c0392b);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;letter-spacing:.3px;z-index:300;overflow:hidden;white-space:nowrap}
+.promo-strip span{display:flex;align-items:center;gap:4px;animation:marquee 20s linear infinite}
+.promo-strip .sep{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.5)}
+@keyframes marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+.navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:rgba(15,15,15,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;padding:0 16px;z-index:299;transition:transform .3s ease,box-shadow .3s ease;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.navbar.hidden{transform:translateY(-100%)}.navbar.scrolled{box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.nav-logo{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:auto;text-decoration:none;color:inherit}
+.nav-logo .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--lilac),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:900;color:#fff}
+.nav-logo .logo-text{font-size:.8rem;font-weight:800;color:#fff;letter-spacing:-.3px}
+.nav-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.nav-btn{position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.7);transition:all .15s;background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:none}
+.nav-btn:active,.nav-btn:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-badge{position:absolute;top:3px;right:3px;background:var(--accent);color:#fff;font-size:.5rem;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;padding:0 3px;line-height:1}
+.nav-search-wrap{flex:1;display:flex;justify-content:center;margin:0 8px;max-width:300px}
+.nav-search{display:flex;align-items:center;background:rgba(255,255,255,.08);border-radius:var(--pill);height:34px;padding:0 12px;gap:6px;border:1px solid transparent;transition:all .25s;width:100%;max-width:34px;overflow:hidden;cursor:pointer}
+.nav-search.expanded{max-width:300px;border-color:var(--lilac);background:rgba(255,255,255,.14);cursor:text}.nav-search svg{flex-shrink:0;width:16px;height:16px;color:rgba(255,255,255,.5)}
+.nav-search input{border:none;background:none;outline:none;flex:1;font-size:.73rem;font-family:inherit;color:#fff;width:0;opacity:0;transition:all .25s;min-width:0}
+.nav-search.expanded input{width:auto;opacity:1}.nav-search input::placeholder{color:rgba(255,255,255,.35)}
+.nav-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;opacity:0;pointer-events:none;transition:opacity .25s}
+.nav-menu-overlay.open{opacity:1;pointer-events:auto}
+.nav-menu{position:fixed;top:0;right:-280px;width:280px;height:100%;background:#161616;z-index:401;transition:right .3s ease;overflow-y:auto;padding:60px 20px 20px}
+.nav-menu.open{right:0}.nav-menu-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nav-menu h3{color:rgba(255,255,255,.4);font-size:.65rem;text-transform:uppercase;letter-spacing:.8px;margin:20px 0 10px}
+.nav-menu h3:first-of-type{margin-top:0}
+.nav-menu a{display:flex;align-items:center;gap:10px;padding:10px 0;color:rgba(255,255,255,.8);font-size:.78rem;font-weight:600;border-bottom:1px solid rgba(255,255,255,.06);transition:color .15s;text-decoration:none}
+.nav-menu a:hover{color:#fff}.nav-menu .menu-emoji{font-size:.9rem;width:22px;text-align:center}
+
+    .hamburger-btn svg line{transition:all .2s}
+    .slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+    .slide-menu.open{pointer-events:auto}
+    .slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+    .slide-menu.open .slide-backdrop{opacity:1}
+    .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+    .slide-menu.open .slide-panel{transform:translateX(0)}
+    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
+    .slide-item:hover{background:#f8f7f4}
+    .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
+    .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
+    .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+    .search-overlay.show{display:flex}
+    .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+    .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+    .search-box input:focus{border-color:#B8A9E8}
+    </style>
+</head>
+<body>
+<!-- PROMO STRIP -->
+    <div class="promo-strip"><span>🚚 Free Shipping A$29+ · 🔒 SSL Encrypted · ✅ Verified Seller · 🔄 30-Day Returns</span></div>
+    <nav class="navbar">
+      <a href="/" class="nav-logo">
+        <div class="logo-icon">BD</div>
+        <div class="logo-text">BARGAIN DROP</div>
+      </a>
+      <div class="nav-actions">
+        <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        </button>
+        <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        </a>
+        <a href="cart.html" class="nav-btn" aria-label="Cart">
+          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span class="nav-badge" id="nav-cart-count" style="display:none">0</span>
+        </a>
+        <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </nav>
+    <div class="slide-menu" id="slide-menu">
+      <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+      <div class="slide-panel">
+        <a href="/" class="slide-item">🏠 Home</a>
+        <a href="category.html" class="slide-item">🛍️ All Categories</a>
+        <a href="wishlist.html" class="slide-item">❤️ Wishlist</a>
+        <a href="cart.html" class="slide-item">🛒 Cart</a>
+        <a href="orders.html" class="slide-item">📦 Orders</a>
+        <a href="profile.html" class="slide-item">👤 My Account</a>
+        <a href="sign-in.html" class="slide-item">🔑 Sign In</a>
+        <div class="slide-divider"></div>
+        <a href="profile.html" class="slide-item">📋 Profile Information</a>
+        <a href="addresses.html" class="slide-item">📍 Addresses</a>
+        <a href="payment-methods.html" class="slide-item">💳 Payment Methods</a>
+        <a href="returns.html" class="slide-item">🔄 Returns</a>
+        <a href="wallet.html" class="slide-item">💰 Wallet</a>
+        <a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
+        <a href="customer-service.html" class="slide-item">💬 Customer Service</a>
+        <a href="policy.html" class="slide-item">📜 Privacy Policy</a>
+      </div>
+    </div>
+  <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+<!-- SLIDE-OUT MENU -->
+<div class="nav-menu-overlay" id="nav-menu-overlay" onclick="toggleMenu()"></div>
+<div class="nav-menu" id="nav-menu">
+  <button class="nav-menu-close" onclick="toggleMenu()">✕</button>
+  <h3>Categories</h3>
+  <a href="category.html?cat=womens-clothing&name=Women%27s%20Clothing"><span class="menu-emoji">👗</span> Women's Clothing</a>
+  <a href="category.html?cat=mens-clothing&name=Men%27s%20Clothing"><span class="menu-emoji">👔</span> Men's Clothing</a>
+  <a href="category.html?cat=bags-shoes&name=Bags%20%26%20Shoes"><span class="menu-emoji">👜</span> Bags &amp; Shoes</a>
+  <a href="category.html?cat=jewelry-watches&name=Jewelry%20%26%20Watches"><span class="menu-emoji">💍</span> Jewelry &amp; Watches</a>
+  <a href="category.html?cat=home-garden-furniture&name=Home%2C%20Garden%20%26%20Furniture"><span class="menu-emoji">🏡</span> Home &amp; Garden</a>
+  <a href="category.html?cat=consumer-electronics&name=Consumer%20Electronics"><span class="menu-emoji">🎧</span> Electronics</a>
+  <a href="category.html?cat=sports-outdoors&name=Sports%20%26%20Outdoors"><span class="menu-emoji">⚽</span> Sports &amp; Outdoors</a>
+  <a href="category.html?cat=health-beauty-hair&name=Health%2C%20Beauty%20%26%20Hair"><span class="menu-emoji">💄</span> Beauty &amp; Health</a>
+  <a href="categories.html"><span class="menu-emoji">📂</span> All Categories</a>
+  <h3>Account</h3>
+  <a href="profile.html"><span class="menu-emoji">👤</span> My Account</a>
+  <a href="orders.html"><span class="menu-emoji">📦</span> Orders</a>
+  <a href="wishlist.html"><span class="menu-emoji">❤️</span> Wishlist</a>
+  <a href="customer-service.html"><span class="menu-emoji">💬</span> Help &amp; Support</a>
+</div>
+
+<div class="top-bar"><a href="profile.html">← Profile</a><div>Free Shipping $29+</div></div>
+<div class="page-header"><div class="breadcrumb"><a href="/">Home</a> → <a href="profile.html">Profile</a> → Policies</div><h1>Policies</h1></div>
+<div class="policy-nav">
+<button class="policy-tab active" data-section="shipping">📦 Shipping</button>
+<button class="policy-tab" data-section="returns">↩️ Returns</button>
+<button class="policy-tab" data-section="refund">💰 Refunds</button>
+<button class="policy-tab" data-section="payment">💳 Payment</button>
+<button class="policy-tab" data-section="terms">📋 Terms</button>
+<button class="policy-tab" data-section="privacy">🔒 Privacy</button>
+</div>
+<div class="policy-content" id="content">
+<div class="policy-section" id="s-shipping"><h2>📦 Shipping Policy</h2>
+<p><b>Order Processing:</b> Orders are processed within 24-48 hours of placement (excluding weekends and holidays).</p>
+<p><b>Standard Shipping:</b> 7-15 business days. Estimated delivery times are guidelines only.</p>
+<p><b>Express Shipping:</b> 3-7 business days at additional cost where available.</p>
+<p><b>Free Shipping:</b> Available on all orders over $29 USD. Applied automatically at checkout.</p>
+<p><b>Order Tracking:</b> A tracking number will be emailed within 48 hours of your order shipping.</p>
+<p><b>International Shipping:</b> We ship to most countries worldwide. Import duties and taxes are the responsibility of the buyer.</p>
+<p><b>PO Boxes & APO/FPO:</b> Delivery to PO Boxes and military addresses may take additional time.</p></div>
+<div class="policy-section" id="s-returns" style="display:none"><h2>↩️ Return Policy</h2>
+<p><b>30-Day Return Window:</b> You have 30 calendar days from the date of delivery to initiate a return.</p>
+<p><b>Eligibility Requirements:</b></p>
+<ul><li>Items must be unused and in original condition</li><li>All original packaging, tags, and accessories must be included</li><li>Proof of purchase is required</li></ul>
+<p><b>Non-Returnable Items:</b></p>
+<ul><li>Intimate apparel and swimwear (hygiene reasons)</li><li>Perishable goods and food products</li><li>Custom-made or personalized items</li><li>Gift cards and downloadable products</li></ul>
+<p><b>How to Return:</b> Contact our Customer Service team to obtain a Return Authorization (RA) number. Items returned without an RA number may be refused.</p></div>
+<div class="policy-section" id="s-refund" style="display:none"><h2>💰 Refund Policy</h2>
+<p><b>Full Refunds:</b> Issued when items are received damaged, defective, incorrect, or not as described.</p>
+<p><b>Partial Refunds:</b> May apply for items returned after 15 days, items without original packaging, or items with signs of use.</p>
+<p><b>Refund Method:</b> Refunds are credited to your original payment method only.</p>
+<p><b>Processing Time:</b> 5-10 business days after we receive and inspect the returned item.</p>
+<p><b>Shipping Costs:</b> Return shipping is free for defective, damaged, or incorrect items. For change-of-mind returns, the buyer is responsible for return shipping costs.</p></div>
+<div class="policy-section" id="s-payment" style="display:none"><h2>💳 Payment Policy</h2>
+<p><b>Accepted Methods:</b> Visa, Mastercard, American Express, Discover, PayPal, Apple Pay, and Google Pay.</p>
+<p><b>Security:</b> All payment transactions are protected with 256-bit SSL encryption and PCI-DSS compliance.</p>
+<p><b>Currency:</b> All prices are listed and charged in US Dollars (USD). Currency conversion fees may apply for international cards.</p>
+<p><b>Payment Timing:</b> Your card is charged at the time of order placement.</p>
+<p><b>Failed Payments:</b> If payment fails, we'll notify you to update your payment method. Orders with unresolved payment issues will be cancelled after 3 days.</p></div>
+<div class="policy-section" id="s-terms" style="display:none"><h2>📋 Terms & Conditions</h2>
+<p><b>1. Acceptance:</b> By accessing or using Bargain Drop, you agree to be bound by these terms.</p>
+<p><b>2. Account Responsibility:</b> You are responsible for maintaining the confidentiality of your account login credentials and for all activities under your account.</p>
+<p><b>3. Product Information:</b> We strive for accuracy but cannot guarantee that all product descriptions, images, pricing, or specifications are error-free, complete, or current.</p>
+<p><b>4. User Conduct:</b> You agree not to misuse our services, including transmitting viruses, spamming, or attempting unauthorized access.</p>
+<p><b>5. Intellectual Property:</b> All content including logo, text, graphics, and code is the property of Bargain Drop and is protected by copyright, trademark, and other IP laws.</p>
+<p><b>6. Limitation of Liability:</b> Bargain Drop shall not be liable for any indirect, incidental, or consequential damages arising from the use of our products or services.</p>
+<p><b>7. Modifications:</b> We reserve the right to update these terms at any time. Continued use of the site constitutes acceptance of any changes.</p>
+<p><b>8. Governing Law:</b> These terms shall be governed by applicable consumer protection and e-commerce laws.</p></div>
+<div class="policy-section" id="s-privacy" style="display:none"><h2>🔒 Privacy Policy</h2>
+<p><b>Information We Collect:</b> We collect information you provide (name, email, shipping address, payment details) and information automatically collected (IP address, browser type, device info, browsing behavior).</p>
+<p><b>How We Use Your Data:</b> To process orders, communicate about your account, improve our services, personalize your experience, and send promotional emails (with opt-out).</p>
+<p><b>Data Sharing:</b> We do not sell your personal information. We share data only with service providers necessary to fulfill orders (payment processors, shipping carriers).</p>
+<p><b>Cookies:</b> We use cookies for site functionality, analytics, and personalization. You can disable cookies in your browser settings.</p>
+<p><b>Data Security:</b> We implement reasonable security measures to protect your personal information. However, no online transmission is 100% secure.</p>
+<p><b>Your Rights:</b> You may request access, correction, or deletion of your personal data at any time. Contact us at privacy@bargaindrop.com.</p>
+<p><b>Children's Privacy:</b> Our site is not intended for children under 13. We do not knowingly collect data from children.</p></div>
+</div>
+
+<script>
+document.querySelectorAll('.policy-tab').forEach(function(btn){
+btn.addEventListener('click',function(){
+document.querySelectorAll('.policy-tab').forEach(function(b){b.classList.remove('active')});
+this.classList.add('active');
+document.querySelectorAll('.policy-section').forEach(function(s){s.style.display='none'});
+document.getElementById('s-'+this.dataset.section).style.display='block';
+});
+});
+</script>
+
+
+<script>
+(function(){try{var cart=JSON.parse(localStorage.getItem("bd_cart")||"[]");var n=cart.reduce(function(s,i){return s+(i.qty||1)},0);var b=document.getElementById("nav-cart-count");if(b){b.textContent=n;b.style.display=n>0?"":"none"}}catch(e){}})();
+</script>
+
+<script>
+/* === STICKY NAVBAR UNIVERSAL JS === */
+var __navLastScroll=0;
+window.addEventListener("scroll",function(){
+  var n=document.getElementById("navbar"),s=window.scrollY;
+  if(!n)return;
+  if(s<__navLastScroll||s<100)n.classList.remove("hidden");
+  else if(s>__navLastScroll&&s>200)n.classList.add("hidden");
+  if(s>10)n.classList.add("scrolled");else n.classList.remove("scrolled");
+  __navLastScroll=s;
+},{passive:true});
+function toggleMenu(){
+  var m=document.getElementById("nav-menu"),o=document.getElementById("nav-menu-overlay");
+  if(!m||!o)return;
+  m.classList.toggle("open");o.classList.toggle("open");
+  document.body.style.overflow=m.classList.contains("open")?"hidden":"";
+}
+function expandSearch(){
+  var s=document.getElementById("nav-search");if(s)s.classList.add("expanded");
+  var i=document.getElementById("search-input");if(i)i.focus();
+}
+function collapseSearch(e){
+  var i=document.getElementById("search-input");
+  if(!i||!i.value)document.getElementById("nav-search").classList.remove("expanded");
+}
+/* Cart badge init */
+(function(){
+  try{
+    var c=JSON.parse(localStorage.getItem("bd_cart")||"[]");
+    var n=c.reduce(function(s,i){return s+(i.qty||1)},0);
+    var b=document.getElementById("nav-cart-count");
+    if(b&&n>0){b.textContent=n;b.style.display=""}
+  }catch(e){}
+})();
+</script>
+
+</body>
+</html>

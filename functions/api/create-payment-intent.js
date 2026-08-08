@@ -1,0 +1,17 @@
+import { corsHeaders } from '../_sync-lib.js';
+export async function onRequest(context) {
+  const { request, env } = context;
+  if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  const body = await request.json().catch(() => ({}));
+  const STRIPE_KEY = env.STRIPE_SECRET_KEY || '';
+  if (!STRIPE_KEY) return new Response(JSON.stringify({ error: 'Stripe not configured' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  try {
+    const params = new URLSearchParams();
+    params.append('amount', body.amount || 0); params.append('currency', body.currency || 'aud');
+    if (body.payment_method) params.append('payment_method', body.payment_method);
+    const r = await fetch('https://api.stripe.com/v1/payment_intents', { method: 'POST', headers: { 'Authorization': 'Bearer ' + STRIPE_KEY, 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error?.message || 'Stripe error');
+    return new Response(JSON.stringify({ clientSecret: data.client_secret, id: data.id }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  } catch (e) { return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }); }
+}
