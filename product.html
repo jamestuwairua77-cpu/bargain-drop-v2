@@ -647,13 +647,13 @@ function addToCart(){
  if(vs.length){
   var sizeOpt=getSizeOptName(),colorOpt=getNameOfColorOpt();
   var selsz=selectedOpts[sizeOpt],selcol=selectedOpts[colorOpt]||currentColor;
-  for(var i=0;i<vs.length;i++){var v=vs[i];if(v.available){if(selsz&&v.option2!==selsz&&v.option1!==selsz)continue;variant={id:v.id,price:v.price};break}}
+  for(var i=0;i<vs.length;i++){var v=vs[i];if(v.available){if(selsz&&v.option2!==selsz&&v.option1!==selsz)continue;variant={id:v.id,price:v.price,sku:v.sku||''};break}}
  }
  var price=variant?Number(variant.price):Number(product.price||0);
  var key=(variant?variant.id:product.id)+'|'+(selsz||'')+'|'+(selcol||'');
  var idx=cart.findIndex(function(c){return c._key===key});
  if(idx>=0)cart[idx].qty+=qty;
- else cart.push({_key:key,variant_id:variant?variant.id:product.id,product_id:product.id,title:product.title,price:price,qty:qty,image:images.length?images[0]:'',size:selsz||'',color:selcol||''});
+ else cart.push({_key:key,variant_id:variant?variant.id:product.id,product_id:product.id,title:product.title,price:price,qty:qty,image:images.length?images[0]:'',size:selsz||'',color:selcol||'',sku:(variant?variant.sku:'')||''});
  localStorage.setItem('bd_cart',JSON.stringify(cart));updateCartCount();
  var d=meta?meta.discount:0;
  toast('✅ Added to cart — '+d+'% off applied!');
@@ -664,7 +664,7 @@ function renderProduct(raw){
  var p={id:raw.id,title:raw.title||raw.name||'',price:parseFloat(raw.price)||0,description:raw.body_html||raw.description||'',vendor:raw.vendor||'',product_type:raw.product_type||'',tags:raw.tags||'',category:raw.category||''};
  p.images=[];if(raw.images)raw.images.forEach(function(i){p.images.push(typeof i==='string'?i:(i.src||''))});if(!p.images.length&&raw.image)p.images=[raw.image];
  p.options=[];if(raw.options)raw.options.forEach(function(o){p.options.push({name:o.name||o,values:Array.isArray(o.values)?o.values:[o.value||o]})});
- p.variants=[];if(raw.variants)raw.variants.forEach(function(v){p.variants.push({id:v.id,title:v.title||'',price:parseFloat(v.price)||0,available:v.available!==undefined?v.available:true,option1:v.option1||'',option2:v.option2||'',option3:v.option3||''})});
+ p.variants=[];if(raw.variants)raw.variants.forEach(function(v){p.variants.push({id:v.id,title:v.title||'',price:parseFloat(v.price)||0,available:v.available!==undefined?v.available:true,option1:v.option1||'',option2:v.option2||'',option3:v.option3||'',sku:v.sku||''})});
  // if no options array, synthesize from variants
  if(!p.options.length&&p.variants.length){
   var opt1=[],opt2=[],opt3=[],s1={},s2={},s3={};

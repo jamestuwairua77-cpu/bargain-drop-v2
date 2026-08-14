@@ -298,8 +298,18 @@ function validateShip(s){
 }
 
 // --- Order saving ---
-function saveOrder(oid,email,fname,lname,method){
-  var order={id:oid,status:'unpaid',count:cart.length,total:total,date:new Date().toISOString(),items:cart.slice(),email:email,name:fname+' '+lname,payment:method};
+function saveOrder(oid,email,fname,lname,method,s){
+  s=s||{};
+  var order={
+    id:oid,status:'unpaid',count:cart.length,total:total,
+    date:new Date().toISOString(),items:cart.slice(),
+    email:email,name:fname+' '+lname,payment:method,
+    shipping:{
+      first_name:fname,last_name:lname,email:email,
+      address1:s.addr||'',city:s.city||'',province:s.state||'',
+      zip:s.zip||'',phone:s.phone||'',country:'Australia',country_code:'AU'
+    }
+  };
   var orders=JSON.parse(localStorage.getItem('bd_orders')||'[]');orders.push(order);
   localStorage.setItem('bd_orders',JSON.stringify(orders));
   return order;
@@ -423,7 +433,7 @@ window.payWithApplePay = async function(){
         if(!data.success){session.completePayment(ApplePaySession.STATUS_FAILURE);throw new Error(data.error||'Payment failed')}
         session.completePayment(ApplePaySession.STATUS_SUCCESS);
         var oid='BD-AP-'+Date.now().toString(36).toUpperCase();
-        saveOrder(oid,s.email,s.fname,s.lname,'Apple Pay');
+        saveOrder(oid,s.email,s.fname,s.lname,'Apple Pay',s);
         window.location.href=API_BASE+'/order-success.html?id='+oid;
       }catch(er){
         session.completePayment(ApplePaySession.STATUS_FAILURE);
@@ -489,7 +499,7 @@ window.payWithGPay = async function(){
     if(!data.success)throw new Error(data.error||'Payment failed');
     
     var oid='BD-GP-'+Date.now().toString(36).toUpperCase();
-    saveOrder(oid,s.email,s.fname,s.lname,'Google Pay');
+    saveOrder(oid,s.email,s.fname,s.lname,'Google Pay',s);
     window.location.href=API_BASE+'/order-success.html?id='+oid;
 
   }catch(e){
@@ -509,7 +519,7 @@ window.payWithGPay = async function(){
         if(!s.fname||!s.lname||!s.email||!s.addr){showError('Fill in shipping info');return actions.reject();}
         setAllBtnsDisabled(true);
         var oid='BD-PP-'+Date.now().toString(36).toUpperCase();
-        saveOrder(oid,s.email,s.fname,s.lname,'PayPal');
+        saveOrder(oid,s.email,s.fname,s.lname,'PayPal',s);
         window._ppOid=oid;
         return actions.resolve();
       },
@@ -536,7 +546,7 @@ window.payWithStripe = async function(){
   var btn=document.getElementById('pay-stripe');
   btn.classList.add('loading');setAllBtnsDisabled(true);
   var oid='BD-CC-'+Date.now().toString(36).toUpperCase();
-  saveOrder(oid,s.email,s.fname,s.lname,'Stripe');
+  saveOrder(oid,s.email,s.fname,s.lname,'Stripe',s);
   await stripeCheckout(oid,s);
 };
 

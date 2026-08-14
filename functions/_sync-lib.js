@@ -169,6 +169,36 @@ export function shopifyToCjOrder(shopOrder) {
   };
 }
 
+// ─── Build a CJ createOrderV2 body from a generic checkout payload ────────
+// The custom checkout sends { order_id, customer_email, shipping_address, products:[{vid,quantity}] }.
+// Normalize into the exact CJ createOrderV2 field names.
+export function buildCjOrderFromBody(body) {
+  const sa = body.shipping_address || {};
+  const orderNumber = body.order_id || body.orderNumber || ('BD' + Date.now().toString(36).toUpperCase());
+  const products = (body.products || body.line_items || []).map((it, i) => ({
+    vid: it.vid || it.sku || null,
+    quantity: it.quantity || it.qty || 1,
+    storeLineItemId: it.storeLineItemId || (orderNumber + '-' + i),
+  }));
+  return {
+    orderNumber,
+    shippingCountryCode: sa.country_code || 'AU',
+    shippingCountry: sa.country || 'Australia',
+    shippingProvince: sa.province || sa.state || '',
+    shippingCity: sa.city || '',
+    shippingZip: sa.zip || sa.postal_code || '',
+    shippingPhone: sa.phone || '',
+    shippingCustomerName: ((sa.first_name || '') + ' ' + (sa.last_name || '')).trim() || 'Customer',
+    shippingAddress: [sa.address1 || sa.addr || sa.address, sa.address2].filter(Boolean).join(' '),
+    email: body.customer_email || body.email || sa.email || '',
+    remark: body.remark || ('BD order ' + orderNumber),
+    platform: 'custom',
+    fromCountryCode: 'CN',
+    logisticName: 'CJPacket Ordinary',
+    products,
+  };
+}
+
 // ─── Web Crypto HMAC verification (replaces Node crypto.createHmac) ──────
 export async function verifyHmac(raw, header, secret) {
   if (!secret || !header) return true;
