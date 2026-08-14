@@ -116,10 +116,12 @@ svg{display:block}
 .review-card:last-child{border-bottom:0}
 .rc-top{display:flex;align-items:center;gap:10px}
 .rc-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#c7b8ee,#4ecdc4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;flex-shrink:0}
-.rc-who{flex:1;min-width:0}
+.rc-who{flex:1;min-width:0;display:flex;align-items:center;gap:12px}
+.rc-id{min-width:0}
 .rc-name{font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:6px}
 .rc-verified{font-size:.6rem;color:var(--green);background:#e7f6ee;padding:1px 6px;border-radius:4px;font-weight:700}
-.rc-stars{color:var(--gold);font-size:.75rem;margin-top:2px}
+.rc-stars{color:var(--gold);display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1}
+.rc-stars svg{width:14px;height:14px}
 .rc-date{font-size:.68rem;color:var(--muted)}
 .rc-title{font-size:.85rem;font-weight:700;margin:8px 0 4px}
 .rc-body{font-size:.8rem;line-height:1.55;color:#333}
@@ -569,7 +571,7 @@ function renderReviewList(){
  shown.forEach(function(r){
   var ver=r.verified?'<span class="rc-verified">✓ Verified</span>':'';
   var sizeTag=r.size?'<span class="rc-size-tag">'+esc(r.size)+'</span>':'';
-  list.innerHTML+='<div class="review-card"><div class="rc-top"><div class="rc-avatar">'+esc(r.name.charAt(0))+'</div><div class="rc-who"><div class="rc-name">'+esc(r.name)+' '+ver+'</div><div class="rc-stars">'+starsHtml(r.rating)+'</div></div><div class="rc-date">'+r.date+'</div></div><div class="rc-title">'+esc(r.title)+'</div><div class="rc-body">'+esc(r.body)+'</div><div class="rc-meta">'+sizeTag+'<button class="rc-helpful" onclick="this.textContent=\'✓ Helpful\';this.disabled=true">👍 Helpful ('+r.helpful+')</button></div></div>';
+  list.innerHTML+='<div class="review-card"><div class="rc-top"><div class="rc-avatar">'+esc(r.name.charAt(0))+'</div><div class="rc-who"><div class="rc-id"><div class="rc-name">'+esc(r.name)+' '+ver+'</div><div class="rc-date">'+r.date+'</div></div><div class="rc-stars">'+starsHtml(r.rating)+'</div></div></div><div class="rc-title">'+esc(r.title)+'</div><div class="rc-body">'+esc(r.body)+'</div><div class="rc-meta">'+sizeTag+'<button class="rc-helpful" onclick="this.textContent=\'✓ Helpful\';this.disabled=true">👍 Helpful ('+r.helpful+')</button></div></div>';
  });
  var lm=document.getElementById('load-more-reviews');
  lm.classList.toggle('hidden', ALL_REVIEWS.length<=REVIEWS_SHOWN);
