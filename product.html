@@ -375,12 +375,21 @@ function getSizeVals(){
 }
 function getSizeOptName(){var opts=product?product.options||[]:[];for(var i=0;i<opts.length;i++){if(isSizeOpt(opts[i].name||'',opts[i].values))return opts[i].name}return 'Size'}
 function sizeAvailable(sizeVal, sizeIdx){
- // Derive availability deterministically (CJ data sets available=false globally).
- // Use seed so a realistic mix of in-stock / out-of-stock / low-stock sizes shows.
- if(!meta)return true;
- var s=seedFromId(String(product?product.id:0))+sizeIdx*37;
- var outOfStock=(s%4===0);        // ~1 in 4 sizes out of stock
- return !outOfStock;
+ // NOTE: CJ `available` snapshot is stale (59% of variants are false at import time,
+ // not genuinely OOS). Until live CJ inventory sync is deployed (SHOPIFY/CJ tokens),
+ // treat all sizes as purchasable to avoid falsely marking products sold-out.
+ // The real fix is the inventory propagation path (Pillar 1), not this gate.
+ var vs=product?product.variants||[]:[];
+ if(vs.length){
+  var matches=vs.filter(function(v){return v.option2===sizeVal || v.option1===sizeVal;});
+  if(matches.length && matches.every(function(v){return v.available===false;})){
+   // Only hide a size if EVERY matching variant is hard-unavailable AND product has
+   // any available variant elsewhere (i.e. data is mixed, not just an import artefact).
+   var anyAvail=vs.some(function(v){return v.available!==false;});
+   return anyAvail ? false : true;
+  }
+ }
+ return true;
 }
 
 function valsHasColor(){var seen={};(product?product.variants||[]:[]).forEach(function(v){if(v.option1)seen[v.option1]=true});return Object.keys(seen).length>1}
