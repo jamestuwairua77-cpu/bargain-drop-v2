@@ -261,3 +261,60 @@ export async function verifyPassword(password, stored) {
   const verify = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
   return hash === verify;
 }
+
+// ─── Server-side fulfillment: push a paid order to CJ + Shopify (idempotent) ──
+async function pushOrderToCj(env, order) {
+  const payload = buildCjOrderFromBody({
+    order_id: order.id,
+    customer_email: order.email || (order.shipping && order.shipping.email) || '',
+    shipping_address: order.shipping || {},
+    products: (order.items || []).map((it, i) => ({
+      vid: it.sku || it.vid || null,
+      quantity: it.qty || it.quantity || 1,
+      storeLineItemId: order.id + '-' + i,
+    })),
+  });
+  return await cjFetch(env, '/order/createOrderV2', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function pushOrderToShopify(env, order) {
+  const ship = order.shipping || {};
+  const shopOrder = {
+    email: order.email || ship.email || '',
+    financial_status: 'paid',
+    line_items: (order.items || []).map((it) => ({
+      variant_id: it.variant_id || null,
+      title: it.title || 'Item',
+      price: it.price || 0,
+      quantity: it.qty || it.quantity || 1,
+      sku: it.sku || '',
+    })),
+    shipping_address: {
+      first_name: ship.first_name || (order.name ? order.name.split(' ')[0] : ''),
+      last_name: ship.last_name || (order.name ? order.name.split(' ').slice(1).join(' ') : ''),
+      address1: ship.address1 || ship.addr || '',
+      city: ship.city || '',
+      province: ship.province || ship.state || '',
+      zip: ship.zip || '',
+      country: ship.country || 'Australia',
+      country_code: ship.country_code || 'AU',
+      phone: ship.phone || '',
+    },
+    note_attributes: [{ name: 'bd_order_id', value: String(order.id) }],
+  };
+  return await shopifyFetch(env, '/orders.json', { method: 'POST', body: JSON.stringify({ order: shopOrder }) });
+}
+
+// Idempotent fulfillment: run ONCE, record results in the ledger, never double-push.
+export async function fulfillOrder(env, order) {
+  const orders = await listOrders(env);
+  const existing = orders.find(o => o.id === order.id);
+  if (existing && existing.fulfillment && existing.fulfillment.done) {
+    return { skipped: true, already: true, fulfillment: existing.fulfillment };
+  }
+  const result = { done: true, at: new Date().toISOString(), cj: null, shopify: null, errors: [] };
+  try { result.cj = await pushOrderToCj(env, order); } catch (e) { result.cj = { error: e.message }; result.errors.push('cj: ' + e.message); }
+  try { result.shopify = await pushOrderToShopify(env, order); } catch (e) { result.shopify = { error: e.message }; result.errors.push('shopify: ' + e.message); }
+  await updateOrderStatus(env, order.id, 'fulfilling', { fulfillment: result });
+  return result;
+}

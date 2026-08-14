@@ -3,7 +3,7 @@
 // Security: do NOT trust order-success.html?id= — this is the authoritative
 // confirmation that money actually moved.
 
-import { updateOrderStatus, appendSyncLog } from '../_sync-lib.js';
+import { updateOrderStatus, appendSyncLog, listOrders, fulfillOrder } from '../_sync-lib.js';
 
 async function verifyStripeSignature(rawBody, signature, secret) {
   // Web Crypto HMAC-SHA256 over `${timestamp}.${payload}` (v1 scheme)
@@ -58,14 +58,30 @@ export async function onRequest(context) {
       const paymentStatus = session.payment_status || 'paid';
       const amount = session.amount_total || 0;
       if (orderId) {
-        const updated = await updateOrderStatus(env, orderId, 'paid', {
+        await updateOrderStatus(env, orderId, 'paid', {
           paymentStatus,
           amount_total: amount,
           stripe_session_id: session.id,
           paidAt: new Date().toISOString(),
         });
         await appendSyncLog(env, { action: 'stripe-webhook', event: event.type, order_id: orderId, paymentStatus });
-        return new Response(JSON.stringify({ received: true, order: orderId, updated: !!updated }), { status: 200 });
+
+        // Payment confirmed → push to CJ + Shopify for fulfillment (idempotent, server-side)
+        let fulfillment = null;
+        try {
+          const orders = await listOrders(env);
+          const order = orders.find(o => o.id === orderId);
+          if (order) {
+            // run in background without blocking the webhook ack (Stripe retries if we take too long)
+            const p = fulfillOrder(env, order);
+            const WITHIN = await Promise.race([p, new Promise(r => setTimeout(() => r('pending'), 9000))]);
+            fulfillment = (WITHIN === 'pending') ? 'started' : WITHIN;
+          }
+        } catch (fe) {
+          fulfillment = { error: fe.message };
+        }
+
+        return new Response(JSON.stringify({ received: true, order: orderId, fulfillment }), { status: 200 });
       } else {
         await appendSyncLog(env, { action: 'stripe-webhook', event: event.type, session: session.id, warning: 'no order_id metadata' });
         return new Response(JSON.stringify({ received: true }), { status: 200 });

@@ -102,11 +102,8 @@
         body:JSON.stringify({order:order})
       }).catch(function(){});
 
-      // 3. Auto-sync to CJ + Shopify after 1s delay
-      setTimeout(function(){ 
-        syncCJ(); 
-        syncShopify(); 
-      }, 1000);
+      // 3. Fulfillment is triggered server-side by the Stripe webhook on payment.
+      //    No auto-fire here — avoids duplicate CJ/Shopify orders.
     }
   }
 
