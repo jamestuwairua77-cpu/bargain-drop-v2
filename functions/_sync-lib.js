@@ -116,6 +116,32 @@ export async function ghWrite(env, path, content, msg, existingSha) {
 
 // ─── Sync log via GitHub (no /tmp in Cloudflare) ─────────────────────────
 const SYNC_LOG_PATH = 'data/sync-log.json';
+const ORDERS_PATH = 'data/orders.json';
+
+// ─── Durable order ledger (GitHub-backed, same mechanism as sync log) ────
+export async function listOrders(env) {
+  const existing = await ghRead(env, ORDERS_PATH);
+  if (!existing || !existing.content) return [];
+  try { return JSON.parse(atob(existing.content)); } catch { return []; }
+}
+
+export async function saveOrderRecord(env, order) {
+  const orders = await listOrders(env);
+  const idx = orders.findIndex(o => o.id === order.id);
+  const record = { ...order, updatedAt: new Date().toISOString() };
+  if (idx >= 0) { orders[idx] = record; } else { orders.push(record); }
+  await ghWrite(env, ORDERS_PATH, JSON.stringify(orders, null, 2), 'orders: save ' + (order.id || ''));
+  return record;
+}
+
+export async function updateOrderStatus(env, orderId, status, extra) {
+  const orders = await listOrders(env);
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx < 0) return null;
+  orders[idx] = { ...orders[idx], status, ...(extra || {}), updatedAt: new Date().toISOString() };
+  await ghWrite(env, ORDERS_PATH, JSON.stringify(orders, null, 2), 'orders: ' + status + ' ' + orderId);
+  return orders[idx];
+}
 
 export async function appendSyncLog(env, entry) {
   try {

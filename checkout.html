@@ -315,6 +315,15 @@ function saveOrder(oid,email,fname,lname,method,s){
   return order;
 }
 
+// Persist order to the server ledger BEFORE redirecting to payment,
+// so the Stripe webhook can reconcile by order_id.
+function persistOrderServer(order){
+  return fetch(API_BASE+'/api/save-order',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({order:order})
+  }).catch(function(){}); // best-effort; order remains in localStorage too
+}
+
 // --- Disable all payment buttons during processing ---
 function setAllBtnsDisabled(d){
   var btns=['pay-applepay','pay-gpay','pay-stripe'];
@@ -546,7 +555,8 @@ window.payWithStripe = async function(){
   var btn=document.getElementById('pay-stripe');
   btn.classList.add('loading');setAllBtnsDisabled(true);
   var oid='BD-CC-'+Date.now().toString(36).toUpperCase();
-  saveOrder(oid,s.email,s.fname,s.lname,'Stripe',s);
+  var ord=saveOrder(oid,s.email,s.fname,s.lname,'Stripe',s);
+  persistOrderServer(ord);
   await stripeCheckout(oid,s);
 };
 
