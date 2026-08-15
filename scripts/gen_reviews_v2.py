@@ -150,6 +150,24 @@ def unique_detail(pid, i):
         d2 = r2.choice(DETAILS)
     return d1, d2
 
+# Tone-aware extra phrases for lower ratings (lukewarm / critical)
+CAVEATS = [
+    "it does the job but it's nothing fancy",
+    "decent for the price, though not outstanding",
+    "a bit more basic than the photos suggest",
+    "fine for occasional use, but I wouldn't call it premium",
+    "works okay, just wish it felt a little more solid",
+    "with some minor niggles here and there",
+    "not quite as polished as I hoped",
+    "good enough, but I've had slightly better",
+]
+NEG_SENTENCES = [
+    "slightly underwhelmed by the overall feel",
+    "a couple of small things could be better",
+    "the finish isn't quite as clean as expected",
+    "it's adequate more than impressive",
+]
+
 def gen_reviews(product, pid):
     r = rng(pid)
     # rating avg in [4.2, 4.9]
@@ -206,8 +224,13 @@ def gen_reviews(product, pid):
         # guarantee global uniqueness: append a deterministic detail clause
         d1, d2 = unique_detail(pid, i)
         body = body.rstrip('.').rstrip('.')
+        body = body + '. ' + d1.capitalize() + '. ' + d2.capitalize() + '.'
+        # tone-aware: if this review is 3 stars, add a lukewarm caveat
+        if ratings[i] <= 3:
+            caveat = rr.choice(CAVEATS + NEG_SENTENCES)
+            body = body + ' That said, ' + caveat + '.'
         tok = unique_token(pid, i)   # guaranteed-unique short natural phrase
-        body = body + '. ' + d1.capitalize() + '. ' + d2.capitalize() + '. ' + tok + '.'
+        body = body + ' ' + tok + '.'
         reviews.append({'name': name, 'rating': ratings[i], 'title': title_for(body, rr), 'body': body})
     return {'average': avg, 'count': count, 'reviews': reviews}
 
