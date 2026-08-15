@@ -88,10 +88,79 @@ export async function ghRead(env, path) {
   return await r.json();
 }
 
+function b64Encode(bytes) {
+  // Chunked base64 encode — avoids "Maximum call stack size exceeded"
+  // on large payloads (the old fromCharCode(...spread) blew the stack >~500KB).
+  const CHUNK = 0x8000; // 32768 bytes per chunk
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
+export async function ghWriteLarge(env, path, content, msg) {
+  const token = GH_TOKEN_FN(env);
+  const gh = (url, opts) => fetch(url, { ...opts, headers: {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json',
+    'User-Agent': 'bargain-drop-cloudflare',
+  }});
+
+  // 1. Get current HEAD commit sha for main
+  const ref = await gh(GHAPI + '/git/ref/heads/main');
+  if (!ref.ok) throw new Error('git ref fail: ' + ref.status);
+  const baseSha = (await ref.json()).object.sha;
+
+  // 2. Get current commit tree sha
+  const commit = await gh(GHAPI + '/git/commits/' + baseSha);
+  if (!commit.ok) throw new Error('commit fail: ' + commit.status);
+  const treeSha = (await commit.json()).tree.sha;
+
+  // 3. Create a blob for the new content (supports >1MB via git blob API)
+  const bytes = new TextEncoder().encode(content);
+  const base64 = b64Encode(bytes);
+  const blob = await gh(GHAPI + '/git/blobs', {
+    method: 'POST',
+    body: JSON.stringify({ content: base64, encoding: 'base64' }),
+  });
+  if (!blob.ok) throw new Error('blob fail: ' + blob.status + ' ' + (await blob.text()).slice(0,200));
+  const blobSha = (await blob.json()).sha;
+
+  // 4. Create a new tree pointing `path` -> blob (base_tree = existing tree)
+  const tree = await gh(GHAPI + '/git/trees', {
+    method: 'POST',
+    body: JSON.stringify({ base_tree: treeSha, tree: [ { path, mode: '100644', type: 'blob', sha: blobSha } ] }),
+  });
+  if (!tree.ok) throw new Error('tree fail: ' + tree.status + ' ' + (await tree.text()).slice(0,200));
+  const newTreeSha = (await tree.json()).sha;
+
+  // 5. Create commit
+  const newCommit = await gh(GHAPI + '/git/commits', {
+    method: 'POST',
+    body: JSON.stringify({ message: msg, tree: newTreeSha, parents: [baseSha] }),
+  });
+  if (!newCommit.ok) throw new Error('commit fail: ' + newCommit.status);
+  const newCommitSha = (await newCommit.json()).sha;
+
+  // 6. Update main ref to new commit
+  const upd = await gh(GHAPI + '/git/refs/heads/main', {
+    method: 'PATCH',
+    body: JSON.stringify({ sha: newCommitSha, force: false }),
+  });
+  if (!upd.ok) throw new Error('ref update fail: ' + upd.status);
+  return { sha: newCommitSha };
+}
+
 export async function ghWrite(env, path, content, msg, existingSha) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  const base64 = btoa(String.fromCharCode(...data));
+  const bytes = new TextEncoder().encode(content);
+
+  // Files >1MB exceed GitHub /contents API limits → use Git Data (tree/blob) API.
+  if (bytes.length > 900 * 1024) {
+    return ghWriteLarge(env, path, content, msg);
+  }
+
+  const base64 = b64Encode(bytes);
   const body = {
     message: msg,
     content: base64,
