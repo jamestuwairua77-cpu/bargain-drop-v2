@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: /api/auth
 // POST { action: "register"|"signin", email, password, name? }
 
-import { corsHeaders, hashPassword, verifyPassword } from '../_sync-lib.js';
+import { corsHeaders, hashPassword, verifyPassword, syncCustomer } from '../_sync-lib.js';
 import { ghRead, ghWrite } from '../_sync-lib.js';
 
 const USERS_PATH = 'users-seed.json';
@@ -46,7 +46,7 @@ export async function onRequest(context) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { action, email, password, name } = body;
+  const { action, email, password, name, first_name, last_name, phone, addresses } = body;
 
   if (!email || !password) {
     return new Response(JSON.stringify({ error: 'Email and password required' }), {
@@ -75,11 +75,31 @@ export async function onRequest(context) {
 
     const hashed = await hashPassword(password);
     const userId = 'u-' + Date.now();
-    const user = { id: userId, email, name: name || email.split('@')[0], password: hashed, provider: 'email', createdAt: new Date().toISOString() };
+    const user = {
+      id: userId,
+      email,
+      name: name || email.split('@')[0],
+      first_name: first_name || null,
+      last_name: last_name || null,
+      phone: phone || null,
+      addresses: addresses || null,
+      password: hashed,
+      provider: 'email',
+      createdAt: new Date().toISOString(),
+    };
     users.push(user);
 
     const existing = await ghRead(env, USERS_PATH);
     await ghWrite(env, USERS_PATH, JSON.stringify(users, null, 2), 'auth: register user', existing?.sha);
+
+    // ── CUSTOMER SYNC → Shopify (best-effort, non-blocking) ──
+    // Reconcile this profile against Shopify Customers by email.
+    try {
+      const hr = await syncCustomer(env, { email, first_name, last_name, phone, addresses });
+      user.shopify_customer = hr;
+    } catch (ce) {
+      user.shopify_customer = { error: ce.message };
+    }
 
     const session = createSession(userId, env);
     return new Response(JSON.stringify({ success: true, user: { id: user.id, email: user.email, name: user.name }, session }), {
@@ -108,7 +128,32 @@ export async function onRequest(context) {
     });
   }
 
-  return new Response(JSON.stringify({ error: 'Invalid action. Use register or signin.' }), {
+  if (action === 'update_profile') {
+    const user = users.find(u => u.email === email);
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      });
+    }
+    if (first_name != null) user.first_name = first_name;
+    if (last_name != null) user.last_name = last_name;
+    if (phone != null) user.phone = phone;
+    if (addresses != null) user.addresses = addresses;
+    if (name != null) user.name = name;
+    const ex = await ghRead(env, USERS_PATH);
+    await ghWrite(env, USERS_PATH, JSON.stringify(users, null, 2), 'auth: update profile', ex?.sha);
+
+    // ── CUSTOMER SYNC → Shopify ──
+    let csync;
+    try { csync = await syncCustomer(env, { email, first_name: user.first_name, last_name: user.last_name, phone: user.phone, addresses: user.addresses }); }
+    catch (ce) { csync = { error: ce.message }; }
+
+    return new Response(JSON.stringify({ success: true, user: { id: user.id, email: user.email, name: user.name, first_name: user.first_name, last_name: user.last_name, phone: user.phone }, shopify_customer: csync }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+
+  return new Response(JSON.stringify({ error: 'Invalid action. Use register, signin or update_profile.' }), {
     status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
   });
 }

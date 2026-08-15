@@ -350,7 +350,7 @@ async function pushOrderToShopify(env, order) {
   const ship = order.shipping || {};
   const shopOrder = {
     email: order.email || ship.email || '',
-    financial_status: 'paid',
+    financial_status: 'pending',
     line_items: (order.items || []).map((it) => ({
       variant_id: it.variant_id || null,
       title: it.title || 'Item',
@@ -386,4 +386,167 @@ export async function fulfillOrder(env, order) {
   try { result.shopify = await pushOrderToShopify(env, order); } catch (e) { result.shopify = { error: e.message }; result.errors.push('shopify: ' + e.message); }
   await updateOrderStatus(env, order.id, 'fulfilling', { fulfillment: result });
   return result;
+}
+
+// ─── Customer sync: reconcile a BD profile against Shopify Customers ─────
+// Upsert customer by email. Returns { created | updated, shopifyId }.
+export async function syncCustomer(env, profile) {
+  const email = (profile.email || '').trim().toLowerCase();
+  if (!email) return { error: 'email required' };
+
+  // 1. Search existing by email (Shopify customers/search?query=email:...)
+  const search = await shopifyFetch(env, `/customers/search.json?query=${encodeURIComponent('email:' + email)}`);
+  const existing = (search.body && search.body.customers && search.body.customers[0]) || null;
+
+  if (existing) {
+    // 2. Update profile (only touched fields)
+    const patch = { customer: { id: existing.id } };
+    const c = patch.customer;
+    if (profile.first_name != null) c.first_name = profile.first_name;
+    if (profile.last_name != null) c.last_name = profile.last_name;
+    if (profile.phone != null) c.phone = profile.phone;
+    // default address (first of addresses → default_address)
+    if (profile.addresses && profile.addresses.length) {
+      const a = profile.addresses[0];
+      c.addresses = [{
+        first_name: a.first_name || profile.first_name || existing.first_name || '',
+        last_name: a.last_name || profile.last_name || existing.last_name || '',
+        address1: a.address1 || a.addr || '',
+        address2: a.address2 || '',
+        city: a.city || '',
+        province: a.province || a.state || '',
+        zip: a.zip || a.postal_code || '',
+        country: a.country || 'Australia',
+        country_code: a.country_code || 'AU',
+        phone: a.phone || profile.phone || '',
+        default: true,
+      }];
+    }
+    const upd = await shopifyFetch(env, `/customers/${existing.id}.json`, { method: 'PUT', body: JSON.stringify(patch) });
+    return { updated: true, shopifyId: existing.id, ok: upd.ok, error: upd.ok ? null : (upd.body?.errors || upd.body) };
+  }
+
+  // 3. Create new customer
+  const a = (profile.addresses && profile.addresses[0]) || {};
+  const create = {
+    customer: {
+      email,
+      first_name: profile.first_name || '',
+      last_name: profile.last_name || '',
+      phone: profile.phone || '',
+      tags: 'bargain-drop',
+      // Shopify requires a password for create (defaults randomly if omitted); set a secure placeholder,
+      // or omit to let Shopify send a reset invite. We send invite to avoid storing passwords.
+      send_email_invite: true,
+      addresses: [{
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        address1: a.address1 || a.addr || '',
+        address2: a.address2 || '',
+        city: a.city || '',
+        province: a.province || a.state || '',
+        zip: a.zip || a.postal_code || '',
+        country: a.country || 'Australia',
+        country_code: a.country_code || 'AU',
+        phone: a.phone || profile.phone || '',
+        default: true,
+      }],
+    },
+  };
+  const res = await shopifyFetch(env, '/customers.json', { method: 'POST', body: JSON.stringify(create) });
+  if (res.ok && res.body?.customer) {
+    return { created: true, shopifyId: res.body.customer.id, ok: true };
+  }
+  return { created: false, ok: false, error: res.body?.errors || res.body };
+}
+
+// ─── Mark a Shopify order as paid via a transaction, with gateway details ─
+export async function recordShopifyTransaction(env, shopifyOrderId, tx) {
+  // tx: { amount, currency, gateway, kind, status, authorization, source? }
+  const payload = {
+    transaction: {
+      amount: tx.amount ?? 0,
+      currency: tx.currency || 'AUD',
+      gateway: tx.gateway || 'stripe',
+      kind: tx.kind || 'sale',
+      status: tx.status || 'success',
+      authorization: tx.authorization || null,   // transaction hash from gateway
+      test: false,
+      source_name: 'bargain-drop',
+      processed_at: tx.processed_at || new Date().toISOString(),
+    },
+  };
+  return await shopifyFetch(env, `/orders/${shopifyOrderId}/transactions.json`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+// ─── Back-sync: apply a Shopify fulfillment to the BD ledger ─────────────
+export async function backsyncFulfillment(env, shopifyOrderId, fulfillment) {
+  // find local order by bd_order_id note attribute
+  const { body } = await shopifyFetch(env, `/orders/${shopifyOrderId}.json`);
+  const shopOrder = body.order || body;
+  const bdId = (shopOrder.note_attributes || []).find(a => a.name === 'bd_order_id')?.value || null;
+  const tracking = {
+    tracking_company: fulfillment.tracking_company || '',
+    tracking_number: fulfillment.tracking_number || '',
+    tracking_numbers: fulfillment.tracking_numbers || [],
+    tracking_urls: fulfillment.tracking_urls || [],
+    status: fulfillment.status || 'success',
+    shopify_fulfillment_id: fulfillment.id,
+    synced_at: new Date().toISOString(),
+  };
+  if (!bdId) {
+    return { error: 'no bd_order_id on Shopify order ' + shopifyOrderId, tracking };
+  }
+  const updated = await updateOrderStatus(env, bdId, 'fulfilled', { tracking });
+  await appendSyncLog(env, { action: 'back-sync-fulfillment', shopifyOrderId, bdId, tracking_number: tracking.tracking_number });
+  return { ok: true, bdId, tracking, updated: !!updated };
+}
+
+// ─── Back-sync: apply a Shopify inventory change to BD catalog ────────────
+export async function backsyncInventory(env, inventoryItemId, available) {
+  // Map inventory_item_id → variant SKU via Shopify product/variant lookup is non-trivial
+  // while the webhook payload itself carries inventory_item_id only.
+  // We follow Shopify's recommended flow: use inventory_levels/connect or read the item.
+  const il = await shopifyFetch(env, `/inventory_levels.json?inventory_item_ids=${inventoryItemId}`);
+  const levels = (il.body && il.body.inventory_levels) || [];
+  // levels carry location + available but not SKU directly; SKU lives on the variant.
+  // Fall back to fetching the item to get variant_id.
+  const item = await shopifyFetch(env, `/inventory_items/${inventoryItemId}.json`);
+  const variantId = (item.body && item.body.inventory_item && item.body.inventory_item.variant_id) || null;
+  if (!variantId) return { error: 'no variant_id for inventory item ' + inventoryItemId };
+
+  const v = await shopifyFetch(env, `/variants/${variantId}.json`);
+  const variant = (v.body && v.body.variant) || {};
+  const sku = variant.sku || null;
+  const inventory_quantity = available;
+
+  await appendSyncLog(env, { action: 'back-sync-inventory', inventoryItemId, variantId, sku, available });
+
+  if (!sku) return { error: 'no sku for variant ' + variantId, available };
+
+  // Update the BD catalog file (all-products.json) `available` flag for this SKU
+  const prods = await ghRead(env, 'all-products.json');
+  if (!prods) return { error: 'cannot read all-products.json', sku, available };
+  let all;
+  try { all = JSON.parse(atob(prods.content.replace(/\n/g, ''))); }
+  catch { all = JSON.parse(atob(prods.content)); }
+  let hits = 0;
+  for (const p of all) {
+    for (const vr of (p.variants || [])) {
+      if (vr.sku === sku) {
+        vr.available = available > 0;
+        // also update inventory_quantity if present
+        vr.inventory_quantity = available;
+        if (available <= 0) {
+          if (p.inventory_quantity != null) p.inventory_quantity = Math.max(0, (p.inventory_quantity || 0) - 1);
+        }
+        hits++;
+      }
+    }
+  }
+  if (hits) {
+    const shaw = (await ghRead(env, 'all-products.json'))?.sha;
+    await ghWrite(env, 'all-products.json', JSON.stringify(all, null, 2), `back-sync inventory: ${sku}=${available} (${hits} variant(s))`, shaw);
+  }
+  return { ok: true, sku, available, hits };
 }

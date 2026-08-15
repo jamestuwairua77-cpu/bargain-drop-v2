@@ -7,6 +7,9 @@ export async function onRequest(context) {
     { topic: 'products/update', address: url.origin + '/api/product-sync-webhook', format: 'json' },
     { topic: 'products/delete', address: url.origin + '/api/product-sync-webhook', format: 'json' },
     { topic: 'orders/create', address: url.origin + '/api/shopify-webhook', format: 'json' },
+    { topic: 'orders/fulfilled', address: url.origin + '/api/shopify-webhook', format: 'json' },
+    { topic: 'inventory_levels/update', address: url.origin + '/api/shopify-webhook', format: 'json' },
+    { topic: 'inventory_items/update', address: url.origin + '/api/shopify-webhook', format: 'json' },
   ];
   const results = [];
   for (const wh of webhooks) {

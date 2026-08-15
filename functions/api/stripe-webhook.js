@@ -3,7 +3,7 @@
 // Security: do NOT trust order-success.html?id= — this is the authoritative
 // confirmation that money actually moved.
 
-import { updateOrderStatus, appendSyncLog, listOrders, fulfillOrder } from '../_sync-lib.js';
+import { updateOrderStatus, appendSyncLog, listOrders, fulfillOrder, findShopifyOrderByBDId, recordShopifyTransaction, shopifyFetch } from '../_sync-lib.js';
 
 async function verifyStripeSignature(rawBody, signature, secret) {
   // Web Crypto HMAC-SHA256 over `${timestamp}.${payload}` (v1 scheme)
@@ -80,6 +80,37 @@ export async function onRequest(context) {
         } catch (fe) {
           fulfillment = { error: fe.message };
         }
+
+        // ── TRANSACTION SYNC → Shopify ──
+        // Mark the Shopify order as Paid and record gateway details (requirement #3).
+        let transaction = null;
+        try {
+          const shopOrder = await findShopifyOrderByBDId(env, orderId);
+          if (shopOrder) {
+            const gateway = (session.payment_method_types && session.payment_method_types[0])
+              ? session.payment_method_types[0] // e.g. 'card', 'paypal', 'apple_pay'
+              : 'stripe';
+            transaction = await recordShopifyTransaction(env, shopOrder.id, {
+              amount: amount / 100, // Stripe amounts are in cents
+              currency: (session.currency || 'aud').toUpperCase(),
+              gateway,                     // gateway name (e.g. card/paypal)
+              authorization: session.payment_intent || session.id, // transaction hash
+              kind: 'sale',
+              status: 'success',
+              processed_at: new Date().toISOString(),
+            });
+            // also flip financial_status to paid
+            await shopifyFetch(env, `/orders/${shopOrder.id}.json`, {
+              method: 'PUT',
+              body: JSON.stringify({ order: { id: shopOrder.id, financial_status: 'paid' } }),
+            });
+          } else {
+            transaction = { note: 'no Shopify order found for bd_order_id ' + orderId };
+          }
+        } catch (te) {
+          transaction = { error: te.message };
+        }
+        await appendSyncLog(env, { action: 'stripe-webhook-transaction', order_id: orderId, transaction });
 
         return new Response(JSON.stringify({ received: true, order: orderId, fulfillment }), { status: 200 });
       } else {
