@@ -88,7 +88,7 @@ export async function onRequest(context) {
           const shopOrder = await findShopifyOrderByBDId(env, orderId);
           if (shopOrder) {
             const gateway = (session.payment_method_types && session.payment_method_types[0])
-              ? session.payment_method_types[0] // e.g. 'card', 'paypal', 'apple_pay'
+              ? session.payment_method_types[0] // e.g. 'card', 'paypal', 'link'
               : 'stripe';
             transaction = await recordShopifyTransaction(env, shopOrder.id, {
               amount: amount / 100, // Stripe amounts are in cents

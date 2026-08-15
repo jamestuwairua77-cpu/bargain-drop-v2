@@ -10,7 +10,10 @@ export async function onRequest(context) {
     return new Response(null, { status: 200, headers: corsHeaders() });
   }
 
-  const key = env.STRIPE_PUBLISHABLE_KEY || 'pk_live_51TndeRJ3f0xAyevchYmstcKzEeAD27L3ZPBQtHfPqgXxfr00AKqZhfLV';
+  const key = env.STRIPE_PUBLISHABLE_KEY || '';
+  if (!key) {
+    return new Response(JSON.stringify({ error: 'Stripe publishable key not configured' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
   return new Response(JSON.stringify({ key }), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600', ...corsHeaders() },
   });
