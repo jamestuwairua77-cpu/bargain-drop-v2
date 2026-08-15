@@ -319,42 +319,97 @@ function buildGallery(imgs){
 function setImage(i){curImg=i;document.querySelectorAll('#gallery img').forEach(function(x,j){x.classList.toggle('active',j===i)});document.querySelectorAll('#gallery-dots span').forEach(function(x,j){x.classList.toggle('active',j===i)})}
 
 /* ============ OPTION HELPERS ============ */
-function isSizeOpt(n,vals){var l=(n||'').toLowerCase();if(l==='size'||l.indexOf('size')>=0)return true;if(!vals||!vals.length)return false;var sz='S M L XL XXL XXXL 2XL 3XL 4XL 5XL 6XL 7XL 1X 2X 3X 4X XS SM MEDIUM LARGE XLARGE'.split(' '),h=0;for(var i=0;i<vals.length;i++){if(sz.indexOf(String(vals[i]).trim().toUpperCase())>=0)h++}return h>=2}
+var LETTER_SIZES=['XS','S','M','L','XL','XXL','XXXL','2XL','3XL','4XL','5XL','6XL','7XL','8XL','1X','2X','3X','4X','5X'];
+function looksLikeSizeVal(v){
+  var s=String(v==null?'':v).trim();
+  if(!s)return false;
+  var u=s.toUpperCase();
+  // classic letter sizes
+  if(LETTER_SIZES.indexOf(u)>=0)return true;
+  if(/^(SM|MED|MEDIUM|LARGE|XLARGE|XXLARGE|ONE SIZE|ONE-SIZE|FREE SIZE|FREE-SIZE|FREESIZE|FITS ALL|O\/S|OS)$/i.test(s))return true;
+  // numeric shoe/clothing sizes (34-60) possibly with dot (e.g. 38.5)
+  if(/^\d{1,2}(\.\d)?$/.test(s)){var nn=parseFloat(s);return nn>=20&&nn<=60}
+  // measurements: 80cm, 13.3inch, 100x50cm, 38cm etc.
+  if(/\d+(cm|inch|in|mm|\"|")$/i.test(s)&&(!/oe|or|mm$/i.test(s)||/\d+mm$/i.test(s)))return true;
+  // watch band / small variation like "42oe44or45or49mm" NOT a simple size -> skip
+  if(/oe| or /i.test(s))return false;
+  return false;
+}
+function isSizeOpt(n,vals){
+  var l=(n||'').toLowerCase();
+  if(l==='size'||l.indexOf('size')>=0)return true;
+  if(!vals||!vals.length)return false;
+  var hits=0,total=vals.length;
+  for(var i=0;i<vals.length;i++){if(looksLikeSizeVal(vals[i]))hits++}
+  return hits>=Math.max(2,Math.min(total,2))&&hits>=Math.ceil(total*0.6);
+}
 function isColorOpt(n){var l=(n||'').toLowerCase();return l==='color'||l==='colour'||l.indexOf('color')>=0}
 function getNameOfColorOpt(){var opts=product?product.options||[]:[];for(var i=0;i<opts.length;i++){if(isColorOpt(opts[i].name||'')||i===0)return opts[i].name}return 'Color'}
 function getSizeOptName(){var opts=product?product.options||[]:[];for(var i=0;i<opts.length;i++){if(isSizeOpt(opts[i].name||'',opts[i].values))return opts[i].name}return 'Size'}
 
 /* ============ COLOR MAP (name -> hex for swatches) ============ */
-var COLOR_HEX={black:'#111111',white:'#ffffff',grey:'#9e9e9e',gray:'#9e9e9e',red:'#d32f2f',blue:'#1976d2',green:'#388e3c',yellow:'#fbc02d',orange:'#f57c00',pink:'#ec407a',purple:'#7b1fa2',brown:'#6d4c41',beige:'#d7ccc8',navy:'#1a237e',gold:'#c9a227',silver:'#bdbdbd',khaki:'#8d8b6f',khaki_:null};
+var COLOR_HEX={black:'#111111',white:'#ffffff',grey:'#9e9e9e',gray:'#9e9e9e',red:'#d32f2f',blue:'#1976d2',green:'#388e3c',yellow:'#fbc02d',orange:'#f57c00',pink:'#ec407a',purple:'#7b1fa2',brown:'#6d4c41',beige:'#d7ccc8',navy:'#1a237e',gold:'#c9a227',silver:'#bdbdbd',khaki:'#8d8b6f',maroon:'#800000',teal:'#008080',cream:'#f5f0df',ivory:'#fffff0',tan:'#d2b48c',charcoal:'#36454f',olive:'#808000',coral:'#ff7f50',burgundy:'#800020',lavender:'#e6e6fa',mint:'#98ff98',skin:'#f4c6a3',nude:'#eac7a8','multi':'#c8c8c8',multicolor:'#c8c8c8',multicolour:'#c8c8c8','wine red':'#722f37','dark blue':'#0d1b4c','light blue':'#add8e6','dark green':'#006400','light green':'#90ee90','royal blue':'#4169e1','sky blue':'#87ceeb','hot pink':'#ff69b4','rose red':'#c21e56','rose gold':'#b76e79','champagne':'#f7e7ce','coffee':'#6f4e37','chocolate':'#7b3f00','apricot':'#fbceb1','khaki green':'#8a864e','army green':'#4b5320','forest green':'#228b22','emerald green':'#50c878','midnight blue':'#191970','wine':'#722f37'};
+var CMYK_FALLBACK={'wood color':'#b08968','walnut color':'#6d4c41','wood':'#b08968','walnut':'#6d4c41','dark wood':'#5c4033','light wood':'#c9a26e','maple':'#d9b382','oak':'#c8a56a','redwood':'#a45a52'};
 function colorToHex(name){
-  var n=String(name||'').toLowerCase().trim();
+  var n=String(name||'').toLowerCase().trim().replace(/\s+/g,' ');
   if(COLOR_HEX[n])return COLOR_HEX[n];
-  // deterministic hue from name hash for unknown colors
+  if(CMYK_FALLBACK[n])return CMYK_FALLBACK[n];
+  // try stripping common filler words to find a base colour
+  var parts=n.split(/[\/,\s]+/);
+  for(var i=0;i<parts.length;i++){
+    var w=parts[i];
+    if(COLOR_HEX[w])return COLOR_HEX[w];
+  }
+  // match trailing color word in phrases like "Purple electroplated white"
+  var m=n.match(/\b(black|white|grey|gray|red|blue|green|yellow|orange|pink|purple|brown|beige|navy|gold|silver|khaki|maroon|teal|cream|ivory|tan|charcoal|olive|coral|burgundy|lavender|mint|nude|apricot)\b/);
+  if(m&&COLOR_HEX[m[1]])return COLOR_HEX[m[1]];
+  // deterministic hue from name hash for truly unknown colors
   var h=seedFromId(n)%360;
   return 'hsl('+h+',55%,62%)';
 }
 
 /* ============ RENDER COLORS ============ */
+function looksLikeColorName(name){
+  var n=String(name||'').toLowerCase().trim();
+  if(COLOR_HEX[n]||CMYK_FALLBACK[n])return true;
+  // phrase that clearly mentions a base colour word
+  if(/\b(black|white|grey|gray|red|blue|green|yellow|orange|pink|purple|brown|beige|navy|gold|silver|khaki|maroon|teal|cream|ivory|tan|charcoal|olive|coral|burgundy|lavender|mint|nude|apricot|rose|wood|walnut|maple|oak|wine|coffee|chocolate|skin)\b/.test(n))return true;
+  return false;
+}
 function renderColors(){
   var c=document.getElementById('color-sect'),box=document.getElementById('color-options');
   if(!c||!box)return;
   var vals=[],seen={};
   (product?product.variants||[]:[]).forEach(function(v){if(v.option1&&!seen[v.option1]){seen[v.option1]=true;vals.push(v.option1)}});
-  if(!vals.length){c.classList.add('hidden');return}
+  // only show color swatches if these values actually look like colours
+  var colorLike=0;vals.forEach(function(x){if(looksLikeColorName(x))colorLike++});
+  if(vals.length<=1||colorLike<Math.ceil(vals.length*0.5)){c.classList.add('hidden');return}
   c.classList.remove('hidden');
   if(!currentColor||vals.indexOf(currentColor)<0)currentColor=vals[0];
-  // map each color to a representative image (first image whose variant option1 matches, else index image)
+  // Build per-color image map ONLY from genuine variant image linkage.
+  // CJ/Shopify data rarely links images to variants, so most products have
+  // none — in that case we show a TRUE colored dot (never a mismatched photo).
   var imgByColor={};
-  (product?product.variants||[]:[]).forEach(function(v){if(v.option1&&!imgByColor[v.option1]&&v.image_id!=null&&images[v.image_id]){imgByColor[v.option1]=images[v.image_id]}});
+  (product?product.variants||[]:[]).forEach(function(v){
+    if(v.option1&&!imgByColor[v.option1]){
+      // resolve real image: variant.image_id index into images[], or a direct image url
+      var im=null;
+      if(v.image_id!=null&&images[v.image_id])im=images[v.image_id];
+      else if(v.image&&String(v.image).length>4)im=v.image;
+      if(im)imgByColor[v.option1]=im;
+    }
+  });
+  var hasAnyImg=Object.keys(imgByColor).length>0;
   box.innerHTML='';
   var wrap=document.createElement('div');wrap.className='swatch-grid';
   vals.forEach(function(name){
     var sw=document.createElement('div');
     sw.className='swatch'+(name===currentColor?' selected':'');
-    var img=imgByColor[name]||images[0]||'';
+    var hex=colorToHex(name);
+    var img=imgByColor[name];
     var inner;
     if(img){inner='<div class="swatch-inner"><img src="'+esc(img)+'" alt="'+esc(name)+'"></div>'}
-    else{inner='<div class="swatch-inner" style="background:'+colorToHex(name)+'"></div>'}
+    else{inner='<div class="swatch-inner" style="background:'+hex+'"></div>'}
     sw.innerHTML='<div class="swatch-ring">'+inner+'</div><span class="swatch-label">'+esc(name)+'</span>';
     sw.onclick=function(){
       currentColor=name;selectedOpts[getNameOfColorOpt()]=name;
@@ -369,13 +424,29 @@ function renderColors(){
 }
 
 /* ============ SIZES ============ */
-var SIZE_ORDER=['XS','S','M','L','XL','XXL','XXXL','2XL','3XL','4XL','5XL','6XL','7XL','1X','2X','3X','4X'];
+var SIZE_ORDER=['XS','S','M','L','XL','XXL','XXXL','2XL','3XL','4XL','5XL','6XL','7XL','8XL','1X','2X','3X','4X','5X','FREE SIZE','ONE SIZE'];
+function sizeSortKey(a){
+  var s=String(a==null?'':a).trim();var u=s.toUpperCase();
+  var li=SIZE_ORDER.indexOf(u);if(li>=0)return li;
+  // numeric sizes sort by number
+  if(/^\d+(\.\d+)?$/.test(s))return 100+parseFloat(s);
+  // measurements sort by leading number
+  var m=s.match(/^(\d+(\.\d+)?)/);if(m)return 200+parseFloat(m[1]);
+  return 500; // unknown / free-size at end
+}
 function getSizeVals(){
   var opts=product?product.options||[]:[];var out=[];
-  opts.forEach(function(o){if(isSizeOpt(o.name||'',o.values)){out=o.values.slice()}});
-  if(!out.length){var seen={};(product?product.variants||[]:[]).forEach(function(v){if(v.option2&&!seen[v.option2]){seen[v.option2]=true;out.push(v.option2)}})}
-  var order=function(a){var i=SIZE_ORDER.indexOf(String(a).toUpperCase());return i>=0?i:999};
-  out.sort(function(a,b){return order(a)-order(b)});
+  opts.forEach(function(o){if(isSizeOpt(o.name||'',o.values)){o.values.forEach(function(v){if(looksLikeSizeVal(v)&&out.indexOf(v)<0)out.push(v)})}});
+  // fallback: collect plausible size values from option2/option3
+  if(!out.length){
+    var seen={};
+    (product?product.variants||[]:[]).forEach(function(v){
+      [v.option2,v.option3].forEach(function(val){
+        if(val&&!seen[val]&&looksLikeSizeVal(val)){seen[val]=true;out.push(val)}
+      });
+    });
+  }
+  out.sort(function(a,b){return sizeSortKey(a)-sizeSortKey(b)||String(a).localeCompare(String(b))});
   return out;
 }
 function sizeAvailable(sizeVal){
@@ -547,9 +618,22 @@ function renderProduct(raw){
   if(!p.options.length&&p.variants.length){
     var o1=[],o2=[],o3=[],s1={},s2={},s3={};
     p.variants.forEach(function(v){if(v.option1&&!s1[v.option1]){s1[v.option1]=1;o1.push(v.option1)}if(v.option2&&!s2[v.option2]){s2[v.option2]=1;o2.push(v.option2)}if(v.option3&&!s3[v.option3]){s3[v.option3]=1;o3.push(v.option3)}});
-    if(o1.length)p.options.push({name:'Color',values:o1});
-    if(o2.length)p.options.push({name:'Size',values:o2});
-    if(o3.length)p.options.push({name:'Style',values:o3});
+    // Name each option by WHAT its values actually are (not just position).
+    function nameFor(vals){
+      if(!vals||!vals.length)return null;
+      // colour-looking values
+      var colorHits=0;vals.forEach(function(x){if(colorToHex(String(x))!== 'hsl('+(seedFromId(String(x).toLowerCase())%360)+',55%,62%)')colorHits++;else{/*unknown*/}});
+      // simpler: check if all values resolve to a known colour name
+      var knownColors=0;vals.forEach(function(x){var n=String(x).toLowerCase();if(COLOR_HEX[n]||CMYK_FALLBACK[n]||/\b(black|white|red|blue|green|yellow|orange|pink|purple|brown|beige|navy|gold|silver|khaki|gray|grey|rose)\b/.test(n))knownColors++});
+      if(knownColors>=Math.ceil(vals.length*0.5)&&vals.length>1)return 'Color';
+      // size-looking values
+      var sizeHits=0;vals.forEach(function(x){if(looksLikeSizeVal(x))sizeHits++});
+      if(sizeHits>=Math.ceil(vals.length*0.6))return 'Size';
+      return 'Select';
+    }
+    if(o1.length)p.options.push({name:nameFor(o1)||'Color',values:o1});
+    if(o2.length)p.options.push({name:nameFor(o2)||'Select',values:o2});
+    if(o3.length)p.options.push({name:nameFor(o3)||'Select',values:o3});
   }
   product=p;
   document.title=p.title+' — Bargain Drop';
