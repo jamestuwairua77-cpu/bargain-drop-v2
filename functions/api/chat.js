@@ -1,57 +1,24 @@
 // /api/chat — LLM-powered support assistant (Gemini).
-// Full conversational AI with per-session memory, store knowledge, live order tracking,
-// and product lookup. Falls back to a deterministic router if the LLM is unreachable.
+// Full conversational AI with multi-turn memory (history maintained client-side),
+// store knowledge, and live order/product lookup. Falls back deterministically if
+// the LLM is unreachable.
 
-import { corsHeaders, listOrders, ghRead, ghWrite, shopifyFetch } from '../_sync-lib.js';
+import { corsHeaders, listOrders } from '../_sync-lib.js';
 
 const MODEL = 'gemini-flash-latest';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
-const MEMORY_PATH = 'data/chat-sessions.json';
-const MAX_HISTORY = 30; // messages kept per session
+const MAX_HISTORY = 20;
 
 function norm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
 
-// ── conversation memory (persisted to GitHub, like the orders ledger) ──────────
-async function loadSessions(env) {
-  try { const e = await ghRead(env, MEMORY_PATH); if (e?.content) return JSON.parse(atob(e.content)); } catch {}
-  return {};
-}
-async function getSession(env, sid) {
-  const s = await loadSessions(env);
-  return { all: s, list: (s[sid] || []) };
-}
-async function saveSession(env, sid, list) {
-  const s = await loadSessions(env);
-  s[sid] = list.slice(-MAX_HISTORY);
-  // prune oldest sessions if too many
-  const keys = Object.keys(s);
-  if (keys.length > 500) { keys.slice(0, keys.length - 500).forEach(k => delete s[k]); }
-  // read existing sha so the update PUT succeeds (GitHub requires sha on update)
-  const existing = await ghRead(env, MEMORY_PATH);
-  await ghWrite(env, MEMORY_PATH, JSON.stringify(s), 'chat: save session ' + (sid||'').slice(0,12), existing?.sha);
-}
-
-// ── store context (policies + a distilled product catalog) ─────────────────────
+// ── store context ────────────────────────────────────────────────────────────────
 const STORE_POLICY = `Bargain Drop is an Australian e-commerce store selling bargain-priced fashion,
 home, beauty, electronics, jewellery, and more. Prices are in Australian dollars (A$).
 Returns: 45-day free returns on most items.
 Shipping: free on orders over A$29, otherwise A$8.44; typically 7–15 business days to Australia.
 Payment: secure card and Stripe checkout. Orders are fulfilled by our dropship supplier.`;
 
-async function buildStoreContext(env, requestUrl) {
-  // Pull a compact product overview for grounded answers about items/categories.
-  try {
-    const base = new URL(requestUrl).origin;
-    const r = await fetch(base + '/products-index.json');
-    if (!r.ok) return STORE_POLICY;
-    const idx = await r.json();
-    const entries = Array.isArray(idx) ? idx : (idx.products || Object.values(idx));
-    // Keep it compact: only a handful of representative or queried products get injected dynamically.
-    return STORE_POLICY;
-  } catch { return STORE_POLICY; }
-}
-
-// ── dynamic tool results injected as context (order + product) ─────────────────
+// ── dynamic tool results (order + product) injected as live facts ────────────────
 async function resolveTools(env, msg, requestUrl, context) {
   const facts = [];
 
@@ -72,7 +39,7 @@ async function resolveTools(env, msg, requestUrl, context) {
     }
   }
 
-  // 2. product lookup (if the message mentions a specific product-like phrase)
+  // 2. product lookup (best-effort fuzzy match)
   if (msg) {
     try {
       const base = new URL(requestUrl).origin;
@@ -80,7 +47,7 @@ async function resolveTools(env, msg, requestUrl, context) {
       if (r.ok) {
         const idx = await r.json();
         const entries = Array.isArray(idx) ? idx : (idx.products || Object.values(idx));
-        const q = norm(msg).replace(/\b(price|cost|how much|buy|order|ship|size|stock|available)\b/g,' ').trim();
+        const q = norm(msg).replace(/\b(price|cost|how much|buy|order|ship|size|stock|available|suggest)\b/g,' ').trim();
         if (q.length >= 3) {
           let best = null, bestScore = 0;
           for (const e of entries) {
@@ -108,25 +75,24 @@ async function resolveTools(env, msg, requestUrl, context) {
 async function callGemini(env, messages, facts) {
   const key = env.GEMINI_API_KEY;
   if (!key) throw new Error('no gemini key');
+
   const system = `You are "Bargain Drop Support", a friendly, knowledgeable AI assistant for the Bargain Drop
-Australian e-commerce store. You are helpful, concise, warm, and you have real expertise.
+Australian e-commerce store. You are warm, helpful, concise, and genuinely intelligent — you can hold a real
+conversation the way a smart retail expert would.
 
 ${STORE_POLICY}
 
-${facts.length ? 'LIVE FACTS (use these when relevant, and answer confidently from them):\n' + facts.map(f => '- ' + f).join('\n') : ''}
+${facts.length ? 'LIVE FACTS (use these when relevant; answer confidently from them):\n' + facts.map(f => '- ' + f).join('\n') : ''}
 
 Guidelines:
-- Be conversational and intellectually capable — you can discuss products, shopping, sizing, materials, gift ideas,
-  comparisons, and general questions the way a smart retail assistant would.
-- Stay grounded: for store/policy/order/product facts, use the provided information and don't invent prices or policies.
-- Keep replies reasonably concise (2-5 sentences unless the user asks for detail). Use line breaks when listing options.
-- Currency is Australian dollars (A$). Be honest when you don't know something.
-- If the user is upset, be empathetic. Never be rude. Suggest concrete next steps with short "suggestions".`;
+- Be conversational and intellectually capable — discuss products, shopping, sizing, materials, gift ideas,
+  comparisons, and general questions like a smart assistant.
+- Stay grounded: for store/policy/order/product facts, use the provided information; don't invent prices or policies.
+- Keep replies concise (2-5 sentences unless asked for detail). Use line breaks or short bullets when listing options.
+- Currency is Australian dollars (A$). Be honest when unsure. Be empathetic if the user is upset; never be rude.
+- Remember the conversation context provided, and refer back to it naturally (e.g. "for your sister").`;
 
-  const contents = [];
-  for (const m of messages) {
-    contents.push({ role: m.role, parts: [{ text: m.text }] });
-  }
+  const contents = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] }));
 
   const body = {
     contents,
@@ -141,7 +107,7 @@ Guidelines:
   });
   if (!r.ok) {
     const t = await r.text();
-    throw new Error('gemini ' + r.status + ' ' + t.slice(0,200));
+    throw new Error('gemini ' + r.status + ' ' + t.slice(0, 200));
   }
   const d = await r.json();
   const text = d?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
@@ -149,13 +115,12 @@ Guidelines:
   return text.trim();
 }
 
-// ── deterministic fallback (if LLM unavailable) ────────────────────────────────
-function fallback(msg, facts) {
-  const joined = facts.length ? facts[0] : '';
-  const isGreeting = /^(hi|hello|hey|yo|hiya|good (morning|afternoon|evening))\b/.test(norm(msg));
-  if (isGreeting) return { reply: "Hi! I'm Bargain Drop Support — ask me about products, sizing, shipping, returns, or track an order.", suggestions: ['Where is my order?', 'Returns policy', 'Shipping times'] };
-  if (joined && joined.includes('ORDER')) return { reply: `Here's what I found: ${joined}`, suggestions: ['Shipping times', 'Returns policy'] };
-  if (!norm(msg)) return { reply: "How can I help?", suggestions: ['Where is my order?', 'Returns policy'] };
+// ── deterministic fallback ────────────────────────────────────────────────────────
+function fallback(msg) {
+  const m = norm(msg);
+  if (/^(hi|hello|hey|yo|hiya|good (morning|afternoon|evening))\b/.test(m))
+    return { reply: "Hi! I'm Bargain Drop Support — ask me about products, sizing, shipping, returns, or track an order.", suggestions: ['Where is my order?', 'Returns policy', 'Shipping times'] };
+  if (!m) return { reply: "How can I help?", suggestions: ['Where is my order?', 'Returns policy'] };
   return { reply: "I can help with products, orders, shipping and returns — what would you like to know?", suggestions: ['Where is my order?', 'Do you have my size?', 'Returns policy'] };
 }
 
@@ -168,21 +133,22 @@ export async function onRequest(context) {
   try { body = await request.json(); } catch {}
   const msg = String(body.message || '');
   const ctx = body.context || {};
-  const sid = String(body.session_id || ctx.session_id || 'anon');
 
-  // Resolve live tool facts (order/product) before the LLM call
+  // Build conversation: prefer client-provided history, else single turn.
+  let history = [];
+  if (Array.isArray(body.history)) {
+    history = body.history
+      .filter(h => h && h.text)
+      .map(h => ({ role: h.role, text: String(h.text) }))
+      .slice(-MAX_HISTORY);
+  }
+  if (!history.length || history[history.length - 1].text !== msg) {
+    history.push({ role: 'user', text: msg });
+  }
+
+  // Resolve live tool facts
   let facts = [];
   try { facts = await resolveTools(env, msg, request.url, ctx); } catch {}
-
-  // Load + append this turn to session memory
-  let history = [];
-  try {
-    const s = await getSession(env, sid);
-    history = s.list;
-    history = history.filter(m => m && m.text);
-    history.push({ role: 'user', text: msg });
-    history = history.slice(-MAX_HISTORY);
-  } catch {}
 
   let reply, suggestions = ['Where is my order?', 'Returns policy', 'Shipping times'];
   let llm_used = false;
@@ -190,14 +156,11 @@ export async function onRequest(context) {
   try {
     reply = await callGemini(env, history, facts);
     llm_used = true;
-    // persist memory (append assistant turn)
-    try { await saveSession(env, sid, [...history, { role: 'model', text: reply }]); } catch {}
     suggestions = ['Track my order', 'Shipping times', 'Returns policy', 'Browse products'];
   } catch (e) {
-    const f = fallback(msg, facts);
+    const f = fallback(msg);
     reply = f.reply;
     if (f.suggestions) suggestions = f.suggestions;
-    // DEBUG: expose error
   }
 
   return new Response(JSON.stringify({ reply, suggestions, llm_used }), {

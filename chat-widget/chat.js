@@ -5,6 +5,18 @@
   var API = (window.BD_CHAT && window.BD_CHAT.config && window.BD_CHAT.config.api) || window.location.origin;
   var sessionId = (function(){ try { var s=sessionStorage.getItem('bdchat_sid'); if(!s){ s='s'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); sessionStorage.setItem('bdchat_sid',s);} return s; }catch(e){ return 's'+Math.random().toString(36).slice(2); } })();
 
+  // Client-side conversation memory (capped) — sent with each request for multi-turn context.
+  var history = [];
+  try {
+    var h = sessionStorage.getItem('bdchat_history');
+    if (h) { var j = JSON.parse(h); if (Array.isArray(j)) history = j; }
+  } catch(e) { history = []; }
+  function pushHistory(role, text){
+    history.push({ role: role, text: text });
+    if (history.length > 30) history = history.slice(-30);
+    try { sessionStorage.setItem('bdchat_history', JSON.stringify(history)); } catch(e){}
+  }
+
   function el(tag, cls, txt){ var e=document.createElement(tag); if(cls)e.className=cls; if(txt)e.textContent=txt; return e; }
 
   // Build DOM
@@ -54,13 +66,16 @@
     var email=''; try{ email = (JSON.parse(localStorage.getItem('bd_user_email')||'null')) || ''; }catch(e){}
     if(email && String(email).replace(/"/g,'')==='null') email='';
     addMsg(m,'user');
+    pushHistory('user', m);
     var typing = addMsg('<span class="dots"><span></span><span></span><span></span></span>','bot typing');
     fetch(API+'/api/chat',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session_id: sessionId, message: m, context:{ order_number: orderNumber, email: email } })
+      body: JSON.stringify({ session_id: sessionId, message: m, history: history, context:{ order_number: orderNumber, email: email } })
     }).then(function(r){ return r.json(); }).then(function(d){
       typing.remove();
-      addMsg(d.reply || 'Sorry, something went wrong. Please try again.','bot');
+      var reply = d.reply || 'Sorry, something went wrong. Please try again.';
+      addMsg(reply,'bot');
+      pushHistory('assistant', reply);
       setSugs(d.suggestions);
     }).catch(function(){
       typing.remove();
