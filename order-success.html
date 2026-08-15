@@ -123,7 +123,7 @@
       })
     }).then(function(r){return r.json()}).then(function(d){
       if(d.results&&d.results.shopify&&d.results.shopify.success){
-        console.log('Shopify order created:',d.results.shopify.order_number);
+        // (order creation logged server-side via ledger)
       }
     }).catch(function(){});
   };
@@ -172,4 +172,11 @@
 (function(){try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("nav-cart-count");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}})();
 </script>
 
-</body></html>
+<!-- Bargain Drop Support Widget -->
+<script>
+(function(w,d){
+  w.BD_CHAT = w.BD_CHAT || { config: { api: (w.location && w.location.origin) || "https://bargain-drop.online" } };
+  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css"; d.head.appendChild(c);
+  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js"; d.body.appendChild(j);
+})(window,document);
+</script></body></html>
