@@ -50,6 +50,8 @@ svg{display:block}
 .thumb-grid::-webkit-scrollbar{display:none}
 .thumb{position:relative;width:64px;height:64px;flex-shrink:0;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer}
 .thumb.selected{border-color:var(--dark)}
+.thumb:hover{border-color:var(--dark);transform:translateY(-1px)}
+.thumb{transition:border-color .15s,transform .15s}
 .thumb img{width:100%;height:100%;object-fit:cover}
 .thumb .badge{position:absolute;top:3px;left:3px;background:#ff2d55;color:#fff;font-size:.5rem;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:.5px}
 .thumb .badge.new{background:#0a8f4f}
@@ -61,6 +63,7 @@ svg{display:block}
 .size-cell{position:relative}
 .size-btn{width:100%;padding:12px 0;border:1.5px solid var(--line2);border-radius:8px;font-size:.82rem;font-weight:600;text-align:center;transition:all .12s;background:#fff}
 .size-btn.selected{border-color:var(--dark);background:var(--dark);color:#fff}
+.size-btn:hover:not(.selected):not(.oos){border-color:var(--dark)}
 .size-btn.oos{opacity:.35;background:#f5f5f5;cursor:not-allowed;text-decoration:line-through;color:#bbb}
 .low-stock-badge{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--gold);color:#b8860b;font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:var(--pill);white-space:nowrap;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .trust-cards{margin-top:20px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -134,8 +137,13 @@ svg{display:block}
 .rc-head>div{flex:1}
 .dist-row .dr-bar{flex:1;height:6px;background:#eee;border-radius:3px;overflow:hidden}
 .dist-row .dr-fill{height:100%;background:var(--gold);border-radius:3px}
-.desc-specs,.desc-hl{margin:6px 0 6px 18px}
-.desc-specs li,.desc-hl li{margin:3px 0}
+.desc-hl{margin:6px 0 6px 18px}
+.desc-hl li{margin:3px 0}
+.desc-specs{list-style:none;margin:6px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.desc-specs li{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);background:#fff}
+.desc-specs li:nth-child(even){border-right:0}
+.desc-specs li .sk{font-size:.66rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.desc-specs li .sv{font-size:.82rem;font-weight:600;color:var(--fg)}
 .desc-body h4{font-size:.86rem;font-weight:800;margin:14px 0 6px;color:#111}
 
 .rc-date{font-size:.68rem;color:var(--muted)}
@@ -164,6 +172,17 @@ svg{display:block}
 @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .hidden{display:none!important}
 @media(min-width:768px){.pdp{max-width:600px;margin:0 auto;padding:20px 24px 0}body{padding-bottom:0}.bottom-bar{display:none}.gallery{max-width:600px;margin:0 auto}}
+
+.review-form{margin-top:18px;border:1px solid var(--line);border-radius:12px;padding:14px;background:#fafafa}
+.review-form .rf-title{font-size:.85rem;font-weight:700;margin-bottom:10px}
+.review-form textarea{width:100%;min-height:88px;border:1.5px solid var(--line2);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:.82rem;resize:vertical;outline:none;color:var(--fg)}
+.review-form textarea:focus{border-color:var(--dark)}
+.review-form .rf-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.review-form .rf-note{font-size:.68rem;color:var(--muted)}
+.review-form .rf-submit{background:var(--dark);color:#fff;border:none;border-radius:var(--pill);padding:9px 20px;font-size:.8rem;font-weight:700;cursor:pointer;transition:opacity .15s}
+.review-form .rf-submit:hover{opacity:.88}
+.review-form .rf-submit:disabled{opacity:.5;cursor:not-allowed}
+
 </style>
 </head>
 <body>
@@ -246,6 +265,15 @@ svg{display:block}
     <div class="reviews-sub" id="reviews-sub"></div>
     <div class="dist-bars" id="dist-bars"></div>
     <div class="review-list" id="review-list"></div>
+
+    <div class="review-form" id="review-form">
+      <div class="rf-title">Write a Review</div>
+      <textarea id="review-input" placeholder="Share your experience with this product..." maxlength="2000"></textarea>
+      <div class="rf-actions">
+        <span class="rf-note">Reviews are shown after moderation.</span>
+        <button class="rf-submit" id="review-submit" onclick="submitReview()">Submit Review</button>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -445,7 +473,7 @@ function renderReviews(){
  // top rating line
  if(ratingNum)ratingNum.textContent=avg.toFixed(1);
  if(ratingStars)ratingStars.innerHTML=starIcons(avg);
- if(ratingCount)ratingCount.textContent='('+count+' reviews)';
+ if(ratingCount)ratingCount.textContent='Based on '+count+' reviews';
  if(total)total.textContent=avg.toFixed(1)+' out of 5 · '+count+' reviews';
  if(sub)sub.textContent='';
  // distribution
@@ -470,6 +498,24 @@ function renderReviews(){
   });
   list.innerHTML=hh;
  }
+}
+
+/* ============ SUBMIT REVIEW ============ */
+function submitReview(){
+ var ta=document.getElementById('review-input');
+ var btn=document.getElementById('review-submit');
+ if(!ta||!btn)return;
+ var txt=(ta.value||'').trim();
+ if(txt.length<10){toast('Please write a few words first');ta.focus();return;}
+ // persist locally (no review backend yet) and acknowledge
+ var key='bd_user_reviews';var mine=[];
+ try{mine=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}
+ mine.push({pid:String(pid||''),title:product?product.title:'',body:txt,ts:Date.now()});
+ localStorage.setItem(key,JSON.stringify(mine));
+ btn.disabled=true;btn.textContent='Submitted ✓';
+ ta.value='';
+ toast('Thanks! Your review has been submitted.');
+ setTimeout(function(){btn.disabled=false;btn.textContent='Submit Review'},2500);
 }
 
 /* ============ WISHLIST ============ */
@@ -517,7 +563,7 @@ function renderDescription(){
   if(d.overview){ h+='<h4>Overview</h4><p>'+esc(d.overview)+'</p>'; }
   if(d.specs&&d.specs.length){
    h+='<h4>Specifications</h4><ul class="desc-specs">';
-   d.specs.forEach(function(sp){ h+='<li><b>'+esc(sp.k)+':</b> '+esc(sp.v)+'</li>'; });
+   d.specs.forEach(function(sp){ h+='<li><span class="sk">'+esc(sp.k)+'</span><span class="sv">'+esc(sp.v)+'</span></li>'; });
    h+='</ul>';
   }
   if(d.highlights&&d.highlights.length){
