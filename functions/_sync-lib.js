@@ -503,44 +503,58 @@ export async function backsyncFulfillment(env, shopifyOrderId, fulfillment) {
 }
 
 // ─── Back-sync: apply a Shopify inventory change to BD catalog ────────────
-// NOTE: the access token does NOT include read_inventory (inventory_items /
-// inventory_levels endpoints are 403). We resolve SKU + inventory_quantity via
-// the products API (write_products scope is sufficient to READ variants, which
-// carry inventory_item_id + inventory_quantity).
-async function findVariantByInventoryItem(env, inventoryItemId) {
-  let since_id = 0;
-  while (true) {
-    const { body } = await shopifyFetch(env, `/products.json?limit=250&fields=id,variants&since_id=${since_id}`);
-    const prods = body.products || [];
-    if (!prods.length) break;
-    for (const p of prods) {
-      for (const v of (p.variants || [])) {
-        if (String(v.inventory_item_id) === String(inventoryItemId)) {
-          return v; // carries { sku, inventory_quantity, id, product_id }
-        }
-      }
-    }
-    since_id = prods[prods.length - 1].id;
-    if (prods.length < 250) break;
-    await new Promise(r => setTimeout(r, 250));
-  }
-  return null;
-}
-
+// Full inventory access is now available (read_inventory + write_inventory
+// scopes granted after app reinstall), so we use the direct, fast path:
+//   inventory_items/{id}.json  → sku
+//   inventory_levels.json      → available count
+// Falls back to scanning products if the direct items endpoint doesn't return a SKU.
 export async function backsyncInventory(env, inventoryItemId, availableOverride) {
-  const variant = await findVariantByInventoryItem(env, inventoryItemId);
-  if (!variant) return { error: 'no variant for inventory item ' + inventoryItemId };
+  let sku = null;
+  let available = (availableOverride != null) ? Number(availableOverride) : null;
 
-  const sku = variant.sku || null;
-  // Prefer an explicit available count (e.g. from inventory_levels/update);
-  // otherwise read the latest inventory_quantity from the variant itself.
-  const available = (availableOverride != null)
-    ? Number(availableOverride)
-    : Number(variant.inventory_quantity ?? 0);
+  // 1. Direct: SKU from inventory item
+  try {
+    const it = await shopifyFetch(env, `/inventory_items/${inventoryItemId}.json`);
+    sku = (it.body && it.body.inventory_item && it.body.inventory_item.sku) || null;
+  } catch {}
 
-  await appendSyncLog(env, { action: 'back-sync-inventory', inventoryItemId, variantId: variant.id, sku, available });
+  // 2. If no explicit available, read live inventory level (needs location_ids)
+  if (available == null) {
+    try {
+      const lv = await shopifyFetch(env, `/inventory_levels.json?inventory_item_ids=${inventoryItemId}`);
+      const levels = (lv.body && lv.body.inventory_levels) || [];
+      if (levels.length) available = Number(levels[0].available ?? 0);
+    } catch {}
+  }
 
-  if (!sku) return { error: 'no sku for variant ' + variant.id, available };
+  // 3. Fallback: scan products for the variant by inventory_item_id
+  if (!sku || available == null) {
+    let since_id = 0;
+    while (true) {
+      const { body } = await shopifyFetch(env, `/products.json?limit=250&fields=id,variants&since_id=${since_id}`);
+      const prods = (body && body.products) || [];
+      if (!prods.length) break;
+      for (const p of prods) {
+        for (const v of (p.variants || [])) {
+          if (String(v.inventory_item_id) === String(inventoryItemId)) {
+            if (!sku) sku = v.sku || null;
+            if (available == null) available = Number(v.inventory_quantity ?? 0);
+            break;
+          }
+        }
+        if (sku != null && available != null) break;
+      }
+      if (sku != null && available != null) break;
+      since_id = prods[prods.length - 1].id;
+      if (prods.length < 250) break;
+      await new Promise(r => setTimeout(r, 250));
+    }
+  }
+
+  if (available == null) available = 0;
+  await appendSyncLog(env, { action: 'back-sync-inventory', inventoryItemId, sku, available });
+
+  if (!sku) return { error: 'no sku for inventory item ' + inventoryItemId, available };
 
   const prods = await ghRead(env, 'all-products.json');
   if (!prods) return { error: 'cannot read all-products.json', sku, available };
