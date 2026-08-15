@@ -1,5 +1,12 @@
 [
   {
+    "action": "stripe-webhook",
+    "event": "checkout.session.completed",
+    "order_id": "__VERIFY_ONLY_DELETE_ME__",
+    "paymentStatus": "paid",
+    "at": "2026-08-15T16:57:35.138Z"
+  },
+  {
     "action": "shopify-webhook",
     "topic": "orders/create",
     "shopify_order_id": 7114012098691,
