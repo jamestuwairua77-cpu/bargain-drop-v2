@@ -26,7 +26,7 @@
 
   var head = el('div'); head.id='bdchat-head';
   head.appendChild(el('span','dot',''));
-  var htx = el('div'); htx.appendChild(el('div','ttl','Bargain Drop Support')); htx.appendChild(el('div','sub','Typically replies instantly'));
+  var htx = el('div'); htx.appendChild(el('div','ttl','Ruby · Bargain Drop AI')); htx.appendChild(el('div','sub','Online now · replies instantly'));
   head.appendChild(htx);
 
   var msgs = el('div'); msgs.id='bdchat-msgs';
@@ -86,8 +86,8 @@
   function toggle(){
     panel.classList.toggle('open');
     if(panel.classList.contains('open') && !msgs.childElementCount){
-      addMsg('Hi! 👋 How can I help? Ask about sizing, materials, stock, or your order.','bot');
-      setSugs(['Where is my order?','Do you have size M?','What material is this?','Returns policy','Shipping times']);
+      addMsg('Hi! 👋 I\'m Ruby, your Bargain Drop assistant. I can help with:\n• Finding the perfect product or gift\n• Sizing, materials & stock\n• Tracking your order\n• Shipping & returns\n\nWhat can I do for you today?','bot');
+      setSugs(['Where is my order?','Find a gift idea','Do you have size M?','Returns policy','Shipping times']);
     }
     if(panel.classList.contains('open')) input.focus();
   }

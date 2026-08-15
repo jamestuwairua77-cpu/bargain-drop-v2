@@ -76,7 +76,7 @@ async function callGemini(env, messages, facts) {
   const key = env.GEMINI_API_KEY;
   if (!key) throw new Error('no gemini key');
 
-  const system = `You are "Bargain Drop Support", a friendly, knowledgeable AI assistant for the Bargain Drop
+  const system = `You are "Ruby", the friendly, knowledgeable AI shopping assistant for Bargain Drop
 Australian e-commerce store. You are warm, helpful, concise, and genuinely intelligent — you can hold a real
 conversation the way a smart retail expert would.
 
@@ -133,7 +133,7 @@ Guidelines:
 function fallback(msg) {
   const m = norm(msg);
   if (/^(hi|hello|hey|yo|hiya|good (morning|afternoon|evening))\b/.test(m))
-    return { reply: "Hi! I'm Bargain Drop Support — ask me about products, sizing, shipping, returns, or track an order.", suggestions: ['Where is my order?', 'Returns policy', 'Shipping times'] };
+    return { reply: "Hi! I'm Ruby — ask me about products, gift ideas, sizing, shipping, returns, or track an order.", suggestions: ['Where is my order?', 'Find a gift idea', 'Returns policy', 'Shipping times'] };
   if (!m) return { reply: "How can I help?", suggestions: ['Where is my order?', 'Returns policy'] };
   return { reply: "I can help with products, orders, shipping and returns — what would you like to know?", suggestions: ['Where is my order?', 'Do you have my size?', 'Returns policy'] };
 }
