@@ -64,13 +64,12 @@ export async function onRequest(context) {
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       });
     }
-    // inventory_items/update: payload { id, sku?, ... } (no available count directly)
+    // inventory_items/update: payload { id, ... } → resolve SKU + latest quantity
+    // via the products API (token lacks read_inventory, so we go through variants).
     if (topic === 'inventory_items/update') {
       const itemId = payload.id;
-      // This topic carries item metadata; available count lives on inventory_levels.
-      // Log it and treat as informational (the levels/update topic delivers the count).
-      await appendSyncLog(env, { action: 'shopify-webhook', topic, inventory_item_id: itemId });
-      return new Response(JSON.stringify({ success: true, topic, note: 'informational' }), {
+      const result = await backsyncInventory(env, itemId);
+      return new Response(JSON.stringify({ success: true, topic, result }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       });
     }

@@ -503,43 +503,57 @@ export async function backsyncFulfillment(env, shopifyOrderId, fulfillment) {
 }
 
 // ─── Back-sync: apply a Shopify inventory change to BD catalog ────────────
-export async function backsyncInventory(env, inventoryItemId, available) {
-  // Map inventory_item_id → variant SKU via Shopify product/variant lookup is non-trivial
-  // while the webhook payload itself carries inventory_item_id only.
-  // We follow Shopify's recommended flow: use inventory_levels/connect or read the item.
-  const il = await shopifyFetch(env, `/inventory_levels.json?inventory_item_ids=${inventoryItemId}`);
-  const levels = (il.body && il.body.inventory_levels) || [];
-  // levels carry location + available but not SKU directly; SKU lives on the variant.
-  // Fall back to fetching the item to get variant_id.
-  const item = await shopifyFetch(env, `/inventory_items/${inventoryItemId}.json`);
-  const variantId = (item.body && item.body.inventory_item && item.body.inventory_item.variant_id) || null;
-  if (!variantId) return { error: 'no variant_id for inventory item ' + inventoryItemId };
+// NOTE: the access token does NOT include read_inventory (inventory_items /
+// inventory_levels endpoints are 403). We resolve SKU + inventory_quantity via
+// the products API (write_products scope is sufficient to READ variants, which
+// carry inventory_item_id + inventory_quantity).
+async function findVariantByInventoryItem(env, inventoryItemId) {
+  let since_id = 0;
+  while (true) {
+    const { body } = await shopifyFetch(env, `/products.json?limit=250&fields=id,variants&since_id=${since_id}`);
+    const prods = body.products || [];
+    if (!prods.length) break;
+    for (const p of prods) {
+      for (const v of (p.variants || [])) {
+        if (String(v.inventory_item_id) === String(inventoryItemId)) {
+          return v; // carries { sku, inventory_quantity, id, product_id }
+        }
+      }
+    }
+    since_id = prods[prods.length - 1].id;
+    if (prods.length < 250) break;
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return null;
+}
 
-  const v = await shopifyFetch(env, `/variants/${variantId}.json`);
-  const variant = (v.body && v.body.variant) || {};
+export async function backsyncInventory(env, inventoryItemId, availableOverride) {
+  const variant = await findVariantByInventoryItem(env, inventoryItemId);
+  if (!variant) return { error: 'no variant for inventory item ' + inventoryItemId };
+
   const sku = variant.sku || null;
-  const inventory_quantity = available;
+  // Prefer an explicit available count (e.g. from inventory_levels/update);
+  // otherwise read the latest inventory_quantity from the variant itself.
+  const available = (availableOverride != null)
+    ? Number(availableOverride)
+    : Number(variant.inventory_quantity ?? 0);
 
-  await appendSyncLog(env, { action: 'back-sync-inventory', inventoryItemId, variantId, sku, available });
+  await appendSyncLog(env, { action: 'back-sync-inventory', inventoryItemId, variantId: variant.id, sku, available });
 
-  if (!sku) return { error: 'no sku for variant ' + variantId, available };
+  if (!sku) return { error: 'no sku for variant ' + variant.id, available };
 
-  // Update the BD catalog file (all-products.json) `available` flag for this SKU
   const prods = await ghRead(env, 'all-products.json');
   if (!prods) return { error: 'cannot read all-products.json', sku, available };
   let all;
   try { all = JSON.parse(atob(prods.content.replace(/\n/g, ''))); }
   catch { all = JSON.parse(atob(prods.content)); }
+
   let hits = 0;
   for (const p of all) {
     for (const vr of (p.variants || [])) {
       if (vr.sku === sku) {
         vr.available = available > 0;
-        // also update inventory_quantity if present
         vr.inventory_quantity = available;
-        if (available <= 0) {
-          if (p.inventory_quantity != null) p.inventory_quantity = Math.max(0, (p.inventory_quantity || 0) - 1);
-        }
         hits++;
       }
     }
