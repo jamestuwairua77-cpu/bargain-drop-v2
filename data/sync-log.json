@@ -1,5 +1,12 @@
 [
   {
+    "action": "stripe-webhook",
+    "event": "checkout.session.completed",
+    "order_id": "BD-CC-MSUNIU40",
+    "paymentStatus": "paid",
+    "at": "2026-08-15T17:30:23.616Z"
+  },
+  {
     "action": "stripe-webhook-transaction",
     "order_id": "__VERIFY_ONLY_DELETE_ME__",
     "transaction": {
