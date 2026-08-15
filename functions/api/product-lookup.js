@@ -15,9 +15,11 @@ export async function onRequest(context) {
     if (!product) return new Response(JSON.stringify({ error: 'Product not found' }), { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
 
     // Look up category slug for this product
+    // NOTE: products-index.json is the id -> { idx, category } map;
+    // categories-index.json is a slug -> count map (used by category listings only).
     let category = null;
     try {
-      const rIndex = await fetch(new URL('/categories-index.json', request.url));
+      const rIndex = await fetch(new URL('/products-index.json', request.url));
       if (rIndex.ok) {
         const idx = await rIndex.json();
         const entry = idx[String(product.id)];

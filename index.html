@@ -157,7 +157,7 @@ function quickAdd(id){
   alert("Added to cart!")}catch(e){}
 }
 (function loadProds(){
-  var x=new XMLHttpRequest();x.open("GET","/data/all-products.json",true);x.timeout=10000;
+  var x=new XMLHttpRequest();x.open("GET","/all-products.json",true);x.timeout=10000;
   x.onload=function(){if(x.status>=200&&x.status<400)try{ALL=JSON.parse(x.responseText)}catch(e){}};x.send();
 })();
 var searchTimeout;

@@ -196,7 +196,7 @@ function fmtPrice(p){return "A$"+Number(p||0).toFixed(2)}
 var all=[],display=[],pageSize=50,current=1;
 (function loadAll(){
   var x=new XMLHttpRequest();
-  x.open("GET","/data/all-products.json",true);
+  x.open("GET","/all-products.json",true);
   x.timeout=15000;
   x.onload=function(){
     if(x.status>=200&&x.status<400){try{all=JSON.parse(x.responseText)}catch(e){all=[]};display=all.slice(0,pageSize);renderProducts()}else{showEmpty()}};

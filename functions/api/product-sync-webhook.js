@@ -63,9 +63,9 @@ async function rebuildAllProducts(env) {
   }
 
   const files = [
-    { path: 'data/all-products.json', data: JSON.stringify(all, null, 2), msg: 'auto: rebuild from product webhook' },
-    { path: 'data/categories-data.json', data: JSON.stringify(cats, null, 2), msg: 'auto: rebuild from product webhook' },
-    { path: 'data/categories-index.json', data: JSON.stringify(idx, null, 2), msg: 'auto: rebuild from product webhook' },
+    { path: 'all-products.json', data: JSON.stringify(all, null, 2), msg: 'auto: rebuild from product webhook' },
+    { path: 'categories-data.json', data: JSON.stringify(cats, null, 2), msg: 'auto: rebuild from product webhook' },
+    { path: 'categories-index.json', data: JSON.stringify(idx, null, 2), msg: 'auto: rebuild from product webhook' },
   ];
 
   const results = [];
