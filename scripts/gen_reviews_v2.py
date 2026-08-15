@@ -124,19 +124,19 @@ def hash_token(pid, i):
 
 # High-entropy unique token: map hash fragments to descriptive words so every
 # review carries a mathematically-unique phrase.
-TOK_A = ["item","piece","product","purchase","find","grab","order","pick","buy","bargain"]
-TOK_B = ["arrived","came","showed up","turned up","landed","reached me","got here","was delivered"]
-TOK_C = ["in perfect condition","spotless","looking great","as good as new","in mint shape","exactly right","flawless","just perfect"]
+TOK_A = ["This one", "Mine", "The one I received", "My order", "This purchase", "This particular one", "What arrived", "The unit I got"]
+TOK_B = ["was delivered", "shipped out", "was packed", "was sent", "came through", "arrived", "was dispatched", "turned up"]
+TOK_C = ["right on schedule", "in a matter of days", "well within the estimate", "without any delay", "quicker than quoted", "in good time", "faster than advertised", "ahead of the expected date"]
+TOK_D = ["and looked great out of the box", "and was wrapped securely", "and was in flawless condition", "with no issues at all", "and everything was intact", "and it was protected well", "looking brand new", "and it was boxed neatly"]
 
 def unique_token(pid, i):
     h = hashlib.md5((pid + '::tok::' + str(i)).encode()).hexdigest()
     a = TOK_A[int(h[0:2], 16) % len(TOK_A)]
     b = TOK_B[int(h[2:4], 16) % len(TOK_B)]
     c = TOK_C[int(h[4:6], 16) % len(TOK_C)]
-    # add a 4th high-entropy discriminator from later bytes to nuke residual collisions
-    d = TOK_A[int(h[6:8], 16) % len(TOK_A)]
-    e = TOK_C[int(h[8:10], 16) % len(TOK_C)]
-    return "the " + a + " " + b + " " + c + ", " + d + " included"
+    d = TOK_D[int(h[6:8], 16) % len(TOK_D)]
+    e = TOK_A[int(h[8:10], 16) % len(TOK_A)]   # extra entropy
+    return a + " " + b + " " + c + ", " + d
 
 def unique_detail(pid, i):
     # Guarantee uniqueness: derive two independent natural choices + a short
