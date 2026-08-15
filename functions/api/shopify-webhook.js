@@ -30,6 +30,16 @@ export async function onRequest(context) {
   const shopDomain = request.headers.get('x-shopify-shop-domain') || '';
 
   const secret = env.SHOPIFY_WEBHOOK_SECRET || '';
+  if (!secret) {
+    return new Response(JSON.stringify({ error: 'Webhook secret not configured' }), {
+      status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+  if (!hmac) {
+    return new Response(JSON.stringify({ error: 'Missing X-Shopify-Hmac-SHA256 header' }), {
+      status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
   const verified = await verifyHmac(raw, hmac, secret);
   if (!verified) {
     return new Response(JSON.stringify({ error: 'Invalid HMAC' }), {
