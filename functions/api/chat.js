@@ -26,7 +26,9 @@ async function saveSession(env, sid, list) {
   // prune oldest sessions if too many
   const keys = Object.keys(s);
   if (keys.length > 500) { keys.slice(0, keys.length - 500).forEach(k => delete s[k]); }
-  await ghWrite(env, MEMORY_PATH, JSON.stringify(s), 'chat: save session ' + (sid||'').slice(0,12));
+  // read existing sha so the update PUT succeeds (GitHub requires sha on update)
+  const existing = await ghRead(env, MEMORY_PATH);
+  await ghWrite(env, MEMORY_PATH, JSON.stringify(s), 'chat: save session ' + (sid||'').slice(0,12), existing?.sha);
 }
 
 // ── store context (policies + a distilled product catalog) ─────────────────────
@@ -182,7 +184,7 @@ export async function onRequest(context) {
     history = history.slice(-MAX_HISTORY);
   } catch {}
 
-  let reply, suggestions = ['Where is my order?', 'Returns policy', 'Shipping times'], details = null;
+  let reply, suggestions = ['Where is my order?', 'Returns policy', 'Shipping times'];
   let llm_used = false;
 
   try {
@@ -196,10 +198,9 @@ export async function onRequest(context) {
     reply = f.reply;
     if (f.suggestions) suggestions = f.suggestions;
     // DEBUG: expose error
-    details = String(e && e.message || e);
   }
 
-  return new Response(JSON.stringify({ reply, suggestions, llm_used, _err: details || null }), {
+  return new Response(JSON.stringify({ reply, suggestions, llm_used }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders(), 'Cache-Control': 'no-store' },
   });
 }
