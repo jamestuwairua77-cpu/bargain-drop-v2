@@ -16,7 +16,7 @@ export async function onRequest(context) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { line_items, customer_email, success_url, cancel_url, metadata, payment_method } = body;
+  const { line_items, customer_email, success_url, cancel_url, metadata, payment_method, shipping_options } = body;
   const STRIPE_KEY = env.STRIPE_SECRET_KEY || '';
 
   if (!STRIPE_KEY) {
@@ -44,11 +44,34 @@ export async function onRequest(context) {
     }
 
     line_items.forEach((item, i) => {
-      params.append(`line_items[${i}][price_data][currency]`, item.currency || 'aud');
-      params.append(`line_items[${i}][price_data][product_data][name]`, item.name || 'Product');
-      params.append(`line_items[${i}][price_data][unit_amount]`, item.unit_amount || 0);
-      params.append(`line_items[${i}][quantity]`, item.quantity || 1);
+      // Accept both shapes:
+      //  (A) Stripe-native nested:   { price_data: { currency, product_data:{name,images}, unit_amount }, quantity }
+      //  (B) flat/legacy:            { currency, name, unit_amount, quantity }
+      const pd = item.price_data || {};
+      const name = (pd.product_data && pd.product_data.name) || item.name || 'Product';
+      const images = (pd.product_data && pd.product_data.images) || [];
+      const currency = pd.currency || item.currency || 'aud';
+      const unitAmount = Number(pd.unit_amount ?? item.unit_amount ?? 0);
+      const quantity = Number(item.quantity > 0 ? item.quantity : 1);
+
+      params.append(`line_items[${i}][price_data][currency]`, currency);
+      params.append(`line_items[${i}][price_data][product_data][name]`, name);
+      images.forEach((img) => params.append(`line_items[${i}][price_data][product_data][images][]`, img));
+      params.append(`line_items[${i}][price_data][unit_amount]`, unitAmount);
+      params.append(`line_items[${i}][quantity]`, quantity);
     });
+
+    if (Array.isArray(shipping_options) && shipping_options.length) {
+      shipping_options.forEach((so, i) => {
+        const srd = so.shipping_rate_data || {};
+        if (srd) {
+          params.append(`shipping_options[${i}][shipping_rate_data][display_name]`, srd.display_name || 'Shipping');
+          params.append(`shipping_options[${i}][shipping_rate_data][type]`, srd.type || 'fixed_amount');
+          params.append(`shipping_options[${i}][shipping_rate_data][fixed_amount][amount]`, srd.fixed_amount && srd.fixed_amount.amount != null ? srd.fixed_amount.amount : 0);
+          params.append(`shipping_options[${i}][shipping_rate_data][fixed_amount][currency]`, (srd.fixed_amount && srd.fixed_amount.currency) || (srd.currency || 'aud'));
+        }
+      });
+    }
 
     const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
