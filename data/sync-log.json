@@ -1,5 +1,13 @@
 [
   {
+    "action": "stripe-webhook-transaction",
+    "order_id": "__VERIFY_ONLY_DELETE_ME__",
+    "transaction": {
+      "note": "no Shopify order found for bd_order_id __VERIFY_ONLY_DELETE_ME__"
+    },
+    "at": "2026-08-15T16:57:37.491Z"
+  },
+  {
     "action": "stripe-webhook",
     "event": "checkout.session.completed",
     "order_id": "__VERIFY_ONLY_DELETE_ME__",
