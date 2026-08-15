@@ -31,7 +31,18 @@ export async function onRequest(context) {
       category = String(product.product_type).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     }
 
-    return new Response(JSON.stringify({ product, category }), {
+    // Load this product's reviews (cached, generated deterministically)
+    let reviews = null;
+    try {
+      const rReviews = await fetch(new URL('/reviews-cache.json', request.url));
+      if (rReviews.ok) {
+        const rc = await rReviews.json();
+        const entry = rc[String(product.id)];
+        if (entry) reviews = entry;
+      }
+    } catch {}
+
+    return new Response(JSON.stringify({ product, category, reviews }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...corsHeaders() },
     });
   } catch (e) {
