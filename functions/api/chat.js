@@ -182,7 +182,7 @@ export async function onRequest(context) {
     history = history.slice(-MAX_HISTORY);
   } catch {}
 
-  let reply, suggestions = ['Where is my order?', 'Returns policy', 'Shipping times'];
+  let reply, suggestions = ['Where is my order?', 'Returns policy', 'Shipping times'], details = null;
   let llm_used = false;
 
   try {
@@ -195,9 +195,11 @@ export async function onRequest(context) {
     const f = fallback(msg, facts);
     reply = f.reply;
     if (f.suggestions) suggestions = f.suggestions;
+    // DEBUG: expose error
+    details = String(e && e.message || e);
   }
 
-  return new Response(JSON.stringify({ reply, suggestions, llm_used }), {
+  return new Response(JSON.stringify({ reply, suggestions, llm_used, _err: details || null }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders(), 'Cache-Control': 'no-store' },
   });
 }
