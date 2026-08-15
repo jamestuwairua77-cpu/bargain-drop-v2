@@ -70,8 +70,12 @@ export async function onRequest(context) {
   const hasProduct = /\bsize|sizing|material|care|wash|stock|available|fabric|fit|colour|color\b/.test(msg);
   const hasPolicy = /\breturn|refund|policy|shipping|deliver|postage|exchange|warranty\b/.test(msg);
 
+  const isGreeting = /^(hi|hello|hey|yo|hiya|good (morning|afternoon|evening)|thanks|thank you)[\s!.]*$/.test(msg);
+
   try {
-    if (orderNumber || hasOrder || /\border\b/.test(msg)) {
+    if (isGreeting) {
+      out = { llm_used: false, reply: "Hi there! How can I help today — sizing, materials, stock, or tracking an order?", suggestions: ['Where is my order?', 'Do you have my size?', 'Returns policy', 'Shipping times'] };
+    } else if (orderNumber || hasOrder || /\border\b/.test(msg)) {
       out = await handleOrder(orderNumber, email, env);
       out.llm_used = false;
     } else if (hasPolicy && !hasProduct) {
