@@ -3,24 +3,162 @@
 
 /js/*
   Cache-Control: public, max-age=31536000, immutable
-
 /css/*
   Cache-Control: public, max-age=31536000, immutable
-
 /images/*
   Cache-Control: public, max-age=31536000, immutable
-
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
-
 /favicon.svg
   Cache-Control: public, max-age=31536000, immutable
-
 /manifest.json
   Cache-Control: public, max-age=3600
-
 /*.json
   Cache-Control: public, max-age=300
 
-/*
+/404.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/404
+  Cache-Control: no-cache, no-store, must-revalidate
+/500.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/500
+  Cache-Control: no-cache, no-store, must-revalidate
+/account-info.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/account-info
+  Cache-Control: no-cache, no-store, must-revalidate
+/addresses.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/addresses
+  Cache-Control: no-cache, no-store, must-revalidate
+/admin.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/admin
+  Cache-Control: no-cache, no-store, must-revalidate
+/auth.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/auth
+  Cache-Control: no-cache, no-store, must-revalidate
+/cart.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/cart
+  Cache-Control: no-cache, no-store, must-revalidate
+/categories.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/categories
+  Cache-Control: no-cache, no-store, must-revalidate
+/category.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/category
+  Cache-Control: no-cache, no-store, must-revalidate
+/checkout.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/checkout
+  Cache-Control: no-cache, no-store, must-revalidate
+/communication-preferences.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/communication-preferences
+  Cache-Control: no-cache, no-store, must-revalidate
+/customer-service.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/customer-service
+  Cache-Control: no-cache, no-store, must-revalidate
+/deactivate.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/deactivate
+  Cache-Control: no-cache, no-store, must-revalidate
+/forgot-password.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/forgot-password
+  Cache-Control: no-cache, no-store, must-revalidate
+/gift-cards.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/gift-cards
+  Cache-Control: no-cache, no-store, must-revalidate
+/importer.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/importer
+  Cache-Control: no-cache, no-store, must-revalidate
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/index
+  Cache-Control: no-cache, no-store, must-revalidate
+/order-success.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/order-success
+  Cache-Control: no-cache, no-store, must-revalidate
+/order-tracking.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/order-tracking
+  Cache-Control: no-cache, no-store, must-revalidate
+/orders.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/orders
+  Cache-Control: no-cache, no-store, must-revalidate
+/payment-methods.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/payment-methods
+  Cache-Control: no-cache, no-store, must-revalidate
+/policy.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/policy
+  Cache-Control: no-cache, no-store, must-revalidate
+/product.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/product
+  Cache-Control: no-cache, no-store, must-revalidate
+/products.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/products
+  Cache-Control: no-cache, no-store, must-revalidate
+/profile.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/profile
+  Cache-Control: no-cache, no-store, must-revalidate
+/profile-edit.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/profile-edit
+  Cache-Control: no-cache, no-store, must-revalidate
+/register.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/register
+  Cache-Control: no-cache, no-store, must-revalidate
+/returns.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/returns
+  Cache-Control: no-cache, no-store, must-revalidate
+/security.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/security
+  Cache-Control: no-cache, no-store, must-revalidate
+/settings.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/settings
+  Cache-Control: no-cache, no-store, must-revalidate
+/sign-in.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/sign-in
+  Cache-Control: no-cache, no-store, must-revalidate
+/sign-up.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/sign-up
+  Cache-Control: no-cache, no-store, must-revalidate
+/signin.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/signin
+  Cache-Control: no-cache, no-store, must-revalidate
+/sync.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/sync
+  Cache-Control: no-cache, no-store, must-revalidate
+/wallet.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/wallet
+  Cache-Control: no-cache, no-store, must-revalidate
+/wishlist.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/wishlist
+  Cache-Control: no-cache, no-store, must-revalidate
+/
   Cache-Control: no-cache, no-store, must-revalidate

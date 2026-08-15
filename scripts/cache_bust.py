@@ -60,18 +60,33 @@ def main():
                 f.write(src)
             changed_files.append(os.path.relpath(hf, ROOT))
 
-    # 2. Write _headers — specific immutable rules FIRST, catch-all no-cache LAST
+    # 2. Write _headers
+    #
+    # IMPORTANT: Cloudflare Pages MERGES headers from every matching rule, it does
+    # NOT stop at the first match. A broad "/*  Cache-Control: no-store" rule would
+    # therefore leak no-store onto /js/* and /css/* and defeat immutable caching.
+    # So we enumerate the HTML routes explicitly instead of using a catch-all.
     lines = []
     lines.append("/*\n  X-Content-Type-Options: nosniff")
-    # immutable static assets (matched first)
+    lines.append("")
+    # immutable static assets
     for d in ASSET_DIRS:
-        lines.append(f"\n/{d}/*\n  Cache-Control: public, max-age=31536000, immutable")
-    lines.append("\n/favicon.svg\n  Cache-Control: public, max-age=31536000, immutable")
-    lines.append("\n/manifest.json\n  Cache-Control: public, max-age=3600")
-    # data JSON — short cache (they can change independently of HTML)
-    lines.append("\n/*.json\n  Cache-Control: public, max-age=300")
-    # HTML (and everything else) — always revalidate
-    lines.append("\n/*\n  Cache-Control: no-cache, no-store, must-revalidate")
+        lines.append(f"/{d}/*\n  Cache-Control: public, max-age=31536000, immutable")
+    lines.append("/favicon.svg\n  Cache-Control: public, max-age=31536000, immutable")
+    lines.append("/manifest.json\n  Cache-Control: public, max-age=3600")
+    # data JSON — short cache (changes independently of HTML; CDN purge on deploy)
+    lines.append("/*.json\n  Cache-Control: public, max-age=300")
+    lines.append("")
+    # HTML — always revalidate. Both "/page.html" and the extensionless "/page"
+    # route are listed because Cloudflare Pages serves both.
+    routes = sorted(
+        os.path.splitext(os.path.basename(p))[0]
+        for p in glob.glob(os.path.join(ROOT, '*.html'))
+    )
+    for r in routes:
+        lines.append(f"/{r}.html\n  Cache-Control: no-cache, no-store, must-revalidate")
+        lines.append(f"/{r}\n  Cache-Control: no-cache, no-store, must-revalidate")
+    lines.append("/\n  Cache-Control: no-cache, no-store, must-revalidate")
     lines.append("")
 
     with open(os.path.join(ROOT, '_headers'), 'w', encoding='utf-8') as f:
