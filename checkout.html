@@ -438,13 +438,23 @@ window.payWithShopPay = async function(){
   var ord=saveOrder(oid,s.email,s.fname,s.lname,'Shop Pay',s);
   persistOrderServer(ord);
 
-  // Map BD cart items → Shopify variant IDs (cart already stores variant_id)
+  // Map BD cart items → Shopify variant IDs. Send every identifying field so the
+  // server can resolve a valid Shopify variant gid even if variant_id is missing.
   var lines=cart.map(function(item){
-    var gid = item.variant_id ? ('gid://shopify/ProductVariant/'+item.variant_id) : null;
-    return { merchandiseId: gid, quantity: item.qty || 1 };
-  }).filter(function(l){ return l.merchandiseId; });
+    return {
+      merchandiseId: item.variant_id ? ('gid://shopify/ProductVariant/'+item.variant_id) : null,
+      variant_id: item.variant_id || null,
+      product_id: item.product_id || item.id || null,
+      sku: item.sku || null,
+      size: item.size || null,
+      color: item.color || null,
+      quantity: item.qty || 1
+    };
+  });
 
-  if(!lines.length){
+  // Only bail if we have NOTHING to resolve (no variant_id, product_id, or sku).
+  var resolvable=lines.some(function(l){ return l.variant_id || l.product_id || l.sku; });
+  if(!resolvable){
     btn.classList.remove('loading');setAllBtnsDisabled(false);
     showError('Shop Pay unavailable for these items — please use another method');
     return;

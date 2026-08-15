@@ -448,7 +448,7 @@ function addToCart(){
  var key=(variant?variant.id:product.id)+'|'+(selsz||'')+'|'+(selcol||'');
  var idx=cart.findIndex(function(c){return c._key===key});
  if(idx>=0)cart[idx].qty+=qty;
- else cart.push({_key:key,variant_id:variant?variant.id:product.id,product_id:product.id,title:product.title,price:price,qty:qty,image:images.length?images[0]:'',size:selsz||'',color:selcol||'',sku:(variant?variant.sku:'')||''});
+ else cart.push({_key:key,variant_id:variant?variant.id:null,product_id:product.id,title:product.title,price:price,qty:qty,image:images.length?images[0]:'',size:selsz||'',color:selcol||'',sku:(variant?variant.sku:'')||''});
  localStorage.setItem('bd_cart',JSON.stringify(cart));updateCartCount();
  var d=meta?meta.discount:0;
  toast('✅ Added to cart — '+d+'% off applied!');
