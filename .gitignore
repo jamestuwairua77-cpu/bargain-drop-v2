@@ -1,0 +1,15 @@
+# Node / build
+node_modules/
+*.log
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Local scratch (resumable enrichment / dev scripts)
+/tmp/
+*.swp
+
+# Keep these tracked (they ARE part of the deploy output):
+#   _headers, _routes.json, .asset-hashes.json

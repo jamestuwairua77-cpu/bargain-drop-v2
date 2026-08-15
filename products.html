@@ -196,7 +196,7 @@ function fmtPrice(p){return "A$"+Number(p||0).toFixed(2)}
 var all=[],display=[],pageSize=50,current=1;
 (function loadAll(){
   var x=new XMLHttpRequest();
-  x.open("GET","/all-products.json",true);
+  x.open("GET","/all-products.json?v=17cd62bced",true);
   x.timeout=15000;
   x.onload=function(){
     if(x.status>=200&&x.status<400){try{all=JSON.parse(x.responseText)}catch(e){all=[]};display=all.slice(0,pageSize);renderProducts()}else{showEmpty()}};
@@ -275,7 +275,7 @@ function collapseSearch(e){
 <script>
 (function(w,d){
   w.BD_CHAT = w.BD_CHAT || { config: { api: (w.location && w.location.origin) || "https://bargain-drop.online" } };
-  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css"; d.head.appendChild(c);
-  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js"; d.body.appendChild(j);
+  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css?v=0438bd327b"; d.head.appendChild(c);
+  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js?v=b75f42de9c"; d.body.appendChild(j);
 })(window,document);
 </script></body></html>
