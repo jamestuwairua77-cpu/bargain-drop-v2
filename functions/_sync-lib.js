@@ -348,9 +348,21 @@ async function pushOrderToCj(env, order) {
 
 async function pushOrderToShopify(env, order) {
   const ship = order.shipping || {};
+  // Payment is already confirmed (fulfillOrder runs after the payment webhook),
+  // so mark the order Paid at creation. Shopify's REST does NOT allow flipping
+  // financial_status via PATCH later; it must be set on create. Gateway/transaction
+  // details are carried as note_attributes (reliable; native transaction creation
+  // via REST requires an 'authorization' parent kind that no longer exists).
+  const payNotes = (order.payment && (order.payment.gateway || order.payment.hash))
+    ? [
+        { name: 'payment_gateway', value: String(order.payment.gateway || 'stripe') },
+        { name: 'transaction_hash', value: String(order.payment.hash || '') },
+        { name: 'amount_paid', value: String(order.payment.amount || order.total || '') + ' ' + (order.payment.currency || 'AUD') },
+      ]
+    : [];
   const shopOrder = {
     email: order.email || ship.email || '',
-    financial_status: 'pending',
+    financial_status: 'paid',
     line_items: (order.items || []).map((it) => ({
       variant_id: it.variant_id || null,
       title: it.title || 'Item',
@@ -369,7 +381,10 @@ async function pushOrderToShopify(env, order) {
       country_code: ship.country_code || 'AU',
       phone: ship.phone || '',
     },
-    note_attributes: [{ name: 'bd_order_id', value: String(order.id) }],
+    note_attributes: [
+      { name: 'bd_order_id', value: String(order.id) },
+      ...payNotes,
+    ],
   };
   return await shopifyFetch(env, '/orders.json', { method: 'POST', body: JSON.stringify({ order: shopOrder }) });
 }
@@ -460,23 +475,40 @@ export async function syncCustomer(env, profile) {
   return { created: false, ok: false, error: res.body?.errors || res.body };
 }
 
-// ─── Mark a Shopify order as paid via a transaction, with gateway details ─
+// ─── Mark a Shopify order as paid via a transaction, with gateway details ──
+// Shopify REST no longer accepts 'sale'/'authorization' native transaction kinds, and
+// 'capture' requires a parent authorization that also can't be created. The reliable,
+// accounting-complete approach is: record gateway/hash/amount as note_attributes on the
+// order (financial_status is set to 'paid' at order-creation time in pushOrderToShopify).
 export async function recordShopifyTransaction(env, shopifyOrderId, tx) {
-  // tx: { amount, currency, gateway, kind, status, authorization, source? }
-  const payload = {
-    transaction: {
-      amount: tx.amount ?? 0,
-      currency: tx.currency || 'AUD',
-      gateway: tx.gateway || 'stripe',
-      kind: tx.kind || 'sale',
-      status: tx.status || 'success',
-      authorization: tx.authorization || null,   // transaction hash from gateway
-      test: false,
-      source_name: 'bargain-drop',
-      processed_at: tx.processed_at || new Date().toISOString(),
-    },
-  };
-  return await shopifyFetch(env, `/orders/${shopifyOrderId}/transactions.json`, { method: 'POST', body: JSON.stringify(payload) });
+  const gateway = tx.gateway || 'stripe';
+  const hash = tx.authorization || tx.hash || '';
+  const amount = tx.amount != null ? String(tx.amount) : '';
+  const currency = tx.currency || 'AUD';
+
+  // 1. Persist payment details as note_attributes (durable, always works)
+  const notes = [
+    { name: 'payment_gateway', value: gateway },
+    { name: 'transaction_hash', value: hash },
+    { name: 'amount_paid', value: amount + ' ' + currency },
+    { name: 'paid_at', value: tx.processed_at || new Date().toISOString() },
+  ];
+  const put = await shopifyFetch(env, `/orders/${shopifyOrderId}.json`, {
+    method: 'PUT',
+    body: JSON.stringify({ order: { id: Number(shopifyOrderId), note_attributes: notes } }),
+  });
+
+  // 2. Best-effort: also try GraphQL orderCapture to create a native 'capture' transaction
+  let gql = null;
+  try {
+    const q = JSON.stringify({
+      query: `mutation { orderCapture(input: { id: "gid://shopify/Order/${shopifyOrderId}", amount: "${amount}" }) { transaction { id kind status } userErrors { field message } } }`,
+    });
+    const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: q });
+    gql = r.body || null;
+  } catch {}
+
+  return { ok: put.ok, notes, nativeTransaction: gql, error: put.ok ? null : put.body };
 }
 
 // ─── Back-sync: apply a Shopify fulfillment to the BD ledger ─────────────

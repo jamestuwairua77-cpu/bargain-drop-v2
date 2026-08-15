@@ -48,8 +48,14 @@ export async function onRequest(context) {
   const body = await request.json().catch(() => ({}));
   const { action, email, password, name, first_name, last_name, phone, addresses } = body;
 
-  if (!email || !password) {
-    return new Response(JSON.stringify({ error: 'Email and password required' }), {
+  if (!email) {
+    return new Response(JSON.stringify({ error: 'Email required' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+  // password required only for register/signin (update_profile is email-keyed)
+  if (action !== 'update_profile' && !password) {
+    return new Response(JSON.stringify({ error: 'Password required' }), {
       status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
     });
   }
