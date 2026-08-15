@@ -5,8 +5,8 @@
 
 import { corsHeaders, listOrders } from '../_sync-lib.js';
 
-const MODEL = 'gemini-flash-latest';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
+const MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'];
+function geminiUrl(model){ return 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'; }
 const MAX_HISTORY = 20;
 
 function norm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
@@ -100,19 +100,33 @@ Guidelines:
     generationConfig: { temperature: 0.7, maxOutputTokens: 700 },
   };
 
-  const r = await fetch(GEMINI_URL + '?key=' + encodeURIComponent(key), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error('gemini ' + r.status + ' ' + t.slice(0, 200));
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const model of MODELS) {
+      try {
+        const r = await fetch(geminiUrl(model) + '?key=' + encodeURIComponent(key), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, systemInstruction: body.systemInstruction }),
+        });
+        if (!r.ok) {
+          const t = await r.text().catch(() => '');
+          lastErr = new Error('gemini ' + r.status + ' ' + t.slice(0, 160));
+          // 4xx is a hard failure (bad request) — don't retry other models on 400.
+          if (r.status >= 400 && r.status < 500) continue;
+          continue; // 5xx / 429 → try next model
+        }
+        const d = await r.json();
+        const text = d?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+        if (text.trim()) return text.trim();
+        lastErr = new Error('gemini empty reply');
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (attempt < 2) await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
   }
-  const d = await r.json();
-  const text = d?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
-  if (!text.trim()) throw new Error('gemini empty reply');
-  return text.trim();
+  throw lastErr || new Error('gemini unreachable');
 }
 
 // ── deterministic fallback ────────────────────────────────────────────────────────
