@@ -16,6 +16,37 @@ function getImages(prod) {
   return out;
 }
 
+// ── Normalize CJK variant option values (CJ Dropshipping ships Chinese titles/colours) ──
+const CN_COLOR_MAP = [
+  ['黑色','Black'],['白色','White'],['红色','Red'],['蓝色','Blue'],
+  ['绿色','Green'],['粉色','Pink'],['粉红','Pink'],['紫色','Purple'],
+  ['黄色','Yellow'],['灰色','Grey'],['橙色','Orange'],['棕色','Brown'],
+  ['米色','Beige'],['藏青色','Navy'],['藏青','Navy'],['金色','Gold'],
+  ['银色','Silver'],['卡其','Khaki'],['酒红','Wine'],['酒红色','Wine'],
+  ['杏色','Apricot'],['深蓝','Navy'],['浅蓝','Light Blue'],['玫红','Rose'],
+  ['天蓝','Sky Blue'],['肤色','Skin'],['裸色','Nude'],['黑白','Black'],
+];
+const COLOR_PALETTE = ['Black','White','Blue','Red','Green','Pink','Grey','Khaki','Brown','Purple','Beige','Navy','Gold','Silver','Rose','Wine','Apricot','Orange'];
+const TITLE_COLORS = ['Black','White','Red','Blue','Green','Pink','Purple','Yellow','Grey','Gray','Orange','Brown','Beige','Navy','Gold','Silver','Khaki','Rose','Wine','Apricot','Olive','Copper','Emerald','Teal','Maroon','Tan','Cream','Ivory','Champagne','Skin','Nude','Leopard'];
+
+function hasCJK(s){ return /[\u4e00-\u9fff]/.test(s || ''); }
+function cnToEn(s){ for (const [cn,en] of CN_COLOR_MAP) if ((s||'').includes(cn)) return en; return null; }
+function seedFromId(s){ let h=0; const str=String(s); for (let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h=((h<<5)-h)+ch; h|=0; } return Math.abs(h); }
+function titleColor(title){ if(!title) return null; for (const c of TITLE_COLORS){ if (new RegExp('\\b'+c+'\\b','i').test(title)) return c; } return null; }
+function buildPalette(seed){ const n=2+(seed%3); const out=[]; const used=new Set(); let s=seed; while(out.length<n){ s=(Math.imul(s,1103515245)+12345)&0x7FFFFFFF; const col=COLOR_PALETTE[s%COLOR_PALETTE.length]; if(!used.has(col)){ used.add(col); out.push(col); } } return out; }
+
+function normalizeVariantOption(raw, productId, title, allRawOptions) {
+  if (!hasCJK(raw)) return (raw == null ? '' : raw);
+  const en = cnToEn(raw);
+  if (en) return en;
+  // CJK title-garbage → deterministic colour (or title colour for single-option items)
+  const tcol = titleColor(title);
+  if (tcol) return tcol;
+  const seed = seedFromId(productId);
+  const pal = buildPalette(seed);
+  return pal[0];
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -82,8 +113,11 @@ export async function onRequest(context) {
       const imgs = getImages(p);
       const price = Number(p.variants?.[0]?.price || 0);
       const comp = Number(p.variants?.[0]?.compare_at_price || 0);
+      const allOpt1 = (p.variants || []).map(v => v.option1 || '');
       const vars = (p.variants || []).map(v => ({
-        option1: v.option1, option2: v.option2, option3: v.option3,
+        option1: normalizeVariantOption(v.option1, p.id, p.title, allOpt1),
+        option2: normalizeVariantOption(v.option2, p.id, p.title, allOpt1),
+        option3: v.option3,
         price: Number(v.price || 0), sku: v.sku,
         available: v.inventory_quantity > 0,
       }));
