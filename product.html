@@ -91,6 +91,13 @@ svg{display:block}
 .tag-pill{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--line2);border-radius:var(--pill);font-size:.75rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:all .12s;background:#fff}
 .tag-pill:hover{border-color:var(--dark)}
 .tag-pill .cnt{color:var(--muted);font-weight:600}
+.desc-sect{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+.desc-title{font-size:.95rem;font-weight:800;margin-bottom:10px}
+.desc-body{font-size:.82rem;line-height:1.6;color:#333;word-break:break-word}
+.desc-body img{max-width:100%;height:auto;border-radius:8px;margin:8px 0}
+.desc-body p{margin:6px 0}
+.desc-body b,.desc-body strong{font-weight:700}
+.desc-empty{font-size:.8rem;color:var(--meta);font-style:italic}
 /* ===== REVIEWS SECTION ===== */
 .reviews-section{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
 .reviews-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
@@ -172,12 +179,6 @@ svg{display:block}
 
   <h1 class="p-title" id="p-title">Loading...</h1>
 
-  <div class="rating-line">
-    <span class="rating-num" id="rating-num">--</span>
-    <span class="stars">*****</span>
-    <span class="rs-total" id="rating-total"></span>
-  </div>
-
   <div class="sect" id="color-sect">
     <div class="sect-title"><span>Color: <span class="val" id="color-val"></span></span><span class="chev">›</span></div>
     <div class="thumb-grid" id="thumb-grid"></div>
@@ -216,21 +217,9 @@ svg{display:block}
     </div>
   </div>
 
-  <div class="review-summary">
-    <div class="rs-top">
-      <span class="rs-num" id="rs-num">--</span>
-      <span class="rs-stars">*****</span>
-      <span class="rs-total" id="rs-total"></span>
-    </div>
-    <div class="fit-block">
-      <div class="fit-desc">How it fits</div>
-      <div class="fit-bar">
-        <div class="fit-seg"><div class="fit-val" id="fit-small">--</div><div class="fit-track"><div class="fit-fill" id="fit-fill-small"></div></div><div class="fit-label">Small</div></div>
-        <div class="fit-seg"><div class="fit-val" id="fit-tts">--</div><div class="fit-track"><div class="fit-fill" id="fit-fill-tts"></div></div><div class="fit-label">True to Size</div></div>
-        <div class="fit-seg"><div class="fit-val" id="fit-large">--</div><div class="fit-track"><div class="fit-fill" id="fit-fill-large"></div></div><div class="fit-label">Large</div></div>
-      </div>
-    </div>
-    <div class="tag-pills" id="tag-pills"></div>
+  <div class="desc-sect" id="desc-sect">
+    <div class="desc-title">Product Details</div>
+    <div class="desc-body" id="desc-body"></div>
   </div>
 
   <!-- ===== REVIEWS LIST ===== -->
@@ -241,16 +230,7 @@ svg{display:block}
     </div>
     <div class="reviews-sub" id="reviews-sub"></div>
     <div class="dist-bars" id="dist-bars"></div>
-    <div class="review-sort">
-      <select id="review-sort" onchange="sortReviews(this.value)">
-        <option value="most_helpful">Most Helpful</option>
-        <option value="newest">Newest</option>
-        <option value="highest">Highest Rated</option>
-        <option value="lowest">Lowest Rated</option>
-      </select>
-    </div>
     <div class="review-list" id="review-list"></div>
-    <button class="load-more-btn hidden" id="load-more-reviews" onclick="loadMoreReviews()">Show More Reviews</button>
   </div>
 
 </div>
@@ -267,7 +247,7 @@ svg{display:block}
 <div class="toast" id="toast"></div>
 <script>
 /* ============ LOCALIZATION (string placeholders) ============ */
-var I18N={currency:'AU$',country:'Australia',freeShipThreshold:29,sizeUnit:'AU',returnDays:45,soldByLabel:'CJ Dropshipping'};
+var I18N={currency:'AU$',country:'Australia',freeShipThreshold:29,sizeUnit:'AU',returnDays:45,soldByLabel:'Bargain Drop'};
 
 /* ============ STATE ============ */
 var product=null,categorySlug=null,qty=1,images=[],curImg=0,selectedOpts={},currentColor='',meta=null;
@@ -299,27 +279,13 @@ function setImage(i){curImg=i;document.querySelectorAll('#gallery img').forEach(
 
 /* ============ DERIVE META ============ */
 function deriveMeta(id){
- var s=seedFromId(String(id));
- var discount=s%6;if(discount===0)discount=1;
- var rating=Math.round((3.8+(s%120)/100)*100)/100;
- var reviewCount=100+(s%1200);
- var fitSmall=8+(s%25),fitLarge=6+(s%18),fitTTS=100-fitSmall-fitLarge;
- var lowStockIdx=(s%6),lowStockQty=(s%9)+1;
- var hotThumb=(s%3===0),newThumb=(s%5===0);
- return {discount:discount,rating:rating,reviewCount:reviewCount,fitSmall:fitSmall,fitTTS:fitTTS,fitLarge:fitLarge,lowStockIdx:lowStockIdx,lowStockQty:lowStockQty,hotThumb:hotThumb,newThumb:newThumb};
+ // Integrity: NO fabricated social proof or scarcity. Ratings, review counts,
+ // discount % and stock badges must come from REAL data only (future: Shopify/CJ
+ // review import + inventory propagation). Until then, show nothing rather than
+ // fake it.
+ return {discount:0,rating:0,reviewCount:0,fitSmall:0,fitTTS:0,fitLarge:0,lowStockIdx:-1,lowStockQty:0,hotThumb:false,newThumb:false};
 }
 
-/* ============ REVIEW KEYWORDS ============ */
-var KEYWORDS=['Comfortable Strap','Work Outfits','True to Size','Lightweight','Breathable','Soft Fabric','Great Quality','Perfect Fit','Durable','Stylish'];
-function buildTagPills(s){
- var pills=[],used={};
- for(var i=0;i<4;i++){
-  var idx=(s+i*3)%KEYWORDS.length;while(used[idx])idx=(idx+1)%KEYWORDS.length;
-  used[idx]=true;var cnt=(s+i*7)%30+2;
-  pills.push('<span class="tag-pill" onclick="toast(\''+esc(KEYWORDS[idx])+' selected\')">'+esc(KEYWORDS[idx])+' <span class="cnt">('+cnt+')</span></span>');
- }
- return pills.join('');
-}
 
 /* ============ OPTION HELPERS ============ */
 function isSizeOpt(n,vals){var l=n.toLowerCase();if(l==='size'||l.indexOf('size')>=0)return true;if(!vals||!vals.length)return false;var sz='S M L XL XXL XXXL 2XL 3XL 4XL 5XL 6XL 7XL 1X 2X 3X 4X XS SML MEDIUM LARGE XLARGE'.split(' '),h=0;for(var i=0;i<vals.length;i++){if(sz.indexOf(vals[i].toString().trim().toUpperCase())>=0)h++}return h>=2}
@@ -417,13 +383,14 @@ function renderSizes(){
 function updatePricing(){
  if(!product||!meta)return;
  var base=Number(product.price||0);
- var discount=meta.discount;
- var original=base*(1+discount/100);
+ var discount=meta.discount; // always 0 now (integrity)
+ var original=base;
  var promo=base;
  document.getElementById('promo-price').textContent='From '+fm(promo);
- document.getElementById('original-price').textContent=fm(original);
- document.getElementById('discount-badge').textContent='-'+discount+'%';
- document.getElementById('atc-flash').textContent=discount+'% OFF!';
+ // no fabricated compare-at price or discount badge
+ document.getElementById('original-price').textContent='';
+ document.getElementById('discount-badge').textContent='';
+ document.getElementById('atc-flash').textContent='';
  // shipping
  document.getElementById('ship-promo').textContent='Free Shipping (Orders ≥ '+fm(I18N.freeShipThreshold)+')';
  document.getElementById('ship-country').textContent=I18N.country;
@@ -434,203 +401,22 @@ function updatePricing(){
  document.getElementById('merchant-name').textContent=I18N.soldByLabel;
 }
 
-/* ============ REVIEW ENGINE (authentic consumer reviews) ============ */
-var ALL_REVIEWS=[];var REVIEWS_SHOWN=4;var REVIEW_SORT='most_helpful';
-
-/* Reviewer name pool — diverse, realistic (Aussie + intl) */
-var REVIEWER_NAMES=['Tara M.','Ben K.','Melissa R.','Jake T.','Sarah W.','Daniel P.','Chloe N.','Liam H.','Jade S.','Marcus B.','Emily G.','Nathan D.','Priya V.','Tom F.','Ashley L.','Steve R.','Hannah C.','Raj P.','Kylie W.','Matt J.','Georgia F.','Owen M.','Jess T.','Craig B.','Bianca S.','Adam L.','Nikki P.','Brett H.'];
-
-/* Review content organized by star tier — casual, varied voice, specific use cases + minor flaws */
-var REV_TITLES_5=['Really happy with this','Better than expected','Love it!!','So good I bought another','Exactly what I wanted','Five stars for sure','Great buy','Super impressed','Can\'t fault it','Perfect for what I needed'];
-var REV_TITLES_4=['Pretty good overall','Happy, but one small thing','Solid product','Would recommend','Good value','Nice quality for the price','Works well','No complaints really','Happy with it','Does the job nicely'];
-var REV_TITLES_3=['It\'s okay','Decent but not amazing','Mixed feelings','Does the job','Fine for the price','Middle of the road','Not bad, not great','Average','Okay I guess','It\'ll do'];
-var REV_TITLES_2=['A bit disappointed','Not quite what I expected','Didn\'t love it','Quality could be better','Meh','Not for me'];
-
-var REV_BODY_5=[
-"Hav to say I'm pleasantly surprised. Ordered on a whim last week and it showed up way faster than I thought it would. Quality is actually really good for the price point, stitching all neat and nothing loose. Wore it out and got compliments. Deffo recommend.",
-"Bought this for my daughter and she absolutely loves it. The material feels nice and soft, colour was true to the photos (always a bit of a gamble online lol). Shipping took about a week. Would happily buy from these guys again.",
-"Honestly didn't expect much for the price but this blew me away. Its sturdy, well made and looks way more expensive than it is. Took it on a weekend away and it held up perfectly. 10/10.",
-"So good I ordered a second one for my mum!! Fits great, feels quality, and arrived in perfect condition. The box was a little squished but the product itself was mint. No complaints at all.",
-"Really solid buy. Used it daily for the last few weeks and no issues so far. The photos don't do it justice honestly. Fast shipping to Perth too which is rare.",
-"Exceeded my expectations. Everything was packaged well, quality is top notch and it arrived 3 days early. My partner already wants one in a different colour haha.",
-"Best purchase Ive made in a while. Took it out in the rain last Tuesday and it held up great, no fading or anything. Would give 6 stars if I could.",
-"This is the real deal. Saw similar ones for double the price elsewhere so this feels like a steal. Well made and looks premium. Buy it, you won't regret it."
-];
-var REV_BODY_4=[
-"Really happy with this overall, does everything it should. Only reason it's not 5 stars is the colour is a touch lighter than the pictures. Still looks good though. Would buy again.",
-"Good value for money. Quality is solid, feels well made. Shipping was a little slow (took about 10 days) but that's pretty standard for these. No real complaints.",
-"Nice product, my only gripe is the sizing runs slightly small so I'd size up if you're between sizes. Other than that it's great, would recommend.",
-"Works really well and looks nice. Delivery was quick. The only small thing was the packaging was a bit dented when it arrived, but the item was fine. 4 stars.",
-"Solid product for the price. Been using it for a couple weeks now and no issues. Wish it came in more colours honestly, but that's just me being picky.",
-"Happy with the purchase. Quality is better than I expected for the money. Minor thing: the instructions were a bit vague but easy enough to figure out. Recommended.",
-"Does the job well. Comfortable and seems durable so far. Took a star off cause the initial chemical smell needed a day to air out. Fine after that.",
-"Really good, just not perfect. One of the seams had a tiny loose thread but I trimmed it and it's been fine since. Would still buy it again."
-];
-var REV_BODY_3=[
-"It's okay I guess. Does what its supposed to but nothing special. Quality is about what you'd expect for the low price. Wouldn't buy again but don't regret it.",
-"Decent but not amazing. Worked fine but felt a bit thinner than I expected from the photos. Serves its purpose. Shipping was fast which was a plus.",
-"Mixed feelings on this one. It's functional and the price is fair, but the material feels a bit cheap and I'm not sure how long it'll last. Time will tell.",
-"Got what I paid for basically. Nothing wrong with it but nothing great either. If you're on a budget it's fine, otherwise maybe spend a bit more.",
-"Average. The product is okay but there were a couple loose threads and the finish isn't as clean as the pictures make out. Fine for everyday use though.",
-"Meh. It works and arrived on time. Quality is a bit hit and miss — one part felt flimsy. Probably fine for light use but not expecting it to last forever."
-];
-var REV_BODY_2=[
-"Not quite what I expected. The photos make it look more premium than it actually is. It's usable but I probably wouldn't order it again.",
-"A bit disappointed honestly. Quality is below what I was hoping and the colour was off from the listing. Two stars because it does technically work."
-];
-
-/* Specific scenario openers injected per-review for authenticity */
-var USE_CASES=[
-"Bought this for my son's school camp",
-"Got it for a birthday present",
-"Picked this up for the gym",
-"Ordered it for work",
-"Took it on holiday to the coast",
-"Bought it for my partner",
-"Got this for the office",
-"Snagged this for a weekend trip",
-"Used it for a wedding",
-"Grabbed it for everyday use"
-];
-
-/* Minor flaw snippets (kept separate to mix in naturally) */
-var FLAWS=[
-"The box arrived a bit dented but the product was fine",
-"the charging cable is a bit short but the device itself works great",
-"sizing runs a touch small",
-"the colour is slightly different in person",
-"a couple of loose threads here and there",
-"the zipper feels a little stiff at first"
-];
-
-function hashStr(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return Math.abs(h)}
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-
-function generateReviews(pid, count){
- var rnd=mulberry32(hashStr(String(pid)));
- if(ALL_REVIEWS.length>=count)return ALL_REVIEWS;
- var reviews=[];
- // Build rating distribution: ~55% 5-star, ~30% 4-star, ~10% 3-star, ~5% 2-star
- var n5=Math.floor(count*0.55),n4=Math.round(count*0.28),n3=Math.floor(count*0.12);
- var n2=Math.max(1,count-n5-n4-n3);
- // ensure total matches count by adjusting n5
- n5=count-n4-n3-n2;
- var tiers=[];
- for(var i=0;i<n5;i++)tiers.push(5);
- for(var i=0;i<n4;i++)tiers.push(4);
- for(var i=0;i<n3;i++)tiers.push(3);
- for(var i=0;i<n2;i++)tiers.push(2);
- // shuffle tiers
- for(var j=tiers.length-1;j>0;j--){var k=Math.floor(rnd()*(j+1));var t=tiers[j];tiers[j]=tiers[k];tiers[k]=t}
- var usedNames={};
- tiers.forEach(function(rating,idx){
-  var ni=Math.floor(rnd()*REVIEWER_NAMES.length);var guard=0;
-  while(usedNames[ni]&&guard<50){ni=Math.floor(rnd()*REVIEWER_NAMES.length);guard++}
-  usedNames[ni]=true;
-  var name=REVIEWER_NAMES[ni];
-  var titlePool=rating===5?REV_TITLES_5:rating===4?REV_TITLES_4:rating===3?REV_TITLES_3:REV_TITLES_2;
-  var bodyPool=rating===5?REV_BODY_5:rating===4?REV_BODY_4:rating===3?REV_BODY_3:REV_BODY_2;
-  var title=titlePool[Math.floor(rnd()*titlePool.length)];
-  var body=bodyPool[Math.floor(rnd()*bodyPool.length)];
-  // inject a specific use case into some reviews (esp 4-5 stars, long-form)
-  var hasCase=(rating>=4)&&(rnd()<0.35);
-  if(hasCase){var uc=USE_CASES[Math.floor(rnd()*USE_CASES.length)];body=uc+". "+body.charAt(0).toLowerCase()+body.slice(1);}
-  // inject a minor flaw into some 4-star reviews (matches "specific flaws" rule)
-  if(rating===4&&rnd()<0.4){var fl=FLAWS[Math.floor(rnd()*FLAWS.length)];body=body.replace(/\.$/,"")+", only thing is "+fl+".";}
-  // date within last ~18 months
-  var daysAgo=Math.floor(rnd()*540);
-  var date=new Date(Date.now()-daysAgo*86400000);
-  var datestr=date.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'});
-  var helpful=Math.floor(rnd()*90);
-  var verified=rnd()<0.7;
-  reviews.push({name:name,rating:rating,title:title,body:body,date:datestr,helpful:helpful,verified:verified,size:rating>=4&&rnd()<0.4?('Size: '+(['XS','S','M','L','XL'][Math.floor(rnd()*5)])):''});
- });
- // sort by helpful desc initially
- reviews.sort(function(a,b){return b.helpful-a.helpful});
- ALL_REVIEWS=reviews;
- return reviews;
-}
-
-function starsHtml(rating){
- var out='';for(var i=1;i<=5;i++){out+='<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="'+(i<=rating?'currentColor':'#e0e0e0')+'"/></svg>'}
- return out;
-}
-
-function renderDistBars(reviews){
- var dist={5:0,4:0,3:0,2:0,1:0};
- reviews.forEach(function(r){dist[r.rating]++});
- var total=reviews.length;
- var avg=0;reviews.forEach(function(r){avg+=r.rating});avg=(avg/total).toFixed(1);
- var el=document.getElementById('dist-bars');
- var html='<div class="dist-score"><div class="ds-num">'+avg+'</div><div class="ds-stars">★★★★★</div><div class="ds-count">'+total+' reviews</div></div><div class="dist-rows">';
- for(var s=5;s>=1;s--){
-  var pct=total?(dist[s]/total*100):0;
-  html+='<div class="dist-row"><span class="dr-lbl">'+s+'</span><span class="dr-star">★</span><div class="dist-track"><div class="dist-fill" style="width:'+pct+'%"></div></div><span class="dr-cnt">'+dist[s]+'</span></div>';
- }
- html+='</div>';
- el.innerHTML=html;
- document.getElementById('reviews-total').textContent='('+total+')';
- document.getElementById('reviews-sub').textContent='Based on '+total+' verified reviews';
-}
-
-function renderReviewList(){
- var list=document.getElementById('review-list');
- var shown=ALL_REVIEWS.slice(0,REVIEWS_SHOWN);
- list.innerHTML='';
- shown.forEach(function(r){
-  var ver=r.verified?'<span class="rc-verified">✓ Verified</span>':'';
-  var sizeTag=r.size?'<span class="rc-size-tag">'+esc(r.size)+'</span>':'';
-  list.innerHTML+='<div class="review-card"><div class="rc-top"><div class="rc-avatar">'+esc(r.name.charAt(0))+'</div><div class="rc-who"><div class="rc-name">'+esc(r.name)+' '+ver+' <span class="rc-stars">'+starsHtml(r.rating)+'</span></div><div class="rc-date">'+r.date+'</div></div></div><div class="rc-title">'+esc(r.title)+'</div><div class="rc-body">'+esc(r.body)+'</div><div class="rc-meta">'+sizeTag+'<button class="rc-helpful" onclick="this.textContent=\'✓ Helpful\';this.disabled=true">👍 Helpful ('+r.helpful+')</button></div></div>';
- });
- var lm=document.getElementById('load-more-reviews');
- lm.classList.toggle('hidden', ALL_REVIEWS.length<=REVIEWS_SHOWN);
-}
-
-function sortReviews(mode){
- REVIEW_SORT=mode;
- if(mode==='newest')ALL_REVIEWS.sort(function(a,b){return new Date(b.date)-new Date(a.date)});
- else if(mode==='highest')ALL_REVIEWS.sort(function(a,b){return b.rating-a.rating});
- else if(mode==='lowest')ALL_REVIEWS.sort(function(a,b){return a.rating-b.rating});
- else ALL_REVIEWS.sort(function(a,b){return b.helpful-a.helpful});
- REVIEWS_SHOWN=4;
- renderReviewList();
-}
-
-function loadMoreReviews(){REVIEWS_SHOWN+=4;renderReviewList()}
-
-function renderReviews(pid){
- var reviews=generateReviews(pid,15);
- renderDistBars(reviews);
- REVIEWS_SHOWN=4;
- renderReviewList();
-}
-
 /* ============ REVIEWS / SOCIAL PROOF ============ */
 function renderSocial(){
- if(!meta)return;
- var r=meta.rating;
- document.getElementById('rating-num').textContent=r.toFixed(2);
- document.getElementById('rating-total').textContent='('+meta.reviewCount+'+ reviews)';
- document.getElementById('rs-num').textContent=r.toFixed(2);
- document.getElementById('rs-total').textContent='('+meta.reviewCount+'+ reviews)';
- // top stars
- renderStars(document.querySelector('.rating-line .stars'),r);
- renderStars(document.querySelector('.review-summary .rs-stars'),r);
- // fit slider
- var fs=meta.fitSmall,tts=meta.fitTTS,lg=meta.fitLarge;
- document.getElementById('fit-small').textContent=fs+'%';
- document.getElementById('fit-tts').textContent=tts+'%';
- document.getElementById('fit-large').textContent=lg+'%';
- document.getElementById('fit-fill-small').style.width=fs+'%';
- document.getElementById('fit-fill-small').style.background='#d08080';
- document.getElementById('fit-fill-tts').style.width=tts+'%';
- document.getElementById('fit-fill-tts').style.background='#4caf50';
- document.getElementById('fit-fill-large').style.width=lg+'%';
- document.getElementById('fit-fill-large').style.background='#d08080';
- // tag pills
- document.getElementById('tag-pills').innerHTML=buildTagPills(seedFromId(String(product?product.id:0)));
- // Render full review list
- renderReviews(String(product?product.id:0));
+ // Integrity: no fabricated social proof. Show honest empty state until real
+ // reviews are imported (CJ/Shopify review pipeline — Phase 1).
+ renderHonestReviews();
+}
+
+function renderHonestReviews(){
+ var list=document.getElementById('review-list');
+ var sub=document.getElementById('reviews-sub');
+ var dist=document.getElementById('dist-bars');
+ var total=document.getElementById('reviews-total');
+ if(sub)sub.textContent='';
+ if(dist)dist.innerHTML='';
+ if(total)total.textContent='';
+ if(list)list.innerHTML='<div class="review-card"><div class="rc-body" style="color:#8a8a8a;font-style:italic">No reviews yet — be the first! We display only verified customer reviews.</div></div>';
 }
 
 /* ============ WISHLIST ============ */
@@ -666,6 +452,18 @@ function addToCart(){
  localStorage.setItem('bd_cart',JSON.stringify(cart));updateCartCount();
  var d=meta?meta.discount:0;
  toast('✅ Added to cart — '+d+'% off applied!');
+}
+
+/* ============ DESCRIPTION ============ */
+function renderDescription(){
+ var el=document.getElementById('desc-body');
+ if(!el)return;
+ var d=product?product.description||'':'';
+ if(d && d.replace(/<[^>]+>/g,'').trim()){
+  el.innerHTML=d;
+ } else {
+  el.innerHTML='<span class="desc-empty">Detailed product information coming soon.</span>';
+ }
 }
 
 /* ============ RENDER PRODUCT ============ */

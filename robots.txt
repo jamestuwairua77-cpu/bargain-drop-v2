@@ -20,17 +20,38 @@ Disallow: /forgot-password.html
 Disallow: /order-tracking.html
 Disallow: /order-success.html
 
+# AI crawlers — allowed (referral traffic / AI search visibility)
 User-agent: GPTBot
-Disallow: /
+Allow: /
+Disallow: /api/
+Disallow: /checkout.html
+Disallow: /cart.html
+Disallow: /auth.html
+Disallow: /profile.html
+Disallow: /settings.html
+Disallow: /orders.html
+Disallow: /payment-methods.html
+Disallow: /addresses.html
+Disallow: /account-info.html
+Disallow: /security.html
+Disallow: /deactivate.html
 
 User-agent: CCBot
-Disallow: /
+Allow: /
 
 User-agent: anthropic-ai
-Disallow: /
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
 
 User-agent: FacebookBot
 Allow: /
 Disallow: /api/
+Disallow: /checkout.html
+Disallow: /cart.html
 
 Sitemap: https://bargain-drop.online/sitemap.xml
