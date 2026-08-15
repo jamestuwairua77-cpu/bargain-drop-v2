@@ -28,8 +28,15 @@
   root.appendChild(launcher); root.appendChild(panel);
   document.body.appendChild(root);
 
+  function fmt(t){
+    var s = String(t||'');
+    s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\n/g, '<br>');
+    return s;
+  }
   function addMsg(text, who){
-    var m = el('div','m '+who, text); msgs.appendChild(m); msgs.scrollTop=msgs.scrollHeight; return m;
+    var m = el('div','m '+who); m.innerHTML = fmt(text); msgs.appendChild(m); msgs.scrollTop=msgs.scrollHeight; return m;
   }
 
   function setSugs(list){
@@ -47,7 +54,7 @@
     var email=''; try{ email = (JSON.parse(localStorage.getItem('bd_user_email')||'null')) || ''; }catch(e){}
     if(email && String(email).replace(/"/g,'')==='null') email='';
     addMsg(m,'user');
-    var typing = addMsg('…','bot typing');
+    var typing = addMsg('<span class="dots"><span></span><span></span><span></span></span>','bot typing');
     fetch(API+'/api/chat',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ session_id: sessionId, message: m, context:{ order_number: orderNumber, email: email } })
