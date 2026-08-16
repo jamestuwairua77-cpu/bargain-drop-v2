@@ -3,6 +3,34 @@
     "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
+    "messageId": "80********ad",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "imported": false,
+    "vid": "2608161359551625816",
+    "matched": 0,
+    "receivedAt": "2026-08-16T14:02:18.915Z",
+    "at": "2026-08-16T14:02:19.136Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
     "messageId": "8d********2c",
     "valid": true,
     "paramKeys": [
@@ -1949,12 +1977,5 @@
     "sku": "CJYD299045231EV",
     "available": 100,
     "at": "2026-08-16T02:09:45.086Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49718010478723,
-    "sku": "CJYD299045211KP",
-    "available": 100,
-    "at": "2026-08-16T02:09:42.856Z"
   }
 ]
