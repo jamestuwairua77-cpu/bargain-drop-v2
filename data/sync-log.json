@@ -3,6 +3,15 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "cb********98",
+    "valid": true,
+    "receivedAt": "2026-08-16T14:00:20.817Z",
+    "at": "2026-08-16T14:00:21.075Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "25********57",
     "valid": true,
     "receivedAt": "2026-08-16T14:00:19.669Z",
@@ -1662,13 +1671,5 @@
     "order_id": "BD-CC-MSUNIU40",
     "paymentStatus": "paid",
     "at": "2026-08-15T17:30:23.616Z"
-  },
-  {
-    "action": "stripe-webhook-transaction",
-    "order_id": "__VERIFY_ONLY_DELETE_ME__",
-    "transaction": {
-      "note": "no Shopify order found for bd_order_id __VERIFY_ONLY_DELETE_ME__"
-    },
-    "at": "2026-08-15T16:57:37.491Z"
   }
 ]
