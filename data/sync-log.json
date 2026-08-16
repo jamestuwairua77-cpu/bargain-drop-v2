@@ -3,6 +3,15 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "25********57",
+    "valid": true,
+    "receivedAt": "2026-08-16T14:00:19.669Z",
+    "at": "2026-08-16T14:00:19.914Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "d3********51",
     "valid": true,
     "receivedAt": "2026-08-16T14:00:18.598Z",
@@ -1661,12 +1670,5 @@
       "note": "no Shopify order found for bd_order_id __VERIFY_ONLY_DELETE_ME__"
     },
     "at": "2026-08-15T16:57:37.491Z"
-  },
-  {
-    "action": "stripe-webhook",
-    "event": "checkout.session.completed",
-    "order_id": "__VERIFY_ONLY_DELETE_ME__",
-    "paymentStatus": "paid",
-    "at": "2026-08-15T16:57:35.138Z"
   }
 ]
