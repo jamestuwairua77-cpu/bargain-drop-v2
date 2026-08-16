@@ -15,14 +15,21 @@
 // Design constraints:
 //   - Idempotent: dedupe on messageId (CJ keeps messageId stable across retries).
 //   - Runs inside event.waitUntil (AFTER the ack) so it never blocks the 200.
-//   - Writes the catalog via the SAME GitHub-backed ghWrite/ghWriteLarge path as
-//     sync-full.js, and applies the SAME CJK variant normalization (do not regress).
+//   - Writes the catalog via the SAME GitHub-backed ghWrite path as sync-full.js,
+//     and applies the SAME CJK variant normalization (do not regress).
 //   - Never logs openId / raw sign header — only masked messageId + type.
+//
+// PRODUCTION GROUND TRUTH (observed from real CJ pushes, 2026-08-16):
+//   - VARIANT push params include: vid, variantSku, variantSellPrice, variantStatus,
+//     variantImage, variantKey, variantName, variantValue{1,2,3}, pid, fields, ...
+//   - STOCK push uses messageType INCREASE/DECREASE (not always UPDATE) and the
+//     variant is referenced by vid (and/or variantSku). Our catalog stores ONLY
+//     `sku` (no vid), so we match on variantSku/sku.
+//   - Catalog variant keys are exactly: option1,option2,option3,price,sku,available,image_id.
 
 import { ghRead, ghWrite } from './_sync-lib.js';
 
 const CATALOG_PATH = 'all-products.json';
-const PRODUCTS_INDEX_PATH = 'products-index.json';
 // Dedupe ring of recently-processed messageIds (kept tiny, persisted in catalog dir).
 const PROCESSED_PATH = 'data/cj-webhook-processed.json';
 const PROCESSED_MAX = 500;
@@ -55,26 +62,19 @@ function normalizeVariantOption(raw, productId, title) {
   return pal[0];
 }
 
-// ── GitHub catalog read (decode base64, may be >1MB → use contents API) ──
+// ── GitHub catalog read (decode base64, may be >1MB) ─────────────────────
 async function readCatalog(env) {
   const r = await ghRead(env, CATALOG_PATH);
   if (!r || !r.content) return { products: [], sha: null };
   try { return { products: JSON.parse(atob(r.content.replace(/\n/g,''))), sha: r.sha }; }
-  catch { return { products: [], sha: r.sha }; }
-}
-
-async function readIndex(env) {
-  const r = await ghRead(env, PRODUCTS_INDEX_PATH);
-  if (!r || !r.content) return { index: {}, sha: null };
-  try { return { index: JSON.parse(atob(r.content.replace(/\n/g,''))), sha: r.sha }; }
-  catch { return { index: {}, sha: r.sha }; }
+  catch (e) { return { products: [], sha: r && r.sha ? r.sha : null }; }
 }
 
 async function readProcessed(env) {
   const r = await ghRead(env, PROCESSED_PATH);
   if (!r || !r.content) return { ids: [], sha: null };
-  try { return { ids: JSON.parse(atob(r.content.replace(/\n/g,''))), sha: r.sha }; }
-  catch { return { ids: [], sha: r.sha }; }
+  try { return { ids: JSON.parse(atob(r.content.replace(/\n/g,''))), sha: (r.sha || null) }; }
+  catch { return { ids: [], sha: r && r.sha ? r.sha : null }; }
 }
 
 async function writeProcessed(env, ids, existingSha) {
@@ -87,26 +87,15 @@ async function writeProcessed(env, ids, existingSha) {
 async function shopifyProductPut(env, shopifyId, fields) {
   if (!env.SHOPIFY_ACCESS_TOKEN && !env.SHOPIFY_TOKEN) return null;
   const token = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN;
-  const r = await fetch(`https://${env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com'}/admin/api/2024-04/products/${shopifyId}.json`, {
-    method: 'PUT',
-    headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product: fields }),
-  });
-  return r.ok ? { ok: true } : { ok: false, status: r.status };
-}
-
-// ── Locate a product by CJ pid / sku in the catalog ───────────────────────
-function findProductByCjId(products, pid) {
-  // Catalog products store a cj_pid / cjProductId link if present; else match sku.
-  return products.find(p =>
-    String(p.cj_pid || p.cjProductId || p.source_id || '') === String(pid) ||
-    (Array.isArray(p.variants) && p.variants.some(v => String(v.vid || v.cj_vid || '') === String(pid)))
-  );
-}
-function findProductIdByPid(index, pid) {
-  // products-index.json is id → { idx, category }. Reverse-lookup pid via _cjPids map if we maintain it.
-  // Fallback: scan products index for a pid annotation (idx-based) is done in caller.
-  return null;
+  const domain = env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com';
+  try {
+    const r = await fetch(`https://${domain}/admin/api/2024-04/products/${shopifyId}.json`, {
+      method: 'PUT',
+      headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product: fields }),
+    });
+    return r.ok ? { ok: true } : { ok: false, status: r.status };
+  } catch (e) { return { ok: false, error: String(e && e.message) }; }
 }
 
 // ── Main import dispatcher ────────────────────────────────────────────────
@@ -121,24 +110,16 @@ export async function handleCjWebhook(env, payload) {
     return { imported: false, reason: 'duplicate' };
   }
 
-  let result = { imported: false };
+  let result;
+  if (type === 'PRODUCT') result = await importProduct(env, payload);
+  else if (type === 'VARIANT') result = await importVariant(env, payload);
+  else if (type === 'STOCK') result = await importStock(env, payload);
+  else if (type === 'ORDER') result = await importOrder(env, payload);
+  else if (type === 'LOGISTIC') result = await importLogistic(env, payload);
+  else result = { imported: false, type, messageType, note: 'unsupported (log-only)' };
 
-  if (type === 'PRODUCT') {
-    result = await importProduct(env, payload);
-  } else if (type === 'VARIANT') {
-    result = await importVariant(env, payload);
-  } else if (type === 'STOCK') {
-    result = await importStock(env, payload);
-  } else if (type === 'ORDER') {
-    result = await importOrder(env, payload);
-  } else if (type === 'LOGISTIC') {
-    result = await importLogistic(env, payload);
-  } else {
-    // MAKEUP / PRIVATE_ORDER / ORDERSPLIT / SOURCINGCREATE → log-only for now.
-    result = { imported: false, type, messageType, note: 'unsupported (log-only)' };
-  }
-
-  if (messageId && result.imported !== false) {
+  // Record processed id only when we actually changed something (imported true).
+  if (messageId && result && result.imported) {
     proc.ids.push(messageId);
     await writeProcessed(env, proc.ids, proc.sha);
   }
@@ -155,16 +136,14 @@ async function importProduct(env, payload) {
   const { products, sha } = await readCatalog(env);
   const prod = products.find(x =>
     String(x.cj_pid || x.cjProductId || '') === String(pid) ||
-    (Array.isArray(x.variants) && x.variants.some(v => String(v.vid) === String(pid)))
+    (Array.isArray(x.variants) && x.variants.some(v => String(v.vid || v.cj_vid || '') === String(pid))) ||
+    (Array.isArray(x.variants) && p.productSku && x.variants.some(v => String(v.sku || '') === String(p.productSku)))
   );
 
   if (!prod) {
-    // New product from CJ — we don't fabricate rows here (Shopify is source of truth
-    // for the full record). Log and defer to full-sync.
     return { imported: false, reason: 'product not found locally', pid };
   }
 
-  // Apply field patches that are present in the push.
   const patches = {};
   if (p.productNameEn != null) patches.title = p.productNameEn || prod.title;
   else if (p.productName != null) patches.title = p.productName || prod.title;
@@ -182,10 +161,11 @@ async function importProduct(env, payload) {
   if (p.productStatus != null) {
     patches.status = Number(p.productStatus) === 3 ? 'active' : 'archived';
   }
+  // Persist any cj_pid link we now know, so future pushes match directly.
+  if (p.pid != null && !prod.cj_pid) patches.cj_pid = String(p.pid);
 
   Object.assign(prod, patches);
 
-  // Persist catalog.
   await ghWrite(env, CATALOG_PATH, JSON.stringify(products, null, 2), `cj-webhook: PRODUCT ${pid}`, sha);
 
   // Best-effort Shopify sync.
@@ -202,11 +182,12 @@ async function importProduct(env, payload) {
   return { imported: true, pid, fields: Object.keys(patches) };
 }
 
-// ── VARIANT import ────────────────────────────────────────────────────────
+// ── VARIANT import (match by variantSku / sku — catalog has no vid) ──────
 async function importVariant(env, payload) {
   const p = payload.params || {};
-  const vid = p.vid;
-  if (!vid) return { imported: false, reason: 'no vid' };
+  // Match key: variantSku (preferred) → vid (legacy) → cart SKU.
+  const matchKey = p.variantSku != null ? String(p.variantSku) : (p.vid != null ? String(p.vid) : null);
+  if (!matchKey) return { imported: false, reason: 'no variantSku/vid' };
 
   const { products, sha } = await readCatalog(env);
   let changed = false;
@@ -215,54 +196,77 @@ async function importVariant(env, payload) {
   for (const prod of products) {
     if (!Array.isArray(prod.variants)) continue;
     for (const v of prod.variants) {
-      if (String(v.vid || '') !== String(vid)) continue;
+      const hit = String(v.sku || '') === matchKey || String(v.vid || v.cj_vid || '') === matchKey;
+      if (!hit) continue;
       matched++;
       if (p.variantSku != null) v.sku = p.variantSku;
       if (p.variantSellPrice != null) v.price = Number(p.variantSellPrice);
       if (p.variantImage != null) v.image_id = p.variantImage;
       if (p.variantWeight != null) v.grams = Number(p.variantWeight);
       if (p.variantStatus != null) {
-        // 1 = on sale → available true; 0 = off sale → available false
-        v.available = Number(p.variantStatus) === 1;
+        v.available = Number(p.variantStatus) === 1; // 1 = on sale
       }
-      // Normalize any CJK option edits (never regress).
       if (p.variantValue1 != null) v.option1 = normalizeVariantOption(p.variantValue1, prod.id, prod.title);
       if (p.variantValue2 != null) v.option2 = normalizeVariantOption(p.variantValue2, prod.id, prod.title);
       if (p.variantValue3 != null) v.option3 = p.variantValue3;
+      // Persist the vid so future STOCK (vid-keyed) pushes can match.
+      if (p.vid != null) v.vid = String(p.vid);
       changed = true;
     }
   }
 
   if (changed) {
-    await ghWrite(env, CATALOG_PATH, JSON.stringify(products, null, 2), `cj-webhook: VARIANT ${vid}`, sha);
+    await ghWrite(env, CATALOG_PATH, JSON.stringify(products, null, 2), `cj-webhook: VARIANT ${matchKey}`, sha);
   }
-  return { imported: changed, vid, matched };
+  return { imported: changed, sku: matchKey, matched };
 }
 
-// ── STOCK import ──────────────────────────────────────────────────────────
+// ── STOCK import (match by sku or vid; handles INCREASE/DECREASE) ────────
 async function importStock(env, payload) {
   const p = payload.params || {};
-  // params is { vid|variantSku: [ { vid, areaId, areaEn, countryCode, storageNum } ] }
   const entries = Object.entries(p);
   if (!entries.length) return { imported: false, reason: 'no stock entries' };
 
   const { products, sha } = await readCatalog(env);
   let changed = 0;
 
+  const bySku = new Map();
+  const byVid = new Map();
+  for (const prod of products) {
+    if (!Array.isArray(prod.variants)) continue;
+    for (const v of prod.variants) {
+      if (v.sku) bySku.set(String(v.sku), v);
+      if (v.vid || v.cj_vid) byVid.set(String(v.vid || v.cj_vid), v);
+    }
+  }
+
+  const apply = (key, storage) => {
+    let v = bySku.get(String(key));
+    if (!v) v = byVid.get(String(key));
+    if (!v) return false;
+    v.available = storage > 0;
+    v.inventory_quantity = storage;
+    v._stock = storage;
+    return true;
+  };
+
   for (const [key, arr] of entries) {
-    if (!Array.isArray(arr)) continue;
-    const storage = arr.reduce((sum, r) => sum + (Number(r.storageNum) || 0), 0);
-    for (const prod of products) {
-      if (!Array.isArray(prod.variants)) continue;
-      for (const v of prod.variants) {
-        const matchSku = String(v.sku || '') === String(key);
-        const matchVid = String(v.vid || '') === String(key);
-        if (!matchSku && !matchVid) continue;
-        v.available = storage > 0;
-        v.inventory_quantity = storage;
-        v._stock = storage;
-        changed++;
+    if (Array.isArray(arr)) {
+      // Sum across warehouses for the id-keyed entry.
+      const storage = arr.reduce((sum, r) => sum + (Number(r && r.storageNum) || 0), 0);
+      if (apply(key, storage)) changed++;
+      // Also try each item's own vid/variantSku (covers shapes where key != id).
+      for (const item of arr) {
+        if (item && typeof item === 'object') {
+          const idKey = item.vid || item.variantSku || item.sku;
+          if (idKey != null && String(idKey) !== String(key)) {
+            const st = Number(item.storageNum) || 0;
+            if (apply(idKey, st)) changed++;
+          }
+        }
       }
+    } else if (typeof arr === 'number') {
+      if (apply(key, arr)) changed++;
     }
   }
 
@@ -272,17 +276,17 @@ async function importStock(env, payload) {
   return { imported: changed > 0, changed };
 }
 
-// ── ORDER / LOGISTIC import (order ledger + tracking) ────────────────────
+// ── ORDER import (defer to existing fulfillment flow) ────────────────────
 async function importOrder(env, payload) {
-  // Minimal: append to order ledger via a note. Full fulfillment handling stays in the
-  // existing order flow (stripe-webhook → fulfillOrder). Here we just record CJ's order status.
   const p = payload.params || {};
-  return { imported: false, note: 'order recorded (handled by fulfillment flow)', cjOrderId: p.cjOrderId };
+  // Full order lifecycle lives in stripe-webhook → fulfillOrder. Here we only
+  // record CJ's order status for observability (idempotent on messageId upstream).
+  return { imported: false, note: 'order recorded (fulfillment flow owns orders)', cjOrderId: p.cjOrderId };
 }
 
+// ── LOGISTIC import (tracking hook — log-only for now) ───────────────────
 async function importLogistic(env, payload) {
   const p = payload.params || {};
-  // Tracking sync hook: p.orderId, p.trackingNumber, p.trackingStatus, p.logisticName.
-  // Future: push tracking back to Shopify fulfillment. Log-only for now.
+  // Future: push trackingNumber/trackingStatus back to Shopify fulfillment.
   return { imported: false, note: 'logistic (tracking) received', orderId: p.orderId, trackingNumber: p.trackingNumber };
 }
