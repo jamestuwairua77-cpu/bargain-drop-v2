@@ -115,6 +115,8 @@ export async function onRequest(context) {
       const paramKeys = payload.params && typeof payload.params === 'object'
         ? Object.keys(payload.params).slice(0, 20)
         : null;
+      // Top-level keys of the whole payload (for shape diagnosis on STOCK etc).
+      const topKeys = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 20) : null;
 
       // Import the push into the catalog (PRODUCT/VARIANT/STOCK → all-products.json
       // + Shopify; ORDER/LOGISTIC → ledger/tracking; others log-only). Idempotent on messageId.
@@ -127,6 +129,7 @@ export async function onRequest(context) {
         messageId: maskMessageId(payload.messageId),
         valid: VALID_TYPES.has(type),
         paramKeys,
+        topKeys,
         ...result,
         receivedAt: new Date().toISOString(),
       });
