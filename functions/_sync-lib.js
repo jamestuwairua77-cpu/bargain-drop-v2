@@ -16,10 +16,34 @@ export function getEnv(env) {
 }
 
 // ─── CJ auth (in-memory token cache per worker instance) ────────────────
-let _cjToken = null, _cjExp = 0;
+let _cjToken = null, _cjExp = 0, _cjTokIdx = 0;
+const _mcpToks = []; // MCP access tokens (already-issued JWTs), used directly as Bearer tokens
+
+// Collect any MCP access tokens (prefix 'MCP@') from env. These are ALREADY access tokens,
+// so they skip the getAccessToken exchange AND carry a much higher rate limit (~8 req/burst) than
+// an apiKey-derived token (1 req/sec). Set them via CJ_ACCESS_TOKEN (single) or CJ_MCP_TOKEN_1..N.
+export function mcpTokens(env) {
+  if (_mcpToks.length) return _mcpToks;
+  const list = [];
+  if (env.CJ_ACCESS_TOKEN && String(env.CJ_ACCESS_TOKEN).startsWith('MCP@')) list.push(env.CJ_ACCESS_TOKEN);
+  for (let i = 1; i <= 6; i++) {
+    const t = env['CJ_MCP_TOKEN_' + i];
+    if (t && String(t).startsWith('MCP@')) list.push(t);
+  }
+  for (const t of list) _mcpToks.push(t);
+  return _mcpToks;
+}
 
 export async function cjToken(env) {
   if (_cjToken && Date.now() < _cjExp) return _cjToken;
+  // Prefer MCP tokens (higher rate limit) — rotate through them to avoid any single-token throttle.
+  const mcps = mcpTokens(env);
+  if (mcps.length) {
+    _cjToken = mcps[_cjTokIdx % mcps.length];
+    _cjTokIdx++;
+    _cjExp = Date.now() + 3600 * 1000; // rotate every hour
+    return _cjToken;
+  }
   const CJ_API_KEY = env.CJ_ACCESS_TOKEN || '';
   if (!CJ_API_KEY) throw new Error('CJ_ACCESS_TOKEN not configured');
   const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
