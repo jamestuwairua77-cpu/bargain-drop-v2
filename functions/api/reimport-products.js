@@ -106,8 +106,8 @@ async function reimport(env, p){
   if(!options.length) options.push({name:'Title', values:['Default Title']});
 
   // images: color images first, then existing
-  const images=[]; const seen=new Set();
-  const pusher=(u)=>{ if(u&&!seen.has(u)){seen.add(u);images.push({src:u});} };
+  const images=[]; const seenImg=new Set();
+  const pusher=(u)=>{ if(u&&!seenImg.has(u)){seenImg.add(u);images.push({src:u});} };
   for(const c of colors){ const u=colorImg.get(c); if(u) pusher(u); }
   try{ const set=Array.isArray(cj.productImageSet)?cj.productImageSet:(typeof cj.productImageSet==='string'?JSON.parse(cj.productImageSet):[]); for(const u of set) pusher(u); }catch{}
   for(const u of (p.images||[])) if(typeof u==='string') pusher(u);
