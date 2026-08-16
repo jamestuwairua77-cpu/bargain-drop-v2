@@ -128,9 +128,13 @@ async function reimport(env, p){
   try{ const set=Array.isArray(cj.productImageSet)?cj.productImageSet:(typeof cj.productImageSet==='string'?JSON.parse(cj.productImageSet):[]); for(const u of set) pusher(u); }catch{}
   for(const u of (p.images||[])) if(typeof u==='string') pusher(u);
 
-  // PUT update in place (same product id)
+  // PUT update in place (same product id). Retry transient 409 (webhook race) + 429 (rate limit).
   const payload = { product: { id: p.id, title: cj.productNameEn || p.title, options, variants, images } };
-  const res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
+  let res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
+  for (let t=0; t<6 && res && (res.status===409 || res.status===429); t++) {
+    await new Promise(r=>setTimeout(r, 1000 + t*600));
+    res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
+  }
   if(!res.ok) return { ok:false, error:'put '+res.status+' '+(res.body&&res.body.errors?JSON.stringify(res.body.errors).slice(0,150):'') };
 
   return { ok:true, id:p.id, variants:variants.length, colors:colors.length, sizes:sizes.length };
