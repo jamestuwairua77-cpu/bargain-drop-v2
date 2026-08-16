@@ -1,6 +1,15 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "17********2e",
+    "valid": true,
+    "receivedAt": "2026-08-16T14:00:15.526Z",
+    "at": "2026-08-16T14:00:15.732Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "c5********17",
@@ -1652,11 +1661,5 @@
     "topic": "",
     "note": "unhandled",
     "at": "2026-08-15T14:36:45.516Z"
-  },
-  {
-    "action": "save-order",
-    "id": "BD-CC-MSU8QN50",
-    "status": "unpaid",
-    "at": "2026-08-15T10:36:24.168Z"
   }
 ]
