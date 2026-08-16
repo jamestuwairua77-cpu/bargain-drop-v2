@@ -111,6 +111,11 @@ export async function onRequest(context) {
       const type = String(payload.type || '').toUpperCase();
       const messageType = String(payload.messageType || '').toUpperCase();
 
+      // Masked param keys for diagnosis (keys only, never values / openId).
+      const paramKeys = payload.params && typeof payload.params === 'object'
+        ? Object.keys(payload.params).slice(0, 20)
+        : null;
+
       // Import the push into the catalog (PRODUCT/VARIANT/STOCK → all-products.json
       // + Shopify; ORDER/LOGISTIC → ledger/tracking; others log-only). Idempotent on messageId.
       const result = await handleCjWebhook(env, payload).catch((e) => ({ imported: false, error: String(e && e.message) }));
@@ -121,6 +126,7 @@ export async function onRequest(context) {
         messageType,
         messageId: maskMessageId(payload.messageId),
         valid: VALID_TYPES.has(type),
+        paramKeys,
         ...result,
         receivedAt: new Date().toISOString(),
       });
