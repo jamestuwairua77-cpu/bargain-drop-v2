@@ -7,7 +7,7 @@
 // GET ?run=1&limit=N   -> update up to N products in place
 // Resumable via data/reimport-progress.json.
 
-import { corsHeaders, cjFetch, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, cjFetchMulti, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
 
 const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json';
 const MARKUP = 2.5;
@@ -35,12 +35,12 @@ async function reimport(env, p){
   const sku = (p.variants&&p.variants[0]&&p.variants[0].sku) || '';
   if(!sku) return { ok:false, skip:'no-sku' };
   // resolve pid
-  const lr = await cjFetch(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
+  const lr = await cjFetchMulti(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
   const list=(lr&&lr.data&&lr.data.list)||[];
   if(!list.length) return { ok:false, skip:'no-pid' };
   const pid = list[0].pid;
   await new Promise(r=>setTimeout(r,150));
-  const detail = await cjFetch(env, `/product/query?pid=${encodeURIComponent(pid)}`);
+  const detail = await cjFetchMulti(env, `/product/query?pid=${encodeURIComponent(pid)}`);
   const cj = detail && detail.data;
   const cjv = (cj && cj.variants) || [];
   if(!cjv.length) return { ok:false, skip:'no-variants' };

@@ -44,6 +44,59 @@ export async function cjFetch(env, path, opts = {}) {
   return r.json();
 }
 
+// ─── Multi-key CJ support ────────────────────────────────────────────────
+// The CJ keys live across multiple accounts; some accounts cannot see products
+// sourced under others (return code 1600014). cjFetchMulti rotates through all
+// configured keys and returns the first successful (non-1600014) result.
+
+const _keyTokens = new Map(); // key -> { tok, exp }
+
+async function keyToken(apiKey) {
+  const c = _keyTokens.get(apiKey);
+  if (c && Date.now() < c.exp) return c.tok;
+  const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey }),
+  });
+  const j = await r.json();
+  const tok = j?.data?.accessToken;
+  if (!tok) return null;
+  _keyTokens.set(apiKey, { tok, exp: Date.now() + 12 * 3600 * 1000 });
+  return tok;
+}
+
+export function cjKeys(env) {
+  const list = [];
+  if (env.CJ_ACCESS_TOKEN) list.push(env.CJ_ACCESS_TOKEN);
+  for (let i = 2; i <= 6; i++) {
+    const k = env['CJ_ACCESS_TOKEN_' + i];
+    if (k) list.push(k);
+  }
+  // dedupe
+  return [...new Set(list)];
+}
+
+export async function cjFetchMulti(env, path, opts = {}) {
+  const keys = cjKeys(env);
+  let lastErr = null, lastBody = null;
+  for (const apiKey of keys) {
+    try {
+      const tok = await keyToken(apiKey);
+      if (!tok) { lastErr = new Error('auth fail ' + apiKey.slice(0,10)); continue; }
+      const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1${path}`, {
+        ...opts,
+        headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      });
+      const body = await r.json();
+      // 1600014 = product not found on THIS account; try the next key
+      if (body && body.code === 1600014) { lastBody = body; continue; }
+      return body;
+    } catch (e) { lastErr = e; }
+  }
+  if (lastBody) return lastBody; // all keys said "not found" -> genuinely not found
+  throw lastErr || new Error('all CJ keys failed');
+}
+
 export async function shopifyFetch(env, path, opts = {}) {
   const SHOPIFY_TOKEN = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
   const SHOPIFY_DOMAIN = env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com';
