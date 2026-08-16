@@ -57,15 +57,25 @@ async function reimport(env, p){
   }
   if (!candidates.length) return { ok:false, skip:'no-sku' };
   // Single 10-point call: /product/query?productSku=<parentSku> returns full product + variants.
+  // CJ enforces 1 req/sec (QPS=1) and a daily points cap (429 when exhausted). We must
+  // (a) space calls, and (b) distinguish "rate limited / out of points" from "genuinely not found".
   let cj = null;
+  let rateLimited = false;
   for (const sku of candidates) {
     const r = await cjFetch(env, `/product/query?productSku=${encodeURIComponent(sku)}`);
+    const remaining = r && r.pointsInfo && r.pointsInfo.remaining;
     if (r && r.data && r.data.variants && r.data.variants.length) { cj = r.data; break; }
+    // 429 / 16900500 = points exhausted or rate limit → not a real "not found"
+    if (r && (r.code === 429 || r.code === 16900500 || (remaining !== undefined && remaining <= 0))) {
+      rateLimited = true;
+      break;
+    }
+    await new Promise(r=>setTimeout(r,1100)); // respect CJ 1/sec QPS
   }
+  if (rateLimited) return { ok:false, skip:'rate-limited-or-no-points' };
   if (!cj) return { ok:false, skip:'no-pid' };
   const cjv = cj.variants || [];
   if(!cjv.length) return { ok:false, skip:'no-variants' };
-  await new Promise(r=>setTimeout(r,150));
 
   // existing variants by id + by sku (map old Shopify variants for id preservation)
   const existingByOpt1 = {};
@@ -155,7 +165,7 @@ export async function onRequest(context){
         results.push({id, ok:r_ok, variants:r.variants, colors:r.colors, sizes:r.sizes, err:r.error||r.skip});
       }catch(e){ prog[id]={skip:'ex:'+String(e.message||e).slice(0,50)}; fail++; results.push({id, ok:false, err:String(e.message||e).slice(0,80)}); }
       if(!r_ok) attempts[id]=(attempts[id]||0)+1;
-      await new Promise(r=>setTimeout(r,400));
+      await new Promise(r=>setTimeout(r,600)); // Shopify 2 req/sec; CJ 1 req/sec
     }
     prog.attempts = attempts;
     // Persist progress best-effort: pass the sha we read, and NEVER abort the run on a write conflict.
