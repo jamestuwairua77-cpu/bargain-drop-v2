@@ -158,7 +158,18 @@ export async function onRequest(context){
       await new Promise(r=>setTimeout(r,400));
     }
     prog.attempts = attempts;
-    await ghWrite(env,'data/reimport-progress.json',JSON.stringify(prog),'auto: reimport progress');
+    // Persist progress best-effort: pass the sha we read, and NEVER abort the run on a write conflict.
+    // (The webhook auto-rebuilds + concurrent runs change data/ files, so writes can 422 on sha mismatch.
+    //  The re-import itself is idempotent — a lost progress row just means a product gets retried.)
+    try {
+      await ghWrite(env, 'data/reimport-progress.json', JSON.stringify(prog), 'auto: reimport progress', progDoc && progDoc.sha);
+    } catch (we) {
+      // retry once after re-reading the latest sha
+      try {
+        const fresh = await ghRead(env, 'data/reimport-progress.json');
+        await ghWrite(env, 'data/reimport-progress.json', JSON.stringify(prog), 'auto: reimport progress (retry)', fresh && fresh.sha);
+      } catch {}
+    }
     return new Response(JSON.stringify({ processed:remaining.length, ok, fail, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
   }catch(err){
     return new Response(JSON.stringify({error:String(err&&err.message||err),stack:String(err&&err.stack||'').slice(0,400)}),{status:500,headers:{'Content-Type':'application/json',...corsHeaders()}});
