@@ -109,12 +109,13 @@ export async function onRequest(context) {
   const limit = parseInt(url.searchParams.get('limit') || '12', 10);
   const mode = url.searchParams.get('mode') || 'apparel-first';
 
-  const doc = await ghRead(env, 'all-products.json');
-  if (!doc) return new Response(JSON.stringify({ error: 'cannot read catalog' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
-  const decode = function(s) { try { return JSON.parse(atob(String(s).replace(/\n/g, ''))); } catch (e) { return JSON.parse(atob(String(s))); } };
-  const catalog = decode(doc.content);
+  // all-products.json is >1MB, so /contents returns no content. Fetch via raw.
+  const rawRes = await fetch('https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json');
+  if (!rawRes.ok) return new Response(JSON.stringify({ error: 'cannot read catalog via raw: ' + rawRes.status }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  const catalog = await rawRes.json();
+  const doc = await ghRead(env, 'all-products.json'); // for sha only
   const progDoc = await ghRead(env, 'data/enrich-progress.json');
-  const prog = progDoc ? decode(progDoc.content) : {};
+  const prog = progDoc && progDoc.content ? JSON.parse(atob(progDoc.content.replace(/\n/g, ''))) : {};
   const saveProg = function() { return ghWrite(env, 'data/enrich-progress.json', JSON.stringify(prog), 'auto: enrich progress', progDoc ? progDoc.sha : undefined); };
 
   if (!run) {
