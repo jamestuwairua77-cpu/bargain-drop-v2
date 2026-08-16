@@ -5,13 +5,15 @@
 import { corsHeaders, shopifyFetch, ghRead, ghWrite, verifyHmac } from '../_sync-lib.js';
 
 function getImages(prod) {
+  // Return [{id,src}] so we can resolve variant.image_id -> image index.
   const out = [];
-  if (prod.image && prod.image.src) out.push(prod.image.src);
-  else if (typeof prod.image === 'string') out.push(prod.image);
+  const push = (id, src) => { if (src && !out.some(x => x.src === src)) out.push({ id, src }); };
+  if (prod.image && prod.image.src) push(prod.image.id, prod.image.src);
+  else if (typeof prod.image === 'string') push(null, prod.image);
   if (Array.isArray(prod.images)) {
     for (const img of prod.images) {
-      if (img.src && !out.includes(img.src)) out.push(img.src);
-      else if (typeof img === 'string' && !out.includes(img)) out.push(img);
+      if (img && img.src) push(img.id, img.src);
+      else if (typeof img === 'string') push(null, img);
     }
   }
   return out;
@@ -35,17 +37,21 @@ async function rebuildAllProducts(env) {
   const cats = {}, all = [], idx = {};
   for (const p of prods) {
     const imgs = getImages(p);
+    const imgIndexOf = new Map();
+    imgs.forEach((im, i) => { if (im.id != null) imgIndexOf.set(im.id, i); });
+    const srcs = imgs.map(im => im.src);
     const price = Number(p.variants?.[0]?.price || 0);
     const comp = Number(p.variants?.[0]?.compare_at_price || 0);
     const vars = (p.variants || []).map(v => ({
       option1: v.option1, option2: v.option2, option3: v.option3,
       price: Number(v.price || 0), sku: v.sku,
       available: v.inventory_quantity > 0,
+      image_id: v.image_id != null && imgIndexOf.has(v.image_id) ? imgIndexOf.get(v.image_id) : null,
     }));
     all.push({
       id: String(p.id), title: p.title, price,
       compare_at_price: comp > price ? comp : undefined,
-      image: imgs[0] || null, images: imgs,
+      image: srcs[0] || null, images: srcs,
       body_html: p.body_html || '', vendor: p.vendor,
       product_type: p.product_type, tags: p.tags,
       variants: vars,
@@ -55,7 +61,7 @@ async function rebuildAllProducts(env) {
     if (!cats[key]) cats[key] = { name: ptype, products: [] };
     cats[key].products.push({
       id: String(p.id), title: p.title, price,
-      image: imgs[0] || null, body_html: p.body_html || '',
+      image: srcs[0] || null, body_html: p.body_html || '',
       vendor: p.vendor, product_type: p.product_type,
       variants: vars.length, images: imgs.length,
     });
@@ -70,9 +76,9 @@ async function rebuildAllProducts(env) {
 
   const results = [];
   for (const f of files) {
-    const existing = await ghRead(env, f.path);
-    const r = await ghWrite(env, f.path, f.data, f.msg, existing?.sha);
-    results.push({ file: f.path, sha: r?.commit?.sha || r?.content?.sha });
+    // ghWrite routes >900KB to ghWriteLarge (atomic fresh-ref commit); no stale sha -> no 409.
+    const r = await ghWrite(env, f.path, f.data, f.msg);
+    results.push({ file: f.path, sha: r?.commit?.sha || r?.content?.sha || r?.sha });
   }
 
   return {
