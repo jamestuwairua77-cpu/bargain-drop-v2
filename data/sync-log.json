@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "2a********52",
+    "valid": true,
+    "paramKeys": [
+      "1605077595442393088"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1605077595442393088\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"8B815EF2-2609-479D-9E6B-D48B3A854F40\",\"storageNum\":2194,\"vid\":\"1605077595442393088\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"8B815EF2-2609-479D-9E6B-D48B3A854F40\",\"storageNum\":28432,\"vid\":\"1605077595442393088\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-16T14:12:00.650Z",
+    "at": "2026-08-16T14:12:00.937Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "56********df",
     "valid": true,
     "paramKeys": [
@@ -4558,27 +4580,5 @@
     "changed": 0,
     "receivedAt": "2026-08-16T14:07:00.857Z",
     "at": "2026-08-16T14:07:01.102Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "76********bf",
-    "valid": true,
-    "paramKeys": [
-      "1891761152330952705"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1891761152330952705\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-16T14:06:56.640Z",
-    "at": "2026-08-16T14:06:59.993Z"
   }
 ]
