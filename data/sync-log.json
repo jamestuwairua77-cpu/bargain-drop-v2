@@ -3,6 +3,38 @@
     "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
+    "messageId": "2d********64",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantImage",
+      "variantKey",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "imported": false,
+    "sku": "T5727634602670",
+    "matched": 0,
+    "receivedAt": "2026-08-16T21:16:22.412Z",
+    "at": "2026-08-16T21:16:22.635Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "INSERT",
     "messageId": "d3********e8",
     "valid": true,
     "paramKeys": [
@@ -4524,26 +4556,5 @@
     "changed": 0,
     "receivedAt": "2026-08-16T20:55:17.234Z",
     "at": "2026-08-16T20:55:17.462Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "d2********cb",
-    "valid": true,
-    "paramKeys": [
-      "2055134719575232514"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-16T20:51:17.327Z",
-    "at": "2026-08-16T20:51:17.537Z"
   }
 ]
