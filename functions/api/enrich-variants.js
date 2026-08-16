@@ -101,6 +101,7 @@ function isApparel(p) {
 }
 
 export async function onRequest(context) {
+  try {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
   const url = new URL(request.url);
@@ -155,4 +156,7 @@ export async function onRequest(context) {
 
   const remaining = catalog.filter(needs).length;
   return new Response(JSON.stringify({ processed, enriched, remaining, done: remaining === 0 }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err && err.message || err), stack: String(err && err.stack || '').slice(0,500) }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
 }
