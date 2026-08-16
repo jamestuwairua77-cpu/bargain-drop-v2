@@ -3,6 +3,15 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "ff********97",
+    "valid": true,
+    "receivedAt": "2026-08-16T14:00:26.740Z",
+    "at": "2026-08-16T14:00:26.933Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "34********bd",
     "valid": true,
     "receivedAt": "2026-08-16T14:00:25.438Z",
@@ -1671,12 +1680,5 @@
     "sku": "CJYD299047602BY",
     "available": 100,
     "at": "2026-08-15T17:37:54.488Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49591663558787,
-    "sku": "CJYD299047602BY",
-    "available": 100,
-    "at": "2026-08-15T17:36:52.749Z"
   }
 ]
