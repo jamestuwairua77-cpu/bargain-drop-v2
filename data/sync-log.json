@@ -3,6 +3,15 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "00********e1",
+    "valid": true,
+    "receivedAt": "2026-08-16T14:00:17.729Z",
+    "at": "2026-08-16T14:00:17.942Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "5b********a3",
     "valid": true,
     "receivedAt": "2026-08-16T14:00:16.781Z",
@@ -1657,12 +1666,5 @@
     "shopify_order_id": 7114012098691,
     "name": "#1039",
     "at": "2026-08-15T15:03:36.689Z"
-  },
-  {
-    "action": "shopify-webhook",
-    "topic": "orders/create",
-    "shopify_order_id": 7113993453699,
-    "name": "#1038",
-    "at": "2026-08-15T15:01:21.553Z"
   }
 ]
