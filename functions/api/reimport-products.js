@@ -46,14 +46,14 @@ function needsReimport(p){
 }
 
 async function reimport(env, p){
-  // Try a set of candidate SKUs: the first variant's sku, plus parent-normalized forms.
-  const rawSkus = (p.variants||[]).map(v=>v.sku).filter(Boolean);
+  // Build a SMALL candidate set (max 2): the first variant's parent SKU + the first raw SKU.
+  // We only try the parent (base) SKU — querying every variant SKU burns subrequests/points.
+  const firstRaw = (p.variants||[]).map(v=>v.sku).filter(Boolean)[0];
   const candidates = [];
-  const seen = new Set();
-  for (const s of rawSkus) {
-    const ps = parentSku(s);
-    if (ps && !seen.has(ps)) { seen.add(ps); candidates.push(ps); }
-    if (s && !seen.has(s)) { seen.add(s); candidates.push(s); }
+  if (firstRaw) {
+    const ps = parentSku(firstRaw);
+    if (ps && !candidates.includes(ps)) candidates.push(ps);
+    if (firstRaw !== ps && !candidates.includes(firstRaw)) candidates.push(firstRaw);
   }
   if (!candidates.length) return { ok:false, skip:'no-sku' };
   // Single 10-point call: /product/query?productSku=<parentSku> returns full product + variants.
