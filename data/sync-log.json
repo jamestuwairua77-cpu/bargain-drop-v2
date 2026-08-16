@@ -3,6 +3,27 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "39********48",
+    "valid": true,
+    "paramKeys": [
+      "1867546015281598464"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-16T14:05:26.581Z",
+    "at": "2026-08-16T14:05:26.787Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "c8********ee",
     "valid": true,
     "paramKeys": [
@@ -2131,12 +2152,5 @@
     "sku": "CJCS299036201AZ",
     "available": 100,
     "at": "2026-08-16T05:40:06.005Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49718011134083,
-    "sku": "CJYD299045231EV",
-    "available": 100,
-    "at": "2026-08-16T05:39:50.017Z"
   }
 ]
