@@ -20,8 +20,9 @@
 //   4. Any unexpected error is caught so the connection never hangs.
 
 import { corsHeaders, appendSyncLog } from '../_sync-lib.js';
+import { handleCjWebhook } from '../_cj-import.js';
 
-const VALID_TYPES = new Set(['PRODUCT', 'STOCK', 'ORDER', 'LOGISTICS', 'PRIVATE_ORDER']);
+const VALID_TYPES = new Set(['PRODUCT', 'VARIANT', 'STOCK', 'ORDER', 'LOGISTIC', 'LOGISTICS', 'MAKEUP', 'PRIVATE_ORDER', 'ORDERSPLIT', 'SOURCINGCREATE']);
 
 /**
  * Base64( HMAC-SHA256( rawBody, openId ) ) — matches CJ's signing scheme exactly.
@@ -110,17 +111,19 @@ export async function onRequest(context) {
       const type = String(payload.type || '').toUpperCase();
       const messageType = String(payload.messageType || '').toUpperCase();
 
+      // Import the push into the catalog (PRODUCT/VARIANT/STOCK → all-products.json
+      // + Shopify; ORDER/LOGISTIC → ledger/tracking; others log-only). Idempotent on messageId.
+      const result = await handleCjWebhook(env, payload).catch((e) => ({ imported: false, error: String(e && e.message) }));
+
       await appendSyncLog(env, {
         action: 'cj-webhook',
         type,
         messageType,
         messageId: maskMessageId(payload.messageId),
         valid: VALID_TYPES.has(type),
+        ...result,
         receivedAt: new Date().toISOString(),
       });
-
-      // Future enrichment hook: route PRODUCT UPSERT → catalog, STOCK → variant
-      // availability, ORDER/LOGISTICS → tracking sync. Idempotence keyed on messageId.
     } catch (e) {
       // best-effort; never throw into the ack path
       await appendSyncLog(env, { action: 'cj-webhook-error', error: String(e && e.message) }).catch(() => {});
