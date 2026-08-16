@@ -7,7 +7,7 @@
 // GET ?run=1&limit=N   -> update up to N products in place
 // Resumable via data/reimport-progress.json.
 
-import { corsHeaders, cjFetch, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, shopifyFetch, ghRead, ghWrite, ghWriteLarge } from '../_sync-lib.js';
 
 const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/slim-products.json';
 const MARKUP = 2.5;
@@ -158,7 +158,13 @@ export async function onRequest(context){
     if(!run) return new Response(JSON.stringify({ total:catalog.length, toReimport:todo.length }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
 
     const MAX_ATTEMPTS = 3;
-    const remaining=todo.filter(p=>(attempts[String(p.id)]||0) < MAX_ATTEMPTS).slice(0,limit);
+    // A product is "done" once prog records it as successfully re-imported (has 'n'), OR once
+    // its attempts are exhausted. Without this, success isn't persisted → same products churn forever.
+    const doneIds = new Set(Object.keys(prog).filter(k => k !== 'attempts' && prog[k] && typeof prog[k] === 'object' && 'n' in prog[k]));
+    const remaining = todo
+      .filter(p => !doneIds.has(String(p.id)))        // skip already-successful
+      .filter(p => (attempts[String(p.id)]||0) < MAX_ATTEMPTS)
+      .slice(0, limit);
     let ok=0, fail=0; const results=[];
     for(const p of remaining){
       const id=String(p.id);
@@ -174,17 +180,23 @@ export async function onRequest(context){
       await new Promise(r=>setTimeout(r,600)); // Shopify 2 req/sec; CJ 1 req/sec
     }
     prog.attempts = attempts;
-    // Persist progress best-effort: pass the sha we read, and NEVER abort the run on a write conflict.
-    // (The webhook auto-rebuilds + concurrent runs change data/ files, so writes can 422 on sha mismatch.
-    //  The re-import itself is idempotent — a lost progress row just means a product gets retried.)
+    // Persist progress via the Git tree/blob API (race-safe vs the product-sync webhook, which
+    // also writes to data/*.json). ghWriteLarge creates an atomic commit off the CURRENT branch HEAD,
+    // so there is no stale content-sha 422. Merge any concurrent progress rows before writing.
     try {
-      await ghWrite(env, 'data/reimport-progress.json', JSON.stringify(prog), 'auto: reimport progress', progDoc && progDoc.sha);
+      const fresh = await ghRead(env, 'data/reimport-progress.json');
+      let merged = prog;
+      if (fresh && fresh.content) {
+        try {
+          const existing = JSON.parse(atob(fresh.content.replace(/\n/g,'')));
+          merged = { ...existing, ...prog, attempts: { ...(existing.attempts||{}), ...attempts } };
+        } catch {}
+      }
+      const payload = JSON.stringify(merged);
+      await ghWriteLarge(env, 'data/reimport-progress.json', payload, 'auto: reimport progress');
     } catch (we) {
-      // retry once after re-reading the latest sha
-      try {
-        const fresh = await ghRead(env, 'data/reimport-progress.json');
-        await ghWrite(env, 'data/reimport-progress.json', JSON.stringify(prog), 'auto: reimport progress (retry)', fresh && fresh.sha);
-      } catch {}
+      // best-effort: progress loss only means some products get retried (idempotent)
+      void we;
     }
     return new Response(JSON.stringify({ processed:remaining.length, ok, fail, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
   }catch(err){
