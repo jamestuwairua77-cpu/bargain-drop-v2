@@ -110,9 +110,10 @@ export async function onRequest(context) {
 
   const doc = await ghRead(env, 'all-products.json');
   if (!doc) return new Response(JSON.stringify({ error: 'cannot read catalog' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
-  const catalog = JSON.parse(Buffer.from(doc.content, 'base64').toString('utf8'));
+  const decode = function(s) { try { return JSON.parse(atob(String(s).replace(/\n/g, ''))); } catch (e) { return JSON.parse(atob(String(s))); } };
+  const catalog = decode(doc.content);
   const progDoc = await ghRead(env, 'data/enrich-progress.json');
-  const prog = progDoc ? JSON.parse(Buffer.from(progDoc.content, 'base64').toString('utf8')) : {};
+  const prog = progDoc ? decode(progDoc.content) : {};
   const saveProg = function() { return ghWrite(env, 'data/enrich-progress.json', JSON.stringify(prog), 'auto: enrich progress', progDoc ? progDoc.sha : undefined); };
 
   if (!run) {
