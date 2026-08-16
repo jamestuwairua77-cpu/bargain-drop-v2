@@ -4,13 +4,15 @@
 import { corsHeaders, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
 
 function getImages(prod) {
+  // Return list of {id, src} so we can resolve variant.image_id -> index.
   const out = [];
-  if (prod.image && prod.image.src) out.push(prod.image.src);
-  else if (typeof prod.image === 'string') out.push(prod.image);
+  const push = (id, src) => { if (src && !out.some(x => x.src === src)) out.push({ id, src }); };
+  if (prod.image && prod.image.src) push(prod.image.id, prod.image.src);
+  else if (typeof prod.image === 'string') push(null, prod.image);
   if (Array.isArray(prod.images)) {
     for (const img of prod.images) {
-      if (img.src && !out.includes(img.src)) out.push(img.src);
-      else if (typeof img === 'string' && !out.includes(img)) out.push(img);
+      if (img && img.src) push(img.id, img.src);
+      else if (typeof img === 'string') push(null, img);
     }
   }
   return out;
@@ -111,6 +113,9 @@ export async function onRequest(context) {
     const cats = {}, idx = {}, all = [];
     for (const p of prods) {
       const imgs = getImages(p);
+      const imgIndexOf = new Map(); // shopify image id -> index in imgs
+      imgs.forEach((im, i) => { if (im.id != null) imgIndexOf.set(im.id, i); });
+      const srcs = imgs.map(im => im.src); // catalog stores images as URL strings
       const price = Number(p.variants?.[0]?.price || 0);
       const comp = Number(p.variants?.[0]?.compare_at_price || 0);
       const allOpt1 = (p.variants || []).map(v => v.option1 || '');
@@ -120,11 +125,12 @@ export async function onRequest(context) {
         option3: v.option3,
         price: Number(v.price || 0), sku: v.sku,
         available: v.inventory_quantity > 0,
+        image_id: v.image_id != null && imgIndexOf.has(v.image_id) ? imgIndexOf.get(v.image_id) : null,
       }));
       all.push({
         id: String(p.id), title: p.title, price,
         compare_at_price: comp > price ? comp : undefined,
-        image: imgs[0] || null, images: imgs,
+        image: srcs[0] || null, images: srcs,
         body_html: p.body_html || '', vendor: p.vendor,
         product_type: p.product_type, tags: p.tags,
         variants: vars,
@@ -134,7 +140,7 @@ export async function onRequest(context) {
       if (!cats[key]) cats[key] = { name: ptype, products: [] };
       cats[key].products.push({
         id: String(p.id), title: p.title, price,
-        image: imgs[0] || null,
+        image: srcs[0] || null,
         body_html: p.body_html || '',
         vendor: p.vendor,
         product_type: p.product_type,

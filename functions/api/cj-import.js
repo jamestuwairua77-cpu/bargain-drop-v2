@@ -6,9 +6,37 @@ import { corsHeaders, cjFetch, shopifyFetch, appendSyncLog } from '../_sync-lib.
 function stripHtml(html = '') {
   return String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
-function parseVariantKey(key) {
-  if (!key) return [];
-  return String(key).split(/[-\/]/).map(s => s.trim()).filter(Boolean).slice(0, 3);
+// Split CJ variantKey ("Dark Blue-S") or variantNameEn ("...Bikini Dark Blue S")
+// into [color, size, ...]. Size is the trailing token when it is a known size.
+const SIZE_TOKENS = new Set(['XS','S','M','L','XL','XXL','XXXL','2XL','3XL','4XL','5XL','6XL','7XL','8XL','1X','2X','3X','4X','5X','SM','MED','MEDIUM','LARGE','XLARGE','FREE','FREESIZE','ONESIZE','OS','FITS','ALL','SIZE']);
+function isSizeToken(s) {
+  if (!s) return false;
+  const u = String(s).trim().toUpperCase();
+  if (SIZE_TOKENS.has(u)) return true;
+  if (/^\d{1,2}(\.\d+)?$/.test(String(s).trim())) { const n = parseFloat(s); return n >= 20 && n <= 60; }
+  return false;
+}
+function parseVariantKey(key, nameEn) {
+  // Prefer explicit key ("Dark Blue-S"); fall back to nameEn trailing size token.
+  let parts = [];
+  if (key) {
+    // Split on the LAST dash/slash so "Dark Blue-S" -> ["Dark Blue","S"]
+    const s = String(key).trim();
+    const m = s.match(/^(.*?)[-\/]([^-\/]+)$/);
+    if (m) parts = [m[1].trim(), m[2].trim()];
+    else parts = [s];
+  }
+  // If we got a trailing size token, keep color+size; else try nameEn
+  if (parts.length >= 2 && isSizeToken(parts[parts.length - 1])) {
+    // good
+  } else if (nameEn) {
+    const toks = String(nameEn).split(/\s+/).filter(Boolean);
+    if (toks.length && isSizeToken(toks[toks.length - 1])) {
+      const size = toks.pop();
+      parts = [toks.join(' '), size];
+    }
+  }
+  return parts.slice(0, 3).map(s => s.trim()).filter(Boolean);
 }
 
 export async function onRequest(context) {
@@ -68,10 +96,10 @@ export async function onRequest(context) {
           const p = detailRes.data;
           log(`  ✓ Got: "${p.productNameEn}" (base SKU ${p.productSku})`);
 
-          log(`  › Fetching variant list for pid=${pid}...`);
-          const varRes = await cjFetch(env, `/product/variant/query?pid=${encodeURIComponent(pid)}`);
-          let variants = Array.isArray(varRes.data) ? varRes.data : [];
-          if (!variants.length && Array.isArray(p.variants)) variants = p.variants;
+          log(`  › Reading variant list from CJ product detail...`);
+          // CJ exposes full variants on /product/query (data.variants); the
+          // separate /product/variant/query endpoint is unreliable/empty.
+          let variants = Array.isArray(p.variants) ? p.variants : [];
           log(`  ✓ ${variants.length} variant(s) discovered`);
 
           if (!variants.length) {
@@ -84,11 +112,14 @@ export async function onRequest(context) {
           }
 
           const optionSlots = [new Set(), new Set(), new Set()];
+          const colorImageMap = new Map(); // color -> variantImage url
           for (const v of variants) {
-            const parts = parseVariantKey(v.variantKey || v.variantNameEn);
+            const parts = parseVariantKey(v.variantKey, v.variantNameEn || v.variantName);
             parts.forEach((val, idx) => { if (idx < 3) optionSlots[idx].add(val); });
+            if (parts[0] && v.variantImage && !colorImageMap.has(parts[0])) colorImageMap.set(parts[0], v.variantImage);
           }
-          const optionNames = ['Option 1', 'Option 2', 'Option 3'];
+          // Name axes semantically: option1 is virtually always Color, option2 Size.
+          const optionNames = ['Color', 'Size', 'Option 3'];
           const optionsPayload = [];
           optionSlots.forEach((set, idx) => {
             if (set.size > 0) optionsPayload.push({ name: optionNames[idx], values: [...set] });
@@ -97,7 +128,7 @@ export async function onRequest(context) {
 
           log(`  › Mapping payload for Shopify format...`);
           const shopifyVariants = variants.map((v, idx) => {
-            const parts = parseVariantKey(v.variantKey || v.variantNameEn);
+            const parts = parseVariantKey(v.variantKey, v.variantNameEn || v.variantName);
             const price = ((parseFloat(v.variantSellPrice) || parseFloat(p.sellPrice) || 0) * markup).toFixed(2);
             const grams = Math.round(parseFloat(v.variantWeight) || 0);
             log(`    · variant ${idx + 1}/${variants.length} — SKU ${v.variantSku} · key "${v.variantKey}" · $${price} · ${grams}g`);
@@ -107,24 +138,33 @@ export async function onRequest(context) {
               grams, weight: grams / 1000, weight_unit: 'kg',
               inventory_management: 'shopify', inventory_policy: 'deny',
               fulfillment_service: 'manual', requires_shipping: true, taxable: true,
+              _cjColor: parts[0] || null, _cjImage: v.variantImage || null,
             };
           });
 
           const finalOptions = optionsPayload.slice(0, Math.max(1, shopifyVariants[0].option3 ? 3 : shopifyVariants[0].option2 ? 2 : 1));
 
+          // Assemble distinct per-color images first (so variant image_id can link),
+          // then the remaining gallery images.
           const images = [];
+          const seenImg = new Set();
+          for (const c of optionSlots[0]) {
+            const u = colorImageMap.get(c);
+            if (u && !seenImg.has(u)) { seenImg.add(u); images.push({ src: u }); }
+          }
+          const pushUrl = (url) => { if (url && !seenImg.has(url)) { seenImg.add(url); images.push({ src: url }); } };
           try {
             const set = Array.isArray(p.productImageSet) ? p.productImageSet
               : (typeof p.productImageSet === 'string' ? JSON.parse(p.productImageSet) : []);
-            for (const url of set) images.push({ src: url });
+            for (const url of set) pushUrl(url);
           } catch {}
           if (!images.length) {
             try {
               const arr = typeof p.productImage === 'string' ? JSON.parse(p.productImage) : [];
-              for (const url of arr) images.push({ src: url });
+              for (const url of arr) pushUrl(url);
             } catch {}
           }
-          if (!images.length && p.bigImage) images.push({ src: p.bigImage });
+          if (p.bigImage) pushUrl(p.bigImage);
 
           const productPayload = {
             product: {
@@ -135,7 +175,10 @@ export async function onRequest(context) {
               tags: `cj-import,cj-pid-${pid}`,
               status: 'active',
               options: finalOptions,
-              variants: shopifyVariants,
+              variants: variants.map((v, idx) => ({
+                ...shopifyVariants[idx],
+                _cjColor: undefined, _cjImage: undefined,
+              })),
               images,
             },
           };
@@ -152,6 +195,36 @@ export async function onRequest(context) {
 
           const created = createRes.body?.product;
           log(`  ✓ Successfully created product "${created.title}" on Shopify (id=${created.id})`, 'success');
+
+          // Assign per-color images to variants (Shopify requires image.variant_ids /
+          // image.alt wiring done AFTER create). This is what makes each color swatch
+          // show its correct product photo on the storefront.
+          try {
+            const vidByColor = new Map();
+            for (const v of created.variants) {
+              const key = v.option1; // color
+              if (key && !vidByColor.has(key)) vidByColor.set(key, v);
+            }
+            const imgUpdates = [];
+            for (const [color, url] of colorImageMap) {
+              const shopImg = created.images.find(im => im.src === url);
+              if (!shopImg) continue;
+              const vv = vidByColor.get(color);
+              const variantIds = vv ? [vv.id] : [];
+              if (variantIds.length) {
+                imgUpdates.push({ id: shopImg.id, variant_ids: variantIds, position: shopImg.position });
+              }
+            }
+            if (imgUpdates.length) {
+              await shopifyFetch(env, `/products/${created.id}.json`, {
+                method: 'PUT',
+                body: JSON.stringify({ product: { id: created.id, images: imgUpdates } }),
+              });
+              log(`  ✓ Assigned ${imgUpdates.length} color image(s) to variants`);
+            }
+          } catch (imgErr) {
+            log(`    ⚠ variant image assignment skipped: ${imgErr.message}`, 'warn');
+          }
 
           log(`  › Setting inventory levels for ${created.variants.length} variant(s)...`);
           for (const v of created.variants) {
