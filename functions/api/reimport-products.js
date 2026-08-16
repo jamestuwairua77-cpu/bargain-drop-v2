@@ -23,6 +23,20 @@ function parseVariantKey(key, nameEn=''){
   return [color.trim(), size.trim()];
 }
 
+// Normalize a variant SKU to its CJ parent SKU for product/list lookup.
+// Patterns: 'CJYD299047601AZ' -> 'CJYD2990476' (strip NNXX suffix)
+//           'CJYD2990476-2'   -> 'CJYD2990476' (strip -N suffix)
+//           'CJYD2990954'     -> unchanged (base)
+function parentSku(sku) {
+  if (!sku) return sku;
+  let s = String(sku).trim();
+  // strip '-N' suffix first
+  s = s.replace(/-(\d+)$/, '');
+  // strip trailing 'NNXX' where NN digits + XX letters (variant marker)
+  s = s.replace(/(\d{2})([A-Z]{2})$/, '');
+  return s;
+}
+
 function needsReimport(p){
   const v=p.variants||[];
   if(!v.length) return false;
@@ -32,13 +46,23 @@ function needsReimport(p){
 }
 
 async function reimport(env, p){
-  const sku = (p.variants&&p.variants[0]&&p.variants[0].sku) || '';
-  if(!sku) return { ok:false, skip:'no-sku' };
-  // resolve pid
-  const lr = await cjFetchMulti(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
-  const list=(lr&&lr.data&&lr.data.list)||[];
-  if(!list.length) return { ok:false, skip:'no-pid' };
-  const pid = list[0].pid;
+  // Try a set of candidate SKUs: the first variant's sku, plus parent-normalized forms.
+  const rawSkus = (p.variants||[]).map(v=>v.sku).filter(Boolean);
+  const candidates = [];
+  const seen = new Set();
+  for (const s of rawSkus) {
+    const ps = parentSku(s);
+    if (ps && !seen.has(ps)) { seen.add(ps); candidates.push(ps); }
+    if (s && !seen.has(s)) { seen.add(s); candidates.push(s); }
+  }
+  if (!candidates.length) return { ok:false, skip:'no-sku' };
+  let pid = null;
+  for (const sku of candidates) {
+    const lr = await cjFetchMulti(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
+    const list=(lr&&lr.data&&lr.data.list)||[];
+    if (list.length) { pid = list[0].pid; break; }
+  }
+  if (!pid) return { ok:false, skip:'no-pid' };
   await new Promise(r=>setTimeout(r,150));
   const detail = await cjFetchMulti(env, `/product/query?pid=${encodeURIComponent(pid)}`);
   const cj = detail && detail.data;
@@ -115,24 +139,29 @@ export async function onRequest(context){
 
     const progDoc=await ghRead(env,'data/reimport-progress.json');
     const prog=progDoc&&progDoc.content?JSON.parse(atob(progDoc.content.replace(/\n/g,''))):{};
-    const saveProg=()=>ghWrite(env,'data/reimport-progress.json',JSON.stringify(prog),'auto: reimport progress',progDoc?progDoc.sha:undefined);
+    const attempts = prog.attempts || {};
 
     if(dryRun) return new Response(JSON.stringify({ total:catalog.length, toReimport:todo.length }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
     if(!run) return new Response(JSON.stringify({ total:catalog.length, toReimport:todo.length }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
 
-    const remaining=todo.filter(p=>!(String(p.id) in prog)).slice(0,limit);
+    const MAX_ATTEMPTS = 3;
+    const remaining=todo.filter(p=>(attempts[String(p.id)]||0) < MAX_ATTEMPTS).slice(0,limit);
     let ok=0, fail=0; const results=[];
     for(const p of remaining){
       const id=String(p.id);
+      let r_ok = false;
       try{
         const r=await reimport(env,p);
         prog[id]=r.ok?{n:r.variants,colors:r.colors,sizes:r.sizes}:{skip:r.skip||r.error||'fail'};
-        if(r.ok) ok++; else fail++;
-        results.push({id, ok:r.ok, variants:r.variants, colors:r.colors, sizes:r.sizes, err:r.error||r.skip});
+        r_ok = !!r.ok;
+        if(r_ok) ok++; else fail++;
+        results.push({id, ok:r_ok, variants:r.variants, colors:r.colors, sizes:r.sizes, err:r.error||r.skip});
       }catch(e){ prog[id]={skip:'ex:'+String(e.message||e).slice(0,50)}; fail++; results.push({id, ok:false, err:String(e.message||e).slice(0,80)}); }
+      if(!r_ok) attempts[id]=(attempts[id]||0)+1;
       await new Promise(r=>setTimeout(r,400));
     }
-    // don't save progress here to avoid 2 writes / race; caller re-runs idempotently (needsReimport checks option2)
+    prog.attempts = attempts;
+    await ghWrite(env,'data/reimport-progress.json',JSON.stringify(prog),'auto: reimport progress');
     return new Response(JSON.stringify({ processed:remaining.length, ok, fail, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
   }catch(err){
     return new Response(JSON.stringify({error:String(err&&err.message||err),stack:String(err&&err.stack||'').slice(0,400)}),{status:500,headers:{'Content-Type':'application/json',...corsHeaders()}});
