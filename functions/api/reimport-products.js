@@ -56,17 +56,14 @@ async function reimport(env, p){
     if (s && !seen.has(s)) { seen.add(s); candidates.push(s); }
   }
   if (!candidates.length) return { ok:false, skip:'no-sku' };
-  let pid = null;
+  // Single 10-point call: /product/query?productSku=<parentSku> returns full product + variants.
+  let cj = null;
   for (const sku of candidates) {
-    const lr = await cjFetchMulti(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
-    const list=(lr&&lr.data&&lr.data.list)||[];
-    if (list.length) { pid = list[0].pid; break; }
+    const r = await cjFetchMulti(env, `/product/query?productSku=${encodeURIComponent(sku)}`);
+    if (r && r.data && r.data.variants && r.data.variants.length) { cj = r.data; break; }
   }
-  if (!pid) return { ok:false, skip:'no-pid' };
-  await new Promise(r=>setTimeout(r,150));
-  const detail = await cjFetchMulti(env, `/product/query?pid=${encodeURIComponent(pid)}`);
-  const cj = detail && detail.data;
-  const cjv = (cj && cj.variants) || [];
+  if (!cj) return { ok:false, skip:'no-pid' };
+  const cjv = cj.variants || [];
   if(!cjv.length) return { ok:false, skip:'no-variants' };
   await new Promise(r=>setTimeout(r,150));
 
