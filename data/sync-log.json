@@ -1,6 +1,34 @@
 [
   {
     "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
+    "messageId": "8d********2c",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "imported": false,
+    "vid": "2608161359551625808",
+    "matched": 0,
+    "receivedAt": "2026-08-16T14:02:15.815Z",
+    "at": "2026-08-16T14:02:15.991Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
     "messageId": "60********b2",
@@ -1928,12 +1956,5 @@
     "sku": "CJYD299045211KP",
     "available": 100,
     "at": "2026-08-16T02:09:42.856Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49718010708099,
-    "sku": "CJYD299045218RI",
-    "available": 100,
-    "at": "2026-08-16T02:09:40.286Z"
   }
 ]
