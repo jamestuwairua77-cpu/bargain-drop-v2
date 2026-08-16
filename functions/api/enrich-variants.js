@@ -117,7 +117,7 @@ export async function onRequest(context) {
 
   if (!run) {
     // Report queue sizes only.
-    const pending = catalog.filter(p => !((p.variants || []).some(v => v.option2) || (p._enriched)));
+    const pending = catalog.filter(p => { const v = p.variants || []; const st = prog[String(p.id)]; return !(st || st === 0) && !(v.some(x => x.option2) && v.some(x => x.image_id != null)); });
     const apparel = pending.filter(isApparel);
     return new Response(JSON.stringify({ total: catalog.length, pending: pending.length, apparelPending: apparel.length }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   }
