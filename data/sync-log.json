@@ -3,6 +3,15 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "f0********0b",
+    "valid": true,
+    "receivedAt": "2026-08-16T14:00:23.091Z",
+    "at": "2026-08-16T14:00:23.286Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "a9********21",
     "valid": true,
     "receivedAt": "2026-08-16T14:00:22.251Z",
@@ -1665,13 +1674,5 @@
     "sku": "CJYD299047602BY",
     "available": 100,
     "at": "2026-08-15T17:36:50.364Z"
-  },
-  {
-    "action": "stripe-webhook-transaction",
-    "order_id": "BD-CC-MSUNIU40",
-    "transaction": {
-      "note": "no Shopify order found for bd_order_id BD-CC-MSUNIU40"
-    },
-    "at": "2026-08-15T17:30:24.843Z"
   }
 ]
