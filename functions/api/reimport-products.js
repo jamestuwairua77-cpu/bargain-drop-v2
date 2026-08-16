@@ -98,6 +98,7 @@ async function reimport(env, p){
     if(v.variantImage&&!colorImg.has(c)) colorImg.set(c,v.variantImage);
   }
 
+  const hasSizes = sizes.length > 0;
   const variants = cjv.map(v=>{
     const [color,size]=parseVariantKey(v.variantKey, v.variantNameEn||v.variantName);
     const c=color||(v.variantNameEn||'Default');
@@ -107,7 +108,8 @@ async function reimport(env, p){
     const existing = existingByOpt1[c];
     const obj = {
       sku: v.variantSku, price,
-      option1: c, option2: size||null, option3: null,
+      // option2 must be a concrete value whenever a Size option is present (Shopify rejects null).
+      option1: c, option2: (hasSizes ? (size || 'One Size') : null), option3: null,
       grams, weight: grams/1000, weight_unit:'kg',
       inventory_management:'shopify', inventory_policy:'deny',
       fulfillment_service:'manual', requires_shipping:true, taxable:true,
@@ -118,7 +120,10 @@ async function reimport(env, p){
 
   const options=[];
   if(colors.length) options.push({name:'Color', values:colors});
-  if(sizes.length) options.push({name:'Size', values:sizes});
+  if(hasSizes){
+    const sizeVals = sizes.includes('One Size') ? sizes.slice() : sizes.concat(['One Size']);
+    options.push({name:'Size', values:sizeVals});
+  }
   if(!options.length) options.push({name:'Title', values:['Default Title']});
 
   // images: color images first, then existing
