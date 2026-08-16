@@ -3,6 +3,27 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "5c********d0",
+    "valid": true,
+    "paramKeys": [
+      "2001489701038956545"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-16T19:08:24.976Z",
+    "at": "2026-08-16T19:08:25.212Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "9f********a9",
     "valid": true,
     "paramKeys": [
@@ -4401,41 +4422,5 @@
     "pid": "1720595200323620864",
     "receivedAt": "2026-08-16T18:16:15.716Z",
     "at": "2026-08-16T18:16:15.997Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "1a********62",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "imported": false,
-    "reason": "product not found locally",
-    "pid": "1657743293851115520",
-    "receivedAt": "2026-08-16T18:16:12.417Z",
-    "at": "2026-08-16T18:16:12.679Z"
   }
 ]
