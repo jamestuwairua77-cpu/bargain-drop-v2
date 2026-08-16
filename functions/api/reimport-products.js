@@ -9,7 +9,7 @@
 
 import { corsHeaders, cjFetch, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
 
-const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json';
+const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/slim-products.json';
 const MARKUP = 2.5;
 
 const LETTER = new Set('XS S M L XL XXL XXXL 2XL 3XL 4XL 5XL 6XL 7XL 8XL 1X 2X 3X 4X 5X SM MED MEDIUM LARGE XLARGE FREE SIZE ONE SIZE'.split(' '));
