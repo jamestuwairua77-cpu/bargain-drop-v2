@@ -7,7 +7,7 @@
 // GET ?run=1&limit=N   -> update up to N products in place
 // Resumable via data/reimport-progress.json.
 
-import { corsHeaders, cjFetch, cjFetchMulti, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
 
 const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json';
 const MARKUP = 2.5;
@@ -59,7 +59,7 @@ async function reimport(env, p){
   // Single 10-point call: /product/query?productSku=<parentSku> returns full product + variants.
   let cj = null;
   for (const sku of candidates) {
-    const r = await cjFetchMulti(env, `/product/query?productSku=${encodeURIComponent(sku)}`);
+    const r = await cjFetch(env, `/product/query?productSku=${encodeURIComponent(sku)}`);
     if (r && r.data && r.data.variants && r.data.variants.length) { cj = r.data; break; }
   }
   if (!cj) return { ok:false, skip:'no-pid' };
