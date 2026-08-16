@@ -41,12 +41,11 @@ function parseVariantKey(key, nameEn = '') {
 
 // Resolve a product's CJ `pid` from any of its variant SKUs.
 async function resolvePid(env, skus) {
-  for (const sku of skus.slice(0, 3)) {
-    const r = await cjFetch(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
-    const list = (r && r.data && r.data.list) || [];
-    if (list.length) return list[0].pid;
-  }
-  return null;
+  if (!skus.length) return null;
+  const sku = skus[0];
+  const r = await cjFetch(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
+  const list = (r && r.data && r.data.list) || [];
+  return list.length ? list[0].pid : null;
 }
 
 async function enrichProduct(env, p) {
@@ -106,7 +105,7 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
   const url = new URL(request.url);
   const run = url.searchParams.get('run') === '1';
-  const limit = parseInt(url.searchParams.get('limit') || '12', 10);
+  const limit = parseInt(url.searchParams.get('limit') || '3', 10);
   const mode = url.searchParams.get('mode') || 'apparel-first';
 
   // all-products.json is >1MB, so /contents returns no content. Fetch via raw.
@@ -138,6 +137,7 @@ export async function onRequest(context) {
     processed++;
     try {
       const res = await enrichProduct(env, p);
+      await new Promise(r => setTimeout(r, 250));
       if (res) {
         p.variants = res.variants;
         p.images = res.images;
