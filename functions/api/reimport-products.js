@@ -40,9 +40,15 @@ function parentSku(sku) {
 function needsReimport(p){
   const v=p.variants||[];
   if(!v.length) return false;
-  const noSize = !v.some(x=>x.option2);
+  // Only re-import products whose variants are genuinely broken:
+  //  - option1 is a Chinese (CJK) title (flattened import lost the real color/size), OR
+  //  - option2 is missing BUT the product clearly has multiple size-bearing variants.
   const hasCJK = v.some(x=>/[\u4e00-\u9fff]/.test(String(x.option1||'')));
-  return noSize || hasCJK;
+  if (hasCJK) return true;
+  // Re-import when there are multiple variants but all lack a size (size info was dropped).
+  // Single-variant and color-only products are left as-is (no size needed).
+  const hasSize = v.some(x=>x.option2);
+  return (v.length > 1) && !hasSize;
 }
 
 async function reimport(env, p){
