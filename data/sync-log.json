@@ -3,6 +3,42 @@
     "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
+    "messageId": "8f********92",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJNS306714301AZ",
+    "receivedAt": "2026-08-17T05:55:47.453Z",
+    "at": "2026-08-17T05:55:47.752Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
     "messageId": "f6********ca",
     "valid": true,
     "paramKeys": [
@@ -6294,42 +6330,5 @@
     "sku": "CJDS306788659GT",
     "receivedAt": "2026-08-17T04:52:49.141Z",
     "at": "2026-08-17T04:52:49.431Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "6d********8c",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170451291618600",
-    "receivedAt": "2026-08-17T04:52:47.863Z",
-    "at": "2026-08-17T04:52:48.134Z"
   }
 ]
