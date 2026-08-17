@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "d8********da",
+    "valid": true,
+    "paramKeys": [
+      "2608170644141634102"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608170644141634102\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644141632600\",\"storageNum\":6242,\"vid\":\"2608170644141634135\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644141632600\",\"storageNum\":6915,\"vid\":\"2608170644141634136\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644141632600\",\"storageNum\":9396,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:53:29.067Z",
+    "at": "2026-08-17T06:53:29.447Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "24********15",
     "valid": true,
     "paramKeys": [
@@ -5980,44 +6002,5 @@
     "pid": "2608170503571620500",
     "receivedAt": "2026-08-17T05:52:26.841Z",
     "at": "2026-08-17T05:52:27.177Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "dd********c7",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": true,
-    "pid": "2608170351301613400",
-    "created": true,
-    "shopifyId": 9232074080387,
-    "variantCount": 1,
-    "receivedAt": "2026-08-17T05:52:22.832Z",
-    "at": "2026-08-17T05:52:23.125Z"
   }
 ]
