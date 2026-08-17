@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "4d********03",
+    "valid": true,
+    "paramKeys": [
+      "2608170843391603301"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608170843391603301\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170843391602100\",\"storageNum\":6574,\"vid\":\"2608170843391603300\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170843391602100\",\"storageNum\":5766,\"vid\":\"2608170843391603301\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170843391602100\",\"storageNum\":7932,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T08:55:00.167Z",
+    "at": "2026-08-17T08:55:00.620Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "44********fa",
@@ -5599,41 +5621,5 @@
     "sku": "CJNS306731018RI",
     "receivedAt": "2026-08-17T05:56:14.382Z",
     "at": "2026-08-17T05:56:14.595Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "dd********b2",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJNS306731013MN",
-    "receivedAt": "2026-08-17T05:56:13.170Z",
-    "at": "2026-08-17T05:56:13.387Z"
   }
 ]
