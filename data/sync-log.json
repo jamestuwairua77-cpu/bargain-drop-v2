@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "17********bf",
+    "valid": true,
+    "paramKeys": [
+      "2608170644141634134"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608170644141634134\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644141632600\",\"storageNum\":6242,\"vid\":\"2608170644141634135\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644141632600\",\"storageNum\":6915,\"vid\":\"2608170644141634136\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644141632600\",\"storageNum\":9396,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:53:25.663Z",
+    "at": "2026-08-17T06:53:25.841Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "5c********57",
@@ -6032,41 +6054,5 @@
     "pid": "2085271953393487874",
     "receivedAt": "2026-08-17T05:52:19.820Z",
     "at": "2026-08-17T05:52:20.273Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "d4********4c",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJTZ304117005EV",
-    "receivedAt": "2026-08-17T05:52:17.159Z",
-    "at": "2026-08-17T05:52:17.405Z"
   }
 ]
