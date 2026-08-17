@@ -246,6 +246,23 @@ export async function handleCjWebhook(env, payload) {
   return { ...result, type, messageType };
 }
 
+// ── Extract image URLs delivered in a CJ push (zero quota) ──────────────
+// CJ pushes productImage / productImageSet as JSON-array strings (or arrays),
+// plus a bigImage primary URL. Returns a deduped array of { src } for Shopify.
+function extractPushImages(p) {
+  const out = [];
+  const seen = new Set();
+  const push = (u) => { if (u && typeof u === 'string' && !seen.has(u)) { seen.add(u); out.push({ src: u }); } };
+  // productImageSet first (richest), then productImage, then bigImage.
+  for (const key of ['productImageSet', 'productImage']) {
+    const v = p[key];
+    const arr = Array.isArray(v) ? v : (typeof v === 'string' ? (() => { try { return JSON.parse(v); } catch { return []; } })() : []);
+    for (const u of arr) push(u);
+  }
+  if (p.bigImage) push(p.bigImage);
+  return out;
+}
+
 // ── PRODUCT: retrieve full variant list from CJ + reconcile/create in Shopify ──
 async function importProduct(env, payload) {
   const p = payload.params || {};
@@ -281,6 +298,30 @@ async function importProduct(env, payload) {
       method: 'PUT',
       body: JSON.stringify({ product: { id: Number(shopifyId), ...patches } }),
     }).catch(() => {});
+  }
+
+  // Hydrate description + gallery images DIRECTLY from the push (zero quota):
+  // CJ delivers productDescription + productImage/productImageSet/bigImage, so we
+  // can enrich Shopify without re-pulling. Only add images if Shopify is missing them.
+  const pushImgs = extractPushImages(p);
+  const pushedDesc = p.productDescription != null ? String(p.productDescription) : '';
+  if (pushImgs.length || pushedDesc) {
+    try {
+      const cur = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,images,body_html`);
+      const curImgs = (cur.body && cur.body.product && cur.body.product.images) || [];
+      const curDesc = (cur.body && cur.body.product && cur.body.product.body_html) || '';
+      const needImgs = pushImgs.length > curImgs.length;
+      const needDesc = pushedDesc && pushedDesc.length > String(curDesc).length;
+      if (needImgs || needDesc) {
+        const putBody = { product: { id: Number(shopifyId) } };
+        if (needImgs) putBody.product.images = pushImgs;
+        if (needDesc) putBody.product.body_html = pushedDesc;
+        await shopifyFetch(env, `/products/${shopifyId}.json`, {
+          method: 'PUT',
+          body: JSON.stringify(putBody),
+        }).catch(() => {});
+      }
+    } catch {}
   }
 
   return {
@@ -329,6 +370,7 @@ async function createProductInShopify(env, pid, cjData, p) {
       product_type: p.productType != null ? String(p.productType) : undefined,
       variants: shopVariants,
       options: options.length ? options : undefined,
+      images: extractPushImages(p),
       status: 'active',
     },
   };
