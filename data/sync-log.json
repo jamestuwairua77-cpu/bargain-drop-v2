@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "17********3c",
+    "valid": true,
+    "paramKeys": [
+      "2407200945031603200"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2407200945031603200\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1790187718702542848\",\"storageNum\":573,\"vid\":\"2407200945031604100\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1790187718702542848\",\"storageNum\":10961,\"vid\":\"2407200945031604100\"},{\"areaEn\":\"Spain Warehouse\",\"areaId\":\"31\",\"countryCode\":\"ES\",\"pid\":\"1790187718702542848\",\"storageNum\":20,\"vid",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:52:19.550Z",
+    "at": "2026-08-17T06:52:19.851Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "0d********c0",
     "valid": true,
     "paramKeys": [
@@ -6116,41 +6138,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T05:02:01.826Z",
     "at": "2026-08-17T05:02:02.114Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "1b********09",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJYD306786204DW",
-    "receivedAt": "2026-08-17T05:00:22.064Z",
-    "at": "2026-08-17T05:00:22.321Z"
   }
 ]
