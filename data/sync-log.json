@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "d6********53",
+    "valid": true,
+    "paramKeys": [
+      "2608170543051614607"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608170543051614607\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":5550,\"vid\":\"2608170543051614604\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":9238,\"vid\":\"2608170543051614615\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":6937,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T05:52:06.517Z",
+    "at": "2026-08-17T05:52:06.876Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "7d********91",
     "valid": true,
     "paramKeys": [
@@ -5877,27 +5899,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T04:43:02.349Z",
     "at": "2026-08-17T04:43:02.665Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "66********b1",
-    "valid": true,
-    "paramKeys": [
-      "2089210836439715847"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2089210836439715847\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089210836347441154\",\"storageNum\":6117,\"vid\":\"2089210836439715858\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089210836347441154\",\"storageNum\":9607,\"vid\":\"2089210836439715857\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089210836347441154\",\"storageNum\":7879,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T04:43:01.217Z",
-    "at": "2026-08-17T04:43:01.455Z"
   }
 ]
