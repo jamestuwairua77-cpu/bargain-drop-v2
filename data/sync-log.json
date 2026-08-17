@@ -3,6 +3,42 @@
     "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
+    "messageId": "ec********1d",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "imported": false,
+    "sku": "CJCS306704502BY",
+    "matched": 0,
+    "receivedAt": "2026-08-17T01:57:21.038Z",
+    "at": "2026-08-17T01:57:21.230Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
     "messageId": "26********f4",
     "valid": true,
     "paramKeys": [
@@ -7013,44 +7049,5 @@
     "pid": "1990466350832345090",
     "receivedAt": "2026-08-17T01:00:25.985Z",
     "at": "2026-08-17T01:00:26.193Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "0b********37",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId",
-      "supplierName"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "imported": false,
-    "reason": "product not found locally",
-    "pid": "1990465452302970882",
-    "receivedAt": "2026-08-17T01:00:24.514Z",
-    "at": "2026-08-17T01:00:24.706Z"
   }
 ]
