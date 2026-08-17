@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "87********c5",
+    "valid": true,
+    "paramKeys": [
+      "2408260320391606400"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2408260320391606400\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"2408260320391605600\",\"storageNum\":2549,\"vid\":\"2408260320391606400\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2408260320391605600\",\"storageNum\":11564,\"vid\":\"2408260320391606400\"},{\"areaEn\":\"Spain Warehouse\",\"areaId\":\"31\",\"countryCode\":\"ES\",\"pid\":\"2408260320391605600\",\"storageNum\":200,\"v",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:52:34.396Z",
+    "at": "2026-08-17T06:52:34.695Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "d2********2c",
     "valid": true,
     "paramKeys": [
@@ -5975,43 +5997,5 @@
     "sku": "CJJY306793001AZ",
     "receivedAt": "2026-08-17T05:04:02.546Z",
     "at": "2026-08-17T05:04:02.926Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "86********10",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "875C77E5-E04D-43DE-9E09-169B988CF98F",
-    "receivedAt": "2026-08-17T05:02:46.647Z",
-    "at": "2026-08-17T05:02:46.839Z"
   }
 ]
