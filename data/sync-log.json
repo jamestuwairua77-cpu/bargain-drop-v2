@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "61********99",
+    "valid": true,
+    "paramKeys": [
+      "1795325588740247552"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1795325588740247552\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1795325588656361472\",\"storageNum\":13802,\"vid\":\"1795325588798967808\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1795325588656361472\",\"storageNum\":12321,\"vid\":\"1795325588740247552\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T08:53:23.181Z",
+    "at": "2026-08-17T08:53:23.498Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "29********58",
     "valid": true,
     "paramKeys": [
@@ -5707,42 +5729,5 @@
     "sku": "CJNSSYLY00111-Brown-S",
     "receivedAt": "2026-08-17T05:54:04.286Z",
     "at": "2026-08-17T05:54:04.709Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "90********bd",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJYD150652118RI",
-    "receivedAt": "2026-08-17T05:54:01.945Z",
-    "at": "2026-08-17T05:54:02.180Z"
   }
 ]
