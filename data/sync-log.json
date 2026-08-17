@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "63********ed",
+    "valid": true,
+    "paramKeys": [
+      "1782967755549974528"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1782967755549974528\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1782967754929217536\",\"storageNum\":13045,\"vid\":\"1782967756204285952\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1782967754929217536\",\"storageNum\":12509,\"vid\":\"1782967757022175232\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1782967754929217536\",\"storageNum\":132",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T08:54:44.112Z",
+    "at": "2026-08-17T08:54:44.360Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
     "messageId": "0d********bf",
@@ -5641,41 +5663,5 @@
     "pid": "2054129161988636673",
     "receivedAt": "2026-08-17T05:55:58.102Z",
     "at": "2026-08-17T05:55:58.768Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "89********20",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJNS306726804DW",
-    "receivedAt": "2026-08-17T05:55:54.540Z",
-    "at": "2026-08-17T05:55:54.783Z"
   }
 ]
