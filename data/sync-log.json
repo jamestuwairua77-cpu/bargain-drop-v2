@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "5d********22",
+    "valid": true,
+    "paramKeys": [
+      "2608170548461603800"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608170548461603800\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1538803739413458944\",\"storageNum\":9222,\"vid\":\"2608170548461603806\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1538803739413458944\",\"storageNum\":6959,\"vid\":\"2608170548461603805\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1538803739413458944\",\"storageNum\":5284,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T05:53:31.648Z",
+    "at": "2026-08-17T05:53:31.857Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "ec********69",
     "valid": true,
     "paramKeys": [
@@ -6328,43 +6350,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T04:47:08.255Z",
     "at": "2026-08-17T04:47:08.476Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "71********12",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "22340D59-D5F0-4162-880B-366D3ACC1299",
-    "receivedAt": "2026-08-17T04:47:07.185Z",
-    "at": "2026-08-17T04:47:07.498Z"
   }
 ]
