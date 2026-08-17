@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "9e********79",
+    "valid": true,
+    "paramKeys": [
+      "1654523142552956928"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1654523142552956928\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1654523142477459456\",\"storageNum\":10113,\"vid\":\"1654523142552956928\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1654523142477459456\",\"storageNum\":14320,\"vid\":\"1654523142615871488\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T08:53:07.799Z",
+    "at": "2026-08-17T08:53:08.160Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "43********00",
     "valid": true,
     "paramKeys": [
@@ -5886,42 +5908,5 @@
     "sku": "CJLX200642209IR",
     "receivedAt": "2026-08-17T05:53:40.785Z",
     "at": "2026-08-17T05:53:41.079Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "88********f2",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170429481607500",
-    "receivedAt": "2026-08-17T05:53:38.683Z",
-    "at": "2026-08-17T05:53:38.879Z"
   }
 ]
