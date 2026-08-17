@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "19********bc",
+    "valid": true,
+    "paramKeys": [
+      "2407200349091615800"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2407200349091615800\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1790924729780539392\",\"storageNum\":1044,\"vid\":\"2407200349091615800\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1790924729780539392\",\"storageNum\":13511,\"vid\":\"2407200349091615800\"},{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1790924729780539392\",\"storageNum\":902,\"vid\":",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:52:20.701Z",
+    "at": "2026-08-17T06:52:20.916Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "17********3c",
     "valid": true,
     "paramKeys": [
@@ -6116,27 +6138,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T05:02:03.250Z",
     "at": "2026-08-17T05:02:03.560Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "ae********a1",
-    "valid": true,
-    "paramKeys": [
-      "1648147239325405184"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1648147239325405184\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"045C6393-8DD1-4ACB-AAC7-6278425C7AD2\",\"storageNum\":10742,\"vid\":\"1648147239325405184\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"045C6393-8DD1-4ACB-AAC7-6278425C7AD2\",\"storageNum\":39930,\"vid\":\"1493889902801195008\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"045",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T05:02:01.826Z",
-    "at": "2026-08-17T05:02:02.114Z"
   }
 ]
