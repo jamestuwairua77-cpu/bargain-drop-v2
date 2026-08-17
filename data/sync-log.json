@@ -2,6 +2,42 @@
   {
     "action": "cj-webhook",
     "type": "VARIANT",
+    "messageType": "INSERT",
+    "messageId": "4a********6a",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJNS306697903CX",
+    "receivedAt": "2026-08-17T08:52:52.592Z",
+    "at": "2026-08-17T08:52:52.925Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
     "messageType": "UPDATE",
     "messageId": "60********9b",
     "valid": true,
@@ -5876,27 +5912,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T05:53:25.737Z",
     "at": "2026-08-17T05:53:25.956Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "cf********f8",
-    "valid": true,
-    "paramKeys": [
-      "2608170545371601402"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2608170545371601402\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170545371600400\",\"storageNum\":5574,\"vid\":\"2608170545371601409\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170545371600400\",\"storageNum\":9154,\"vid\":\"2608170545371601408\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170545371600400\",\"storageNum\":8122,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T05:53:24.612Z",
-    "at": "2026-08-17T05:53:24.831Z"
   }
 ]
