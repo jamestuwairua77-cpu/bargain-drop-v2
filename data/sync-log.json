@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "ff********b4",
+    "valid": true,
+    "paramKeys": [
+      "2089241592183947306"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2089241592183947306\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":7948,\"vid\":\"2089241592183947272\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":9289,\"vid\":\"2089241592183947271\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":5453,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:53:35.206Z",
+    "at": "2026-08-17T06:53:35.440Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "9b********44",
     "valid": true,
     "paramKeys": [
@@ -5905,41 +5927,5 @@
     "sku": "CJTZ304117035IR",
     "receivedAt": "2026-08-17T05:52:37.841Z",
     "at": "2026-08-17T05:52:38.062Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "aa********40",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJTZ304117028BY",
-    "receivedAt": "2026-08-17T05:52:35.111Z",
-    "at": "2026-08-17T05:52:35.320Z"
   }
 ]
