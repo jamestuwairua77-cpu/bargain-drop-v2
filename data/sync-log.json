@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "6e********27",
+    "valid": true,
+    "paramKeys": [
+      "1591274515328413696"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1591274515328413696\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1591274515240333312\",\"storageNum\":14800,\"vid\":\"1591274515324219392\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1591274515240333312\",\"storageNum\":12068,\"vid\":\"1591274515328413696\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:52:08.887Z",
+    "at": "2026-08-17T06:52:09.109Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "5a********b7",
     "valid": true,
     "paramKeys": [
@@ -6190,42 +6212,5 @@
     "sku": "CJYD306791817QJ",
     "receivedAt": "2026-08-17T05:00:15.100Z",
     "at": "2026-08-17T05:00:15.295Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "05********a7",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJYD306791814NM",
-    "receivedAt": "2026-08-17T05:00:11.654Z",
-    "at": "2026-08-17T05:00:11.920Z"
   }
 ]
