@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "91********26",
+    "valid": true,
+    "paramKeys": [
+      "2001200716170833922"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2001200716170833922\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T04:40:43.446Z",
+    "at": "2026-08-17T04:40:43.690Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "81********ce",
     "valid": true,
     "paramKeys": [
@@ -5719,41 +5741,5 @@
     "matched": 0,
     "receivedAt": "2026-08-17T02:00:08.850Z",
     "at": "2026-08-17T02:00:09.199Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "be********61",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "imported": false,
-    "sku": "CJNSSYTZ04286-White-XXL",
-    "matched": 0,
-    "receivedAt": "2026-08-17T02:00:04.917Z",
-    "at": "2026-08-17T02:00:05.167Z"
   }
 ]
