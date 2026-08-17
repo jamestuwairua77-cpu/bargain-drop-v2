@@ -3,6 +3,42 @@
     "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
+    "messageId": "a5********a1",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJTZ304117001AZ",
+    "receivedAt": "2026-08-17T05:52:14.021Z",
+    "at": "2026-08-17T05:52:14.236Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
     "messageId": "69********e6",
     "valid": true,
     "paramKeys": [
@@ -5892,27 +5928,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T04:43:06.329Z",
     "at": "2026-08-17T04:43:06.516Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "7b********0a",
-    "valid": true,
-    "paramKeys": [
-      "2089210836439715841"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2089210836439715841\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089210836347441154\",\"storageNum\":6117,\"vid\":\"2089210836439715858\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089210836347441154\",\"storageNum\":9607,\"vid\":\"2089210836439715857\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089210836347441154\",\"storageNum\":7879,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T04:43:04.764Z",
-    "at": "2026-08-17T04:43:05.075Z"
   }
 ]
