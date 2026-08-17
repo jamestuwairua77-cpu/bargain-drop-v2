@@ -3,6 +3,43 @@
     "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
+    "messageId": "1f********2f",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJSL306841107GT",
+    "receivedAt": "2026-08-17T06:53:16.856Z",
+    "at": "2026-08-17T06:53:17.110Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "INSERT",
     "messageId": "30********82",
     "valid": true,
     "paramKeys": [
@@ -6000,27 +6037,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T05:52:06.517Z",
     "at": "2026-08-17T05:52:06.876Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "7d********91",
-    "valid": true,
-    "paramKeys": [
-      "2608170543051614609"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2608170543051614609\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":5550,\"vid\":\"2608170543051614604\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":9238,\"vid\":\"2608170543051614615\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":6937,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T05:52:05.247Z",
-    "at": "2026-08-17T05:52:05.695Z"
   }
 ]
