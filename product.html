@@ -86,6 +86,8 @@ h1,h2,h3,h4{line-height:1.25}
 .tlink{color:#0a7cff;font-weight:700;cursor:pointer}
 .desc-sect{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
 .desc-title{font-size:1rem;font-weight:800;margin-bottom:12px;color:#111}
+.desc-overview{font-size:.85rem;line-height:1.7;color:#333;margin-bottom:16px;white-space:pre-line}
+.desc-sub-title{font-size:.82rem;font-weight:800;color:#111;margin:18px 0 10px;text-transform:uppercase;letter-spacing:.4px}
 .desc-body{font-size:.84rem;line-height:1.65;color:#333;word-break:break-word}
 .desc-body h4{font-size:.88rem;font-weight:800;margin:16px 0 8px;color:#111}
 .desc-body img{max-width:100%;height:auto;border-radius:8px;margin:8px 0}
@@ -94,7 +96,8 @@ h1,h2,h3,h4{line-height:1.25}
 .desc-empty{font-size:.8rem;color:var(--meta);font-style:italic}
 .desc-hl{margin:6px 0 6px 18px}.desc-hl li{margin:4px 0;line-height:1.5}
 .desc-specs{list-style:none;margin:6px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.desc-specs li{display:flex;flex-direction:column;gap:3px;padding:11px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);background:#fff}
+.desc-specs li{display:flex;flex-direction:column;gap:3px;padding:12px 13px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);background:#fff;transition:background .12s}
+.desc-specs li:hover{background:#fafafa}
 .desc-specs li:nth-child(even){border-right:0}
 .desc-specs li .sk{font-size:.66rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
 .desc-specs li .sv{font-size:.82rem;font-weight:600;color:var(--fg)}
@@ -187,12 +190,12 @@ h1,h2,h3,h4{line-height:1.25}
   <div id="pdp-content" class="hidden">
     <div class="gallery" id="gallery"><div class="gallery-dots" id="gallery-dots"></div></div>
     <div style="padding:16px 16px 0">
+      <h1 class="p-title" id="p-title">Loading…</h1>
       <div class="price-row">
         <span class="promo-price" id="promo-price">AU$--</span>
         <span class="original-price" id="original-price"></span>
         <span class="discount-badge" id="discount-badge"></span>
       </div>
-      <h1 class="p-title" id="p-title">Loading…</h1>
       <div class="rating-line">
         <span class="rating-num" id="rating-num">4.7</span>
         <span class="stars" id="rating-stars"></span>
@@ -234,7 +237,7 @@ h1,h2,h3,h4{line-height:1.25}
         </div>
       </div>
       <div class="desc-sect" id="desc-sect">
-        <div class="desc-title">Product Details</div>
+        <div class="desc-title">Description</div>
         <div class="desc-body" id="desc-body"></div>
       </div>
       <div class="reviews-section" id="reviews-section">
@@ -595,15 +598,49 @@ function addToCart(){
 /* ============ DESCRIPTION ============ */
 function renderDescription(){
   var el=document.getElementById('desc-body');if(!el)return;
+  var ov=getProductOverview();
   var vars=collectProductVariables();
+  var h='';
+  if(ov){
+    h+='<div class="desc-overview">'+ov+'</div>';
+  }
   if(vars.length){
-    var h='<ul class="desc-specs">';
+    h+='<h4 class="desc-sub-title">Specifications</h4><ul class="desc-specs">';
     vars.forEach(function(row){h+='<li><span class="sk">'+esc(row[0])+'</span><span class="sv">'+esc(row[1])+'</span></li>'});
     h+='</ul>';
-    el.innerHTML=h;
-  }else{
-    el.innerHTML='<span class="desc-empty">No product details available.</span>';
   }
+  if(!ov&&!vars.length){
+    h='<span class="desc-empty">No product details available.</span>';
+  }
+  el.innerHTML=h;
+}
+
+// Extract the plain "Overview" marketing description from body_html,
+// stripping the Specification / Packing list / Product Image boilerplate.
+function getProductOverview(){
+  var html=String(product.body_html||product.description||'');
+  if(!html)return '';
+  var text=html
+    .replace(/<img[^>]*>/gi,'')
+    .replace(/<[^>]+>/g,'\n')
+    .replace(/&nbsp;/g,' ')
+    .replace(/&amp;/g,'&')
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/\n+/g,'\n');
+  // Grab the "Overview:" section (after Product information / before Specification)
+  var m=text.match(/Overview\s*:?\s*([\s\S]*?)(?=Specification|Packing list|Product Image|Product information|$)/i);
+  var ov=(m?m[1]:'').trim();
+  // Fallback: first meaningful paragraph if no "Overview:" label
+  if(!ov){
+    var first=text.split(/\n+/).map(function(l){return l.trim()}).filter(function(l){return l.length>40})[0];
+    ov=first||'';
+  }
+  // Clean up residual labels
+  ov=ov.replace(/^(Overview|Product information)\s*:?\s*/i,'').trim();
+  // If the "overview" is just the product title repeated (no real description), drop it.
+  var t=(product.title||'').replace(/\s+/g,' ').trim().toLowerCase();
+  if(t&&ov&&(ov.toLowerCase().indexOf(t)===0&&ov.length<t.length+60)){ov='';}
+  return ov;
 }
 
 // Build the list of product "variables"/attributes to show under Product Details.
@@ -614,7 +651,6 @@ function collectProductVariables(){
   var push=function(k,v){k=(k||'').trim();v=(v==null?'' : String(v)).trim();if(!k||!v)return;if(/weight|grams|\u91cd\u91cf|\u514b/i.test(k))return;rows.push([k,v])};
 
   // Brand / Type / Category from product fields
-  if(product.vendor)push('Brand',product.vendor);
   if(product.product_type)push('Type',product.product_type);
   if(product.category)push('Category',product.category);
 
