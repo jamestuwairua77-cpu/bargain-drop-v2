@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "74********13",
+    "valid": true,
+    "paramKeys": [
+      "2608170544221615108"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608170544221615108\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170544221613600\",\"storageNum\":6376,\"vid\":\"2608170544221615106\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170544221613600\",\"storageNum\":8188,\"vid\":\"2608170544221615105\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170544221613600\",\"storageNum\":9301,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T05:51:58.507Z",
+    "at": "2026-08-17T05:51:58.789Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "b9********77",
     "valid": true,
     "paramKeys": [
@@ -5908,43 +5930,5 @@
     "pid": "DA6491FF-BAB6-475A-9DF9-E14D41AC2859",
     "receivedAt": "2026-08-17T04:42:54.690Z",
     "at": "2026-08-17T04:42:54.892Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "7e********15",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "shopify create 429",
-    "pid": "45CEA9D2-8B81-4BDF-995C-A50E9A81ABB0",
-    "receivedAt": "2026-08-17T04:42:52.676Z",
-    "at": "2026-08-17T04:42:52.994Z"
   }
 ]
