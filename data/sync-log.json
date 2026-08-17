@@ -2,6 +2,41 @@
   {
     "action": "cj-webhook",
     "type": "VARIANT",
+    "messageType": "UPDATE",
+    "messageId": "c0********15",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "imported": false,
+    "sku": "CJZBLXSL01654-BLUE",
+    "matched": 0,
+    "receivedAt": "2026-08-17T01:58:11.875Z",
+    "at": "2026-08-17T01:58:12.086Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "43********cc",
     "valid": true,
@@ -6950,45 +6985,5 @@
     "pid": "1990473962059112450",
     "receivedAt": "2026-08-17T01:00:53.468Z",
     "at": "2026-08-17T01:00:53.862Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "f9********68",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productProperty3",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId",
-      "supplierName"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "imported": false,
-    "reason": "product not found locally",
-    "pid": "1990473837224042497",
-    "receivedAt": "2026-08-17T01:00:52.272Z",
-    "at": "2026-08-17T01:00:52.463Z"
   }
 ]
