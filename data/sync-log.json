@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "9e********dc",
+    "valid": true,
+    "paramKeys": [
+      "2503070251261618000"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2503070251261618000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2503070251261616400\",\"storageNum\":7580,\"vid\":\"2503070251261617200\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2503070251261616400\",\"storageNum\":5446,\"vid\":\"2503070251261617400\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2503070251261616400\",\"storageNum\":9019,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:52:38.299Z",
+    "at": "2026-08-17T06:52:38.495Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "d2********b5",
     "valid": true,
     "paramKeys": [
@@ -5928,46 +5950,5 @@
     "sku": "CJLY232945070RI",
     "receivedAt": "2026-08-17T05:04:07.751Z",
     "at": "2026-08-17T05:04:08.153Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "a7********c1",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productProperty3",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": true,
-    "pid": "2607300640061632300",
-    "created": true,
-    "shopifyId": 9232036069507,
-    "variantCount": 18,
-    "receivedAt": "2026-08-17T05:04:06.403Z",
-    "at": "2026-08-17T05:04:06.675Z"
   }
 ]
