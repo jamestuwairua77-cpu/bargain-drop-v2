@@ -112,7 +112,8 @@ export async function onRequest(context) {
   const rawRes = await fetch('https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json');
   if (!rawRes.ok) return new Response(JSON.stringify({ error: 'cannot read catalog via raw: ' + rawRes.status }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   const catalog = await rawRes.json();
-  const doc = await ghRead(env, 'all-products.json'); // for sha only
+  // all-products.json >1MB → ghRead(/contents) returns null; ghWrite routes large
+  // content to ghWriteLarge (Git Data API) which resolves sha itself, so pass none.
   const progDoc = await ghRead(env, 'data/enrich-progress.json');
   const prog = progDoc && progDoc.content ? JSON.parse(atob(progDoc.content.replace(/\n/g, ''))) : {};
   const saveProg = function() { return ghWrite(env, 'data/enrich-progress.json', JSON.stringify(prog), 'auto: enrich progress', progDoc ? progDoc.sha : undefined); };
@@ -152,7 +153,7 @@ export async function onRequest(context) {
     }
   }
 
-  await ghWrite(env, 'all-products.json', JSON.stringify(catalog, null, 1), 'auto: enrich variants (' + enriched + ' product(s))', doc.sha);
+  await ghWrite(env, 'all-products.json', JSON.stringify(catalog, null, 1), 'auto: enrich variants (' + enriched + ' product(s))');
   await saveProg();
 
   const remaining = catalog.filter(needs).length;
