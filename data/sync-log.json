@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "70********a5",
+    "valid": true,
+    "paramKeys": [
+      "2607101126581608100"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2607101126581608100\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2602050731241602100\",\"storageNum\":6748,\"vid\":\"2607101126581608100\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2602050731241602100\",\"storageNum\":7896,\"vid\":\"2605250650331630100\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2602050731241602100\",\"storageNum\":5470,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T03:54:09.582Z",
+    "at": "2026-08-17T03:54:09.969Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "38********bf",
     "valid": true,
     "paramKeys": [
@@ -5828,42 +5850,5 @@
     "matched": 0,
     "receivedAt": "2026-08-17T01:54:27.811Z",
     "at": "2026-08-17T01:54:28.074Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "fa********bc",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantValue3",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "imported": false,
-    "sku": "CJJT306672704DW",
-    "matched": 0,
-    "receivedAt": "2026-08-17T01:54:26.672Z",
-    "at": "2026-08-17T01:54:26.931Z"
   }
 ]
