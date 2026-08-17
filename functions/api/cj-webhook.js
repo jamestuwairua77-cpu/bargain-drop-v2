@@ -105,6 +105,18 @@ export async function onRequest(context) {
   // ── 2. IMMEDIATE empty 200 OK — ack CJ before any long-running work ──
   const response = new Response(null, { status: 200, headers: corsHeaders() });
 
+  // ── DEBUG MODE: ?debug=1 runs the handler synchronously and returns the result
+  //    (for end-to-end diagnosis only — not part of the CJ production contract).
+  const url = new URL(request.url);
+  if (url.searchParams.get('debug') === '1') {
+    try {
+      const result = await handleCjWebhook(env, payload);
+      return new Response(JSON.stringify({ ok: true, debug: true, ...result }), { status: 200, headers });
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, debug: true, error: String(e && e.message) }), { status: 500, headers });
+    }
+  }
+
   // ── 4. do real processing AFTER the ack, never blocking the response ──
   context.waitUntil((async () => {
     try {
