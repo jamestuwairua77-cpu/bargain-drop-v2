@@ -3,6 +3,45 @@
     "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
+    "messageId": "38********85",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productDescription",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": true,
+    "pid": "479F36B6-8ECF-4AA6-89AB-BBED9C77AB1C",
+    "created": true,
+    "shopifyId": 9232034168963,
+    "variantCount": 1,
+    "receivedAt": "2026-08-17T04:52:55.451Z",
+    "at": "2026-08-17T04:52:55.611Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
     "messageId": "62********26",
     "valid": true,
     "paramKeys": [
@@ -5769,43 +5808,5 @@
     "sku": "CJCZ30610130001",
     "receivedAt": "2026-08-17T03:57:07.940Z",
     "at": "2026-08-17T03:57:08.135Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "67********f6",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170352331615100",
-    "receivedAt": "2026-08-17T03:57:06.346Z",
-    "at": "2026-08-17T03:57:06.518Z"
   }
 ]
