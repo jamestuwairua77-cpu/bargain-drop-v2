@@ -763,10 +763,40 @@ function loadProduct(){
         if(r.product){categorySlug=r.category||'';window.reviewsData=r.reviews||null;renderProduct(r.product)}
         else{showError('Product data empty')}
       }catch(e){showError('Failed to parse product')}
-    }else showError('Product not available (error '+x.status+')');
+    }else{
+      /* Static fallback: API unavailable (Functions down). Load direct from bundled JSON. */
+      loadProductStatic();
+    }
   };
-  x.onerror=function(){showError('Connection error. Try again.')};
-  x.ontimeout=function(){showError('Request timed out.')};
+  x.onerror=function(){loadProductStatic();};
+  x.ontimeout=function(){loadProductStatic();};
+  x.send();
+}
+
+/* Static fallback replicating /api/product-lookup using bundled JSON files. */
+window.__staticProductCache=null;
+function loadProductStatic(){
+  var done=function(err){ if(err){ showError(err); } };
+  var render=function(allProducts){
+    var product=null;
+    for(var i=0;i<allProducts.length;i++){ if(String(allProducts[i].id)===String(pid)){ product=allProducts[i]; break; } }
+    if(!product){ done('Product not found'); return; }
+    var category='';
+    if(product.product_type){ category=String(product.product_type).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+    categorySlug=category||'';
+    window.reviewsData=null;
+    renderProduct(product);
+  };
+  if(window.__staticProductCache){ render(window.__staticProductCache); return; }
+  var x=new XMLHttpRequest();x.open('GET','/all-products.json?v=6737f61906',true);x.timeout=25000;
+  x.onload=function(){
+    if(x.status===200){
+      try{ window.__staticProductCache=JSON.parse(x.responseText); render(window.__staticProductCache); }
+      catch(e){ done('Failed to load product data'); }
+    }else{ done('Product not available'); }
+  };
+  x.onerror=function(){ done('Could not load catalog. Please refresh.'); };
+  x.ontimeout=function(){ done('Catalog load timed out.'); };
   x.send();
 }
 function showError(m){
