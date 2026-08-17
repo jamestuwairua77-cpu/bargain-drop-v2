@@ -595,23 +595,70 @@ function addToCart(){
 /* ============ DESCRIPTION ============ */
 function renderDescription(){
   var el=document.getElementById('desc-body');if(!el)return;
-  var d=product?product.description:null;
-  if(d&&typeof d==='object'&&(d.overview||(d.specs&&d.specs.length)||(d.highlights&&d.highlights.length))){
-    var h='';
-    if(d.overview)h+='<p>'+esc(d.overview)+'</p>';
-    if(d.specs&&d.specs.length){h+='<h4>Specifications</h4><ul class="desc-specs">';d.specs.forEach(function(sp){h+='<li><span class="sk">'+esc(sp.k)+'</span><span class="sv">'+esc(sp.v)+'</span></li>'});h+='</ul>'}
-    if(d.highlights&&d.highlights.length){h+='<h4>Why you\'ll love it</h4><ul class="desc-hl">';d.highlights.forEach(function(hl){h+='<li>'+esc(hl)+'</li>'});h+='</ul>'}
+  var vars=collectProductVariables();
+  if(vars.length){
+    var h='<ul class="desc-specs">';
+    vars.forEach(function(row){h+='<li><span class="sk">'+esc(row[0])+'</span><span class="sv">'+esc(row[1])+'</span></li>'});
+    h+='</ul>';
     el.innerHTML=h;
-  }else if(d&&String(d).replace(/<[^>]+>/g,'').trim()){
-    el.innerHTML=String(d);
   }else{
-    el.innerHTML='<span class="desc-empty">Detailed product information coming soon.</span>';
+    el.innerHTML='<span class="desc-empty">No product details available.</span>';
   }
+}
+
+// Build the list of product "variables"/attributes to show under Product Details.
+// Sources: body_html "Specification" section (Material/Style/Shape/Craft...),
+// vendor, product_type, tags, and the option values (Color/Size). Weight is excluded.
+function collectProductVariables(){
+  var rows=[];
+  var push=function(k,v){k=(k||'').trim();v=(v==null?'' : String(v)).trim();if(!k||!v)return;if(/weight|grams|\u91cd\u91cf|\u514b/i.test(k))return;rows.push([k,v])};
+
+  // Brand / Type / Category from product fields
+  if(product.vendor)push('Brand',product.vendor);
+  if(product.product_type)push('Type',product.product_type);
+  if(product.category)push('Category',product.category);
+
+  // Option values (Color / Size / Select) from the resolved options
+  (product.options||[]).forEach(function(o){
+    var n=(o.name||'').trim();
+    if(!n||n==='Title'||n==='Default'||n==='Default Title')return;
+    if(o.values&&o.values.length){
+      push(n,o.values.filter(Boolean).join(', '));
+    }
+  });
+
+  // Tags (colon key:value, or plain)
+  var tags=Array.isArray(product.tags)?product.tags.join(','):(product.tags||'');
+  tags.split(',').map(function(t){return t.trim()}).filter(Boolean).forEach(function(t){
+    var idx=t.indexOf(':');
+    if(idx>0)push(t.slice(0,idx),t.slice(idx+1));
+  });
+
+  // Parse "Specification:" block from body_html into "Key: Value" pairs.
+  var html=String(product.body_html||product.description||'');
+  // Strip all tags, keep text; split on <br>/newlines/pipes
+  var text=html.replace(/<[^>]+>/g,'\n').replace(/&nbsp;/g,' ').replace(/<br\s*\/?>/gi,'\n');
+  // Find the "Specification" section
+  var m=text.match(/Specification\s*:?\s*([\s\S]*?)(?=Packing|Product Image|Product information|Overview|$)/i);
+  var specText=m?m[1]:'';
+  // Each line like "Material: Engineered Wood"
+  var lines=specText.split(/\n+/);
+  lines.forEach(function(line){
+    var s=line.trim();if(!s)return;
+    var ci=s.indexOf(':');
+    if(ci>0){
+      var k=s.slice(0,ci).trim(),v=s.slice(ci+1).trim();
+      push(k,v);
+    }
+  });
+
+  // If nothing meaningful parsed, fall back to nothing (not the raw description).
+  return rows;
 }
 
 /* ============ RENDER PRODUCT ============ */
 function renderProduct(raw){
-  var p={id:raw.id,title:raw.title||raw.name||'',price:parseFloat(raw.price)||0,description:raw.description||raw.body_html||'',vendor:raw.vendor||'',product_type:raw.product_type||'',tags:raw.tags||'',category:raw.category||''};
+  var p={id:raw.id,title:raw.title||raw.name||'',price:parseFloat(raw.price)||0,description:raw.description||raw.body_html||'',body_html:raw.body_html||'',vendor:raw.vendor||'',product_type:raw.product_type||'',tags:raw.tags||'',category:raw.category||''};
   p.images=[];if(raw.images)raw.images.forEach(function(i){var src=typeof i==='string'?i:(i.src||'');if(src)p.images.push(src)});if(!p.images.length&&raw.image)p.images=[raw.image];
   p.options=[];if(raw.options)raw.options.forEach(function(o){p.options.push({name:o.name||o,values:Array.isArray(o.values)?o.values:[o.value||o]})});
   p.variants=[];if(raw.variants)raw.variants.forEach(function(v){p.variants.push({id:v.id,title:v.title||'',price:parseFloat(v.price)||0,available:v.available!==undefined?v.available:true,option1:v.option1||'',option2:v.option2||'',option3:v.option3||'',sku:v.sku||'',image_id:v.image_id})});
