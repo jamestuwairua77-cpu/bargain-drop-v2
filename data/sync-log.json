@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "4d********74",
+    "valid": true,
+    "paramKeys": [
+      "2608170849351609403"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608170849351609403\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170849351608100\",\"storageNum\":9845,\"vid\":\"2608170849351609402\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170849351608100\",\"storageNum\":7506,\"vid\":\"2608170849351609401\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170849351608100\",\"storageNum\":5910,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T08:52:31.572Z",
+    "at": "2026-08-17T08:52:31.899Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "e8********fa",
@@ -5753,27 +5775,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T05:53:13.980Z",
     "at": "2026-08-17T05:53:14.273Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "a6********25",
-    "valid": true,
-    "paramKeys": [
-      "2608170545371601409"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2608170545371601409\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170545371600400\",\"storageNum\":5574,\"vid\":\"2608170545371601409\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170545371600400\",\"storageNum\":9154,\"vid\":\"2608170545371601408\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170545371600400\",\"storageNum\":8122,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T05:53:12.577Z",
-    "at": "2026-08-17T05:53:12.769Z"
   }
 ]
