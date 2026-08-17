@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "62********f2",
+    "valid": true,
+    "paramKeys": [
+      "2089241592183947271"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2089241592183947271\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":7948,\"vid\":\"2089241592183947272\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":9289,\"vid\":\"2089241592183947271\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":5453,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:53:32.680Z",
+    "at": "2026-08-17T06:53:32.912Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "e0********46",
     "valid": true,
     "paramKeys": [
@@ -5933,42 +5955,5 @@
     "sku": "CJTZ304117020TG",
     "receivedAt": "2026-08-17T05:52:31.642Z",
     "at": "2026-08-17T05:52:32.116Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "6c********aa",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170547051637400",
-    "receivedAt": "2026-08-17T05:52:29.557Z",
-    "at": "2026-08-17T05:52:29.846Z"
   }
 ]
