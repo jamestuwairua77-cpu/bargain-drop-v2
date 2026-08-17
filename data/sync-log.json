@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "b4********37",
+    "valid": true,
+    "paramKeys": [
+      "2089272140407275557"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2089272140407275557\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089272140310806529\",\"storageNum\":8869,\"vid\":\"2089272140407275530\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089272140310806529\",\"storageNum\":7666,\"vid\":\"2089272140407275552\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089272140310806529\",\"storageNum\":9003,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T08:54:48.585Z",
+    "at": "2026-08-17T08:54:48.772Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
     "messageId": "25********d3",
@@ -5620,46 +5642,5 @@
     "pid": "2054379443421200385",
     "receivedAt": "2026-08-17T05:56:02.720Z",
     "at": "2026-08-17T05:56:02.923Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "c3********48",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId",
-      "supplierName"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": true,
-    "pid": "2054135858859794433",
-    "created": true,
-    "shopifyId": 9232079323267,
-    "variantCount": 1,
-    "receivedAt": "2026-08-17T05:56:00.808Z",
-    "at": "2026-08-17T05:56:01.052Z"
   }
 ]
