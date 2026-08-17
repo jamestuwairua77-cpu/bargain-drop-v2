@@ -177,6 +177,25 @@ function b64Encode(bytes) {
 }
 
 export async function ghWriteLarge(env, path, content, msg) {
+  // The catalog is write-contended (background "auto: rebuild" jobs commit to main
+  // every few seconds), so a single read→commit→ref-update can lose the race with a
+  // 422 conflict. Retry the whole sequence a few times so large-file writes converge.
+  let lastErr = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const r = await ghWriteLargeOnce(env, path, content, msg);
+      return r;
+    } catch (e) {
+      lastErr = e;
+      const transient = String(e && e.message).includes('ref update fail') || String(e && e.message).includes('429');
+      if (!transient) throw e;
+      await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+    }
+  }
+  throw lastErr || new Error('ghWriteLarge failed');
+}
+
+async function ghWriteLargeOnce(env, path, content, msg) {
   const token = GH_TOKEN_FN(env);
   const gh = (url, opts) => fetch(url, { ...opts, headers: {
     'Authorization': 'Bearer ' + token,
