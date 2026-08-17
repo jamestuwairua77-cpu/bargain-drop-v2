@@ -3,6 +3,44 @@
     "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
+    "messageId": "6c********02",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productDescription",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus",
+      "supplierId",
+      "supplierName"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "imported": false,
+    "reason": "product not found locally",
+    "pid": "1990529888539684866",
+    "receivedAt": "2026-08-17T00:57:37.735Z",
+    "at": "2026-08-17T00:57:37.923Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
     "messageId": "1e********1c",
     "valid": true,
     "paramKeys": [
@@ -5475,42 +5513,5 @@
     "pid": "1641701331427659776",
     "receivedAt": "2026-08-17T00:19:09.724Z",
     "at": "2026-08-17T00:19:09.916Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "8e********e3",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "imported": false,
-    "reason": "product not found locally",
-    "pid": "0EEF2981-F91B-4DB6-8965-DB06B2FCAE56",
-    "receivedAt": "2026-08-17T00:19:06.429Z",
-    "at": "2026-08-17T00:19:06.629Z"
   }
 ]
