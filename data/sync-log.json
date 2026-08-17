@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "65********1f",
+    "valid": true,
+    "paramKeys": [
+      "2407200337031623700"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2407200337031623700\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1791643240295305216\",\"storageNum\":467,\"vid\":\"2407200337031623700\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1791643240295305216\",\"storageNum\":14716,\"vid\":\"2407200337031623700\"},{\"areaEn\":\"Spain Warehouse\",\"areaId\":\"31\",\"countryCode\":\"ES\",\"pid\":\"1791643240295305216\",\"storageNum\":100,\"vi",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T06:52:21.895Z",
+    "at": "2026-08-17T06:52:22.241Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "19********bc",
     "valid": true,
     "paramKeys": [
@@ -6116,27 +6138,5 @@
     "sku": "CJWO306791201AZ",
     "receivedAt": "2026-08-17T05:02:05.040Z",
     "at": "2026-08-17T05:02:05.240Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "29********15",
-    "valid": true,
-    "paramKeys": [
-      "2409160401591628000"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2409160401591628000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"045C6393-8DD1-4ACB-AAC7-6278425C7AD2\",\"storageNum\":10742,\"vid\":\"1648147239325405184\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"045C6393-8DD1-4ACB-AAC7-6278425C7AD2\",\"storageNum\":39930,\"vid\":\"1493889902801195008\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"045",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T05:02:03.250Z",
-    "at": "2026-08-17T05:02:03.560Z"
   }
 ]
