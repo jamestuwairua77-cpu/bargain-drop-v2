@@ -94,16 +94,30 @@ export async function onRequest(context) {
 
   const start = Date.now();
   try {
-    let prods = [], since_id = 0;
+    let prods = [], since_id = 0, queue = [];
+    let pageFetch = async (sid) => shopifyFetch(env, `/products.json?limit=250&fields=id,title,body_html,vendor,product_type,tags,variants,images,image,status&since_id=${sid}`);
+    // Simple queue of one in-flight concurrent page fetch (roughly doubles throughput safely).
     while (true) {
-      const r = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,body_html,vendor,product_type,tags,variants,images,image,status&since_id=${since_id}`);
-      if (!r.ok) break;
+      // Fetch the current page (retry transient failures so we never silently truncate).
+      let r = null;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        r = await pageFetch(since_id);
+        if (r.ok) break;
+        // 429 / 5xx — back off and retry rather than truncating the catalog.
+        await new Promise(res => setTimeout(res, 1000 * (attempt + 1)));
+      }
+      if (!r || !r.ok) {
+        // Persistent failure: abort the whole sync so we do NOT write a partial catalog.
+        return new Response(JSON.stringify({ ok: false, error: 'Shopify fetch failed at since_id=' + since_id + ' — aborting to avoid partial catalog' }), {
+          status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
       const batch = (r.body.products || []).filter(p => p.status === 'active' && p.title);
       if (batch.length === 0) break;
       prods.push(...batch);
       since_id = batch[batch.length - 1].id;
       if (batch.length < 250) break;
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(res => setTimeout(res, 400));
     }
 
     if (!prods.length) return new Response(JSON.stringify({ ok: false, error: 'No active products' }), {
