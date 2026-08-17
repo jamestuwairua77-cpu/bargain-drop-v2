@@ -2,6 +2,43 @@
   {
     "action": "cj-webhook",
     "type": "VARIANT",
+    "messageType": "UPDATE",
+    "messageId": "95********e6",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJLY295348202BY",
+    "receivedAt": "2026-08-17T06:53:12.703Z",
+    "at": "2026-08-17T06:53:12.943Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "9e********87",
     "valid": true,
@@ -5955,27 +5992,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T05:52:02.588Z",
     "at": "2026-08-17T05:52:02.881Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "1c********9a",
-    "valid": true,
-    "paramKeys": [
-      "2608170543051614601"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2608170543051614601\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":5550,\"vid\":\"2608170543051614604\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":9238,\"vid\":\"2608170543051614615\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170543051613300\",\"storageNum\":6937,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T05:52:01.443Z",
-    "at": "2026-08-17T05:52:01.785Z"
   }
 ]
