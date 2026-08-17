@@ -81,13 +81,23 @@ async function writeProcessed(env, ids, existingSha) {
   return trimmed;
 }
 
-// ── CJ product/query: full variant list for a product, keyed by any SKU ──
-// Returns { pid, variants } or null.
-async function cjProductBySku(env, sku) {
-  if (!sku) return null;
-  const body = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(sku));
-  if (!body || body.code !== 200 || !body.data) return null;
-  return body.data; // { pid, productName..., variants:[...] }
+// ── CJ product/query: full variant list for a product ─────────────────────
+// Uses pid (preferred — PRODUCT pushes carry it) via product/variant/query,
+// falling back to variantSku via product/query. Returns { pid, variants } or null.
+async function cjVariantsByPid(env, pid, variantSku) {
+  if (pid) {
+    const body = await cjFetchMulti(env, '/product/variant/query?pid=' + encodeURIComponent(pid));
+    if (body && body.code === 200 && Array.isArray(body.data)) {
+      return { pid, variants: body.data };
+    }
+  }
+  if (variantSku) {
+    const body = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(variantSku));
+    if (body && body.code === 200 && body.data && Array.isArray(body.data.variants)) {
+      return { pid: body.data.pid, variants: body.data.variants };
+    }
+  }
+  return null;
 }
 
 // ── Shopify reconcile: ensure Shopify product has all CJ variants ────────
@@ -236,38 +246,37 @@ export async function handleCjWebhook(env, payload) {
   return { ...result, type, messageType };
 }
 
-// ── PRODUCT: retrieve full variant list from CJ + reconcile to Shopify ───
+// ── PRODUCT: retrieve full variant list from CJ + reconcile/create in Shopify ──
 async function importProduct(env, payload) {
   const p = payload.params || {};
   const pid = p.pid;
   const productSku = p.productSku;
-  // We need a CJ sku to query full variants. Fall back to any variant sku.
   if (!productSku && !pid) return { imported: false, reason: 'no pid/productSku' };
 
-  // Resolve the store (Shopify) product id: match by pid link OR by productSku/variantSku.
-  const { shopifyId, cjSku } = await resolveShopifyProduct(env, p);
-
-  if (!shopifyId) {
-    return { imported: false, reason: 'product not found in Shopify', pid };
+  // Retrieve the FULL variant list from CJ via pid (CJ pushes only changed fields).
+  const cjData = await cjVariantsByPid(env, pid, productSku || p.variantSku);
+  if (!cjData) {
+    return { imported: false, reason: 'CJ variant query failed', pid };
   }
 
-  // Retrieve the FULL variant list from CJ (this is the "enhance webhook to
-  // retrieve the info" step — CJ pushes only changed fields, so we pull the rest).
-  const cjData = await cjProductBySku(env, cjSku || productSku || (p.variantSku));
-  if (!cjData) {
-    return { imported: false, reason: 'CJ product/query failed or not found', pid };
+  // Resolve store (Shopify) product id.
+  const { shopifyId } = await resolveShopifyProduct(env, p);
+
+  if (!shopifyId) {
+    // Product not yet in Shopify → CREATE it from CJ data (full import w/ all variants).
+    const created = await createProductInShopify(env, pid, cjData, p);
+    return created;
   }
 
   // Reconcile: ensure Shopify has every CJ variant.
   const rec = await reconcileVariantsToShopify(env, shopifyId, cjData);
 
-  // Also persist CJ pid link + product fields to the catalog via Shopify title/type.
+  // Update product-level fields (title/desc/price) so rebuild reflects them.
   const patches = {};
   if (p.productNameEn != null) patches.title = p.productNameEn;
   if (p.productDescription != null) patches.body_html = p.productDescription;
   if (p.productSellPrice != null) patches.price = Number(p.productSellPrice);
   if (Object.keys(patches).length) {
-    // Update Shopify product fields (title/desc) so rebuild reflects them.
     await shopifyFetch(env, `/products/${shopifyId}.json`, {
       method: 'PUT',
       body: JSON.stringify({ product: { id: Number(shopifyId), ...patches } }),
@@ -280,6 +289,57 @@ async function importProduct(env, payload) {
     shopifyId,
     ...rec,
   };
+}
+
+// ── Create a brand-new Shopify product from CJ data (all variants) ───────
+async function createProductInShopify(env, pid, cjData, p) {
+  const variants = cjData.variants || [];
+
+  // Derive option names from variantKey (e.g. "Color-Size" → Color, Size).
+  // We can't know CJ's real option names from the push alone, so use generic
+  // based on how many segments variantKey has. CJ commonly uses Color / Size.
+  const keyParts = variants.map(v => String(v.variantKey || '').split('-').length);
+  const maxParts = Math.max(...keyParts, 1);
+  const optionNames = maxParts === 1 ? ['Title'] : (maxParts === 2 ? ['Color', 'Size'] : ['Option 1', 'Option 2', 'Option 3'].slice(0, maxParts));
+
+  const shopVariants = variants.map(v => {
+    const parts = String(v.variantKey || '').split('-');
+    const ov = {};
+    optionNames.forEach((_, i) => { ov['option' + (i + 1)] = parts[i] != null ? String(parts[i]) : (i === 0 ? 'Default Title' : ''); });
+    const price = v.variantSellPrice != null ? Number(v.variantSellPrice) : 0;
+    return {
+      ...ov,
+      price: String(price),
+      sku: v.variantSku != null ? String(v.variantSku) : undefined,
+      grams: v.variantWeight != null ? Number(v.variantWeight) : undefined,
+    };
+  });
+
+  const title = p.productNameEn || p.productName || (p.cjProductTitle) || 'Imported Product';
+  const options = optionNames.map((name, i) => ({
+    name,
+    position: i + 1,
+    values: [...new Set(shopVariants.map(sv => sv['option' + (i + 1)]))],
+  }));
+
+  const productBody = {
+    product: {
+      title,
+      body_html: p.productDescription || '',
+      product_type: p.productType != null ? String(p.productType) : undefined,
+      variants: shopVariants,
+      options: options.length ? options : undefined,
+      status: 'active',
+    },
+  };
+
+  const r = await shopifyFetch(env, '/products.json', {
+    method: 'POST',
+    body: JSON.stringify(productBody),
+  });
+  if (!r.ok) return { imported: false, reason: 'shopify create ' + r.status, pid };
+  const newId = r.body && r.body.product && r.body.product.id;
+  return { imported: true, pid, created: true, shopifyId: newId, variantCount: shopVariants.length };
 }
 
 async function resolveShopifyProduct(env, p) {
@@ -324,8 +384,8 @@ async function importVariant(env, payload) {
   if (!target && vid) target = shopVariants.find(v => String(v.sku) === String(vid));
 
   if (!target) {
-    // Variant not in Shopify yet → do a full reconcile via CJ product/query.
-    const cjData = await cjProductBySku(env, sku || vid);
+    // Variant not in Shopify yet → do a full reconcile via CJ variant list.
+    const cjData = await cjVariantsByPid(env, p.pid, sku || vid);
     if (cjData) {
       const rec = await reconcileVariantsToShopify(env, shopifyId, cjData);
       return { imported: rec.created > 0 || rec.updated > 0, sku, ...rec };
