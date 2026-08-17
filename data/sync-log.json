@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "17********40",
+    "valid": true,
+    "paramKeys": [
+      "1895377993077006338"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1895377993077006338\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-17T08:53:24.833Z",
+    "at": "2026-08-17T08:53:25.053Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "61********99",
     "valid": true,
     "paramKeys": [
@@ -5692,42 +5714,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T05:54:07.967Z",
     "at": "2026-08-17T05:54:09.618Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "a0********62",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJNSSYLY00111-Brown-S",
-    "receivedAt": "2026-08-17T05:54:04.286Z",
-    "at": "2026-08-17T05:54:04.709Z"
   }
 ]
