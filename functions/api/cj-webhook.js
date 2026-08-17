@@ -119,6 +119,11 @@ export async function onRequest(context) {
       const topKeys = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 20) : null;
       // Diagnostic: is params present & what kind (no values).
       const paramsKind = payload.params === undefined ? 'undefined' : payload.params === null ? 'null' : Array.isArray(payload.params) ? 'array' : typeof payload.params;
+      // For STOCK (no sensitive data), capture the raw params as a small JSON slice for diagnosis.
+      let stockSample = null;
+      if (type === 'STOCK') {
+        try { stockSample = (JSON.stringify(payload.params) || '').slice(0, 400); } catch {}
+      }
 
       // Import the push into the catalog (PRODUCT/VARIANT/STOCK → all-products.json
       // + Shopify; ORDER/LOGISTIC → ledger/tracking; others log-only). Idempotent on messageId.
@@ -133,6 +138,7 @@ export async function onRequest(context) {
         paramKeys,
         topKeys,
         paramsKind,
+        stockSample,
         ...result,
         receivedAt: new Date().toISOString(),
       });
