@@ -1,6 +1,14 @@
 [
   {
     "action": "import",
+    "pid": "2608180223121622500",
+    "shopifyId": 9233120788611,
+    "title": "Loose Casual Stylish Western-style Fashionable Puff-sleeve Top",
+    "ok": true,
+    "at": "2026-08-18T06:33:34.208Z"
+  },
+  {
+    "action": "import",
     "pid": "2608180259281629300",
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
@@ -1777,42 +1785,5 @@
     "sku": "CJMY306906490LO",
     "receivedAt": "2026-08-17T08:56:38.060Z",
     "at": "2026-08-17T08:56:38.532Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "65********a7",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJMY306906472TG",
-    "receivedAt": "2026-08-17T08:56:36.702Z",
-    "at": "2026-08-17T08:56:37.022Z"
   }
 ]
