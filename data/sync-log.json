@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728081985667,
+    "sku": "CJXX307009304DW",
+    "available": 100,
+    "at": "2026-08-18T06:07:42.815Z"
+  },
+  {
     "action": "import",
     "pid": "2608180201091610700",
     "shopifyId": 9233116463235,
@@ -5888,27 +5895,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:52:22.977Z",
     "at": "2026-08-17T06:52:23.448Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "65********1f",
-    "valid": true,
-    "paramKeys": [
-      "2407200337031623700"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2407200337031623700\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1791643240295305216\",\"storageNum\":467,\"vid\":\"2407200337031623700\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1791643240295305216\",\"storageNum\":14716,\"vid\":\"2407200337031623700\"},{\"areaEn\":\"Spain Warehouse\",\"areaId\":\"31\",\"countryCode\":\"ES\",\"pid\":\"1791643240295305216\",\"storageNum\":100,\"vi",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:52:21.895Z",
-    "at": "2026-08-17T06:52:22.241Z"
   }
 ]
