@@ -8,7 +8,8 @@ export async function onRequest(context) {
     // Load full product catalogue
     const rProducts = await fetch(new URL('/all-products.json', request.url));
     if (!rProducts.ok) throw new Error('Products not available');
-    const allProducts = await rProducts.json();
+    let allProducts = await rProducts.json();
+    if (Array.isArray(allProducts)) allProducts = allProducts.filter(p => p.visible !== false);
     let product;
     if (id) product = allProducts.find(p => String(p.id) === String(id));
     else product = allProducts.find(p => (p.variants || []).some(v => v.sku === sku));

@@ -183,7 +183,7 @@ window.__CAT_PRODS = null;
 function slugify(x){return String(x||'').toLowerCase().replace(/ & /g,'-').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
 function lastSegment(pt){var seg=String(pt||'').split('>');return (seg[seg.length-1]||'').trim();}
 (function boot(){
-  fetch('/all-products.json', {cache:'no-store'}).then(function(r){return r.json()}).then(function(products){
+  fetch('/all-products.json', {cache:'no-store'}).then(function(r){return r.json()}).then(function(raw){var products=Array.isArray(raw)?raw.filter(function(p){return p.visible!==false}):raw;
     var cats={};
     (products||[]).forEach(function(p){
       var key=slugify(lastSegment(p.product_type))||'other';

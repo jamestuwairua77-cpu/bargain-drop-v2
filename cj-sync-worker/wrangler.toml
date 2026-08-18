@@ -1,0 +1,14 @@
+name = "cj-sync-worker"
+main = "index.js"
+compatibility_date = "2025-10-01"
+
+# Self-running: reconcile hourly (hidden background job, no Zaro).
+[triggers]
+crons = ["0 * * * *"]
+
+# Secrets are bound at deploy time (not stored in the repo):
+#  CJ_ACCESS_TOKEN, CJ_ACCESS_TOKEN_2..6, SHOPIFY_ACCESS_TOKEN, SHOPIFY_DOMAIN, GITHUB_TOKEN
+#  CJ_SYNC_MAX (optional, default 200 products per run)
+
+[vars]
+CJ_SYNC_MAX = "200"

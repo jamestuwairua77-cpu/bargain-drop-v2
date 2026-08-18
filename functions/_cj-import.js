@@ -485,18 +485,80 @@ async function importStock(env, payload) {
     if (!target) continue;
 
     const inStock = storage > 0;
-    // Set inventory via inventory item (needs inventory_item_id). Minimal: use
-    // variant-level InventorySet via inventory item endpoint is complex; here we
-    // just mark availability via compare of tracked quantity — log-only for now
-    // to avoid partial states. We still record the intended change.
+    // Set Shopify variant availability: track quantity via variant inventory_management
+    // and flip status when out of stock. Also write a durable `visible` flag into the
+    // catalog (all-products.json) so the storefront can hide OOS products.
+    const patch = {
+      id: target.id,
+      inventory_management: 'shopify',
+      inventory_quantity: storage,
+    };
     await shopifyFetch(env, `/products/${shopifyId}/variants/${target.id}.json`, {
       method: 'PUT',
-      body: JSON.stringify({ variant: { id: target.id } }),
+      body: JSON.stringify({ variant: patch }),
     }).catch(() => {});
+
+    // Record the stock state so the product-level visible flag can be derived.
+    await setProductVisibleFromStock(env, shopifyId).catch(() => {});
     changed++;
   }
 
   return { imported: changed > 0, changed };
+}
+
+// ── visible-flag helpers (catalog + Shopify status) ────────────────────
+// The storefront serves all-products.json. We add/update a `visible` boolean on
+// each product. A product is hidden when ALL its variants are out of stock, or when
+// it was removed from CJ. `visible: false` also sets Shopify status to draft (hidden
+// from the storefront), `true` → active.
+async function setProductVisibleFromStock(env, shopifyId) {
+  const r = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,variants,status`);
+  if (!r.ok) return null;
+  const prod = r.body.product;
+  const variants = (prod.variants || []).filter(v => v.sku);
+  // in-stock if ANY variant has inventory_quantity > 0; unknown inventory treated as in-stock.
+  const inStock = variants.some(v => !v.inventory_management || (Number(v.inventory_quantity ?? 1) > 0));
+  return setProductVisible(env, shopifyId, inStock);
+}
+
+export async function setProductVisible(env, shopifyId, visible) {
+  if (!shopifyId) return null;
+  // 1. Flip Shopify status (draft hides from storefront; active shows it).
+  const wantStatus = visible ? 'active' : 'draft';
+  const r = await shopifyFetch(env, `/products/${shopifyId}.json`, {
+    method: 'PUT',
+    body: JSON.stringify({ product: { id: Number(shopifyId), status: wantStatus } }),
+  }).catch(() => null);
+  // 2. Update the `visible` flag in all-products.json (catalog authority).
+  try {
+    await patchCatalogVisible(env, String(shopifyId), visible);
+  } catch {}
+  return { shopifyId, visible, status: r && r.ok ? wantStatus : 'unknown' };
+}
+
+async function patchCatalogVisible(env, shopifyId, visible) {
+  const token = env.GITHUB_TOKEN || '';
+  const headers = token ? { Authorization: 'Bearer ' + token, 'User-Agent': 'bargain-drop-cloudflare' } : { 'User-Agent': 'bargain-drop-cloudflare' };
+  const raw = await fetch('https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json', { headers });
+  if (!raw.ok) return;
+  const products = await raw.json();
+  if (!Array.isArray(products)) return;
+  let changed = false;
+  for (const p of products) {
+    if (String(p.id) === String(shopifyId) && p.visible !== visible) {
+      p.visible = visible;
+      changed = true;
+      break;
+    }
+  }
+  if (!changed) return;
+  // Persist via GitHub contents API (reuse ghWrite from _sync-lib by reconstructing minimal write).
+  const gh = token
+    ? (await import('../_sync-lib.js'))
+    : null;
+  if (gh && gh.ghWrite) {
+    await gh.ghWrite(env, 'all-products.json', JSON.stringify(products, null, 2), 'cj-sync: set visible=' + visible + ' for ' + shopifyId);
+  }
 }
 
 // ── ORDER / LOGISTIC (defer to existing flows) ───────────────────────────

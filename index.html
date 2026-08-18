@@ -142,7 +142,7 @@ function quickAdd(id){
 }
 (function loadProds(){
   var x=new XMLHttpRequest();x.open("GET","/all-products.json?v=17cd62bced",true);x.timeout=10000;
-  x.onload=function(){if(x.status>=200&&x.status<400)try{ALL=JSON.parse(x.responseText);renderHome();}catch(e){}};x.send();
+  x.onload=function(){if(x.status>=200&&x.status<400)try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false});renderHome();}catch(e){}};x.send();
 })();
 
 /* === Dynamically render hero + trending from the live catalog ===

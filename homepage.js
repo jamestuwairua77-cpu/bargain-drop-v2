@@ -73,7 +73,7 @@
     x.timeout=15000;
     x.onload=function(){
       if(x.status>=200&&x.status<400){
-        try{ALL=JSON.parse(x.responseText)}catch(e){ALL=[]}
+        try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false})}catch(e){ALL=[]}
       }
     };
     x.send();

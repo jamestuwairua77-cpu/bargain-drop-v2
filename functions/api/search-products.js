@@ -6,7 +6,8 @@ export async function onRequest(context) {
   if (!query) return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   try {
     const r = await fetch(new URL('/all-products.json', request.url)); if (!r.ok) throw new Error('Products not available');
-    const allProducts = await r.json();
+    let allProducts = await r.json();
+    if (Array.isArray(allProducts)) allProducts = allProducts.filter(p => p.visible !== false);
     const results = allProducts.filter(p => {
       const title = (p.title || '').toLowerCase(); const desc = (p.body_html || '').replace(/<[^>]+>/g, '').toLowerCase();
       return title.includes(query) || desc.includes(query);
