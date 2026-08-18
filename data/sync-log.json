@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49728096731267,
+    "sku": "CJLY307104103CX",
+    "available": 100,
+    "at": "2026-08-18T06:21:07.478Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49728096567427,
     "sku": "CJJT307125203CX",
     "available": 100,
@@ -5145,42 +5152,5 @@
     "sku": "CJYH306845205EV",
     "receivedAt": "2026-08-17T06:53:14.205Z",
     "at": "2026-08-17T06:53:14.427Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "95********e6",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJLY295348202BY",
-    "receivedAt": "2026-08-17T06:53:12.703Z",
-    "at": "2026-08-17T06:53:12.943Z"
   }
 ]
