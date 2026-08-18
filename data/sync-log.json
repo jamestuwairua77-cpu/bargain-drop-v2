@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "2608180336261627200",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T06:24:14.751Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728106496131,
     "sku": "CJNS307027408HS",
@@ -3789,27 +3796,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:12.741Z",
     "at": "2026-08-17T08:53:13.021Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "70********ae",
-    "valid": true,
-    "paramKeys": [
-      "1601051115976667136"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1601051115976667136\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1601051115888586752\",\"storageNum\":14451,\"vid\":\"1601051115976667136\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:11.630Z",
-    "at": "2026-08-17T08:53:11.881Z"
   }
 ]
