@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180056121626200",
+    "shopifyId": 9233117642883,
+    "title": "Summer Women's Blouse Set",
+    "ok": true,
+    "at": "2026-08-18T06:18:16.519Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728095092867,
     "sku": "CJTZ306983101AZ",
@@ -5501,41 +5509,5 @@
     "sku": "CJWO306845012LO",
     "receivedAt": "2026-08-17T06:52:56.988Z",
     "at": "2026-08-17T06:52:57.191Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "34********48",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJWO306845007GT",
-    "receivedAt": "2026-08-17T06:52:54.847Z",
-    "at": "2026-08-17T06:52:55.161Z"
   }
 ]
