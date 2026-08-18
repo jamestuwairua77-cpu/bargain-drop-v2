@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49733749670019,
+    "sku": "CJYD306918501AZ",
+    "available": 100,
+    "at": "2026-08-18T09:53:06.591Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49733704220803,
     "sku": "CJLY306885804DW",
     "available": 100,
@@ -1414,13 +1421,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T09:25:40.765Z"
-  },
-  {
-    "action": "import",
-    "pid": "E71AD13D-5472-48C4-BACF-F46E4F66A1FC",
-    "shopifyId": 9233312153731,
-    "title": "Sports fitness cotton socks",
-    "ok": true,
-    "at": "2026-08-18T09:25:35.434Z"
   }
 ]
