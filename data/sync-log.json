@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "2089239292996788225",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:16:56.026Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728292585603,
     "sku": "CJLX306976601AZ",
@@ -1418,12 +1425,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T07:11:32.758Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170725081629100",
-    "ok": false,
-    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
-    "at": "2026-08-18T07:11:31.281Z"
   }
 ]
