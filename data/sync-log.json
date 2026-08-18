@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180228121617400",
+    "shopifyId": 9233120821379,
+    "title": "Women's Round-Neck Casual Loose Short-Sleeve Top",
+    "ok": true,
+    "at": "2026-08-18T06:33:51.232Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728126058627,
     "sku": "CJWS307023202BY",
@@ -1625,41 +1633,5 @@
     "pid": "2608170736101611500",
     "receivedAt": "2026-08-17T08:56:54.062Z",
     "at": "2026-08-17T08:56:54.325Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "5e********ef",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJNS306907803CX",
-    "receivedAt": "2026-08-17T08:56:52.263Z",
-    "at": "2026-08-17T08:56:52.454Z"
   }
 ]
