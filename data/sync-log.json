@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "2608170119211608700",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:15:10.550Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728280952963,
     "sku": null,
@@ -1423,12 +1430,5 @@
     "sku": "CJNS307071605EV",
     "available": 100,
     "at": "2026-08-18T07:09:48.460Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728233472131,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T07:09:45.687Z"
   }
 ]
