@@ -15,8 +15,8 @@ const OAUTH_URL = 'https://bargain-drop-8194.myshopify.com/admin/oauth/access_to
 // ── Shopify token auto-refresh (client-credentials grant) ──
 let _shopifyToken = { token: null, exp: 0 };
 async function getShopifyToken(env, force = false) {
-  const cid = env.SHOPIFY_CLIENT_ID || '';
-  const cs = env.SHOPIFY_CLIENT_SECRET || '';
+  const cid = env.SHOPIFY_OAUTH_CLIENT_ID || env.SHOPIFY_CLIENT_ID || '';
+  const cs = env.SHOPIFY_OAUTH_CLIENT_SECRET || env.SHOPIFY_CLIENT_SECRET || '';
   if (cid && cs) {
     if (!force && _shopifyToken.token && Date.now() < _shopifyToken.exp) return _shopifyToken.token;
     const r = await fetch(OAUTH_URL, {

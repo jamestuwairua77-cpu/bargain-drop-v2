@@ -18,9 +18,9 @@ const OAUTH_URL = `https://${SHOPIFY_DOMAIN}/admin/oauth/access_token`;
 let _cached = { token: null, exp: 0 };
 
 async function exchangeClientCredentials(env) {
-  const clientId = env.SHOPIFY_CLIENT_ID || '';
-  const clientSecret = env.SHOPIFY_CLIENT_SECRET || '';
-  if (!clientId || !clientSecret) throw new Error('SHOPIFY_CLIENT_ID/SECRET not configured');
+  const clientId = env.SHOPIFY_OAUTH_CLIENT_ID || env.SHOPIFY_CLIENT_ID || '';
+  const clientSecret = env.SHOPIFY_OAUTH_CLIENT_SECRET || env.SHOPIFY_CLIENT_SECRET || '';
+  if (!clientId || !clientSecret) throw new Error('SHOPIFY_OAUTH_CLIENT_ID/SECRET (or SHOPIFY_CLIENT_ID/SECRET) not configured');
   const r = await fetch(OAUTH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -40,8 +40,8 @@ async function exchangeClientCredentials(env) {
  * @param {boolean} force If true, always re-exchange (e.g. after a 401).
  */
 export async function getShopifyToken(env, force = false) {
-  const clientId = env.SHOPIFY_CLIENT_ID || '';
-  const clientSecret = env.SHOPIFY_CLIENT_SECRET || '';
+  const clientId = env.SHOPIFY_OAUTH_CLIENT_ID || env.SHOPIFY_CLIENT_ID || '';
+  const clientSecret = env.SHOPIFY_OAUTH_CLIENT_SECRET || env.SHOPIFY_CLIENT_SECRET || '';
   const staticToken = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
 
   // Auto-refresh only possible when client credentials are present.

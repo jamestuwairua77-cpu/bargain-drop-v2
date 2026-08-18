@@ -7,8 +7,8 @@ export async function onRequest(context) {
   const code = url.searchParams.get('code');
   if (!code) return new Response(JSON.stringify({ error: 'Authorization code required' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   try {
-    const CLIENT_ID = env.SHOPIFY_CLIENT_ID || '9ab0d272cfd0e8d378145a7eee7634ee';
-    const CLIENT_SECRET = env.SHOPIFY_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET || '';
+    const CLIENT_ID = env.GOOGLE_CLIENT_ID || '489382559871-t7hh34fgbr23vkifi1u8kd9s7dolrv20.apps.googleusercontent.com';
+    const CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET || '';
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code, client_id: CLIENT_ID, client_secret: CLIENT_SECRET, redirect_uri: url.origin + '/auth.html', grant_type: 'authorization_code' }).toString() });
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok) throw new Error(tokenData.error_description || 'Token exchange failed');
