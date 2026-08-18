@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49728106496131,
+    "sku": "CJNS307027408HS",
+    "available": 100,
+    "at": "2026-08-18T06:24:13.816Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49728106332291,
     "sku": null,
     "available": 100,
@@ -3804,27 +3811,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:11.630Z",
     "at": "2026-08-17T08:53:11.881Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "6b********72",
-    "valid": true,
-    "paramKeys": [
-      "1657327050207801344"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1657327050207801344\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1657327049431855104\",\"storageNum\":11491,\"vid\":\"1657327051214434304\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1657327049431855104\",\"storageNum\":12953,\"vid\":\"1657327050207801344\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:10.253Z",
-    "at": "2026-08-17T08:53:10.486Z"
   }
 ]
