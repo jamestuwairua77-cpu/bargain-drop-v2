@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728138510467,
+    "sku": null,
+    "available": 100,
+    "at": "2026-08-18T07:15:51.179Z"
+  },
+  {
     "action": "import",
     "pid": "2608170439331618700",
     "ok": false,
@@ -1418,12 +1425,5 @@
     "title": "European And American Women's Casual V-Neck Dress",
     "ok": true,
     "at": "2026-08-18T07:10:26.553Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170627331632700",
-    "ok": false,
-    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
-    "at": "2026-08-18T07:10:25.294Z"
   }
 ]
