@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180245541611700",
+    "shopifyId": 9233117708419,
+    "title": "Lightweight Fashionable Casual Outdoor Women's Bag",
+    "ok": true,
+    "at": "2026-08-18T06:18:44.060Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728096108675,
     "sku": "CJYD307051602BY",
@@ -5260,42 +5268,5 @@
     "sku": "CJWO306845027AZ",
     "receivedAt": "2026-08-17T06:53:09.047Z",
     "at": "2026-08-17T06:53:09.263Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "0f********aa",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170645061626100",
-    "receivedAt": "2026-08-17T06:53:07.513Z",
-    "at": "2026-08-17T06:53:07.873Z"
   }
 ]
