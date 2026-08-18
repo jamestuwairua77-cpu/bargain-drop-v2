@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180347041629300",
+    "shopifyId": 9233118593155,
+    "title": "C4 Reflective Dog Collar Tactical Metal Buckle Dog Collar",
+    "ok": true,
+    "at": "2026-08-18T06:23:06.761Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728102760579,
     "sku": null,
@@ -4307,42 +4315,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:52:31.572Z",
     "at": "2026-08-17T08:52:31.899Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "e8********fa",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJYD306909104DW",
-    "receivedAt": "2026-08-17T08:52:29.587Z",
-    "at": "2026-08-17T08:52:29.799Z"
   }
 ]
