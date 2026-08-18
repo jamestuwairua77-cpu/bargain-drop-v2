@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "2608180311191624100",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T06:32:41.801Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728122585219,
     "sku": "CJYD307124603CX",
@@ -1867,42 +1874,5 @@
     "sku": "CJMY306906431EV",
     "receivedAt": "2026-08-17T08:56:33.384Z",
     "at": "2026-08-17T08:56:33.568Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "87********98",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJMY306906417QJ",
-    "receivedAt": "2026-08-17T08:56:31.915Z",
-    "at": "2026-08-17T08:56:32.084Z"
   }
 ]
