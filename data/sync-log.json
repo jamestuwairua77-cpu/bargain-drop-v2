@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180139551606500",
+    "shopifyId": 9233118429315,
+    "title": "Electric Crack Mens Straight-Leg Casual Pants",
+    "ok": true,
+    "at": "2026-08-18T06:22:42.134Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728101023875,
     "sku": "CJXX307008401AZ",
@@ -4581,44 +4589,5 @@
     "pid": "2605290325031608800",
     "receivedAt": "2026-08-17T08:52:19.430Z",
     "at": "2026-08-17T08:52:19.602Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "8b********f9",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId",
-      "supplierName"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2089242358148419585",
-    "receivedAt": "2026-08-17T06:53:55.141Z",
-    "at": "2026-08-17T06:53:55.678Z"
   }
 ]
