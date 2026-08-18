@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2608180324561622100",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T06:22:21.589Z"
+  },
+  {
+    "action": "import",
     "pid": "2608180423591623700",
     "shopifyId": 9233118298243,
     "title": "Womens Slit Mermaid Evening Gown Long Dress",
@@ -4703,27 +4710,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:53:47.517Z",
     "at": "2026-08-17T06:53:47.716Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "59********15",
-    "valid": true,
-    "paramKeys": [
-      "5F5AB516-A177-4CDB-AD69-EFEE50BF5720"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"5F5AB516-A177-4CDB-AD69-EFEE50BF5720\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"012087E2-0001-46A9-85E3-4F400E71E1E4\",\"storageNum\":10418,\"vid\":\"5F5AB516-A177-4CDB-AD69-EFEE50BF5720\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:53:46.494Z",
-    "at": "2026-08-17T06:53:46.698Z"
   }
 ]
