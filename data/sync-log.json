@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2089264163345059842",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:16:24.071Z"
+  },
+  {
+    "action": "import",
     "pid": "2089231202666717185",
     "shopifyId": 9233140547715,
     "title": "Women's Stylish Elegant Square Toe Wedge Wide Straight Shaft Ankle Boots, New Autumn & Winter Black Simple Versatile Mid-Calf Boots",
@@ -1421,13 +1428,5 @@
     "sku": "CJYD306730202BY",
     "available": 100,
     "at": "2026-08-18T07:10:57.566Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170256251607100",
-    "shopifyId": 9233136287875,
-    "title": "Casual Off-duty Ribbed-texture Drop-shoulder Jacket",
-    "ok": true,
-    "at": "2026-08-18T07:10:56.507Z"
   }
 ]
