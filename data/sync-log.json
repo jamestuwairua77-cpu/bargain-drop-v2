@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728086737027,
+    "sku": "CJJT307125201AZ",
+    "available": 100,
+    "at": "2026-08-18T06:15:57.593Z"
+  },
+  {
     "action": "import",
     "pid": "2608180535231622000",
     "shopifyId": 9233117184131,
@@ -5815,27 +5822,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:52:31.044Z",
     "at": "2026-08-17T06:52:31.256Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "4c********a0",
-    "valid": true,
-    "paramKeys": [
-      "2081669072665726979"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2081669072665726979\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2081669071193526274\",\"storageNum\":7031,\"vid\":\"2081669072665726979\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:52:29.271Z",
-    "at": "2026-08-17T06:52:29.650Z"
   }
 ]
