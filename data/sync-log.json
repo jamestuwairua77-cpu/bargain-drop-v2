@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180241401615800",
+    "shopifyId": 9233119707267,
+    "title": "Fashionable Punk Skull Ring For Men And Women",
+    "ok": true,
+    "at": "2026-08-18T06:26:43.903Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728115900547,
     "sku": "CJYD307045507GT",
@@ -3133,43 +3141,5 @@
     "pid": "2608170845541605500",
     "receivedAt": "2026-08-17T08:54:32.693Z",
     "at": "2026-08-17T08:54:32.962Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "d7********41",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170840301625000",
-    "receivedAt": "2026-08-17T08:54:31.569Z",
-    "at": "2026-08-17T08:54:32.026Z"
   }
 ]
