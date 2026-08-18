@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728114786435,
+    "sku": "CJTZ306983105EV",
+    "available": 100,
+    "at": "2026-08-18T06:26:22.868Z"
+  },
+  {
     "action": "import",
     "pid": "2608180540301616000",
     "shopifyId": 9233119576195,
@@ -3334,27 +3341,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:52.981Z",
     "at": "2026-08-17T08:53:53.200Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "9a********e7",
-    "valid": true,
-    "paramKeys": [
-      "2089266837812969476"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2089266837812969476\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:51.316Z",
-    "at": "2026-08-17T08:53:51.965Z"
   }
 ]
