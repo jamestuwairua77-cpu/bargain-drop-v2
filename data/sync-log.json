@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2089200917502152705",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:14:36.248Z"
+  },
+  {
+    "action": "import",
     "pid": "2608170256251607100",
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
@@ -1420,13 +1427,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T07:09:16.963Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170715301625500",
-    "shopifyId": 9233135140995,
-    "title": "Womens Summer Mesh Polka-Dot Print Backless Pleated Waist-Slimming Sleeveless Halter-Neck Maxi Dress",
-    "ok": true,
-    "at": "2026-08-18T07:09:15.078Z"
   }
 ]
