@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180134491601100",
+    "shopifyId": 9233120854147,
+    "title": "Pearl-beaded Knitted Cardigan Women's Slim-fit Coat Sweater",
+    "ok": true,
+    "at": "2026-08-18T06:34:37.850Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728127172739,
     "sku": "CJWS307023236JQ",
@@ -1508,41 +1516,5 @@
     "sku": "CJTZ306907709IR",
     "receivedAt": "2026-08-17T08:56:59.699Z",
     "at": "2026-08-17T08:56:59.944Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "04********dc",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJTZ306907706FU",
-    "receivedAt": "2026-08-17T08:56:58.566Z",
-    "at": "2026-08-17T08:56:58.784Z"
   }
 ]
