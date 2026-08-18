@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728121471107,
+    "sku": null,
+    "available": 100,
+    "at": "2026-08-18T06:28:27.415Z"
+  },
+  {
     "action": "import",
     "pid": "2608180250321604600",
     "shopifyId": 9233120231555,
@@ -2509,27 +2516,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:55:31.206Z",
     "at": "2026-08-17T08:55:31.392Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "98********21",
-    "valid": true,
-    "paramKeys": [
-      "2601170616471630700"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2601170616471630700\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2601170616461636100\",\"storageNum\":7285,\"vid\":\"2601170616471630700\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:55:29.788Z",
-    "at": "2026-08-17T08:55:30.069Z"
   }
 ]
