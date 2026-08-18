@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728110821507,
+    "sku": "CJJT307079414NM",
+    "available": 100,
+    "at": "2026-08-18T06:25:41.841Z"
+  },
+  {
     "action": "import",
     "pid": "2608180412331629600",
     "shopifyId": 9233119346819,
@@ -3481,27 +3488,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:39.008Z",
     "at": "2026-08-17T08:53:39.325Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "89********e7",
-    "valid": true,
-    "paramKeys": [
-      "2001555305559158786"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2001555305559158786\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:37.819Z",
-    "at": "2026-08-17T08:53:38.203Z"
   }
 ]
