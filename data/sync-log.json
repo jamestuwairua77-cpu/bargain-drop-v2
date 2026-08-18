@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "2608170516191611200",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:13:40.410Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728265552003,
     "sku": null,
@@ -1423,12 +1430,5 @@
     "sku": "CJYD306938601AZ",
     "available": 100,
     "at": "2026-08-18T07:08:24.268Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728220397699,
-    "sku": "CJYD306938602BY",
-    "available": 100,
-    "at": "2026-08-18T07:08:23.252Z"
   }
 ]
