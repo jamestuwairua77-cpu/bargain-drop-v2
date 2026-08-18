@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2089234600359141378",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:16:12.387Z"
+  },
+  {
+    "action": "import",
     "pid": "2089194343349387265",
     "shopifyId": 9233140416643,
     "title": "Retinol Neck Cream 40g  1box",
@@ -1420,13 +1427,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T07:10:47.696Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170521311624900",
-    "shopifyId": 9233136255107,
-    "title": "New Womens Casual Retro Jacquard Long-sleeve Jacket",
-    "ok": true,
-    "at": "2026-08-18T07:10:46.960Z"
   }
 ]
