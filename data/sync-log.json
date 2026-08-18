@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2608180250591607300",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T06:22:46.187Z"
+  },
+  {
+    "action": "import",
     "pid": "2608180303111612300",
     "shopifyId": 9233118462083,
     "title": "European And American Casual Street Style Loose Sports Women's 2-Piece Set",
@@ -4521,43 +4528,5 @@
     "pid": "2608170823591635500",
     "receivedAt": "2026-08-17T08:52:21.456Z",
     "at": "2026-08-17T08:52:21.912Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "ad********51",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170801501633100",
-    "receivedAt": "2026-08-17T08:52:20.450Z",
-    "at": "2026-08-17T08:52:20.638Z"
   }
 ]
