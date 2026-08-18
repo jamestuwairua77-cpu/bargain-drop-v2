@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180552311621400",
+    "shopifyId": 9233118691459,
+    "title": "Lingge Embroidery Cotton-padded Jacket Yunduobao",
+    "ok": true,
+    "at": "2026-08-18T06:23:31.352Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728104333443,
     "sku": "CJYD307028210JQ",
@@ -4081,42 +4089,5 @@
     "sku": "CJYD306903714NM",
     "receivedAt": "2026-08-17T08:52:48.159Z",
     "at": "2026-08-17T08:52:48.328Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "b7********f7",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJYD306903711KP",
-    "receivedAt": "2026-08-17T08:52:45.016Z",
-    "at": "2026-08-17T08:52:45.238Z"
   }
 ]
