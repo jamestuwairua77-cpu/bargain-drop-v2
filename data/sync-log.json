@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "CCC5DA1B-9CF0-404E-A916-841C48A40B73",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T09:27:50.146Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49734052216963,
     "sku": null,
@@ -1427,12 +1434,5 @@
     "title": "Gradient Self-Tanning Gel",
     "ok": true,
     "at": "2026-08-18T09:18:17.586Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733078646915,
-    "sku": "CJCD253451601AZ",
-    "available": 100,
-    "at": "2026-08-18T09:18:13.886Z"
   }
 ]
