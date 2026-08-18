@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2608180219021639100",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T06:24:16.693Z"
+  },
+  {
+    "action": "import",
     "pid": "2608180336261627200",
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
@@ -3774,27 +3781,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:13.954Z",
     "at": "2026-08-17T08:53:14.367Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "90********06",
-    "valid": true,
-    "paramKeys": [
-      "1587000643636703232"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1587000643636703232\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1587000643561205760\",\"storageNum\":11898,\"vid\":\"1587000643636703232\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:12.741Z",
-    "at": "2026-08-17T08:53:13.021Z"
   }
 ]
