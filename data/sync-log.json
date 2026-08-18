@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49728107413635,
+    "sku": null,
+    "available": 100,
+    "at": "2026-08-18T06:24:38.412Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49728107380867,
     "sku": "CJNZ307000903CX",
     "available": 100,
@@ -3671,27 +3678,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:23.181Z",
     "at": "2026-08-17T08:53:23.498Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "29********58",
-    "valid": true,
-    "paramKeys": [
-      "1789905634528337920"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1789905634528337920\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1789905634385731584\",\"storageNum\":13416,\"vid\":\"1789905634528337920\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1789905634385731584\",\"storageNum\":14153,\"vid\":\"1789905634469617664\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:21.741Z",
-    "at": "2026-08-17T08:53:21.992Z"
   }
 ]
