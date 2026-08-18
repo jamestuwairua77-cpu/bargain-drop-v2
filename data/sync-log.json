@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "2602150603431639400",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T09:29:34.558Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49734158680195,
     "sku": null,
@@ -1426,13 +1433,5 @@
     "sku": "CJLX307088203CX",
     "available": 100,
     "at": "2026-08-18T09:20:20.273Z"
-  },
-  {
-    "action": "import",
-    "pid": "1990611452912902145",
-    "shopifyId": 9233300291715,
-    "title": "Wireless Doorbells Rings 1000FT Operating Range IP44 Waterproof Door Chime",
-    "ok": true,
-    "at": "2026-08-18T09:20:17.192Z"
   }
 ]
