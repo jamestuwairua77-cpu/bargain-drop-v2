@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180143261621800",
+    "shopifyId": 9233119051907,
+    "title": "Womens Slim-fit Hip-lifting Blue Jeans",
+    "ok": true,
+    "at": "2026-08-18T06:24:35.981Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728107020419,
     "sku": null,
@@ -3700,27 +3708,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:20.569Z",
     "at": "2026-08-17T08:53:20.813Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "f9********94",
-    "valid": true,
-    "paramKeys": [
-      "2509110738351612000"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2509110738351612000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1734153582083051520\",\"storageNum\":9155,\"vid\":\"2509110738351614500\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1734153582083051520\",\"storageNum\":5292,\"vid\":\"2509110738351612000\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:19.698Z",
-    "at": "2026-08-17T08:53:19.930Z"
   }
 ]
