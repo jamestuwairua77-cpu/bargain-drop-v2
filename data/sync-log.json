@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49730714960003,
+    "sku": "CJKT307015011KP",
+    "available": 100,
+    "at": "2026-08-18T08:13:35.548Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49730715189379,
     "sku": null,
     "available": 100,
@@ -1418,12 +1425,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T07:12:53.458Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728257982595,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T07:12:52.647Z"
   }
 ]
