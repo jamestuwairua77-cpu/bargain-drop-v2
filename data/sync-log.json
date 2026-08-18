@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728106987651,
+    "sku": "CJCS307131001AZ",
+    "available": 100,
+    "at": "2026-08-18T06:24:17.838Z"
+  },
+  {
     "action": "import",
     "pid": "2608180219021639100",
     "ok": false,
@@ -3759,27 +3766,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:15.638Z",
     "at": "2026-08-17T08:53:15.934Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "cc********b4",
-    "valid": true,
-    "paramKeys": [
-      "1682985425977217024"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1682985425977217024\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1682985425922691072\",\"storageNum\":3,\"vid\":\"1682985425977217024\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1682985425922691072\",\"storageNum\":12119,\"vid\":\"1682985425977217024\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:13.954Z",
-    "at": "2026-08-17T08:53:14.367Z"
   }
 ]
