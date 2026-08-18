@@ -1,6 +1,14 @@
 [
   {
     "action": "import",
+    "pid": "2608170424111601200",
+    "shopifyId": 9233140875395,
+    "title": "Foot Care Spray",
+    "ok": true,
+    "at": "2026-08-18T07:16:45.362Z"
+  },
+  {
+    "action": "import",
     "pid": "2089187412144857090",
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
@@ -1420,12 +1428,5 @@
     "title": "Skin Itch Relief Cream",
     "ok": true,
     "at": "2026-08-18T07:11:23.937Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728244121731,
-    "sku": "CJQZ306796002BY",
-    "available": 100,
-    "at": "2026-08-18T07:11:22.655Z"
   }
 ]
