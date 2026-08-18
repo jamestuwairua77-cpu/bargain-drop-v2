@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49728113148035,
+    "sku": null,
+    "available": 100,
+    "at": "2026-08-18T06:26:07.934Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49728113115267,
     "sku": "CJLS307039405EV",
     "available": 100,
@@ -3407,27 +3414,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:45.256Z",
     "at": "2026-08-17T08:53:45.549Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "8d********82",
-    "valid": true,
-    "paramKeys": [
-      "2001234848733114370"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2001234848733114370\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:44.167Z",
-    "at": "2026-08-17T08:53:44.386Z"
   }
 ]
