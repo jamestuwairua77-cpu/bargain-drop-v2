@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180210181610200",
+    "shopifyId": 9233118822531,
+    "title": "Powder Compact Blush Loose Powder Magnetic Phone Holder",
+    "ok": true,
+    "at": "2026-08-18T06:24:01.935Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728105840771,
     "sku": "CJNS307038317QJ",
@@ -3878,27 +3886,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:04.397Z",
     "at": "2026-08-17T08:53:04.706Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "83********56",
-    "valid": true,
-    "paramKeys": [
-      "2511060521061635600"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2511060521061635600\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"082E2CF1-D18A-4FBB-A983-67E0C2656265\",\"storageNum\":8510,\"vid\":\"2511060521061635600\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:03.096Z",
-    "at": "2026-08-17T08:53:03.311Z"
   }
 ]
