@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180231261605200",
+    "shopifyId": 9233118658691,
+    "title": "Early Autumnwinter Base-layer Stretchy Pet Dog And Cat Clothing",
+    "ok": true,
+    "at": "2026-08-18T06:23:23.937Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728103547011,
     "sku": null,
@@ -4170,42 +4178,5 @@
     "pid": "2608170843391602100",
     "receivedAt": "2026-08-17T08:52:42.146Z",
     "at": "2026-08-17T08:52:42.340Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "b8********23",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJYD306903705EV",
-    "receivedAt": "2026-08-17T08:52:40.709Z",
-    "at": "2026-08-17T08:52:40.963Z"
   }
 ]
