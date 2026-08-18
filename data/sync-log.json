@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49733244420227,
+    "sku": "CJSJ254263101AZ",
+    "available": 100,
+    "at": "2026-08-18T09:44:01.089Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49733182718083,
     "sku": "CJYD108897103CX",
     "available": 100,
@@ -1418,13 +1425,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T09:24:53.081Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170715301625500",
-    "shopifyId": 9233310646403,
-    "title": "Womens Summer Mesh Polka-Dot Print Backless Pleated Waist-Slimming Sleeveless Halter-Neck Maxi Dress",
-    "ok": true,
-    "at": "2026-08-18T09:24:48.070Z"
   }
 ]
