@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180547361613200",
+    "shopifyId": 9233120428163,
+    "title": "Rustic-style Floral All-cotton Fresh And Cute Four-piece Set",
+    "ok": true,
+    "at": "2026-08-18T06:31:12.858Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728121864323,
     "sku": "CJYD307065501AZ",
@@ -2388,27 +2396,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:55:40.400Z",
     "at": "2026-08-17T08:55:40.759Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "86********81",
-    "valid": true,
-    "paramKeys": [
-      "2608071345461613500"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2608071345461613500\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608071345451619600\",\"storageNum\":5563,\"vid\":\"2608071345461613500\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:55:39.119Z",
-    "at": "2026-08-17T08:55:39.320Z"
   }
 ]
