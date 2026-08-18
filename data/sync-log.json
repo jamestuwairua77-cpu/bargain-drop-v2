@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180420541611800",
+    "shopifyId": 9233119281283,
+    "title": "Nail Care Solution",
+    "ok": true,
+    "at": "2026-08-18T06:25:21.749Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728108724355,
     "sku": "CJYD307104801AZ",
@@ -3568,27 +3576,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:32.199Z",
     "at": "2026-08-17T08:53:32.460Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "56********d9",
-    "valid": true,
-    "paramKeys": [
-      "1989147662069305346"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1989147662069305346\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:30.966Z",
-    "at": "2026-08-17T08:53:31.219Z"
   }
 ]
