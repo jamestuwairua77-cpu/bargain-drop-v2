@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180158401614000",
+    "shopifyId": 9233118363779,
+    "title": "Mens Dirty Stained And Ripped Jeans",
+    "ok": true,
+    "at": "2026-08-18T06:22:29.321Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728100008067,
     "sku": "CJLY307104115OL",
@@ -4673,27 +4681,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:53:49.999Z",
     "at": "2026-08-17T06:53:50.177Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "37********82",
-    "valid": true,
-    "paramKeys": [
-      "2013843825596411906"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2013843825596411906\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1790585214004113408\",\"storageNum\":656,\"vid\":\"2013843825596411906\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1790585214004113408\",\"storageNum\":13065,\"vid\":\"2013843825596411906\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:53:48.585Z",
-    "at": "2026-08-17T06:53:48.798Z"
   }
 ]
