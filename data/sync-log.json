@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2608170107231611000",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:14:56.651Z"
+  },
+  {
+    "action": "import",
     "pid": "2608170244291620900",
     "shopifyId": 9233139204227,
     "title": "Womens Solid-Color French-Style Gentle V-Neck Ruffle-Trim Shirt",
@@ -1422,12 +1429,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T07:09:37.571Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170148281639600",
-    "ok": false,
-    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
-    "at": "2026-08-18T07:09:36.344Z"
   }
 ]
