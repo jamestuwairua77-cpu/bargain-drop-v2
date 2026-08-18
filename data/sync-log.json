@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180148181600100",
+    "shopifyId": 9233118167171,
+    "title": "Vacation Travel Womens Woven Student Backpack",
+    "ok": true,
+    "at": "2026-08-18T06:22:01.666Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728099123331,
     "sku": "CJJT307072301AZ",
@@ -4805,27 +4813,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:53:36.433Z",
     "at": "2026-08-17T06:53:36.734Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "ff********b4",
-    "valid": true,
-    "paramKeys": [
-      "2089241592183947306"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2089241592183947306\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":7948,\"vid\":\"2089241592183947272\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":9289,\"vid\":\"2089241592183947271\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":5453,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:53:35.206Z",
-    "at": "2026-08-17T06:53:35.440Z"
   }
 ]
