@@ -1,5 +1,12 @@
 [
   {
+    "action": "import",
+    "pid": "2608170233151624700",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:14:01.057Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728270401667,
     "sku": null,
@@ -1423,12 +1430,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T07:08:46.933Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170814401605500",
-    "ok": false,
-    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
-    "at": "2026-08-18T07:08:46.020Z"
   }
 ]
