@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2089237985611665410",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T07:16:14.397Z"
+  },
+  {
+    "action": "import",
     "pid": "2089234600359141378",
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
@@ -1420,12 +1427,5 @@
     "sku": "CJYD306791822VE",
     "available": 100,
     "at": "2026-08-18T07:10:48.807Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728241533059,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T07:10:47.696Z"
   }
 ]
