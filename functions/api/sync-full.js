@@ -150,8 +150,8 @@ export async function onRequest(context) {
         variants: vars,
       });
       const ptype = p.product_type || 'other';
-      const key = ptype.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-').replace(/[\"',]/g, '');
-      if (!cats[key]) cats[key] = { name: ptype, products: [] };
+      const key = mapCategory(p.product_type);
+      if (!cats[key]) cats[key] = { name: ptype.split(/[>\/]/)[0].trim(), products: [] };
       cats[key].products.push({
         id: String(p.id), title: p.title, price,
         image: srcs[0] || null,
