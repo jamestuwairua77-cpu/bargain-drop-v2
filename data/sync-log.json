@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180539171611700",
+    "shopifyId": 9233120460931,
+    "title": "Pet Foot Hair Trimmerelectric Clipper Specially Designed For Dogs And Cats Electric And Quiet",
+    "ok": true,
+    "at": "2026-08-18T06:31:21.623Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728122486915,
     "sku": "CJCS307131002BY",
@@ -2343,43 +2351,5 @@
     "pid": "2608170757001609100",
     "receivedAt": "2026-08-17T08:55:44.590Z",
     "at": "2026-08-17T08:55:44.916Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "82********d2",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170739221624900",
-    "receivedAt": "2026-08-17T08:55:41.688Z",
-    "at": "2026-08-17T08:55:42.092Z"
   }
 ]
