@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728122486915,
+    "sku": "CJCS307131002BY",
+    "available": 100,
+    "at": "2026-08-18T06:31:17.599Z"
+  },
+  {
     "action": "import",
     "pid": "2608180547361613200",
     "shopifyId": 9233120428163,
@@ -2374,27 +2381,5 @@
     "pid": "2608170739221624900",
     "receivedAt": "2026-08-17T08:55:41.688Z",
     "at": "2026-08-17T08:55:42.092Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "b5********6c",
-    "valid": true,
-    "paramKeys": [
-      "95AFCC1D-B72C-414E-BCB5-73360AD83896"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"95AFCC1D-B72C-414E-BCB5-73360AD83896\":[{\"areaEn\":\"Britain Warehouse\",\"areaId\":\"17\",\"countryCode\":\"GB\",\"pid\":\"F7C14B84-EA3F-4261-82DB-307A4B4A809E\",\"storageNum\":14,\"vid\":\"95AFCC1D-B72C-414E-BCB5-73360AD83896\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"F7C14B84-EA3F-4261-82DB-307A4B4A809E\",\"storageNum\":14806,\"vid\":\"95AFCC1D-B72C-414E-BCB5-73360AD83896\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:55:40.400Z",
-    "at": "2026-08-17T08:55:40.759Z"
   }
 ]
