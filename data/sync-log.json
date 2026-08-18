@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49733124325507,
+    "sku": "CJPB165958403CX",
+    "available": 100,
+    "at": "2026-08-18T09:12:45.678Z"
+  },
+  {
     "action": "import",
     "pid": "1384394031261421568",
     "shopifyId": 9233283842179,
@@ -1423,12 +1430,5 @@
     "title": "Womens Solid-Color French-Style Gentle V-Neck Ruffle-Trim Shirt",
     "ok": true,
     "at": "2026-08-18T07:14:55.000Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170112091617900",
-    "ok": false,
-    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
-    "at": "2026-08-18T07:14:54.035Z"
   }
 ]
