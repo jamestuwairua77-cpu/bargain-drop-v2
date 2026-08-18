@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180217301604800",
+    "shopifyId": 9233119740035,
+    "title": "Two-in-one Stainless Steel Cigarette Case And Storage Box Metal",
+    "ok": true,
+    "at": "2026-08-18T06:26:50.051Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728116162691,
     "sku": "CJLX307034706FU",
@@ -3071,44 +3079,5 @@
     "pid": "E0BDE97C-D351-4942-9FA5-A9AF55032622",
     "receivedAt": "2026-08-17T08:54:37.909Z",
     "at": "2026-08-17T08:54:38.115Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "50********7d",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "7B085712-6E00-49F1-9091-04EC02088D87",
-    "receivedAt": "2026-08-17T08:54:36.544Z",
-    "at": "2026-08-17T08:54:36.812Z"
   }
 ]
