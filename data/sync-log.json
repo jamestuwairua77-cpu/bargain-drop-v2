@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49733051416707,
+    "sku": "CJLX306280303CX",
+    "available": 100,
+    "at": "2026-08-18T09:10:15.717Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49733078646915,
     "sku": "CJCD253451601AZ",
     "available": 100,
@@ -1422,12 +1429,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T07:14:01.057Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728270401667,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T07:14:00.063Z"
   }
 ]
