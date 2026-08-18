@@ -147,11 +147,38 @@ function mapCategory(productType) {
   for (const slug of CANONICAL_CATEGORIES) {
     if (norm === slug || norm.startsWith(slug + '-') || norm.startsWith(slug + '--')) return slug;
   }
+  // ── GENDER PRECHECK (fixes "men's clothes landing in women's clothes") ──
+  // CJ category paths carry a top-level gender segment ("Men's Clothing", "Women's
+  // Clothing", "Lady ...", "Man ..."). A flat keyword scan was mis-routing generic
+  // apparel (sweaters, blazers, pants, shirts) because "sweaters" etc. matched the
+  // women's keyword block first. Detect an explicit male/female indicator up front —
+  // BUT only for CLOTHING/APPAREL. Footwear (shoes/boots/sneakers/loafers/sandals),
+  // bags, jewelry and other accessories stay gender-neutral and fall through to the
+  // keyword scan (which maps them to bags-shoes etc. regardless of gender).
+  const n0 = norm0(raw);
+  const HAS_MEN = /\b(men|men's|mens|man|man's|mans|male|boy|boys)\b/.test(n0);
+  const HAS_WOMEN = /\b(women|women's|womens|woman|woman's|womans|lady|ladies|female|girl|girls|miss|wmn)\b/.test(n0);
+  // gender-agnostic CATEGORIES that must NOT be forced into clothing:
+  const IS_FOOTWEAR = /\b(shoes|boots|boot|sneakers|sneaker|loafers|loafer|sandals|sandal|slippers|slipper|heels|heel|flats|flat|pumps|pump|footwear)\b/.test(n0);
+  const IS_BAG_ACC = /\b(bag|bags|backpack|backpacks|handbag|handbags|tote|totes|crossbody|wallet|wallets|luggage|purse|purses)\b/.test(n0);
+  const IS_JEWELRY = /\b(jewelry|necklace|necklaces|bracelet|bracelets|earrings|earring|ring|rings|keychain|keychains|watch|watches)\b/.test(n0);
+  const skipGender = IS_FOOTWEAR || IS_BAG_ACC || IS_JEWELRY;
+  if (!skipGender) {
+    if (HAS_MEN && !HAS_WOMEN) return 'mens-clothing';
+    if (HAS_WOMEN && !HAS_MEN) return 'womens-clothing';
+  }
+  // (paths containing BOTH genders, or gender-agnostic categories, fall through)
   // Keyword matching (most-specific first).
   for (const [kw, slug] of CATEGORY_KEYWORDS) {
     if (norm.includes(kw)) return slug;
   }
   return 'other';
+}
+
+// Gender-word probe helper: lowercase + normalize punctuation so word boundaries work
+// reliably on the ORIGINAL (un-slugified) string, e.g. "Men's Clothing" -> "men s clothing".
+function norm0(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z]+/g, ' ');
 }
 
 export async function onRequest(context) {
