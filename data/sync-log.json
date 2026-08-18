@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180513041633500",
+    "shopifyId": 9233119477891,
+    "title": "Halter-neck Long-sleeve Lace-trimmed Romper Hat",
+    "ok": true,
+    "at": "2026-08-18T06:25:54.858Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728110395523,
     "sku": "CJJT307079401AZ",
@@ -3451,27 +3459,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:41.143Z",
     "at": "2026-08-17T08:53:41.509Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "79********31",
-    "valid": true,
-    "paramKeys": [
-      "2001851799034060802"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2001851799034060802\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:40.287Z",
-    "at": "2026-08-17T08:53:40.521Z"
   }
 ]
