@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180423591623700",
+    "shopifyId": 9233118298243,
+    "title": "Womens Slit Mermaid Evening Gown Long Dress",
+    "ok": true,
+    "at": "2026-08-18T06:22:19.571Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728099778691,
     "sku": null,
@@ -4717,27 +4725,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:53:46.494Z",
     "at": "2026-08-17T06:53:46.698Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "f2********e6",
-    "valid": true,
-    "paramKeys": [
-      "2608170644381611609"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2608170644381611609\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644371617300\",\"storageNum\":9864,\"vid\":\"2608170644381611000\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644371617300\",\"storageNum\":6505,\"vid\":\"2608170644381611001\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170644371617300\",\"storageNum\":6001,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:53:45.685Z",
-    "at": "2026-08-17T06:53:45.904Z"
   }
 ]
