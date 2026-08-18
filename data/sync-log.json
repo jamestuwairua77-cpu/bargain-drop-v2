@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49728115900547,
+    "sku": "CJYD307045507GT",
+    "available": 100,
+    "at": "2026-08-18T06:26:41.987Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49728115703939,
     "sku": null,
     "available": 100,
@@ -3164,42 +3171,5 @@
     "pid": "2608170840301625000",
     "receivedAt": "2026-08-17T08:54:31.569Z",
     "at": "2026-08-17T08:54:32.026Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "91********9d",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2608170844211631500",
-    "receivedAt": "2026-08-17T08:54:30.199Z",
-    "at": "2026-08-17T08:54:30.507Z"
   }
 ]
