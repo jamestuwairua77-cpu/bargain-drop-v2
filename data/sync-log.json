@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728108724355,
+    "sku": "CJYD307104801AZ",
+    "available": 100,
+    "at": "2026-08-18T06:25:18.041Z"
+  },
+  {
     "action": "import",
     "pid": "2608180426191629100",
     "shopifyId": 9233119215747,
@@ -3583,27 +3590,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:30.966Z",
     "at": "2026-08-17T08:53:31.219Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "32********b1",
-    "valid": true,
-    "paramKeys": [
-      "1895307298116640770"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1895307298116640770\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:29.786Z",
-    "at": "2026-08-17T08:53:30.027Z"
   }
 ]
