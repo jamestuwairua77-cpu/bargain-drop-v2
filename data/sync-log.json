@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2608180229341634100",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T06:27:19.012Z"
+  },
+  {
+    "action": "import",
     "pid": "2089561906830233602",
     "shopifyId": 9233119936643,
     "title": "Women French Retro Inner Heightening Short Boots Autumn Winter New Fashion Tube Boots Fashion Ankle Boots Martin Boots",
@@ -2925,41 +2932,5 @@
     "sku": "CJLY306906703CX",
     "receivedAt": "2026-08-17T08:54:51.123Z",
     "at": "2026-08-17T08:54:51.339Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "05********42",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJNS306697906FU",
-    "receivedAt": "2026-08-17T08:54:50.153Z",
-    "at": "2026-08-17T08:54:50.340Z"
   }
 ]
