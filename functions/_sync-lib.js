@@ -5,6 +5,8 @@
 // In Cloudflare Pages Functions, env vars are accessed via context.env
 // This module receives env when called from the handler.
 
+import { getShopifyToken, invalidateShopifyToken } from './_shopify-token.js';
+
 export function getEnv(env) {
   return {
     SHOPIFY_DOMAIN: env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com',
@@ -124,9 +126,7 @@ export async function cjFetchMulti(env, path, opts = {}) {
 export async function shopifyFetch(env, path, opts = {}) {
   const SHOPIFY_DOMAIN = env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com';
   // Auto-refresh token: on 401 (expired/revoked), re-exchange client credentials
-  // and retry once. Uses the shared token manager.
-  const { getShopifyToken, invalidateShopifyToken } = await import('./_shopify-token.js');
-
+  // and retry once. Uses the shared token manager (statically imported above).
   let token;
   try {
     token = await getShopifyToken(env);
