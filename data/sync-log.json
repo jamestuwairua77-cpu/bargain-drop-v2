@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180428201627900",
+    "shopifyId": 9233120624771,
+    "title": "Eye Care Patches",
+    "ok": true,
+    "at": "2026-08-18T06:31:48.314Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728125534339,
     "sku": null,
@@ -2042,42 +2050,5 @@
     "sku": "CJYD306851502BY",
     "receivedAt": "2026-08-17T08:56:16.119Z",
     "at": "2026-08-17T08:56:16.332Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "62********36",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJNT306904702BY",
-    "receivedAt": "2026-08-17T08:56:14.476Z",
-    "at": "2026-08-17T08:56:14.699Z"
   }
 ]
