@@ -552,13 +552,9 @@ async function patchCatalogVisible(env, shopifyId, visible) {
     }
   }
   if (!changed) return;
-  // Persist via GitHub contents API (reuse ghWrite from _sync-lib by reconstructing minimal write).
-  const gh = token
-    ? (await import('../_sync-lib.js'))
-    : null;
-  if (gh && gh.ghWrite) {
-    await gh.ghWrite(env, 'all-products.json', JSON.stringify(products, null, 2), 'cj-sync: set visible=' + visible + ' for ' + shopifyId);
-  }
+  // Persist via GitHub contents API using the statically-imported ghWrite helper.
+  await ghWrite(env, 'all-products.json', JSON.stringify(products, null, 2),
+    'cj-sync: set visible=' + visible + ' for ' + shopifyId);
 }
 
 // ── ORDER / LOGISTIC (defer to existing flows) ───────────────────────────
