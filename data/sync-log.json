@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180250321604600",
+    "shopifyId": 9233120231555,
+    "title": "Halloween Cat And Dog Collar Hand-knitted Pumpkin Design Adjustable",
+    "ok": true,
+    "at": "2026-08-18T06:28:26.551Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728121372803,
     "sku": "CJYD307085207GT",
@@ -2523,46 +2531,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:55:29.788Z",
     "at": "2026-08-17T08:55:30.069Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "e8********9b",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productProperty3",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId",
-      "supplierName"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2089267661772083201",
-    "receivedAt": "2026-08-17T08:55:27.815Z",
-    "at": "2026-08-17T08:55:28.045Z"
   }
 ]
