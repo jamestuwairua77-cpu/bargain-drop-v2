@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728292585603,
+    "sku": "CJLX306976601AZ",
+    "available": 100,
+    "at": "2026-08-18T07:16:54.698Z"
+  },
+  {
     "action": "import",
     "pid": "2089499830102052866",
     "ok": false,
@@ -1418,13 +1425,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T07:11:31.281Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170120271622100",
-    "shopifyId": 9233136484483,
-    "title": "Halloween Costume Mermaid Princess Long Dress Set",
-    "ok": true,
-    "at": "2026-08-18T07:11:29.608Z"
   }
 ]
