@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180430361639900",
+    "shopifyId": 9233119150211,
+    "title": "Scar-removal Pen",
+    "ok": true,
+    "at": "2026-08-18T06:25:03.429Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728107806851,
     "sku": null,
@@ -3626,27 +3634,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:27.508Z",
     "at": "2026-08-17T08:53:27.736Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "4f********0f",
-    "valid": true,
-    "paramKeys": [
-      "1953043643212464129"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1953043643212464129\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:26.353Z",
-    "at": "2026-08-17T08:53:26.573Z"
   }
 ]
