@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180308571632300",
+    "shopifyId": 9233119641731,
+    "title": "Double-layer Stainless Steel Bracelet For Men And Women",
+    "ok": true,
+    "at": "2026-08-18T06:26:32.262Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728114098307,
     "sku": null,
@@ -3286,45 +3294,5 @@
     "pid": "2089269073700638722",
     "receivedAt": "2026-08-17T08:54:20.511Z",
     "at": "2026-08-17T08:54:20.686Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "e1********5c",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId",
-      "supplierName"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2089170289318612993",
-    "receivedAt": "2026-08-17T08:54:16.723Z",
-    "at": "2026-08-17T08:54:16.911Z"
   }
 ]
