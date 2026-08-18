@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728106135683,
+    "sku": "CJNS307038326ZA",
+    "available": 100,
+    "at": "2026-08-18T06:24:03.541Z"
+  },
+  {
     "action": "import",
     "pid": "2608180210181610200",
     "shopifyId": 9233118822531,
@@ -3864,27 +3871,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:05.709Z",
     "at": "2026-08-17T08:53:05.972Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "bc********aa",
-    "valid": true,
-    "paramKeys": [
-      "1370990828004184064"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1370990828004184064\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1370990826674589696\",\"storageNum\":40020,\"vid\":\"1370990828004184064\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:04.397Z",
-    "at": "2026-08-17T08:53:04.706Z"
   }
 ]
