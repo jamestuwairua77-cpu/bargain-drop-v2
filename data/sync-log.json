@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49728127565955,
+    "sku": "CJDK306993605EV",
+    "available": 100,
+    "at": "2026-08-18T06:34:52.269Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49728127271043,
     "sku": "CJYD306996903CX",
     "available": 100,
@@ -1451,41 +1458,5 @@
     "title": "Fashionable Casual Camouflage Pants For Men",
     "ok": true,
     "at": "2026-08-18T06:07:38.120Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "38********1c",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJTZ306907714NM",
-    "receivedAt": "2026-08-17T08:57:01.125Z",
-    "at": "2026-08-17T08:57:01.336Z"
   }
 ]
