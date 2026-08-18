@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180540301616000",
+    "shopifyId": 9233119576195,
+    "title": "Thin Sleeve Finger Wrist Thumb Guard",
+    "ok": true,
+    "at": "2026-08-18T06:26:19.116Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728113606787,
     "sku": "CJDK307012115OL",
@@ -3348,27 +3356,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:51.316Z",
     "at": "2026-08-17T08:53:51.965Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "38********22",
-    "valid": true,
-    "paramKeys": [
-      "2089266837812969479"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2089266837812969479\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:50.183Z",
-    "at": "2026-08-17T08:53:50.409Z"
   }
 ]
