@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180409271624400",
+    "shopifyId": 9233120690307,
+    "title": "Dark Spot Serum Patch",
+    "ok": true,
+    "at": "2026-08-18T06:32:06.827Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728125632643,
     "sku": "CJMJ307101401AZ",
@@ -1926,42 +1934,5 @@
     "sku": "CJMY306906406FU",
     "receivedAt": "2026-08-17T08:56:27.812Z",
     "at": "2026-08-17T08:56:27.990Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "INSERT",
-    "messageId": "a6********39",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJMY306906404DW",
-    "receivedAt": "2026-08-17T08:56:24.140Z",
-    "at": "2026-08-17T08:56:24.322Z"
   }
 ]
