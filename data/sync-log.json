@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728130941059,
+    "sku": "CJNS307124201AZ",
+    "available": 100,
+    "at": "2026-08-18T06:39:32.463Z"
+  },
+  {
     "action": "import",
     "pid": "2089585920692969474",
     "shopifyId": 9233121869955,
@@ -1454,13 +1461,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T06:21:53.581Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608180331521606900",
-    "shopifyId": 9233118134403,
-    "title": "Plastic ABS Shell With Snap Fastener",
-    "ok": true,
-    "at": "2026-08-18T06:21:51.836Z"
   }
 ]
