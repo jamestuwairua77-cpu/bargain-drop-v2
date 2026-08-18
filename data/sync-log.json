@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728100008067,
+    "sku": "CJLY307104115OL",
+    "available": 100,
+    "at": "2026-08-18T06:22:23.250Z"
+  },
+  {
     "action": "import",
     "pid": "2608180324561622100",
     "ok": false,
@@ -4688,27 +4695,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:53:48.585Z",
     "at": "2026-08-17T06:53:48.798Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "8f********d1",
-    "valid": true,
-    "paramKeys": [
-      "2089242486414024708"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2089242486414024708\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089242486078480386\",\"storageNum\":6666,\"vid\":\"2089242486414024708\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089242486078480386\",\"storageNum\":8315,\"vid\":\"2089242486414024707\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089242486078480386\",\"storageNum\":6598,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:53:47.517Z",
-    "at": "2026-08-17T06:53:47.716Z"
   }
 ]
