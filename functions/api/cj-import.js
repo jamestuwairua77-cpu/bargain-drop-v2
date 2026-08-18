@@ -53,6 +53,9 @@ export async function onRequest(context) {
 
   const body = await request.json().catch(() => ({}));
   const pids = Array.isArray(body.pids) ? body.pids : [];
+  // Optional pass-through of already-fetched CJ product/query results (saves credits):
+  // { pid: detailObject }. When provided, we SKIP the redundant product/query call.
+  const detailMap = (body.detail && typeof body.detail === 'object') ? body.detail : {};
   const markup = Math.max(1.0, parseFloat(body.markup || '2.5'));
   const defaultStock = Math.max(0, parseInt(body.defaultStock || '100', 10));
   const LOCATION_ID = parseInt(env.SHOPIFY_LOCATION_ID || '91452932227', 10);
@@ -88,12 +91,17 @@ export async function onRequest(context) {
         log(`── [${step}/${pids.length}] pid=${pid} ────────────────────────────`, 'section');
 
         try {
-          log(`  › Fetching CJ product details for ID: ${pid}...`);
-          const detailRes = await cjFetch(env, `/product/query?pid=${encodeURIComponent(pid)}`);
-          if (detailRes.code !== 200 || !detailRes.data) {
-            throw new Error(`CJ detail fetch failed: ${detailRes.message || detailRes.code}`);
+          let p = detailMap[pid];
+          if (p) {
+            log(`  › Using passed-through CJ detail for ${pid} (no re-query)`, 'info');
+          } else {
+            log(`  › Fetching CJ product details for ID: ${pid}...`);
+            const detailRes = await cjFetch(env, `/product/query?pid=${encodeURIComponent(pid)}`);
+            if (detailRes.code !== 200 || !detailRes.data) {
+              throw new Error(`CJ detail fetch failed: ${detailRes.message || detailRes.code}`);
+            }
+            p = detailRes.data;
           }
-          const p = detailRes.data;
           log(`  ✓ Got: "${p.productNameEn}" (base SKU ${p.productSku})`);
 
           log(`  › Reading variant list from CJ product detail...`);
