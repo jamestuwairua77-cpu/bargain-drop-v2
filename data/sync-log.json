@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180248211606600",
+    "shopifyId": 9233118789763,
+    "title": "Brock Floral-embellished Womens High Heels",
+    "ok": true,
+    "at": "2026-08-18T06:23:56.898Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728105054339,
     "sku": null,
@@ -3907,27 +3915,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:01.563Z",
     "at": "2026-08-17T08:53:01.993Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "79********0d",
-    "valid": true,
-    "paramKeys": [
-      "2608170842441623203"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2608170842441623203\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170842441621900\",\"storageNum\":7873,\"vid\":\"2608170842441623201\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170842441621900\",\"storageNum\":5229,\"vid\":\"2608170842441623200\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2608170842441621900\",\"storageNum\":5540,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:00.269Z",
-    "at": "2026-08-17T08:53:00.523Z"
   }
 ]
