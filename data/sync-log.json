@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180412331629600",
+    "shopifyId": 9233119346819,
+    "title": "Rice Moisturizing Sunscreen Lotion",
+    "ok": true,
+    "at": "2026-08-18T06:25:32.821Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728109412483,
     "sku": "CJYD307112820TG",
@@ -3495,27 +3503,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:37.819Z",
     "at": "2026-08-17T08:53:38.203Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "a1********3e",
-    "valid": true,
-    "paramKeys": [
-      "2001522711058685954"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2001522711058685954\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:36.648Z",
-    "at": "2026-08-17T08:53:36.871Z"
   }
 ]
