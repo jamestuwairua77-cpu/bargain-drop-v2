@@ -1,6 +1,35 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49730683633795,
+    "sku": null,
+    "available": 100,
+    "at": "2026-08-18T08:11:55.580Z"
+  },
+  {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49730683732099,
+    "sku": "CJYD307159805EV",
+    "available": 100,
+    "at": "2026-08-18T08:11:53.919Z"
+  },
+  {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49730683699331,
+    "sku": "CJYD307159804DW",
+    "available": 100,
+    "at": "2026-08-18T08:11:52.366Z"
+  },
+  {
+    "action": "import",
+    "pid": "2608180638451636900",
+    "shopifyId": 9233222041731,
+    "title": "Webbing Square Strap With Phone Space Anti-loss Keychain",
+    "ok": true,
+    "at": "2026-08-18T08:11:48.626Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49730675146883,
     "sku": "CJYD307161601AZ",
     "available": 100,
@@ -1398,33 +1427,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T07:12:04.569Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728249069699,
-    "sku": "CJYD306814604DW",
-    "available": 100,
-    "at": "2026-08-18T07:12:02.956Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728242745475,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T07:12:01.580Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608170338511609600",
-    "ok": false,
-    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
-    "at": "2026-08-18T07:12:00.020Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728242450563,
-    "sku": "CJYD306791829CX",
-    "available": 100,
-    "at": "2026-08-18T07:11:53.441Z"
   }
 ]
