@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180201091610700",
+    "shopifyId": 9233118265475,
+    "title": "Fashionable Casual Camouflage Pants For Men",
+    "ok": true,
+    "at": "2026-08-18T06:22:15.005Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728099287171,
     "sku": null,
@@ -4761,27 +4769,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:53:43.070Z",
     "at": "2026-08-17T06:53:43.466Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "ef********9b",
-    "valid": true,
-    "paramKeys": [
-      "2089241592183947296"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2089241592183947296\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":7948,\"vid\":\"2089241592183947272\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":9289,\"vid\":\"2089241592183947271\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2089241592070701058\",\"storageNum\":5453,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:53:40.213Z",
-    "at": "2026-08-17T06:53:41.680Z"
   }
 ]
