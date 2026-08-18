@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2038882270710984705",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T09:25:56.092Z"
+  },
+  {
+    "action": "import",
     "pid": "2053733336216633345",
     "shopifyId": 9233312678019,
     "title": "Resistance Bands Loop Set Of 5 Exercise Strength Workout Fitness Yoga Booty Band",
@@ -1427,12 +1434,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T09:16:29.193Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733211390083,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T09:16:27.851Z"
   }
 ]
