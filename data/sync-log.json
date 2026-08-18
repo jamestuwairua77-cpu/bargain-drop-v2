@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2608180143261621800",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T06:22:31.303Z"
+  },
+  {
+    "action": "import",
     "pid": "2608180158401614000",
     "shopifyId": 9233118363779,
     "title": "Mens Dirty Stained And Ripped Jeans",
@@ -4659,27 +4666,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:53:50.939Z",
     "at": "2026-08-17T06:53:51.248Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "88********63",
-    "valid": true,
-    "paramKeys": [
-      "2410140644241602700"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2410140644241602700\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2410140644241602500\",\"storageNum\":11384,\"vid\":\"2410140644241602700\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:53:49.999Z",
-    "at": "2026-08-17T06:53:50.177Z"
   }
 ]
