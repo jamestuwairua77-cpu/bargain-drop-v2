@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180535231622000",
+    "shopifyId": 9233117184131,
+    "title": "Winter Warm And Waterproof Love Stray Cat Nest",
+    "ok": true,
+    "at": "2026-08-18T06:15:54.680Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728083394691,
     "sku": "CJNS307131801AZ",
@@ -5829,27 +5837,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T06:52:29.271Z",
     "at": "2026-08-17T06:52:29.650Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "91********9f",
-    "valid": true,
-    "paramKeys": [
-      "1746759517204918272"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1746759517204918272\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1746759517108449280\",\"storageNum\":14861,\"vid\":\"1746759517204918272\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T06:52:28.215Z",
-    "at": "2026-08-17T06:52:28.407Z"
   }
 ]
