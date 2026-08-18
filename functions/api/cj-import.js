@@ -39,6 +39,28 @@ function parseVariantKey(key, nameEn) {
   return parts.slice(0, 3).map(s => s.trim()).filter(Boolean);
 }
 
+// ── Product-aware pricing (2.5x baseline, tiered by base cost) ─────────
+// Standard dropshipping pricing: mark up cheap items more aggressively, expensive
+// items less, so final retail prices stay sensible and profit per unit is healthy.
+// Round to a clean psychological price (.99 / .95).
+function computePrice(baseCost) {
+  const c = parseFloat(baseCost) || 0;
+  if (c <= 0) return { price: 0, markup: 2.5 };
+  let mult;
+  if (c < 5)        mult = 3.2;   // super-cheap: aggressive
+  else if (c < 8)   mult = 3.0;
+  else if (c < 15)  mult = 2.6;
+  else if (c < 30)  mult = 2.5;   // baseline
+  else if (c < 60)  mult = 2.1;
+  else if (c < 120) mult = 1.9;
+  else              mult = 1.7;   // expensive: gentle
+  const raw = c * mult;
+  // psychological pricing: round to .95
+  let price = Math.ceil(raw) - 0.05;
+  if (price <= 0) price = raw;
+  return { price: +price.toFixed(2), markup: mult };
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
@@ -56,6 +78,8 @@ export async function onRequest(context) {
   // Optional pass-through of already-fetched CJ product/query results (saves credits):
   // { pid: detailObject }. When provided, we SKIP the redundant product/query call.
   const detailMap = (body.detail && typeof body.detail === 'object') ? body.detail : {};
+  // Base markup (2.5x default). Actual per-product price is computed via computePrice()
+  // which varies the multiplier by product base cost (higher on cheap, lower on pricey).
   const markup = Math.max(1.0, parseFloat(body.markup || '2.5'));
   const defaultStock = Math.max(0, parseInt(body.defaultStock || '100', 10));
   const LOCATION_ID = parseInt(env.SHOPIFY_LOCATION_ID || '91452932227', 10);
@@ -137,9 +161,11 @@ export async function onRequest(context) {
           log(`  › Mapping payload for Shopify format...`);
           const shopifyVariants = variants.map((v, idx) => {
             const parts = parseVariantKey(v.variantKey, v.variantNameEn || v.variantName);
-            const price = ((parseFloat(v.variantSellPrice) || parseFloat(p.sellPrice) || 0) * markup).toFixed(2);
+            const baseCost = parseFloat(v.variantSellPrice) || parseFloat(p.sellPrice) || 0;
+            const { price: retailPrice, markup: appliedMult } = computePrice(baseCost);
+            const price = retailPrice.toFixed(2);
             const grams = Math.round(parseFloat(v.variantWeight) || 0);
-            log(`    · variant ${idx + 1}/${variants.length} — SKU ${v.variantSku} · key "${v.variantKey}" · $${price} · ${grams}g`);
+            log(`    · variant ${idx + 1}/${variants.length} — SKU ${v.variantSku} · key "${v.variantKey}" · base $${baseCost} ×${appliedMult.toFixed(2)} → $${price} · ${grams}g`);
             return {
               sku: v.variantSku, price,
               option1: parts[0] || 'Default', option2: parts[1] || null, option3: parts[2] || null,
