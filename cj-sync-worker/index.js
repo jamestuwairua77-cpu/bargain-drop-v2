@@ -10,6 +10,28 @@
 
 const CJ_BASE = 'https://developers.cjdropshipping.com/api2.0/v1';
 const SHOPIFY_API = 'https://bargain-drop-8194.myshopify.com/admin/api/2025-10';
+const OAUTH_URL = 'https://bargain-drop-8194.myshopify.com/admin/oauth/access_token';
+
+// ── Shopify token auto-refresh (client-credentials grant) ──
+let _shopifyToken = { token: null, exp: 0 };
+async function getShopifyToken(env, force = false) {
+  const cid = env.SHOPIFY_CLIENT_ID || '';
+  const cs = env.SHOPIFY_CLIENT_SECRET || '';
+  if (cid && cs) {
+    if (!force && _shopifyToken.token && Date.now() < _shopifyToken.exp) return _shopifyToken.token;
+    const r = await fetch(OAUTH_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: cid, client_secret: cs, grant_type: 'client_credentials' }),
+    });
+    const j = await r.json();
+    if (!j || !j.access_token) throw new Error('Shopify exchange failed');
+    _shopifyToken = { token: j.access_token, exp: Date.now() + ((Number(j.expires_in) || 86399) - 600) * 1000 };
+    return _shopifyToken.token;
+  }
+  const staticTok = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
+  if (staticTok) return staticTok;
+  throw new Error('no Shopify token');
+}
 
 export default {
   // ── cron trigger ──
@@ -69,9 +91,12 @@ async function cjProductQueryBySku(env, sku) {
 
 // ── Shopify helpers ──
 async function shopifyFetch(env, path, opts = {}) {
-  const token = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
+  let token;
+  try { token = await getShopifyToken(env); }
+  catch (e) { token = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || ''; }
   if (!token) throw new Error('no Shopify token');
-  const r = await fetch(SHOPIFY_API + path, {
+
+  let r = await fetch(SHOPIFY_API + path, {
     ...opts,
     headers: {
       'X-Shopify-Access-Token': token,
@@ -79,6 +104,22 @@ async function shopifyFetch(env, path, opts = {}) {
       ...(opts.headers || {}),
     },
   });
+
+  // 401 → expired token → re-exchange + retry once.
+  if (r.status === 401) {
+    try {
+      token = await getShopifyToken(env, true);
+      r = await fetch(SHOPIFY_API + path, {
+        ...opts,
+        headers: {
+          'X-Shopify-Access-Token': token,
+          'Content-Type': 'application/json',
+          ...(opts.headers || {}),
+        },
+      });
+    } catch {}
+  }
+
   const text = await r.text();
   let body;
   try { body = JSON.parse(text); } catch { body = { raw: text }; }

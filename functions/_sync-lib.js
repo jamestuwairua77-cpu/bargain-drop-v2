@@ -122,17 +122,45 @@ export async function cjFetchMulti(env, path, opts = {}) {
 }
 
 export async function shopifyFetch(env, path, opts = {}) {
-  const SHOPIFY_TOKEN = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
   const SHOPIFY_DOMAIN = env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com';
-  if (!SHOPIFY_TOKEN) throw new Error('SHOPIFY_ACCESS_TOKEN not configured');
-  const r = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2025-10${path}`, {
+  // Auto-refresh token: on 401 (expired/revoked), re-exchange client credentials
+  // and retry once. Uses the shared token manager.
+  const { getShopifyToken, invalidateShopifyToken } = await import('./_shopify-token.js');
+
+  let token;
+  try {
+    token = await getShopifyToken(env);
+  } catch (e) {
+    // no client creds AND no static token -> fall back to legacy env token
+    token = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
+    if (!token) throw new Error('SHOPIFY_ACCESS_TOKEN not configured');
+  }
+
+  let r = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2025-10${path}`, {
     ...opts,
     headers: {
-      'X-Shopify-Access-Token': SHOPIFY_TOKEN,
+      'X-Shopify-Access-Token': token,
       'Content-Type': 'application/json',
       ...(opts.headers || {}),
     },
   });
+
+  // 401 → token was invalid/expired. Invalidate + re-exchange + retry once.
+  if (r.status === 401) {
+    invalidateShopifyToken();
+    try {
+      token = await getShopifyToken(env, true);
+      r = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2025-10${path}`, {
+        ...opts,
+        headers: {
+          'X-Shopify-Access-Token': token,
+          'Content-Type': 'application/json',
+          ...(opts.headers || {}),
+        },
+      });
+    } catch {}
+  }
+
   const text = await r.text();
   let body;
   try { body = JSON.parse(text); } catch { body = { raw: text }; }
