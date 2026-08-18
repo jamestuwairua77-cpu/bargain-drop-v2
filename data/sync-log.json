@@ -1,5 +1,12 @@
 [
   {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728113508483,
+    "sku": "CJDK307012112LO",
+    "available": 100,
+    "at": "2026-08-18T06:26:12.536Z"
+  },
+  {
     "action": "import",
     "pid": "2608180212471612500",
     "shopifyId": 9233119543427,
@@ -3378,27 +3385,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:48.583Z",
     "at": "2026-08-17T08:53:48.846Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "9a********f1",
-    "valid": true,
-    "paramKeys": [
-      "2086737336763146292"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2086737336763146292\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2086737334594691074\",\"storageNum\":6034,\"vid\":\"2086737336763146292\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:46.593Z",
-    "at": "2026-08-17T08:53:47.055Z"
   }
 ]
