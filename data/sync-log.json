@@ -1,5 +1,13 @@
 [
   {
+    "action": "import",
+    "pid": "2608180426191629100",
+    "shopifyId": 9233119215747,
+    "title": "Firming And Rejuvenating Essential Oil",
+    "ok": true,
+    "at": "2026-08-18T06:25:12.693Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49728108691587,
     "sku": "CJYD307106401AZ",
@@ -3597,27 +3605,5 @@
     "changed": 0,
     "receivedAt": "2026-08-17T08:53:29.786Z",
     "at": "2026-08-17T08:53:30.027Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "99********d3",
-    "valid": true,
-    "paramKeys": [
-      "1956623756892327937"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1956623756892327937\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-17T08:53:28.709Z",
-    "at": "2026-08-17T08:53:28.937Z"
   }
 ]
