@@ -244,11 +244,14 @@ export async function onRequest(context) {
           status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
         });
       }
-      const batch = (r.body.products || []).filter(p => p.status === 'active' && p.title);
-      if (batch.length === 0) break;
+      const rawProducts = r.body.products || [];
+      const batch = rawProducts.filter(p => p.status === 'active' && p.title);
+      if (batch.length === 0 && rawProducts.length === 0) break;
       prods.push(...batch);
-      since_id = batch[batch.length - 1].id;
-      if (batch.length < 250) break;
+      // Advance using the RAW last product (not the filtered one) so we never skip
+      // or re-fetch rows, and continue paginating based on the RAW page fullness.
+      since_id = rawProducts[rawProducts.length - 1].id;
+      if (rawProducts.length < 250) break;
       await new Promise(res => setTimeout(res, 400));
     }
 
