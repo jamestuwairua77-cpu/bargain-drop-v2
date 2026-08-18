@@ -1,6 +1,14 @@
 [
   {
     "action": "import",
+    "pid": "2608180222551631900",
+    "shopifyId": 9233119772803,
+    "title": "Wind Beads Photo Props Wholesale Pendant Vintage Gold",
+    "ok": true,
+    "at": "2026-08-18T06:26:52.428Z"
+  },
+  {
+    "action": "import",
     "pid": "2608180217301604800",
     "shopifyId": 9233119740035,
     "title": "Two-in-one Stainless Steel Cigarette Case And Storage Box Metal",
@@ -3040,44 +3048,5 @@
     "sku": "CJLS206691720TG",
     "receivedAt": "2026-08-17T08:54:43.062Z",
     "at": "2026-08-17T08:54:43.325Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "5c********2b",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "E0BDE97C-D351-4942-9FA5-A9AF55032622",
-    "receivedAt": "2026-08-17T08:54:37.909Z",
-    "at": "2026-08-17T08:54:38.115Z"
   }
 ]
