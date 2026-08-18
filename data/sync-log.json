@@ -1,6 +1,13 @@
 [
   {
     "action": "import",
+    "pid": "2608180633321615500",
+    "ok": false,
+    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
+    "at": "2026-08-18T08:14:09.097Z"
+  },
+  {
+    "action": "import",
     "pid": "2608180634121628800",
     "shopifyId": 9233222926467,
     "title": "Hair Clipper Blade Maintenance Oil Lubricant",
@@ -1420,12 +1427,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T07:13:08.400Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49728259162243,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T07:13:07.542Z"
   }
 ]
