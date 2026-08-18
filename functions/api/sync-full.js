@@ -49,6 +49,111 @@ function normalizeVariantOption(raw, productId, title, allRawOptions) {
   return pal[0];
 }
 
+// ── mapCategory(productType) ──
+// Maps CJ's full category path (e.g. "Men's Clothing > Bottoms > Man Jeans",
+// sometimes "/"- or "-"-delimited, e.g. "bags-shoes-/-womens-shoes-/-flats")
+// to the canonical top-level site category slug. Falls back to 'other'.
+const CANONICAL_CATEGORIES = [
+  'womens-clothing', 'mens-clothing', 'bags-shoes', 'jewelry-watches',
+  'home-garden-furniture', 'consumer-electronics', 'sports-outdoors',
+  'health-beauty-hair', 'phones-accessories', 'pet-supplies',
+  'toys-kids-babies', 'home-improvement', 'automobiles-motorcycles', 'computer-office',
+];
+// keyword → canonical slug (order matters: most specific first)
+const CATEGORY_KEYWORDS = [
+  // Jewelry & Watches
+  ['jewelry', 'jewelry-watches'], ['necklace', 'jewelry-watches'], ['bracelet', 'jewelry-watches'],
+  ['earrings', 'jewelry-watches'], ['ring', 'jewelry-watches'], ['keychain', 'jewelry-watches'],
+  ['watch', 'jewelry-watches'], ['925-silver', 'jewelry-watches'],
+  // Bags & Shoes
+  ['bags', 'bags-shoes'], ['bag', 'bags-shoes'], ['totes', 'bags-shoes'], ['backpack', 'bags-shoes'],
+  ['handbag', 'bags-shoes'], ['crossbody', 'bags-shoes'], ['luggage', 'bags-shoes'], ['wallet', 'bags-shoes'],
+  ['shoes', 'bags-shoes'], ['boots', 'bags-shoes'], ['slippers', 'bags-shoes'], ['sandals', 'bags-shoes'],
+  ['heels', 'bags-shoes'], ['flats', 'bags-shoes'], ['pumps', 'bags-shoes'], ['sneakers', 'bags-shoes'],
+  ['loafers', 'bags-shoes'],
+  // Women's Clothing
+  ['womens-clothing', 'womens-clothing'], ['woman-clothing', 'womens-clothing'],
+  ['lady-dresses', 'womens-clothing'], ['dresses', 'womens-clothing'], ['blazers', 'womens-clothing'],
+  ['skirts', 'womens-clothing'], ['blouses', 'womens-clothing'], ['jumpsuits', 'womens-clothing'],
+  ['wide-leg-pants', 'womens-clothing'], ['pants-capris', 'womens-clothing'], ['sweaters', 'womens-clothing'],
+  ['woman-jeans', 'womens-clothing'], ['woman-trench', 'womens-clothing'], ['bras', 'womens-clothing'],
+  ['bikini', 'womens-clothing'], ['suits-sets', 'womens-clothing'], ['rompers', 'womens-clothing'],
+  ['leggings', 'womens-clothing'],
+  // Men's Clothing
+  ['mens-clothing', 'mens-clothing'], ['man-jeans', 'mens-clothing'], ['mens-shirts', 'mens-clothing'],
+  ['man-hoodies', 'mens-clothing'], ['mens-jackets', 'mens-clothing'], ['man-trench', 'mens-clothing'],
+  ['man-shorts', 'mens-clothing'], ['casual-pants', 'mens-clothing'], ['cargo-pants', 'mens-clothing'],
+  ['mens-shoes', 'bags-shoes'], ['man-shoes', 'bags-shoes'], ['men-sandals', 'bags-shoes'],
+  ['mens-sweaters', 'mens-clothing'],
+  // Home & Garden & Furniture
+  ['home-garden-furniture', 'home-garden-furniture'], ['home-storage', 'home-garden-furniture'],
+  ['kitchen', 'home-garden-furniture'], ['home-textiles', 'home-garden-furniture'], ['bedding', 'home-garden-furniture'],
+  ['drinkware', 'home-garden-furniture'], ['dinnerware', 'home-garden-furniture'], ['furniture', 'home-garden-furniture'],
+  ['cooking-tools', 'home-garden-furniture'], ['bakeware', 'home-garden-furniture'], ['pillows', 'home-garden-furniture'],
+  ['stationeries', 'home-garden-furniture'], ['garden', 'home-garden-furniture'],
+  // Home Improvement & Tools
+  ['home-improvement', 'home-improvement'], ['tool-sets', 'home-improvement'], ['tool-set', 'home-improvement'],
+  ['tools', 'home-improvement'], ['replacement-part', 'home-improvement'], ['lamp', 'home-improvement'],
+  ['lighting', 'home-improvement'], ['bathroom', 'home-improvement'], ['cleaning', 'home-improvement'],
+  ['drill', 'home-improvement'], ['screwdriver', 'home-improvement'], ['garden-tools', 'home-improvement'],
+  // Health, Beauty & Hair
+  ['health-beauty-hair', 'health-beauty-hair'], ['skin-care', 'health-beauty-hair'], ['facial', 'health-beauty-hair'],
+  ['nail', 'health-beauty-hair'], ['makeup', 'health-beauty-hair'], ['beauty', 'health-beauty-hair'],
+  ['body-care', 'health-beauty-hair'], ['hair', 'health-beauty-hair'], ['wigs', 'health-beauty-hair'],
+  ['lipstick', 'health-beauty-hair'], ['eyeshadow', 'health-beauty-hair'],
+  // Consumer Electronics
+  ['consumer-electronics', 'consumer-electronics'], ['smart-electronics', 'consumer-electronics'],
+  ['smart-home', 'consumer-electronics'], ['earphones', 'consumer-electronics'], ['headphones', 'consumer-electronics'],
+  ['audio', 'consumer-electronics'], ['speaker', 'consumer-electronics'], ['amplifier', 'consumer-electronics'],
+  ['camera', 'consumer-electronics'], ['keyboard', 'consumer-electronics'], ['hdd-enclosures', 'consumer-electronics'],
+  // Phones & Accessories
+  ['phones-accessories', 'phones-accessories'], ['phone-accessories', 'phones-accessories'],
+  ['cases-covers', 'phones-accessories'], ['phone-cases', 'phones-accessories'], ['holders-stands', 'phones-accessories'],
+  ['watch-band', 'phones-accessories'], ['charger', 'phones-accessories'], ['cables', 'phones-accessories'],
+  ['silicone-cases', 'phones-accessories'], ['gps-trackers', 'phones-accessories'],
+  // Sports & Outdoors
+  ['sports-outdoors', 'sports-outdoors'], ['sportswear', 'sports-outdoors'], ['fishing', 'sports-outdoors'],
+  ['camping', 'sports-outdoors'], ['hiking', 'sports-outdoors'], ['sneakers', 'sports-outdoors'],
+  ['swimming', 'sports-outdoors'], ['yoga', 'sports-outdoors'], ['fitness', 'sports-outdoors'], ['gym', 'sports-outdoors'],
+  ['bike', 'sports-outdoors'], ['outdoor', 'sports-outdoors'], ['sports-accessories', 'sports-outdoors'],
+  // Pet Supplies
+  ['pet-supplies', 'pet-supplies'], ['pet-', 'pet-supplies'], ['cat', 'pet-supplies'], ['dog', 'pet-supplies'],
+  ['bird-feeders', 'pet-supplies'],
+  // Toys, Kids & Babies
+  ['toys-kids-babies', 'toys-kids-babies'], ['toys-hobbies', 'toys-kids-babies'], ['toy', 'toys-kids-babies'],
+  ['baby', 'toys-kids-babies'], ['kids', 'toys-kids-babies'], ['dolls', 'toys-kids-babies'],
+  ['puzzle', 'toys-kids-babies'], ['girl-clothing', 'toys-kids-babies'], ['action-toy', 'toys-kids-babies'],
+  // Automobiles & Motorcycles
+  ['automobiles-motorcycles', 'automobiles-motorcycles'], ['auto-replacement', 'automobiles-motorcycles'],
+  ['motorcycle', 'automobiles-motorcycles'], ['automobile', 'automobiles-motorcycles'], ['car-washer', 'automobiles-motorcycles'],
+];
+
+function slugifyCategory(s) {
+  return String(s || '').toLowerCase()
+    .replace(/ & /g, ' ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function mapCategory(productType) {
+  const raw = String(productType || '').trim();
+  if (!raw) return 'other';
+  // Normalize separators (">", "/", "-") into a single hyphenated, keyword-searchable string,
+  // but preserve readability. We match against a hyphen-joined lowercased form.
+  const norm = slugifyCategory(raw);
+  if (!norm) return 'other';
+  // If it already IS a canonical slug (or starts with one), return it directly.
+  if (CANONICAL_CATEGORIES.includes(norm)) return norm;
+  for (const slug of CANONICAL_CATEGORIES) {
+    if (norm === slug || norm.startsWith(slug + '-') || norm.startsWith(slug + '--')) return slug;
+  }
+  // Keyword matching (most-specific first).
+  for (const [kw, slug] of CATEGORY_KEYWORDS) {
+    if (norm.includes(kw)) return slug;
+  }
+  return 'other';
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
