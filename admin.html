@@ -42,6 +42,13 @@ a{color:inherit;text-decoration:none}
 .refresh-btn{width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--line);color:var(--fg);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .refresh-btn:active{transform:rotate(180deg);transition:transform .3s}
 .exit-btn{width:36px;height:36px;border-radius:50%;background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem}
+.bell-btn{position:relative;width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--line);color:var(--fg);font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.bell-btn:hover{background:var(--card)}
+.bell-btn .bell-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:var(--pill);background:var(--red);color:#fff;font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1;border:2px solid var(--bg)}
+.bell-btn .bell-badge.warn{background:var(--gold);color:#000}
+.bell-btn .bell-badge.ok{background:var(--green);color:#000}
+.bell-btn.pulse-warn{animation:bellpulse 1.8s infinite}
+@keyframes bellpulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,.5)}50%{box-shadow:0 0 0 8px rgba(245,166,35,0)}}
 
 /* Main content */
 .admin-main{padding:16px;padding-bottom:calc(var(--tabs-h) + 24px);max-width:1200px;margin:0 auto}
@@ -175,6 +182,10 @@ a{color:inherit;text-decoration:none}
   <div class="header-actions">
     <button class="toggle-btn active" id="toggle-mobile" onclick="setLayout('mobile')" title="Mobile View">📱</button>
     <button class="toggle-btn" id="toggle-desktop" onclick="setLayout('desktop')" title="Desktop View">🖥</button>
+    <a href="notifications.html" class="bell-btn" id="bell-btn" title="Notifications & site health" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span class="bell-badge" id="bell-badge" style="display:none">0</span>
+    </a>
     <button class="refresh-btn" onclick="refreshAll()" title="Refresh">🔄</button>
     <button class="exit-btn" onclick="logout()" title="Exit">✕</button>
   </div>
@@ -400,6 +411,8 @@ var currentTab = 'dashboard';
 function init() {
   refreshAll();
   setLayout(isLikelyMobile() ? 'mobile' : 'desktop');
+  checkHealth();
+  setInterval(checkHealth, 60000);  // re-check site health every 60s
 }
 
 function isLikelyMobile() {
@@ -438,6 +451,36 @@ function changeCode() {
   msg.textContent = 'Code updated successfully!'; msg.style.color = 'var(--green)';
   el.value = '';
   setTimeout(function() { msg.textContent = ''; }, 3000);
+}
+
+// ── Site health checker → notification bell badge ──
+var __healthUnread = 0;
+function checkHealth() {
+  fetch('/api/site-health', { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var badge = document.getElementById('bell-badge');
+      var bell = document.getElementById('bell-btn');
+      if (!badge || !bell) return;
+      var total = (d.issues ? d.issues.length : 0) + (d.unread || 0) + (d.syncErrorCount || 0);
+      if (total > 0) {
+        __healthUnread = total;
+        badge.textContent = total;
+        badge.style.display = 'flex';
+        badge.className = 'bell-badge' + (total > 0 ? ' warn' : '');
+        bell.classList.add('pulse-warn');
+      } else {
+        __healthUnread = 0;
+        badge.style.display = 'none';
+        bell.classList.remove('pulse-warn');
+      }
+      // also reflect in the existing status bar dot for sync
+      var syncDot = document.getElementById('sync-dot');
+      if (syncDot && d.issues && d.issues.length) {
+        syncDot.className = 'status-dot offline';
+      }
+    })
+    .catch(function(){ /* health check failed silently; badge just stays unchanged */ });
 }
 
 function refreshAll() {

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>🔔 Notifications — Bargain Drop</title>
+<style>
+:root{
+  --bg:#0F0F0F; --card:#1A1A1A; --card2:#222; --fg:#fff;
+  --muted:rgba(255,255,255,.5); --line:rgba(255,255,255,.08);
+  --gold:#F5A623; --green:#4ADE80; --red:#FF6B6B; --lilac:#B8A9E8; --teal:#4ECDC4;
+  --radius:14px; --pill:999px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-decoration:none}
+
+/* Keypad gate (same auth as admin) */
+.keypad-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.keypad-wrap{text-align:center;max-width:320px;padding:20px}
+.keypad-wrap h1{font-size:1.5rem;font-weight:800;margin-bottom:4px;background:linear-gradient(135deg,var(--lilac),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.keypad-wrap p{font-size:.7rem;color:var(--muted);margin-bottom:24px}
+.keypad-display{display:flex;justify-content:center;gap:8px;margin-bottom:20px}
+.keypad-dot{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.2)}
+.keypad-dot.filled{background:var(--lilac);border-color:var(--lilac)}
+.keypad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto 16px}
+.keypad-btn{aspect-ratio:1;border-radius:var(--radius);background:var(--card);border:1px solid var(--line);color:var(--fg);font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.keypad-btn:active{background:var(--lilac);color:var(--bg);transform:scale(.95)}
+.keypad-error{font-size:.65rem;color:var(--red);min-height:20px;margin-bottom:8px}
+
+header{position:sticky;top:0;z-index:100;background:rgba(15,15,15,.97);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px}
+header h2{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:8px}
+header h2 span{background:linear-gradient(135deg,var(--lilac),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.back-btn{width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--line);color:var(--fg);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+main{padding:16px;max-width:720px;margin:0 auto;padding-bottom:48px}
+
+/* Overall banner */
+.banner{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:var(--radius);margin-bottom:16px;font-weight:700;font-size:.85rem;border:1px solid var(--line)}
+.banner.ok{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.3)}
+.banner.warn{background:rgba(245,166,35,.08);border-color:rgba(245,166,35,.35)}
+.banner.bad{background:rgba(255,107,107,.08);border-color:rgba(255,107,107,.35)}
+.banner .ico{font-size:1.4rem}
+
+/* Checks list */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;font-size:.85rem;font-weight:700;border-bottom:1px solid var(--line)}
+.card-h .tag{font-size:.6rem;padding:3px 8px;border-radius:var(--pill);font-weight:800}
+.tag.ok{background:rgba(74,222,128,.15);color:var(--green)}
+.tag.warn{background:rgba(245,166,35,.15);color:var(--gold)}
+.tag.bad{background:rgba(255,107,107,.15);color:var(--red)}
+.check-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:.8rem}
+.check-row:last-child{border-bottom:none}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dot.ok{background:var(--green)} .dot.bad{background:var(--red)} .dot.warn{background:var(--gold)}
+.check-row .detail{color:var(--muted);font-size:.72rem;margin-left:auto}
+
+/* Issues */
+.issue{padding:12px 16px;border-bottom:1px solid var(--line);font-size:.8rem;display:flex;gap:10px;align-items:flex-start}
+.issue:last-child{border-bottom:none}
+.issue .ico{font-size:1rem;flex-shrink:0}
+.issue .msg{flex:1}
+.issue .time{color:var(--muted);font-size:.65rem;margin-top:3px}
+.issue.err .ico{color:var(--red)} .issue.warn .ico{color:var(--gold)}
+
+.empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:.85rem}
+.refresh-hint{text-align:center;color:var(--muted);font-size:.65rem;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="keypad-overlay" id="keypad-gate">
+  <div class="keypad-wrap">
+    <h1>🔔 Notifications</h1>
+    <p>Enter admin code to view site health</p>
+    <div class="keypad-display" id="keypad-display">
+      <div class="keypad-dot"></div><div class="keypad-dot"></div><div class="keypad-dot"></div><div class="keypad-dot"></div><div class="keypad-dot"></div><div class="keypad-dot"></div><div class="keypad-dot"></div><div class="keypad-dot"></div>
+    </div>
+    <div class="keypad-error" id="keypad-error"></div>
+    <div class="keypad-grid" id="keypad-grid"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+<header>
+  <a href="admin.html" class="back-btn" aria-label="Back">←</a>
+  <h2><span>🔔 Notifications</span></h2>
+  <div style="width:36px"></div>
+</header>
+
+<main>
+  <div class="banner ok" id="banner"><span class="ico">✓</span><span id="banner-text">Checking site health…</span></div>
+
+  <div class="card" id="checks-card">
+    <div class="card-h">🩺 System Checks <span id="checks-tag" class="tag ok">—</span></div>
+    <div id="checks-list"></div>
+  </div>
+
+  <div class="card" id="issues-card" style="display:none">
+    <div class="card-h">⚠️ Active Issues</div>
+    <div id="issues-list"></div>
+  </div>
+
+  <div class="card" id="syncerrors-card" style="display:none">
+    <div class="card-h">🧾 Recent Sync Errors</div>
+    <div id="syncerrors-list"></div>
+  </div>
+
+  <div class="card" id="alerts-card" style="display:none">
+    <div class="card-h">🔕 <span>Persisted Alerts</span> <button class="tag warn" id="mark-all" style="background:transparent;border:1px solid var(--line);cursor:pointer;color:var(--fg)">Mark all read</button></div>
+    <div id="alerts-list"></div>
+  </div>
+
+  <div class="refresh-hint">Refreshes automatically every 60s · Last checked: <span id="last-checked">—</span></div>
+</main>
+</div>
+
+<script>
+// ── Keypad gate (same as admin) ──
+(function(){
+  var code='', expected='03091996';
+  if (sessionStorage.getItem('bd_admin_auth') === '1') { enter(); return; }
+  var grid=document.getElementById('keypad-grid');
+  var digits=['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  digits.forEach(function(d,i){
+    var b=document.createElement('button');
+    b.className='keypad-btn';
+    b.textContent=d;
+    if(d===''){b.disabled=true;b.style.pointerEvents='none';b.style.background='transparent';b.style.borderColor='transparent';}
+    else b.onclick=function(){ handleKey(d); };
+    grid.appendChild(b);
+  });
+  function handleKey(d){
+    var err=document.getElementById('keypad-error');
+    var dots=document.querySelectorAll('#keypad-display .keypad-dot');
+    if(d==='⌫'){ code=code.slice(0,-1); }
+    else if(d>='0'&&d<='9'){ if(code.length<8) code+=d; }
+    for(var i=0;i<dots.length;i++){ dots[i].classList.toggle('filled', i<code.length); }
+    err.textContent='';
+    if(code.length===8){
+      if(code===expected){ sessionStorage.setItem('bd_admin_auth','1'); enter(); }
+      else { err.textContent='Incorrect code'; setTimeout(function(){code='';for(var j=0;j<dots.length;j++)dots[j].classList.remove('filled');err.textContent='';},600); }
+    }
+  }
+})();
+function enter(){ document.getElementById('keypad-gate').style.display='none'; document.getElementById('app').style.display=''; init(); }
+
+// ── Health loader ──
+function init(){ loadHealth(); setInterval(loadHealth, 60000); }
+function loadHealth(){
+  fetch('/api/site-health', { cache:'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(render)
+    .catch(function(e){
+      document.getElementById('banner').className='banner bad';
+      document.getElementById('banner-text').textContent='Could not reach health checker: '+e.message;
+    });
+}
+function el(tag, cls, txt){ var n=document.createElement(tag); if(cls)n.className=cls; if(txt!=null)n.textContent=txt; return n; }
+
+function render(d){
+  document.getElementById('last-checked').textContent = new Date(d.generatedAt).toLocaleTimeString();
+
+  // Banner
+  var banner=document.getElementById('banner');
+  var ok = (d.issues && d.issues.length===0) && (d.syncErrorCount||0)===0;
+  banner.className = 'banner ' + (ok ? 'ok' : 'warn');
+  banner.querySelector('.ico').textContent = ok ? '✓' : '⚠';
+  document.getElementById('banner-text').textContent = ok
+    ? 'All systems operational'
+    : ((d.issues?d.issues.length:0) + ' critical issue(s) · ' + (d.syncErrorCount||0) + ' sync error(s) detected');
+
+  // Checks
+  var cl = document.getElementById('checks-list'); cl.innerHTML='';
+  var allOk = true;
+  (d.checks||[]).forEach(function(c){
+    var row = el('div','check-row');
+    row.appendChild(el('span','dot '+(c.ok?'ok':'bad')));
+    row.appendChild(el('span',null,c.name));
+    row.appendChild(el('span','detail',c.detail||''));
+    cl.appendChild(row);
+    if(!c.ok) allOk=false;
+  });
+  var tag = document.getElementById('checks-tag');
+  tag.textContent = allOk ? 'ALL OK' : 'DEGRADED';
+  tag.className = 'tag ' + (allOk ? 'ok' : 'warn');
+
+  // Issues
+  var ic = document.getElementById('issues-card'), il = document.getElementById('issues-list');
+  if(d.issues && d.issues.length){
+    ic.style.display=''; il.innerHTML='';
+    d.issues.forEach(function(x){
+      var row=el('div','issue '+(x.level==='warning'?'warn':'err'));
+      row.appendChild(el('span','ico', x.level==='warning'?'⚠️':'⛔'));
+      var mw=el('div','msg'); mw.appendChild(el('div',null,(x.source?('['+x.source+'] '):'')+x.message));
+      if(x.at) mw.appendChild(el('div','time',new Date(x.at).toLocaleTimeString()));
+      row.appendChild(mw);
+      il.appendChild(row);
+    });
+  } else ic.style.display='none';
+
+  // Sync errors
+  var sc = document.getElementById('syncerrors-card'), sl = document.getElementById('syncerrors-list');
+  if(d.recentSyncErrors && d.recentSyncErrors.length){
+    sc.style.display=''; sl.innerHTML='';
+    d.recentSyncErrors.forEach(function(x){
+      var row=el('div','issue err');
+      row.appendChild(el('span','ico','⚠️'));
+      var mw=el('div','msg'); mw.appendChild(el('div',null,x.message||x.action||'sync error'));
+      if(x.at) mw.appendChild(el('div','time',new Date(x.at).toLocaleTimeString()));
+      row.appendChild(mw);
+      sl.appendChild(row);
+    });
+  } else sc.style.display='none';
+
+  // Alerts
+  var ac = document.getElementById('alerts-card'), al = document.getElementById('alerts-list');
+  if(d.alerts && d.alerts.length){
+    ac.style.display=''; al.innerHTML='';
+    d.alerts.forEach(function(x){
+      var row=el('div','issue '+(x.level==='warning'?'warn':'err'));
+      row.appendChild(el('span','ico', x.level==='warning'?'⚠️':'⛔'));
+      var mw=el('div','msg'); mw.appendChild(el('div',null,x.message||x.source||'alert'));
+      if(x.at) mw.appendChild(el('div','time',new Date(x.at).toLocaleTimeString()));
+      row.appendChild(mw);
+      al.appendChild(row);
+    });
+  } else ac.style.display='none';
+}
+</script>
+</body>
+</html>
