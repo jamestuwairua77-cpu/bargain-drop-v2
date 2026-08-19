@@ -172,8 +172,36 @@ export function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, GET, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Shopify-Hmac-Sha256, X-Shopify-Topic',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Pin, Authorization, X-Shopify-Hmac-Sha256, X-Shopify-Topic',
   };
+}
+
+// ─── Admin authentication ───────────────────────────────────────────────
+// Server-side gate: requires the request to carry the admin PIN (header
+// X-Admin-Pin, Authorization: Bearer, or ?pin= query) matching env ADMIN_PIN.
+// Also updates the CORS allow-list so the header can be sent cross-origin.
+export function isAdmin(request, env) {
+  const expected = env.ADMIN_PIN || '';
+  if (!expected) return false; // not configured → deny by default
+  const h = request.headers.get('X-Admin-Pin') || '';
+  const auth = request.headers.get('Authorization') || '';
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  let pin = '';
+  try { pin = new URL(request.url).searchParams.get('pin') || ''; } catch (e) {}
+  const candidate = h || bearer || pin;
+  // constant-time-ish compare
+  const a = String(candidate || ''), b = String(expected);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+export function adminDenied() {
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    status: 401,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+  });
 }
 
 // ─── GitHub helpers (Cloudflare KV or direct API) ────────────────────────
