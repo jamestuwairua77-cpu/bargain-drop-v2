@@ -126,8 +126,9 @@
   function t(m){var e=document.getElementById("toast");if(!e)return;e.textContent=m;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},2000)}
   function mn(n){return"A$"+Number(n||0).toFixed(2)}
   function es(s){return String(s||"").replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
-  function gw(){try{return JSON.parse(localStorage.getItem("bd_wishlist")||"[]")}catch(e){return[]}}
-  function sw(l){localStorage.setItem("bd_wishlist",JSON.stringify(l))}
+  var _uid="";function _okey(k){return _uid?(k+"_"+_uid):k}
+  function gw(){try{return JSON.parse(localStorage.getItem(_okey("bd_wishlist"))||"[]")}catch(e){return[]}}
+  function sw(l){localStorage.setItem(_okey("bd_wishlist"),JSON.stringify(l))}
   function render(){
     var items=gw(),c=document.getElementById("wishlist-items"),e=document.getElementById("empty"),ce=document.getElementById("wishlist-count");
     ce.textContent=items.length+" item"+(items.length!==1?"s":"")+" saved";
@@ -140,7 +141,7 @@
     })
   }
   document.__rw=function(i){var items=gw(),r=items[i];items.splice(i,1);sw(items);render();if(r)t("Removed from wishlist")};
-  render()
+  fetch("/api/auth?action=me",{credentials:"include"}).then(function(r){return r.json()}).then(function(d){if(d&&d.user){_uid=String(d.user.id||d.user.email||"user")}render()}).catch(function(){render()});
 })();
   </script>
 <!-- Bargain Drop Support Widget -->
