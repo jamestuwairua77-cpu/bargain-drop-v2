@@ -229,8 +229,7 @@ var GOOGLE_CLIENT_ID = '489382559871-t7hh34fgbr23vkifi1u8kd9s7dolrv20.apps.googl
     try {
       var raw = location.hash.split('google-auth=')[1];
       var user = JSON.parse(decodeURIComponent(raw));
-      saveSession(user);
-      showProfile(user);
+      finishLogin(user);
       history.replaceState(null,null,location.pathname);
     } catch(e){ console.error('Google auth parse error',e) }
   }
@@ -263,6 +262,25 @@ function saveSession(user){
   localStorage.setItem('bd_user_pic',user.picture||'');
 }
 
+function redirectTarget(){
+  try {
+    var m = location.search.match(/[?&]redirect=([^&]+)/);
+    if (m) {
+      var url = decodeURIComponent(m[1]);
+      // only allow same-origin relative paths to avoid open redirect
+      if (url.charAt(0)==='/' && url.indexOf('//')!==0) return url;
+    }
+  } catch(e){}
+  return null;
+}
+
+function finishLogin(user){
+  saveSession(user);
+  var to = redirectTarget();
+  if (to) { location.href = to; return; }
+  showProfile(user);
+}
+
 function showProfile(user){
   document.getElementById('signin-view').style.display='none';
   document.getElementById('register-view').style.display='none';
@@ -293,7 +311,7 @@ function handleSignIn(){
     .then(function(r){return r.json()})
     .then(function(d){
       setBtnLoading('signin-btn',false);
-      if(d.success){saveSession(d.user);showProfile(d.user)}
+      if(d.success){finishLogin(d.user)}
       else{showError('signin',d.error||'Sign in failed')}
     })
     .catch(function(e){setBtnLoading('signin-btn',false);showError('signin','Network error')});
@@ -311,7 +329,7 @@ function handleRegister(){
     .then(function(r){return r.json()})
     .then(function(d){
       setBtnLoading('reg-btn',false);
-      if(d.success){saveSession(d.user);showProfile(d.user)}
+      if(d.success){finishLogin(d.user)}
       else{showError('reg',d.error||'Registration failed')}
     })
     .catch(function(e){setBtnLoading('reg-btn',false);showError('reg','Network error')});

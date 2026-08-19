@@ -563,7 +563,7 @@ $('catSearch').addEventListener('input', async e => {
 // ─── Shopify status probe ──────────────────────────────────────────
 async function pingShopify() {
   try {
-    const r = await fetch('/api/admin-stats');
+    const r = await fetch('/api/admin-stats', { headers: (function(){var h={};var pin=sessionStorage.getItem('bd_admin_pin'); if(pin) h['X-Admin-Pin']=pin; return h;})() });
     const d = await r.json();
     if (d.shopify?.product_count != null) {
       setLight('lightShopify', 'active', `Shopify · ${d.shopify.product_count}`);

@@ -351,6 +351,7 @@ a{color:inherit;text-decoration:none}
   
   // Check if already authenticated
   if (sessionStorage.getItem('bd_admin_auth') === '1') {
+    if (!sessionStorage.getItem('bd_admin_pin')) sessionStorage.setItem('bd_admin_pin', expected);
     document.getElementById('keypad-gate').style.display = 'none';
     document.getElementById('admin-app').style.display = '';
     init();
@@ -384,6 +385,7 @@ a{color:inherit;text-decoration:none}
   function checkCode() {
     if (code === expected) {
       sessionStorage.setItem('bd_admin_auth', '1');
+      sessionStorage.setItem('bd_admin_pin', code);
       document.getElementById('keypad-gate').style.display = 'none';
       document.getElementById('admin-app').style.display = '';
       init();
@@ -421,7 +423,20 @@ function isLikelyMobile() {
 
 function logout() {
   sessionStorage.removeItem('bd_admin_auth');
+  sessionStorage.removeItem('bd_admin_pin');
   location.reload();
+}
+
+// Wrap fetch for admin endpoints so the PIN is sent server-side.
+function bdAdminFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  if (typeof opts.headers === 'object' && !opts.headers.append) {
+    var h = opts.headers;
+    var pin = sessionStorage.getItem('bd_admin_pin') || '';
+    h['X-Admin-Pin'] = pin;
+  }
+  return fetch(url, opts);
 }
 
 function setLayout(mode) {
@@ -491,7 +506,7 @@ function refreshAll() {
 
 // Load aggregate stats
 function loadStats() {
-  fetch('/api/admin-stats')
+  bdAdminFetch('/api/admin-stats')
     .then(function(r) { return r.json(); })
     .then(function(d) {
       // Shopify
@@ -552,7 +567,7 @@ function loadStats() {
 
 // Load CJ data
 function loadCJ() {
-  fetch('/api/admin-cj')
+  bdAdminFetch('/api/admin-cj')
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.connected) {
@@ -593,7 +608,7 @@ function loadCJ() {
 
 // Load orders detail
 function loadOrders() {
-  fetch('/api/admin-orders')
+  bdAdminFetch('/api/admin-orders')
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.orders && d.orders.length > 0) {
