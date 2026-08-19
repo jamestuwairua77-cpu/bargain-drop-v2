@@ -3,10 +3,9 @@
 // Security: do NOT trust order-success.html?id= — this is the authoritative
 // confirmation that money actually moved.
 
-import { updateOrderStatus, appendSyncLog, listOrders, fulfillOrder, findShopifyOrderByBDId, recordShopifyTransaction, shopifyFetch } from '../_sync-lib.js';
+import { updateOrderStatus, appendSyncLog, listOrders, fulfillOrder, findShopifyOrderByBDId, recordShopifyTransaction, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
 
 async function verifyStripeSignature(rawBody, signature, secret) {
-  // Web Crypto HMAC-SHA256 over `${timestamp}.${payload}` (v1 scheme)
   const parts = (signature || '').split(',');
   let ts = '', sig = '';
   for (const p of parts) {
@@ -20,7 +19,6 @@ async function verifyStripeSignature(rawBody, signature, secret) {
   );
   const signed = await crypto.subtle.sign('HMAC', key, enc.encode(ts + '.' + rawBody));
   const hex = [...new Uint8Array(signed)].map(b => b.toString(16).padStart(2, '0')).join('');
-  // constant-time-ish compare via lengths + equality
   return hex.length === sig.length && hex === sig;
 }
 
@@ -54,7 +52,32 @@ export async function onRequest(context) {
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object || {};
-      const orderId = (session.metadata && session.metadata.order_id) || null;
+      const md = session.metadata || {};
+
+      // ── STORE CREDIT TOP-UP ──
+      if (md.credit_topup === '1' || md.credit_topup === 1) {
+        const userId = md.user_id || null;
+        const email = md.email || null;
+        const credits = Math.round((session.amount_total || 0) / 100);
+        try {
+          const ex = await ghRead(env, 'users-seed.json');
+          let users = [];
+          if (ex && ex.content) users = JSON.parse(atob(ex.content));
+          const user = users.find(u => (userId && u.id === userId) || (email && u.email === email));
+          if (user) {
+            user.credits = (Number(user.credits) || 0) + credits;
+            await ghWrite(env, 'users-seed.json', JSON.stringify(users, null, 2), 'credits: top-up ' + credits, ex && ex.sha);
+            await appendSyncLog(env, { action: 'credit-topup', user_id: user.id, email: user.email, credits_added: credits, total_credits: user.credits, stripe_session_id: session.id });
+          } else {
+            await appendSyncLog(env, { action: 'credit-topup', warning: 'user not found', user_id: userId, email, credits });
+          }
+        } catch (ce) {
+          await appendSyncLog(env, { action: 'credit-topup', warning: 'credit apply failed', error: ce.message });
+        }
+        return new Response(JSON.stringify({ received: true, credit_topup: true, credits }), { status: 200 });
+      }
+
+      const orderId = md.order_id || null;
       const paymentStatus = session.payment_status || 'paid';
       const amount = session.amount_total || 0;
       if (orderId) {
@@ -66,13 +89,11 @@ export async function onRequest(context) {
         });
         await appendSyncLog(env, { action: 'stripe-webhook', event: event.type, order_id: orderId, paymentStatus });
 
-        // Payment confirmed → push to CJ + Shopify for fulfillment (idempotent, server-side)
         let fulfillment = null;
         try {
           const orders = await listOrders(env);
           const order = orders.find(o => o.id === orderId);
           if (order) {
-            // run in background without blocking the webhook ack (Stripe retries if we take too long)
             const p = fulfillOrder(env, order);
             const WITHIN = await Promise.race([p, new Promise(r => setTimeout(() => r('pending'), 9000))]);
             fulfillment = (WITHIN === 'pending') ? 'started' : WITHIN;
@@ -81,25 +102,22 @@ export async function onRequest(context) {
           fulfillment = { error: fe.message };
         }
 
-        // ── TRANSACTION SYNC → Shopify ──
-        // Mark the Shopify order as Paid and record gateway details (requirement #3).
         let transaction = null;
         try {
           const shopOrder = await findShopifyOrderByBDId(env, orderId);
           if (shopOrder) {
             const gateway = (session.payment_method_types && session.payment_method_types[0])
-              ? session.payment_method_types[0] // e.g. 'card', 'paypal', 'link'
+              ? session.payment_method_types[0]
               : 'stripe';
             transaction = await recordShopifyTransaction(env, shopOrder.id, {
-              amount: amount / 100, // Stripe amounts are in cents
+              amount: amount / 100,
               currency: (session.currency || 'aud').toUpperCase(),
-              gateway,                     // gateway name (e.g. card/paypal)
-              authorization: session.payment_intent || session.id, // transaction hash
+              gateway,
+              authorization: session.payment_intent || session.id,
               kind: 'sale',
               status: 'success',
               processed_at: new Date().toISOString(),
             });
-            // also flip financial_status to paid
             await shopifyFetch(env, `/orders/${shopOrder.id}.json`, {
               method: 'PUT',
               body: JSON.stringify({ order: { id: shopOrder.id, financial_status: 'paid' } }),
@@ -118,7 +136,6 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ received: true }), { status: 200 });
       }
     }
-    // acknowledge other events (ignore)
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
