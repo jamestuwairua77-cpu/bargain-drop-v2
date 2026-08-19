@@ -1,11 +1,13 @@
 // Cloudflare Pages Function: /api/admin-stats
 // GET — returns aggregated Shopify + CJ stats for the admin dashboard
 
-import { corsHeaders, shopifyFetch, cjFetch } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, cjFetch, isAdmin, adminDenied } from '../_sync-lib.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (!isAdmin(request, env)) return adminDenied();
+
 
   try {
     const [productCount, orderCount, cjOrders] = await Promise.all([

@@ -1,7 +1,9 @@
-import { corsHeaders, ghRead } from '../_sync-lib.js';
+import { corsHeaders, ghRead, isAdmin, adminDenied } from '../_sync-lib.js';
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (!isAdmin(request, env)) return adminDenied();
+
   try {
     const existing = await ghRead(env, 'users-seed.json');
     let users = []; if (existing && existing.content) users = JSON.parse(atob(existing.content));

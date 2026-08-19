@@ -1,7 +1,9 @@
-import { corsHeaders, shopifyFetch } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, isAdmin, adminDenied } from '../_sync-lib.js';
 export async function onRequest(context) {
   const { request, env } = context; const url = new URL(request.url);
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (!isAdmin(request, env)) return adminDenied();
+
   try {
     const limit = parseInt(url.searchParams.get('limit') || '20', 10);
     const status = url.searchParams.get('status') || 'any';

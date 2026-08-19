@@ -6,7 +6,7 @@
   if (window.__bdAuthGuard) return;
   window.__bdAuthGuard = true;
 
-  const ACCOUNT_ROUTES = ['/profile.html', '/profile-edit.html', '/settings.html', '/security.html', '/orders.html', '/wishlist.html', '/addresses.html', '/payment-methods.html', '/account-info.html', '/communication-preferences.html', '/deactivate.html', '/order-tracking.html'];
+  const ACCOUNT_ROUTES = ['/profile.html', '/profile-edit.html', '/settings.html', '/security.html', '/orders.html', '/wishlist.html', '/addresses.html', '/payment-methods.html', '/account-info.html', '/communication-preferences.html', '/deactivate.html', '/order-tracking.html', '/returns.html', '/wallet.html', '/gift-cards.html'];
 
   function isAuthenticated() {
     try {
