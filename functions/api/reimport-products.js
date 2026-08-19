@@ -7,7 +7,7 @@
 // GET ?run=1&limit=N   -> update up to N products in place
 // Resumable via data/reimport-progress.json.
 
-import { corsHeaders, cjFetch, shopifyFetch, ghRead, ghWrite, ghWriteLarge } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, shopifyFetch, ghRead, ghWrite, ghWriteLarge, isAdmin, adminDenied } from '../_sync-lib.js';
 
 const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/slim-products.json';
 const MARKUP = 2.5;
@@ -40,20 +40,13 @@ function parentSku(sku) {
 function needsReimport(p){
   const v=p.variants||[];
   if(!v.length) return false;
-  // Only re-import products whose variants are genuinely broken:
-  //  - option1 is a Chinese (CJK) title (flattened import lost the real color/size), OR
-  //  - option2 is missing BUT the product clearly has multiple size-bearing variants.
   const hasCJK = v.some(x=>/[\u4e00-\u9fff]/.test(String(x.option1||'')));
   if (hasCJK) return true;
-  // Re-import when there are multiple variants but all lack a size (size info was dropped).
-  // Single-variant and color-only products are left as-is (no size needed).
   const hasSize = v.some(x=>x.option2);
   return (v.length > 1) && !hasSize;
 }
 
 async function reimport(env, p){
-  // Build a SMALL candidate set (max 2): the first variant's parent SKU + the first raw SKU.
-  // We only try the parent (base) SKU — querying every variant SKU burns subrequests/points.
   const firstRaw = (p.variants||[]).map(v=>v.sku).filter(Boolean)[0];
   const candidates = [];
   if (firstRaw) {
@@ -62,32 +55,26 @@ async function reimport(env, p){
     if (firstRaw !== ps && !candidates.includes(firstRaw)) candidates.push(firstRaw);
   }
   if (!candidates.length) return { ok:false, skip:'no-sku' };
-  // Single 10-point call: /product/query?productSku=<parentSku> returns full product + variants.
-  // CJ enforces 1 req/sec (QPS=1) and a daily points cap (429 when exhausted). We must
-  // (a) space calls, and (b) distinguish "rate limited / out of points" from "genuinely not found".
   let cj = null;
   let rateLimited = false;
   for (const sku of candidates) {
     const r = await cjFetch(env, `/product/query?productSku=${encodeURIComponent(sku)}`);
     const remaining = r && r.pointsInfo && r.pointsInfo.remaining;
     if (r && r.data && r.data.variants && r.data.variants.length) { cj = r.data; break; }
-    // 429 / 16900500 = points exhausted or rate limit → not a real "not found"
     if (r && (r.code === 429 || r.code === 16900500 || (remaining !== undefined && remaining <= 0))) {
       rateLimited = true;
       break;
     }
-    await new Promise(r=>setTimeout(r,1100)); // respect CJ 1/sec QPS
+    await new Promise(r=>setTimeout(r,1100));
   }
   if (rateLimited) return { ok:false, skip:'rate-limited-or-no-points' };
   if (!cj) return { ok:false, skip:'no-pid' };
   const cjv = cj.variants || [];
   if(!cjv.length) return { ok:false, skip:'no-variants' };
 
-  // existing variants by id + by sku (map old Shopify variants for id preservation)
   const existingByOpt1 = {};
   for(const v of (p.variants||[])){ const c=String(v.option1||''); if(c && !(c in existingByOpt1)) existingByOpt1[c]=v; }
 
-  // build new options + variant list
   const colors=[], sizes=[], seenC=new Set(), seenS=new Set();
   const colorImg=new Map();
   for(const v of cjv){
@@ -104,11 +91,9 @@ async function reimport(env, p){
     const c=color||(v.variantNameEn||'Default');
     const price=((parseFloat(v.variantSellPrice)||parseFloat(cj.sellPrice)||0)*MARKUP).toFixed(2);
     const grams=Math.round(parseFloat(v.variantWeight)||0);
-    // preserve existing Shopify variant id when the color matches (so we EDIT, not duplicate)
     const existing = existingByOpt1[c];
     const obj = {
       sku: v.variantSku, price,
-      // option2 must be a concrete value whenever a Size option is present (Shopify rejects null).
       option1: c, option2: (hasSizes ? (size || 'One Size') : null), option3: null,
       grams, weight: grams/1000, weight_unit:'kg',
       inventory_management:'shopify', inventory_policy:'deny',
@@ -126,14 +111,12 @@ async function reimport(env, p){
   }
   if(!options.length) options.push({name:'Title', values:['Default Title']});
 
-  // images: color images first, then existing
   const images=[]; const seenImg=new Set();
   const pusher=(u)=>{ if(u&&!seenImg.has(u)){seenImg.add(u);images.push({src:u});} };
   for(const c of colors){ const u=colorImg.get(c); if(u) pusher(u); }
   try{ const set=Array.isArray(cj.productImageSet)?cj.productImageSet:(typeof cj.productImageSet==='string'?JSON.parse(cj.productImageSet):[]); for(const u of set) pusher(u); }catch{}
   for(const u of (p.images||[])) if(typeof u==='string') pusher(u);
 
-  // PUT update in place (same product id). Retry transient 409 (webhook race) + 429 (rate limit).
   const payload = { product: { id: p.id, title: cj.productNameEn || p.title, options, variants, images } };
   let res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
   for (let t=0; t<6 && res && (res.status===409 || res.status===429); t++) {
@@ -149,6 +132,7 @@ export async function onRequest(context){
   try{
     const { request, env } = context;
     if(request.method==='OPTIONS') return new Response(null,{status:200,headers:corsHeaders()});
+    if (!isAdmin(request, env)) return adminDenied();
     const url=new URL(request.url);
     const run=url.searchParams.get('run')==='1';
     const dryRun=url.searchParams.get('dryRun')==='1';
@@ -167,11 +151,9 @@ export async function onRequest(context){
     if(!run) return new Response(JSON.stringify({ total:catalog.length, toReimport:todo.length }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
 
     const MAX_ATTEMPTS = 3;
-    // A product is "done" once prog records it as successfully re-imported (has 'n'), OR once
-    // its attempts are exhausted. Without this, success isn't persisted → same products churn forever.
     const doneIds = new Set(Object.keys(prog).filter(k => k !== 'attempts' && prog[k] && typeof prog[k] === 'object' && 'n' in prog[k]));
     const remaining = todo
-      .filter(p => !doneIds.has(String(p.id)))        // skip already-successful
+      .filter(p => !doneIds.has(String(p.id)))
       .filter(p => (attempts[String(p.id)]||0) < MAX_ATTEMPTS)
       .slice(0, limit);
     let ok=0, fail=0; const results=[];
@@ -186,12 +168,9 @@ export async function onRequest(context){
         results.push({id, ok:r_ok, variants:r.variants, colors:r.colors, sizes:r.sizes, err:r.error||r.skip});
       }catch(e){ prog[id]={skip:'ex:'+String(e.message||e).slice(0,50)}; fail++; results.push({id, ok:false, err:String(e.message||e).slice(0,80)}); }
       if(!r_ok) attempts[id]=(attempts[id]||0)+1;
-      await new Promise(r=>setTimeout(r,600)); // Shopify 2 req/sec; CJ 1 req/sec
+      await new Promise(r=>setTimeout(r,600));
     }
     prog.attempts = attempts;
-    // Persist progress via the Git tree/blob API (race-safe vs the product-sync webhook, which
-    // also writes to data/*.json). ghWriteLarge creates an atomic commit off the CURRENT branch HEAD,
-    // so there is no stale content-sha 422. Merge any concurrent progress rows before writing.
     try {
       const fresh = await ghRead(env, 'data/reimport-progress.json');
       let merged = prog;
@@ -204,7 +183,6 @@ export async function onRequest(context){
       const payload = JSON.stringify(merged);
       await ghWriteLarge(env, 'data/reimport-progress.json', payload, 'auto: reimport progress');
     } catch (we) {
-      // best-effort: progress loss only means some products get retried (idempotent)
       void we;
     }
     return new Response(JSON.stringify({ processed:remaining.length, ok, fail, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});

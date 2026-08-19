@@ -8,7 +8,7 @@
 //          catalog and commits to GitHub. Resumable: call repeatedly until done.
 // Returns { processed, deleted, remaining, done }.
 
-import { corsHeaders, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, ghRead, ghWrite, isAdmin, adminDenied } from '../_sync-lib.js';
 
 const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json';
 
@@ -22,6 +22,7 @@ export async function onRequest(context) {
   try {
     const { request, env } = context;
     if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+    if (!isAdmin(request, env)) return adminDenied();
     const url = new URL(request.url);
     const run = url.searchParams.get('run') === '1';
     const dryRun = url.searchParams.get('dryRun') === '1';
