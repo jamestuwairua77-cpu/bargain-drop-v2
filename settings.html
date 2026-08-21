@@ -243,26 +243,36 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
 function toggleCard(card){var h=card.querySelector('.info-card-header');var b=card.querySelector('.info-card-body');var o=b.classList.contains('open');b.classList.toggle('open');h.classList.toggle('open')}
 
 (function checkAuth(){
-  var u=JSON.parse(localStorage.getItem('bd_user')||'null');
-  if(u){
-    document.getElementById('lock-overlay').classList.remove('show');
-    document.getElementById('logout-btn').style.display='block';
-  }else{
-    var se=localStorage.getItem('bd_temp_email');
-    if(se){
-      document.getElementById('lock-overlay').classList.remove('show');
-    }else{
+  // Authoritative server-session check (matches auth-guard.js). localStorage is
+  // NOT trusted as a source of truth for the settings lock.
+  fetch('/api/auth?action=me',{credentials:'include'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var authed = !!(d && d.user);
+      var overlay = document.getElementById('lock-overlay');
+      var logoutBtn = document.getElementById('logout-btn');
+      if(authed){
+        overlay.classList.remove('show');
+        if(logoutBtn) logoutBtn.style.display='block';
+      }else{
+        overlay.classList.add('show');
+        if(logoutBtn) logoutBtn.style.display='none';
+      }
+    })
+    .catch(function(){ /* fall back to locked on error (fail closed) */
       document.getElementById('lock-overlay').classList.add('show');
-    }
-  }
+      var lb=document.getElementById('logout-btn'); if(lb) lb.style.display='none';
+    });
 })();
 
 function doLogout(){
-  if(confirm('Are you sure you want to sign out?')){
-    localStorage.removeItem('bd_user');
-    localStorage.removeItem('bd_temp_email');
-    location.reload();
-  }
+  if(!confirm('Are you sure you want to sign out?')) return;
+  // Clear ALL localStorage session keys
+  ['bd_session','bd_user','bd_user_name','bd_user_email','bd_user_pic','bd_temp_email'].forEach(function(k){ try{localStorage.removeItem(k);}catch(e){} });
+  // Clear the REAL server session cookie (the one auth-guard.js checks)
+  fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signout'})})
+    .then(function(){ location.href='/sign-in.html'; })
+    .catch(function(){ location.href='/sign-in.html'; });
 }
 </script>
 
