@@ -20,7 +20,9 @@
   BD.requireAuth = function () {
     var s = BD.getSession();
     if (!s || !s.email) {
-      // Not signed in; show profile page without login
+      // Fail closed: enforce sign-in redirect instead of exposing blank account panels
+      var returnUrl = encodeURIComponent(window.location.href);
+      window.location.replace("/sign-in.html?redirect=" + returnUrl);
       return null;
     }
     return s;
