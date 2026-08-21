@@ -29,11 +29,12 @@
   };
 
   BD.logout = function () {
-    localStorage.removeItem('bd_session');
-    localStorage.removeItem('bd_user_name');
-    localStorage.removeItem('bd_user_email');
-    localStorage.removeItem('bd_user_pic');
-    location.href = '/';
+    // Clear all localStorage session keys
+    ['bd_session','bd_user_name','bd_user_email','bd_user_pic'].forEach(function(k){ try{localStorage.removeItem(k);}catch(e){} });
+    // Clear the REAL server session cookie (same as profile/settings sign out)
+    fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signout'})})
+      .then(function(){ location.href='/sign-in.html'; })
+      .catch(function(){ location.href='/sign-in.html'; });
   };
 
   // ---------------------------------------------------------------------------
