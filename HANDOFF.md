@@ -1,5 +1,5 @@
 # Bargain Drop — Complete Handoff (Cloudflare Edition)
-## Updated: 2026-08-08 (v2 — Worker proxy sync)
+## Updated: 2026-08-21 (v3 — auth/session security fixes)
 
 ---
 
@@ -394,6 +394,14 @@ After deploying, go to **Cloudflare Dashboard → Pages → bargain-drop → Set
 4. **Category renderer must persist** — Shopify webhook can overwrite `category.html` with an older version from GitHub. The fixed version is included and should be the source of truth in the repo.
 
 5. **Environment variables are NOT in source control** — Ensure ALL env vars from the table above are set in the Cloudflare Pages dashboard. The Functions read them from `context.env` at runtime, not from any config file.
+
+6. **RESOLVED 2026-08-21 — Auth sign-out bug.** Signing out from **Settings** (`settings.html` `doLogout()`) only removed unrelated localStorage keys and called `location.reload()`, leaving the server `__session` cookie intact — so a reload instantly re-authenticated the user (the "magic sign-in"). Fixed to call `POST /api/auth {action:"signout"}` (clears the HMAC-signed cookie) AND clear all `bd_*` localStorage keys, then redirect to `/sign-in.html`. The Settings lock (`checkAuth()`) now uses a server `/api/auth?action=me` check instead of trusting localStorage.
+   - Made `wallet.html` include `auth-guard.js` (it was previously fully unguarded and reachable while signed out).
+   - Made `BD.requireAuth()` in `js/account.js` fail-closed (redirect to sign-in) instead of returning `null`.
+   - Also fixed dead-code logout paths: `js/account.js` `BD.logout` and `auth.html` `handleLogout` now clear the server cookie too.
+   - Commits: `00d6b44`, `4e3bd51`, `bdbd1c8`.
+
+   **Architecture note:** the site has TWO session sources — the authoritative server `__session` HMAC cookie (checked via `GET /api/auth?action=me`) and a legacy client-side `localStorage["bd_session"]` used by `account.js`/some pages for *display only*. Only the server cookie is trustworthy for auth gating. Never gate a protected page on localStorage alone.
 
 ---
 
