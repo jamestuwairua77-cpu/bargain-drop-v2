@@ -48,7 +48,13 @@ async function verifySessionCookie(cookieVal, env) {
 }
 function cookieHeader(name, value, maxAge) {
   const parts = [ name + '=' + value, 'Path=/', 'HttpOnly', 'SameSite=Lax', 'Secure' ];
-  if (maxAge != null) parts.push('Max-Age=' + maxAge);
+  if (maxAge != null) {
+    parts.push('Max-Age=' + maxAge);
+    // For deletion (maxAge=0), also send a past Expires date. Max-Age=0 alone is
+    // ignored/mishandled by some browsers with Secure+SameSite cookies, which was
+    // leaving the __session cookie intact and "magically" re-authenticating users.
+    if (maxAge === 0) parts.push('Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+  }
   return parts.join('; ');
 }
 function parseCookies(request) {
