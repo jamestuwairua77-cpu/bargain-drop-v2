@@ -1,16 +1,19 @@
-// Bargain Drop — Frontend Auth Guard v4
+// Bargain Drop — Frontend Auth Guard v4.1
 // Fail-closed: account routes require a valid server session (__session cookie).
 // Uses `/api/auth?action=me` to decide; redirects signed-out visitors to sign-in.
+// NOTE: Cloudflare Pages auto-resolves "foo.html" -> "/foo" (308), so the browser's
+// location.pathname is EXTENSIONLESS. We normalize by stripping any trailing ".html"
+// before matching, and the route list uses extensionless paths.
 (function () {
   'use strict';
   if (window.__bdAuthGuard) return;
   window.__bdAuthGuard = true;
 
   var ACCOUNT_ROUTES = [
-    '/profile.html','/orders.html','/wallet.html','/wishlist.html','/addresses.html',
-    '/gift-cards.html','/settings.html','/security.html','/profile-edit.html',
-    '/payment-methods.html','/account-info.html','/communication-preferences.html',
-    '/deactivate.html','/order-tracking.html','/returns.html'
+    '/profile','/orders','/wallet','/wishlist','/addresses',
+    '/gift-cards','/settings','/security','/profile-edit',
+    '/payment-methods','/account-info','/communication-preferences',
+    '/deactivate','/order-tracking','/returns'
   ];
 
   var serverSession = null;
@@ -25,18 +28,24 @@
     if (user) { try { window.dispatchEvent(new CustomEvent('bd:session', { detail: user })); } catch (e) {} }
   }
   function isAuthenticated() { return !!(resolved && serverSession); }
-  function getCurrentPath() { return window.location.pathname; }
+  function getCurrentPath() {
+    var path = window.location.pathname || '/';
+    if (path.length > 1 && path.charAt(path.length - 1) === '/') path = path.slice(0, -1);
+    if (path.length > 5 && path.slice(-5).toLowerCase() === '.html') path = path.slice(0, -5);
+    return path.toLowerCase();
+  }
   function isAccountRoute() {
     var path = getCurrentPath();
     for (var i = 0; i < ACCOUNT_ROUTES.length; i++) {
-      if (path.substring(path.length - ACCOUNT_ROUTES[i].length) === ACCOUNT_ROUTES[i]) return true;
+      var route = ACCOUNT_ROUTES[i];
+      if (path === route || path.substring(path.length - route.length) === route) return true;
     }
     return false;
   }
   function guard() {
     if (isAccountRoute() && !isAuthenticated()) {
       var returnUrl = encodeURIComponent(window.location.href);
-      window.location.replace('/sign-in.html?redirect=' + returnUrl);
+      window.location.replace('/sign-in?redirect=' + returnUrl);
       return false;
     }
     return true;
