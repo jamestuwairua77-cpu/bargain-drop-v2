@@ -1,7 +1,4 @@
-// Cloudflare Pages Function: /api/google-callback
-// Exchanges the Google OAuth authorization code for a token and redirects
-// back to /auth.html#google-auth=<user JSON>.
-import { corsHeaders } from '../_sync-lib.js';
+import { corsHeaders } from '../../_sync-lib.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -12,51 +9,107 @@ export async function onRequest(context) {
   }
 
   const code = url.searchParams.get('code');
-  const home = url.origin;
+  const error = url.searchParams.get('error');
 
-  if (!code) {
-    return Response.redirect(home + '/auth.html?error=no_code', 302);
+  if (error) {
+    return Response.redirect(url.origin + '/sign-in.html?error=' + encodeURIComponent(error), 302);
   }
 
-  const clientId = env.GOOGLE_CLIENT_ID || '';
-  const clientSecret = env.GOOGLE_CLIENT_SECRET || '';
-  const redirectUri = 'https://bargain-drop.online/api/google-callback';
+  if (!code) {
+    return Response.redirect(url.origin + '/sign-in.html?error=no_code', 302);
+  }
 
-  if (!clientId || !clientSecret) {
-    return Response.redirect(home + '/auth.html?error=google_not_configured', 302);
+  // Safely grab configuration from system variables, using secure placeholders for validation bypassing
+  const clientSecret = env.GOOGLE_CLIENT_SECRET;
+  const clientId = env.GOOGLE_CLIENT_ID || '489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googleusercontent.com';
+  const redirectUri = url.origin + '/api/google-callback';
+
+  if (!clientSecret) {
+    console.error('Fatal: GOOGLE_CLIENT_SECRET environment variable is missing on Cloudflare Pages');
+    return Response.redirect(url.origin + '/sign-in.html?error=env_configuration_error', 302);
   }
 
   try {
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    // Exchange authorization code for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
       body: new URLSearchParams({
         code,
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }),
+        grant_type: 'authorization_code'
+      })
     });
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.id_token) {
-      return Response.redirect(home + '/auth.html?error=token_exchange_failed', 302);
+
+    if (!tokenResponse.ok) {
+      const errText = await tokenResponse.text();
+      console.error('Token exchange failed:', errText);
+      return Response.redirect(url.origin + '/sign-in.html?error=token_exchange_failed', 302);
     }
 
-    const idToken = tokenData.id_token;
-    const payloadB64 = idToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const pad = payloadB64.length % 4 ? '='.repeat(4 - (payloadB64.length % 4)) : '';
-    const claims = JSON.parse(decodeURIComponent(escape(atob(payloadB64 + pad))));
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
 
-    const user = {
-      email: claims.email || '',
-      name: claims.name || ((claims.given_name ? claims.given_name + ' ' : '') + (claims.family_name || '')).trim() || '',
-      picture: claims.picture || '',
+    // Fetch user info from Google
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+
+    if (!userResponse.ok) {
+      return Response.redirect(url.origin + '/sign-in.html?error=user_info_failed', 302);
+    }
+
+    const userData = await userResponse.json();
+    const email = userData.email;
+    const name = userData.name || email.split('@')[0];
+
+    // Log the user in or register them under our internal auth session
+    const authPayload = {
+      action: 'google-oauth',
+      email: email,
+      name: name,
+      googleId: userData.id
     };
 
-    const userJson = encodeURIComponent(JSON.stringify(user));
-    return Response.redirect(home + '/auth.html#google-auth=' + userJson, 302);
-  } catch (e) {
-    return Response.redirect(home + '/auth.html?error=google_callback_error', 302);
+    // Forward the authenticated Google identity to our main API session provider to issue cookies/tokens
+    const authResponse = await fetch(url.origin + '/api/auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(authPayload)
+    });
+
+    if (!authResponse.ok) {
+      return Response.redirect(url.origin + '/sign-in.html?error=session_creation_failed', 302);
+    }
+
+    // Capture response cookies to propagate the session cookie correctly to the browser
+    const authHeaders = new Headers();
+    const cookieHeader = authResponse.headers.get('set-cookie');
+    if (cookieHeader) {
+      authHeaders.set('set-cookie', cookieHeader);
+    }
+    
+    // Redirect cleanly to the profile page with cookie established
+    const state = url.searchParams.get('state');
+    const targetRedirect = (state && state.startsWith('/') && !state.includes('//')) ? state : '/profile.html';
+    
+    authHeaders.set('Location', url.origin + targetRedirect);
+    return new Response(null, {
+      status: 302,
+      headers: authHeaders
+    });
+
+  } catch (err) {
+    console.error('OAuth processing error:', err);
+    return Response.redirect(url.origin + '/sign-in.html?error=internal_oauth_error', 302);
   }
 }
