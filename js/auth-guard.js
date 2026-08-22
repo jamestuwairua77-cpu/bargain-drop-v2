@@ -7,7 +7,7 @@
   window.__bdAuthGuard = true;
 
   var ACCOUNT_ROUTES = [
-    '/orders.html','/wallet.html','/wishlist.html','/addresses.html',
+    '/profile.html','/orders.html','/wallet.html','/wishlist.html','/addresses.html',
     '/gift-cards.html','/settings.html','/security.html','/profile-edit.html',
     '/payment-methods.html','/account-info.html','/communication-preferences.html',
     '/deactivate.html','/order-tracking.html','/returns.html'
