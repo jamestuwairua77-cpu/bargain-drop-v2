@@ -90,7 +90,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
     <div class="slide-menu" id="slide-menu"><div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div><div class="slide-panel"><a href="/" class="slide-item">🏠 Home</a><a href="category.html" class="slide-item">🛍️ All Categories</a><a href="wishlist.html" class="slide-item">❤️ Wishlist</a><a href="cart.html" class="slide-item">🛒 Cart</a><a href="orders.html" class="slide-item">📦 Orders</a><a href="profile.html" class="slide-item">👤 My Account</a><a href="sign-in.html" class="slide-item">🔑 Sign In</a><div class="slide-divider"></div><a href="profile.html" class="slide-item">📋 Profile Information</a><a href="addresses.html" class="slide-item">📍 Addresses</a><a href="payment-methods.html" class="slide-item">💳 Payment Methods</a><a href="returns.html" class="slide-item">🔄 Returns</a><a href="wallet.html" class="slide-item">💰 Wallet</a><a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a><a href="customer-service.html" class="slide-item">💬 Customer Service</a><a href="policy.html" class="slide-item">📜 Privacy Policy</a></div></div>
   <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
   
-<div id="g_id_onload" data-client_id="489382559871-t7hh34fgbr23vkifi1u8kd9s7dolrv20.apps.googleusercontent.com" data-auto_select="false" data-login_uri="https://bargain-drop.online/api/google-callback" data-cancel_on_tap_outside="false"></div>
+<div id="g_id_onload" data-client_id="489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googleusercontent.com" data-auto_select="false" data-login_uri="https://bargain-drop.online/api/google-callback" data-cancel_on_tap_outside="false"></div>
 
 <div class="auth-card" id="auth-card">
   <div id="signin-view">
@@ -129,7 +129,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
 <script>
 var API_BASE = 'https://bargain-drop.online';
-var GOOGLE_CLIENT_ID = '489382559871-t7hh34fgbr23vkifi1u8kd9s7dolrv20.apps.googleusercontent.com';
+var GOOGLE_CLIENT_ID = '489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googleusercontent.com';
 (function(){
   if(location.hash.includes('google-auth=')){
     try { var raw = location.hash.split('google-auth=')[1]; var user = JSON.parse(decodeURIComponent(raw)); finishLogin(user); history.replaceState(null,null,location.pathname); } catch(e){ console.error('Google auth parse error',e) }
@@ -165,7 +165,7 @@ function handleRegister(){
 }
 function handleGoogleSignIn(){
   setBtnLoading('google-btn-signin',true); setBtnLoading('google-btn-reg',true);
-  var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 'client_id=' + encodeURIComponent('489382559871-t7hh34fgbr23vkifi1u8kd9s7dolrv20.apps.googleusercontent.com') + '&redirect_uri=' + encodeURIComponent('https://bargain-drop.online/api/google-callback') + '&response_type=code' + '&scope=' + encodeURIComponent('openid email profile') + '&access_type=offline' + '&prompt=select_account' + '&state=' + encodeURIComponent('https://bargain-drop.online/profile.html');
+  var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 'client_id=' + encodeURIComponent('489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googleusercontent.com') + '&redirect_uri=' + encodeURIComponent('https://bargain-drop.online/api/google-callback') + '&response_type=code' + '&scope=' + encodeURIComponent('openid email profile') + '&access_type=offline' + '&prompt=select_account' + '&state=' + encodeURIComponent('https://bargain-drop.online/profile.html');
   window.location.href = authUrl;
 }
 </script>
