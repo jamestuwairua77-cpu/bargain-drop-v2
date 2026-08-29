@@ -1,5 +1,38 @@
 [
   {
+    "action": "cj-webhook",
+    "type": "ORDER",
+    "messageType": "UPDATE",
+    "messageId": "6c********28",
+    "valid": true,
+    "paramKeys": [
+      "cjOrderId",
+      "createDate",
+      "deliveryDate",
+      "orderNum",
+      "orderStatus",
+      "logisticName",
+      "trackNumber",
+      "payDate",
+      "postage",
+      "updateDate"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "openId",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "note": "order recorded (fulfillment flow owns orders)",
+    "cjOrderId": "test",
+    "receivedAt": "2026-08-29T23:29:28.932Z",
+    "at": "2026-08-29T23:29:29.139Z"
+  },
+  {
     "action": "back-sync-inventory",
     "inventoryItemId": 49734338117763,
     "sku": "CJLY306317305EV",
@@ -1394,12 +1427,5 @@
     "title": "New Cross-Border Fall Winter Women's Fashion Hooded Solid Color Long-Sleeve Loose Twist Button Cardigan Top",
     "ok": true,
     "at": "2026-08-18T09:32:04.676Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734317572227,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T09:32:02.302Z"
   }
 ]
