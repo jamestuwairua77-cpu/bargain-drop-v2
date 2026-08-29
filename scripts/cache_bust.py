@@ -102,6 +102,17 @@ def main():
                 src = src.replace(
                     f"'/{name}'", f"'/{name}?v={assets[name]}'"
                 )
+                # Also refresh URLs that already carry a stale ?v=<hash>.
+                src = re.sub(
+                    rf'("/{re.escape(name)}\?v=)[a-f0-9]+(")',
+                    lambda m: m.group(1) + assets[name] + m.group(2),
+                    src,
+                )
+                src = re.sub(
+                    rf"(\'/{re.escape(name)}\?v=)[a-f0-9]+(')",
+                    lambda m: m.group(1) + assets[name] + m.group(2),
+                    src,
+                )
 
         if src != orig:
             with open(hf, 'w', encoding='utf-8') as f:
