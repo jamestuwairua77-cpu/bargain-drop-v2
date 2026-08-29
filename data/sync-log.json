@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "df********63",
+    "valid": true,
+    "paramKeys": [
+      "1957011053230145537"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1957011053230145537\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:35:19.030Z",
+    "at": "2026-08-29T23:35:19.274Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "79********17",
     "valid": true,
     "paramKeys": [
@@ -2015,12 +2037,5 @@
     "ok": false,
     "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
     "at": "2026-08-18T09:34:38.652Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734278676611,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T09:34:37.553Z"
   }
 ]
