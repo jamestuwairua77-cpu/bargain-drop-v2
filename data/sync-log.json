@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "fe********70",
+    "valid": true,
+    "paramKeys": [
+      "2607101053111606200"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2607101053111606200\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2511280711441639600\",\"storageNum\":13485,\"vid\":\"2511280711451636100\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2511280711441639600\",\"storageNum\":7352,\"vid\":\"2511280711451635100\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2511280711441639600\",\"storageNum\":9870",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:40:51.637Z",
+    "at": "2026-08-29T23:40:51.768Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "13********61",
     "valid": true,
     "paramKeys": [
@@ -3005,12 +3027,5 @@
     "sku": "CJPB165958401AZ",
     "available": 100,
     "at": "2026-08-18T10:11:54.938Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733124325507,
-    "sku": "CJPB165958403CX",
-    "available": 100,
-    "at": "2026-08-18T10:11:52.152Z"
   }
 ]
