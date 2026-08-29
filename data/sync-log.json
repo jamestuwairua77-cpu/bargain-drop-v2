@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "87********8b",
+    "valid": true,
+    "paramKeys": [
+      "1999373693449535489"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1999373693449535489\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:30:20.743Z",
+    "at": "2026-08-29T23:30:20.897Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "2b********5d",
     "valid": true,
     "paramKeys": [
@@ -1465,12 +1487,5 @@
     "sku": "CJNZ306321406FU",
     "available": 100,
     "at": "2026-08-18T09:32:11.221Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734318325891,
-    "sku": null,
-    "available": 100,
-    "at": "2026-08-18T09:32:07.743Z"
   }
 ]
