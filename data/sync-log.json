@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "9f********d6",
+    "valid": true,
+    "paramKeys": [
+      "2603070947481606400"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2603070947481606400\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2503191148021601200\",\"storageNum\":7688,\"vid\":\"2603070947481606400\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:30:30.984Z",
+    "at": "2026-08-29T23:30:31.193Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "13********09",
     "valid": true,
     "paramKeys": [
@@ -1613,12 +1635,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T09:33:17.455Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734173622403,
-    "sku": "CJSL306968901AZ",
-    "available": 100,
-    "at": "2026-08-18T09:32:57.751Z"
   }
 ]
