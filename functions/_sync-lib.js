@@ -164,7 +164,19 @@ export async function shopifyFetch(env, path, opts = {}) {
   const text = await r.text();
   let body;
   try { body = JSON.parse(text); } catch { body = { raw: text }; }
-  return { ok: r.ok, status: r.status, body };
+  return { ok: r.ok, status: r.status, body, headers: r.headers };
+}
+
+// Parse Shopify's Link header (<.../products.json?...&page_info=XYZ>; rel="next")
+// and return the next cursor, or null when there are no more pages.
+export function nextPageCursor(headers) {
+  if (!headers) return null;
+  const link = headers.get('link');
+  if (!link) return null;
+  const next = link.split(',').map(s => s.trim()).find(s => s.includes('rel="next"'));
+  if (!next) return null;
+  const m = next.match(/[?&]page_info=([^>&"\s]+)/);
+  return m ? m[1] : null;
 }
 
 // ─── CORS headers helper ─────────────────────────────────────────────────

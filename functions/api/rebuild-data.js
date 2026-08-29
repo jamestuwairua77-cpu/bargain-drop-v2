@@ -1,4 +1,4 @@
-import { corsHeaders, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, nextPageCursor, ghRead, ghWrite } from '../_sync-lib.js';
 export async function onRequest(context) {
   const { request, env } = context; const url = new URL(request.url); const action = url.searchParams.get('action') || 'status';
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
@@ -11,12 +11,17 @@ export async function onRequest(context) {
   if (action !== 'sync') return new Response(JSON.stringify({ error: 'Use ?action=status|sync' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   const start = Date.now();
   try {
-    let prods = [], since_id = 0;
+    const base = '/products.json?limit=250&fields=id,title,body_html,vendor,product_type,tags,variants,images,image,status';
+    let prods = [], cursor = null, guard = 0;
     while (true) {
-      const { body: d } = await shopifyFetch(env, '/products.json?limit=250&fields=id,title,body_html,vendor,product_type,tags,variants,images,image,status&since_id='+since_id);
+      const url = base + (cursor ? '&page_info=' + encodeURIComponent(cursor) : '');
+      const { body: d, headers } = await shopifyFetch(env, url);
       const batch = (d.products || []).filter(p => p.status === 'active' && p.title);
-      if (batch.length === 0) break; prods.push(...batch); since_id = batch[batch.length - 1].id;
-      if (batch.length < 250) break; await new Promise(r => setTimeout(r, 500));
+      prods.push(...batch);
+      cursor = nextPageCursor(headers);
+      if (!cursor) break;                                   // no next page
+      if (++guard > 1000) throw new Error('pagination runaway: >1000 pages');
+      await new Promise(r => setTimeout(r, 300));
     }
     const cats={}, all=[], idx={};
     for (const p of prods) {
