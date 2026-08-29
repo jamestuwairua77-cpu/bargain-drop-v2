@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "5f********af",
+    "valid": true,
+    "paramKeys": [
+      "2036323881448693761"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2036323881448693761\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:40:44.403Z",
+    "at": "2026-08-29T23:40:44.561Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "6c********34",
     "valid": true,
     "paramKeys": [
@@ -2900,12 +2922,5 @@
     "sku": "CJLX306280303CX",
     "available": 100,
     "at": "2026-08-18T10:09:23.117Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733048631427,
-    "sku": "CJQC247473802BY",
-    "available": 100,
-    "at": "2026-08-18T10:09:13.892Z"
   }
 ]
