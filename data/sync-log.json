@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "fd********35",
+    "valid": true,
+    "paramKeys": [
+      "1908816727033442305"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1908816727033442305\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:55:19.884Z",
+    "at": "2026-08-29T23:55:20.049Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "04********90",
     "valid": true,
     "paramKeys": [
@@ -4600,12 +4622,5 @@
     "sku": "CJNZ306321406FU",
     "available": 100,
     "at": "2026-08-18T13:31:24.158Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734113427587,
-    "sku": "CJXFBXYS00202-Light Blue",
-    "available": 100,
-    "at": "2026-08-18T13:29:02.909Z"
   }
 ]
