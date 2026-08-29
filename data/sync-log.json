@@ -1,6 +1,44 @@
 [
   {
     "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
+    "messageId": "ac********26",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productDescription",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "openId",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "CJ variant query failed",
+    "pid": "test",
+    "receivedAt": "2026-08-29T23:29:29.929Z",
+    "at": "2026-08-29T23:29:30.063Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "ORDER",
     "messageType": "UPDATE",
     "messageId": "6c********28",
@@ -1419,13 +1457,5 @@
     "sku": "CJNS306904102BY",
     "available": 100,
     "at": "2026-08-18T09:32:06.753Z"
-  },
-  {
-    "action": "import",
-    "pid": "2088454467231346689",
-    "shopifyId": 9233325686915,
-    "title": "New Cross-Border Fall Winter Women's Fashion Hooded Solid Color Long-Sleeve Loose Twist Button Cardigan Top",
-    "ok": true,
-    "at": "2026-08-18T09:32:04.676Z"
   }
 ]
