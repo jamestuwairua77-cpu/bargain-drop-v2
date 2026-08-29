@@ -3,6 +3,44 @@
     "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
+    "messageId": "e6********c6",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productDescription",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productProperty2",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "CJ variant query failed",
+    "pid": "1662877680657764352",
+    "receivedAt": "2026-08-29T23:52:09.877Z",
+    "at": "2026-08-29T23:52:10.207Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
     "messageId": "46********63",
     "valid": true,
     "paramKeys": [
@@ -4268,12 +4306,5 @@
     "sku": "CJAM28519750001",
     "available": 100,
     "at": "2026-08-18T13:12:45.154Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733145591939,
-    "sku": "CJCD255530202BY",
-    "available": 100,
-    "at": "2026-08-18T13:12:23.329Z"
   }
 ]
