@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "b7********26",
+    "valid": true,
+    "paramKeys": [
+      "2084890612923535362"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2084890612923535362\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:50:43.053Z",
+    "at": "2026-08-29T23:50:43.236Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "ab********3b",
     "valid": true,
     "paramKeys": [
@@ -4011,12 +4033,5 @@
     "sku": "CJXFBXYS00202-Light Blue",
     "available": 100,
     "at": "2026-08-18T11:29:00.267Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734062014595,
-    "sku": "CJZJ306888001AZ",
-    "available": 100,
-    "at": "2026-08-18T11:28:05.947Z"
   }
 ]
