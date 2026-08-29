@@ -4,17 +4,17 @@
 // https://bargain-drop.online/api/cj-webhook (handled by _cj-import.js -> Shopify).
 //
 // GET                 -> report intent (no mutation)
-// GET ?topics=1       -> enable message topics (webhook/set): product/stock/order/logistics/makeup/privateOrder
-// GET ?subscribe=1&limit=N -> subscribe our sourced CJ product pids (batched, resumable)
+// GET ?topics=1       -> enable message topics (webhook/set)
+// GET ?subscribe=1&limit=N -> resolve+subscribe our sourced CJ pids (resumable)
 // GET ?run=1          -> topics + subscribe
 //
-// Resumable via data/cj-subscribe-progress.json in the GitHub-backed store.
+// Persists state to data/cj-subscribe-progress.json (GitHub-backed store).
 
 import { corsHeaders, cjToken, isAdmin, adminDenied, ghRead, ghWrite, shopifyFetch, cjFetchMulti } from '../_sync-lib.js';
 
 const TOPICS = ['product', 'stock', 'order', 'logistics', 'makeup', 'privateOrder'];
 const PROGRESS_PATH = 'data/cj-subscribe-progress.json';
-const BATCH = 100; // CJ max productIds per subscribe call
+const BATCH = 100;
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -27,7 +27,7 @@ export async function onRequest(context) {
   const topicsOnly = url.searchParams.get('topics') === '1';
   const subscribeOnly = url.searchParams.get('subscribe') === '1' || run;
   const reset = url.searchParams.get('reset') === '1';
-  const limit = parseInt(url.searchParams.get('limit') || '8', 10);
+  const limit = parseInt(url.searchParams.get('limit') || '6', 10);
   const callbackUrl = url.origin + '/api/cj-webhook';
 
   try {
@@ -48,33 +48,41 @@ export async function onRequest(context) {
     }
 
     if (subscribeOnly) {
-      const prog = reset ? { stage: 'resolving', done: 0, subscribed: 0 } : await readProgress(env);
+      const prog = reset ? { phase: 'resolve', pids: [], done: 0, subscribed: 0 } : await readProgress(env);
+      prog.phase = prog.phase || 'resolve';
 
-      // Resolve our sourced CJ pids from Shopify SKUs (authoritative list).
-      const all = Array.isArray(prog.all) ? prog.all : await resolvePids(env, prog);
-      prog.all = all;
-
-      const tok = await cjToken(env);
-      let processed = 0;
-      const end = Math.min(prog.done + limit * BATCH, all.length);
-      for (let i = prog.done; i < end; i += BATCH) {
-        const chunk = all.slice(i, i + BATCH);
-        const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', {
-          method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productIds: chunk, subscribeAll: false }),
-        });
-        const j = await r.json();
-        prog.subscribed += (j?.code === 200 || j?.success === true) ? (j?.data?.successProductIds?.length || chunk.length) : 0;
-        prog.done += chunk.length;
-        processed += chunk.length;
+      // Phase 1: resolve CJ pids from our Shopify SKUs (cursor-resumable)
+      if (prog.phase === 'resolve') {
+        const r = await resolvePids(env, prog);   // mutates prog.pids + prog.cursor, returns {done}
+        if (r.done) { prog.phase = 'subscribe'; }
         await writeProgress(env, prog).catch(() => {});
       }
 
-      result.steps.subscribe = {
-        total: all.length, done: prog.done, subscribed: prog.subscribed,
-        processedThisCall: processed, complete: prog.done >= all.length,
-        resumeHint: prog.done < all.length ? ('call again ?subscribe=1&limit=' + limit) : 'done',
-      };
+      // Phase 2: subscribe pids in batches
+      if (prog.phase === 'subscribe') {
+        const tok = await cjToken(env);
+        const end = Math.min(prog.done + limit * BATCH, prog.pids.length);
+        let processed = 0;
+        for (let i = prog.done; i < end; i += BATCH) {
+          const chunk = prog.pids.slice(i, i + BATCH);
+          const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', {
+            method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productIds: chunk, subscribeAll: false }),
+          });
+          const j = await r.json();
+          prog.subscribed += (j?.code === 200 || j?.success === true) ? (j?.data?.successProductIds?.length || chunk.length) : 0;
+          prog.done += chunk.length;
+          processed += chunk.length;
+        }
+        await writeProgress(env, prog).catch(() => {});
+        result.steps.subscribe = {
+          phase: prog.phase, total: prog.pids.length, done: prog.done, subscribed: prog.subscribed,
+          processedThisCall: processed, complete: prog.done >= prog.pids.length,
+          resumeHint: prog.done < prog.pids.length ? ('call again ?subscribe=1&limit=' + limit) : 'done',
+        };
+      } else {
+        result.steps.subscribe = { phase: 'resolve', resolvedSoFar: prog.pids.length, cursor: prog.cursor || 0, resumeHint: 'call again ?subscribe=1' };
+      }
     }
 
     return new Response(JSON.stringify(result), { headers: H });
@@ -83,52 +91,63 @@ export async function onRequest(context) {
   }
 }
 
-// parentSku: 'CJJK275438701AZ' -> 'CJJK2754387'; 'CJYD2990476-2' -> 'CJYD2990476'
 function parentSku(sku) {
-  if (!sku) return sku;
+  if (!sku) return null;
   return String(sku).trim().replace(/-(\d+)$/, '').replace(/(\d{2})([A-Z]{2})$/, '');
 }
 
-// Resolve CJ pids from Shopify catalog SKUs (paginated), resolving in pages to bound runtime.
+// Resolve CJ pids by walking Shopify products via cursor (since_id pagination) and
+// querying CJ /product/query?variantSku= for each unique base SKU. Bounded pages/call.
 async function resolvePids(env, prog) {
-  const resolved = Array.isArray(prog.resolved) ? [...prog.resolved] : [];
-  const seen = new Set(resolved.map(x => x.sku));
+  const pids = [...(prog.pids || [])];
+  const seen = new Set(pids);
+  // cursors: track last Shopify product id (since_id) for resume
+  let sinceId = prog.cursor || 0;
+  const baseSkus = prog.baseSkus ? new Set(prog.baseSkus) : new Set();
 
-  // iterate Shopify products; SKU -> parentSku -> /product/query?variantSku= -> pid
-  let page = '/products.json?limit=250&fields=id,variants';
-  const startIndex = prog.shopifyCursor || 0;
-  let idx = 0;
+  const MAX_PRODUCTS = 120; // bound per call
+  let fetched = 0;
+  let page = `/products.json?limit=250&fields=id,variants&since_id=${sinceId}`;
   let guard = 0;
-  const MAX_PAGES = 8; // bound per call; resume via shopifyCursor
+  let eof = false;
 
-  while (page && guard < MAX_PAGES) {
-    const { body, headers } = await shopifyFetch(env, page);
+  while (fetched < MAX_PRODUCTS && guard < 3) {
+    const { body } = await shopifyFetch(env, page);
     const products = body?.products || [];
-    if (idx + products.length <= startIndex) { idx += products.length; const nx = nextPage(headers); if (!nx) break; page = nx; guard++; continue; }
-
+    if (!products.length) { eof = true; break; }
     for (const p of products) {
-      if (idx < startIndex) { idx++; continue; }
+      sinceId = Math.max(sinceId, Number(p.id));
       for (const v of (p.variants || [])) {
         const base = parentSku(v.sku);
-        if (!base || seen.has(base)) continue;
-        seen.add(base);
-        try {
-          const j = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(base));
-          const pid = j?.data?.pid || j?.data?.productId || j?.data?.id;
-          if (pid) resolved.push({ sku: base, pid: String(pid) });
-        } catch {}
+        if (base) baseSkus.add(base);
       }
-      idx++;
+      fetched++;
+      if (fetched >= MAX_PRODUCTS) break;
     }
-    const nx = nextPage(headers);
-    if (!nx) break;
-    page = nx; guard++;
+    // after collecting baseSkus in this batch, resolve them to pids
+    guard++;
+    if (products.length < 250) { eof = true; break; }
+    if (fetched < MAX_PRODUCTS) page = `/products.json?limit=250&fields=id,variants&since_id=${sinceId}`;
   }
 
-  const allPids = [...new Set(resolved.map(r => r.pid))];
-  // stash partial resolution for resume (allPids only advances when a page completes,
-  // so retries re-resolve the current page — acceptable + idempotent).
-  return allPids;
+  // Resolve newly-collected baseSkus -> pids
+  let newPids = 0;
+  const skuArr = [...baseSkus];
+  for (const sku of skuArr) {
+    if (seen.has(sku)) continue;
+    try {
+      const j = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(sku));
+      const pid = j?.data?.pid || j?.data?.productId || j?.data?.id;
+      if (pid) { const ps = String(pid); if (!pids.includes(ps)) { pids.push(ps); seen.add(ps); newPids++; } }
+      else seen.add(sku);
+    } catch { /* skip, will not retry */ }
+  }
+
+  prog.pids = pids;
+  prog.baseSkus = [...baseSkus];
+  prog.cursor = eof ? -1 : sinceId; // -1 = done resolving
+
+  return { done: eof };
 }
 
 function nextPage(headers) {
@@ -142,11 +161,11 @@ function nextPage(headers) {
 async function readProgress(env) {
   try {
     const j = await ghRead(env, PROGRESS_PATH);
-    if (!j || !j.content) return { stage: 'resolving', done: 0, subscribed: 0 };
+    if (!j || !j.content) return { phase: 'resolve', pids: [], done: 0, subscribed: 0 };
     const p = JSON.parse(decodeBase64(j.content));
     p.sha = j.sha;
     return p;
-  } catch { return { stage: 'resolving', done: 0, subscribed: 0 }; }
+  } catch { return { phase: 'resolve', pids: [], done: 0, subscribed: 0 }; }
 }
 async function writeProgress(env, prog) {
   const { sha, ...body } = prog;
