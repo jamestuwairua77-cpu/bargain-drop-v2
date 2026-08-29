@@ -318,6 +318,18 @@ function setAllBtnsDisabled(d){
   btns.forEach(function(id){var b=document.getElementById(id);if(b)b.disabled=d;});
 }
 
+// --- PayPal modal popup ---
+function closePayPal(){
+  var o=document.getElementById('pp-overlay');
+  if(o)o.classList.remove('show');
+  setAllBtnsDisabled(false);
+}
+
+function openPayPal(){
+  var o=document.getElementById('pp-overlay');
+  if(o)o.classList.add('show');
+}
+
 // --- Build line items ---
 function buildLineItems(){
   return cart.map(function(item){
