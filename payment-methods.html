@@ -52,6 +52,19 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
     .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
     .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
     .search-box input:focus{border-color:#B8A9E8}
+
+.card-item{background:var(--white,#fff);border-radius:14px;padding:16px 18px;margin-bottom:10px;border:1.5px solid #e8e5e0;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative}
+.card-item.default{border-color:var(--lilac,#B8A9E8);background:rgba(184,169,232,.04)}
+.card-brand{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--lilac,#B8A9E8);margin-bottom:4px}
+.card-num{font-size:.9rem;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums}
+.card-holder{font-size:.72rem;color:var(--muted,#888);margin-top:6px}
+.default-badge{display:inline-block;padding:3px 10px;background:rgba(184,169,232,.15);color:var(--lilac,#B8A9E8);border-radius:9999px;font-size:.62rem;font-weight:700;margin-top:6px}
+.action-btn{padding:7px 14px;border:1.5px solid #e8e5e0;border-radius:9999px;background:var(--white,#fff);font-size:.68rem;font-weight:600;color:var(--muted,#888);cursor:pointer;margin-top:8px;display:inline-block}
+.action-btn:hover{border-color:var(--lilac,#B8A9E8);color:var(--fg,#111)}
+.action-btn.danger:hover{border-color:var(--accent,#e60023);color:var(--accent,#e60023)}
+
+.toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:#1a1a1a;color:#fff;padding:12px 22px;border-radius:9999px;font-size:.8rem;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     </style>
 </head>
 <body>
@@ -189,6 +202,70 @@ function collapseSearch(e){
     if(b&&n>0){b.textContent=n;b.style.display=""}
   }catch(e){}
 })();
+</script>
+
+
+<div class="toast" id="toast"></div>
+<script>
+/* === Payment Methods logic === */
+function toast(m){var e=document.getElementById("toast");if(!e)return;e.textContent=m;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},2500)}
+
+function cardBrand(n){n=(n||"").replace(/\D/g,"");if(n[0]==="4")return "Visa";if(/^5[1-5]/.test(n[0]+n[1]))return "Mastercard";if(/^3[47]/.test(n[0]+n[1]))return "Amex";if(n[0]==="6")return "Discover";return "Card"}
+
+function addPayment(){
+  var number=document.getElementById("field-number").value.trim();
+  var holder=document.getElementById("field-holder").value.trim();
+  var expiry=document.getElementById("field-expiry").value.trim();
+  var cvv=document.getElementById("field-cvv").value.trim();
+  var digits=number.replace(/\D/g,"");
+  if(digits.length<12||digits.length>19){toast("⚠️ Please enter a valid card number");return}
+  if(!holder){toast("⚠️ Cardholder name required");return}
+  if(!/^\d{2}\/\d{2}$/.test(expiry)){toast("⚠️ Expiry must be MM/YY");return}
+  if(!/^\d{3,4}$/.test(cvv)){toast("⚠️ Invalid CVV");return}
+  var list=BD.payments.list();
+  var p={
+    id:BD.uid("pm"),
+    brand:cardBrand(digits),
+    number:"•••• "+digits.slice(-4),
+    holder:holder,
+    expiry:expiry,
+    cvv:cvv,
+    isDefault:list.length===0,
+    added:new Date().toISOString()
+  };
+  BD.payments.add(p);
+  document.getElementById("field-number").value="";
+  document.getElementById("field-holder").value="";
+  document.getElementById("field-expiry").value="";
+  document.getElementById("field-cvv").value="";
+  renderPayment();
+  toast("✅ Card saved");
+}
+
+function removePayment(id){
+  if(!confirm("Remove this payment method?"))return;
+  BD.payments.remove(id);
+  var list=BD.payments.list();
+  if(list.length&&!list.some(function(x){return x.isDefault})){list[0].isDefault=true;BD.payments.save(list)}
+  renderPayment();toast("🗑️ Card removed");
+}
+
+function renderPayment(){
+  var list=BD.payments.list(),c=document.getElementById("payment-list"),e=document.getElementById("empty-state");
+  if(!c)return;
+  if(!list.length){c.innerHTML="";if(e)e.style.display="";return}
+  if(e)e.style.display="none";
+  c.innerHTML="";
+  list.forEach(function(p){
+    var div=document.createElement("div");
+    div.className="card-item";
+    div.innerHTML='<div class="card-brand">'+(p.brand||"Card")+'</div><div class="card-num">'+String(p.number||"").replace(/[&<>"]/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]})+'</div><div class="card-holder">'+String(p.holder||"").replace(/[&<>"]/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]})+' · '+String(p.expiry||"")+'</div>'+(p.isDefault?'<span class="default-badge">⭐ Default</span>':'')+'<button class="action-btn danger" onclick="removePayment(\''+p.id+'\')">🗑️ Remove</button>';
+    c.appendChild(div);
+  });
+}
+
+(function(){if(typeof BD!=="undefined"&&BD.requireAuth)BD.requireAuth()})();
+renderPayment();
 </script>
 
 </body>
