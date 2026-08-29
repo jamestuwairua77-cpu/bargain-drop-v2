@@ -1,6 +1,43 @@
 [
   {
     "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
+    "messageId": "ac********77",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productProperty2",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "shopify create 422",
+    "pid": "04557F37-4CBB-4163-AA92-386D0BF778E7",
+    "receivedAt": "2026-08-29T23:32:04.842Z",
+    "at": "2026-08-29T23:32:05.183Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "60********97",
@@ -1718,12 +1755,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T09:33:33.220Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733897126019,
-    "sku": "CJLY306899202BY",
-    "available": 100,
-    "at": "2026-08-18T09:33:29.881Z"
   }
 ]
