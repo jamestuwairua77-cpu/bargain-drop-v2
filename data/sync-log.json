@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "90********e8",
+    "valid": true,
+    "paramKeys": [
+      "2001194059760054274"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2001194059760054274\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:30:21.868Z",
+    "at": "2026-08-29T23:30:22.048Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "87********8b",
     "valid": true,
     "paramKeys": [
@@ -1480,12 +1502,5 @@
     "title": "Womens Summer Red Asymmetrical Waist-Cinching Dress",
     "ok": true,
     "at": "2026-08-18T09:32:18.609Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734258294915,
-    "sku": "CJNZ306321406FU",
-    "available": 100,
-    "at": "2026-08-18T09:32:11.221Z"
   }
 ]
