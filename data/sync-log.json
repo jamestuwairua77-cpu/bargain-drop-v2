@@ -1,6 +1,35 @@
 [
   {
     "action": "cj-webhook",
+    "type": "LOGISTIC",
+    "messageType": "UPDATE",
+    "messageId": "d9********fd",
+    "valid": true,
+    "paramKeys": [
+      "logisticName",
+      "logisticsTrackEvents",
+      "orderId",
+      "trackingNumber",
+      "trackingStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "openId",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "note": "logistic (tracking) received",
+    "orderId": "test",
+    "trackingNumber": "test",
+    "receivedAt": "2026-08-29T23:33:39.612Z",
+    "at": "2026-08-29T23:33:39.728Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
     "messageId": "c6********11",
@@ -1933,12 +1962,5 @@
     "sku": "CJNZ306321406FU",
     "available": 100,
     "at": "2026-08-18T09:34:13.221Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733931139203,
-    "sku": "CJJM287780301AZ",
-    "available": 100,
-    "at": "2026-08-18T09:34:05.381Z"
   }
 ]
