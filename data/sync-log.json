@@ -3,6 +3,45 @@
     "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
+    "messageId": "cc********39",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productDescription",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productProperty2",
+      "productProperty3",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "shopify create 422",
+    "pid": "1753098890947076096",
+    "receivedAt": "2026-08-29T23:56:10.557Z",
+    "at": "2026-08-29T23:56:10.887Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
     "messageId": "d7********e5",
     "valid": true,
     "paramKeys": [
@@ -4535,27 +4574,5 @@
     "changed": 0,
     "receivedAt": "2026-08-29T23:35:14.628Z",
     "at": "2026-08-29T23:35:14.959Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "c7********a5",
-    "valid": true,
-    "paramKeys": [
-      "2504210655581607000"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2504210655581607000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2504210655581606200\",\"storageNum\":8212,\"vid\":\"2508140233021623300\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2504210655581606200\",\"storageNum\":6446,\"vid\":\"2504210655581606400\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2504210655581606200\",\"storageNum\":8036,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-29T23:33:40.547Z",
-    "at": "2026-08-29T23:33:40.730Z"
   }
 ]
