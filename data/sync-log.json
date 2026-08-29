@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "e2********0d",
+    "valid": true,
+    "paramKeys": [
+      "2511280711451636000"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2511280711451636000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2511280711441639600\",\"storageNum\":7579,\"vid\":\"2511280711451636000\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:42:30.666Z",
+    "at": "2026-08-29T23:42:30.931Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "92********ac",
     "valid": true,
     "paramKeys": [
@@ -3125,12 +3147,5 @@
     "sku": "CJPB147773701AZ",
     "available": 100,
     "at": "2026-08-18T10:16:03.323Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733324800131,
-    "sku": "CJLX281938831EV",
-    "available": 100,
-    "at": "2026-08-18T10:15:40.381Z"
   }
 ]
