@@ -45,8 +45,11 @@
     .slide-menu.open .slide-backdrop{opacity:1}
     .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
     .slide-menu.open .slide-panel{transform:translateX(0)}
-    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
-    .slide-item:hover{background:#f8f7f4}
+    .slide-item{display:flex;align-items:center;gap:12px;padding:13px 22px;font-size:.8rem;color:#222;text-decoration:none;font-weight:500}
+    .slide-item:hover{background:#f6f4f0}
+    .slide-ico{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:.62rem;font-weight:800}
+    .slide-heading{font-size:.62rem;font-weight:800;color:#9b978f;text-transform:uppercase;letter-spacing:.08em;padding:14px 22px 6px}
+    
     .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
     .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
     .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
@@ -92,8 +95,11 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
     .slide-menu.open .slide-backdrop{opacity:1}
     .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
     .slide-menu.open .slide-panel{transform:translateX(0)}
-    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
-    .slide-item:hover{background:#f8f7f4}
+    .slide-item{display:flex;align-items:center;gap:12px;padding:13px 22px;font-size:.8rem;color:#222;text-decoration:none;font-weight:500}
+    .slide-item:hover{background:#f6f4f0}
+    .slide-ico{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:.62rem;font-weight:800}
+    .slide-heading{font-size:.62rem;font-weight:800;color:#9b978f;text-transform:uppercase;letter-spacing:.08em;padding:14px 22px 6px}
+    
     .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
     .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
     .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
@@ -104,7 +110,7 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
     </style>
 </head><body>
 <!-- PROMO STRIP -->
-    <div class="promo-strip"><span>🚚 Free Shipping A$29+ · 🔒 SSL Encrypted · ✅ Verified Seller · 🔄 30-Day Returns</span></div>
+    <div class="promo-strip"><span>Free Shipping A$29+ · SSL Encrypted · Verified Seller · 30-Day Returns</span></div>
     <nav class="navbar">
       <a href="/" class="nav-logo">
         <div class="logo-icon">BD</div>
@@ -129,23 +135,20 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
     <div class="slide-menu" id="slide-menu">
       <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
       <div class="slide-panel">
-        <a href="/" class="slide-item">🏠 Home</a>
-        <a href="category.html" class="slide-item">🛍️ All Categories</a>
-        <a href="wishlist.html" class="slide-item">❤️ Wishlist</a>
-        <a href="cart.html" class="slide-item">🛒 Cart</a>
-        <a href="orders.html" class="slide-item">📦 Orders</a>
-        <a href="profile.html" class="slide-item">👤 My Account</a>
-        <a href="sign-in.html" class="slide-item">🔑 Sign In</a>
-        <div class="slide-divider"></div>
-        <a href="profile.html" class="slide-item">📋 Profile Information</a>
-        <a href="addresses.html" class="slide-item">📍 Addresses</a>
-        <a href="payment-methods.html" class="slide-item">💳 Payment Methods</a>
-        <a href="returns.html" class="slide-item">🔄 Returns</a>
-        <a href="wallet.html" class="slide-item">💰 Wallet</a>
-        <a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
-        <a href="customer-service.html" class="slide-item">💬 Customer Service</a>
-        <a href="policy.html" class="slide-item">📜 Privacy Policy</a>
-      </div>
+<div class="slide-heading">Shop</div>
+<a href="/" class="slide-item"><span class="slide-ico" style="background:#4ECDC4">H</span>Home</a>
+<a href="category.html" class="slide-item"><span class="slide-ico" style="background:#B8A9E8">C</span>All Categories</a>
+<a href="wishlist.html" class="slide-item"><span class="slide-ico" style="background:#FF6B6B">W</span>Wishlist</a>
+<a href="cart.html" class="slide-item"><span class="slide-ico" style="background:#F5A623">C</span>Cart</a>
+<div class="slide-divider"></div>
+<div class="slide-heading">Account</div>
+<div id="bd-slide-auth"></div>
+<div id="bd-slide-guest"></div>
+<div class="slide-divider"></div>
+<div class="slide-heading">Support</div>
+<a href="customer-service.html" class="slide-item"><span class="slide-ico" style="background:#4ADE80">S</span>Customer Service</a>
+<a href="policy.html" class="slide-item"><span class="slide-ico" style="background:#9b978f">P</span>Privacy Policy</a>
+    </div>
     </div>
   <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
 <!-- SLIDE-OUT MENU -->
@@ -278,4 +281,34 @@ function collapseSearch(e){
   var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css?v=0438bd327b"; d.head.appendChild(c);
   var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js?v=b75f42de9c"; d.body.appendChild(j);
 })(window,document);
-</script></body></html>
+</script><script>
+(function(){
+  try{
+    var sess = null;
+    try{ sess = JSON.parse(localStorage.getItem('bd_session')||'null'); }catch(e){}
+    var signedIn = !!(sess && sess.email) || !!localStorage.getItem('bd_user_email');
+    var A = document.getElementById('bd-slide-auth');
+    var G = document.getElementById('bd-slide-guest');
+    function item(href,label,bg,ch){ return '<a href="'+href+'" class="slide-item"><span class="slide-ico" style="background:'+bg+'">'+ch+'</span>'+label+'</a>'; }
+    var owned = [
+      ['orders.html','Orders','#F5A623','O'],
+      ['profile.html','My Account','#B8A9E8','A'],
+      ['account-info.html','Profile Information','#B8A9E8','P'],
+      ['addresses.html','Addresses','#4ECDC4','A'],
+      ['payment-methods.html','Payment Methods','#4ADE80','P'],
+      ['returns.html','Returns','#FF6B6B','R'],
+      ['wallet.html','Wallet','#4ECDC4','W'],
+      ['gift-cards.html','Gift Cards','#B8A9E8','G']
+    ];
+    if (signedIn && A && G) {
+      A.innerHTML = owned.map(function(o){ return item(o[0],o[1],o[2],o[3]); }).join('') +
+        '<a href="#" class="slide-item" onclick="event.preventDefault();if(window.signOut){signOut()}else{var ks=[];for(var i=0;i<localStorage.length;i++)ks.push(localStorage.key(i));ks.forEach(function(k){if(k.indexOf("bd_")===0&&k!=="bd_cart")localStorage.removeItem(k)});location.href="/"}"><span class="slide-ico" style="background:#9b978f">X</span>Sign Out</a>';
+      G.innerHTML = '';
+    } else if (G) {
+      A.innerHTML = '';
+      G.innerHTML = item('sign-in.html','Sign In','#4ADE80','S') + item('register.html','Create Account','#B8A9E8','R');
+    }
+  }catch(e){}
+})();
+</script>
+</body></html>

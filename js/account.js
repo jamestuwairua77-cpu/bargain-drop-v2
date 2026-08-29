@@ -167,6 +167,7 @@
       var extra = BD.read('profile_extra', {});
       return Object.assign({
         name: s.name || '',
+        username: s.username || '',
         email: s.email || '',
         picture: s.picture || '',
         phone: '',
@@ -181,6 +182,11 @@
         s.name = p.name;
         localStorage.setItem('bd_session', JSON.stringify(s));
         localStorage.setItem('bd_user_name', p.name);
+      }
+      if (p.username !== undefined && p.username !== s.username) {
+        s.username = p.username;
+        localStorage.setItem('bd_session', JSON.stringify(s));
+        localStorage.setItem('bd_user_username', p.username);
       }
       BD.write('profile_extra', {
         phone: p.phone || '',

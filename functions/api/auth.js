@@ -79,6 +79,7 @@ function checkRateLimit(ip) {
 function safeUser(u) {
   return {
     id: u.id, email: u.email, name: u.name,
+    username: u.username || null,
     first_name: u.first_name || null, last_name: u.last_name || null,
     phone: u.phone || null, picture: u.picture || null,
     credits: u.credits || 0, provider: u.provider || 'email',
@@ -117,7 +118,7 @@ export async function onRequest(context) {
   if (!checkRateLimit(ip)) return json({ error: 'Too many attempts. Try again later.' }, 429);
 
   const body = await request.json().catch(() => ({}));
-  const { action, email, password, name, first_name, last_name, phone, addresses } = body;
+  const { action, email, password, name, username, picture, first_name, last_name, phone, addresses } = body;
 
   if (action === 'signout') {
     return new Response(JSON.stringify({ success: true }), {
@@ -135,6 +136,7 @@ export async function onRequest(context) {
     const hashed = await hashPassword(password);
     const user = {
       id: 'u-' + Date.now(), email, name: name || email.split('@')[0],
+      username: username || null, picture: picture || null,
       first_name: first_name || null, last_name: last_name || null, phone: phone || null, addresses: addresses || null,
       password: hashed, provider: 'email', credits: 0, createdAt: new Date().toISOString(),
     };
@@ -169,6 +171,8 @@ export async function onRequest(context) {
     if (phone != null) user.phone = phone;
     if (addresses != null) user.addresses = addresses;
     if (name != null) user.name = name;
+    if (username != null) user.username = username;
+    if (picture != null) user.picture = picture;
     const ex = await ghRead(env, USERS_PATH);
     await ghWrite(env, USERS_PATH, JSON.stringify(users, null, 2), 'auth: update profile', ex && ex.sha);
 

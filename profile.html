@@ -1,65 +1,323 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"><title>My Account — Bargain Drop</title><style>:root{--bg:#f8f7f4;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--nav-h:54px;--promo-h:28px}*,::before,::after{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);padding-top:calc(var(--nav-h)+var(--promo-h))}a{color:inherit;text-decoration:none}.promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#c0392b);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;z-index:300}.navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:rgba(15,15,15,.97);backdrop-filter:blur(14px);display:flex;align-items:center;padding:0 16px;z-index:299}.nav-logo{display:flex;align-items:center;gap:6px;margin-right:auto}.nav-logo .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--lilac),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff}.nav-logo .logo-text{font-size:.8rem;font-weight:800;color:#fff}.nav-actions{display:flex;gap:4px}.nav-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.7);background:none;border:none;cursor:pointer;text-decoration:none}.container{margin-top:8px;max-width:620px;margin:0 auto;padding:16px 14px 100px}.card{background:var(--white);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:18px 20px;margin-bottom:12px;border:1px solid #e8e5e0}.mi{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #e8e5e0;cursor:pointer;text-decoration:none}.mi:last-child{border-bottom:none}.mi-icon{font-size:1.1rem}.mi-info{flex:1}.mi-label{font-size:.78rem;font-weight:700}.mi-sub{font-size:.68rem;color:var(--muted)}.mi-arrow{color:#ccc}.profile-card{background:var(--white);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:30px 20px;margin-bottom:12px;border:1px solid #e8e5e0;text-align:center}.avatar{margin-top:12px;width:64px;height:64px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:#fff;margin-bottom:10px}.profile-name{font-size:1.1rem;font-weight:800}.profile-email{font-size:.72rem;color:var(--muted)}.btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 28px;border-radius:9999px;font-size:.73rem;font-weight:700;cursor:pointer;border:none;width:100%}.btn-danger{background:var(--accent);color:#fff}.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 28px;border-radius:9999px;font-size:.75rem;font-weight:700;z-index:999;transition:.3s}.toast.show{transform:translateX(-50%) translateY(0)}
-    .hamburger-btn svg line{transition:all .2s}
-    .slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
-    .slide-menu.open{pointer-events:auto}
-    .slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
-    .slide-menu.open .slide-backdrop{opacity:1}
-    .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
-    .slide-menu.open .slide-panel{transform:translateX(0)}
-    .slide-item{display:block;padding:14px 24px;font-size:.82rem;color:#111;text-decoration:none;font-weight:500;border-bottom:1px solid #f0f0f0}
-    .slide-item:hover{background:#f8f7f4}
-    .slide-divider{height:1px;background:#e8e5e0;margin:8px 0}
-    .slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
-    .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
-    .search-overlay.show{display:flex}
-    .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
-    .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
-    .search-box input:focus{border-color:#B8A9E8}
-    </style></head><body>    <div class="promo-strip"><span>🚚 Free Shipping A$29+ · 🔒 SSL Encrypted · ✅ Verified Seller · 🔄 30-Day Returns</span></div>
-    <nav class="navbar">
-      <a href="/" class="nav-logo">
-        <div class="logo-icon">BD</div>
-        <div class="logo-text">BARGAIN DROP</div>
-      </a>
-      <div class="nav-actions">
-        <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
-          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-        </button>
-        <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
-          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-        </a>
-        <a href="cart.html" class="nav-btn" aria-label="Cart">
-          <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-          <span class="nav-badge" id="nav-cart-count" style="display:none">0</span>
-        </a>
-        <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu">
-          <svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"><title>My Account — Bargain Drop</title><style>
+:root{--bg:#f8f7f4;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--nav-h:54px;--promo-h:28px}
+*,::before,::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);padding-top:calc(var(--nav-h)+var(--promo-h))}
+a{color:inherit;text-decoration:none}
+.promo-strip{position:fixed;top:0;left:0;right:0;height:var(--promo-h);background:linear-gradient(90deg,var(--accent),#c0392b);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:600;z-index:300}
+.navbar{position:fixed;top:var(--promo-h);left:0;right:0;height:var(--nav-h);background:rgba(15,15,15,.97);backdrop-filter:blur(14px);display:flex;align-items:center;padding:0 16px;z-index:299}
+.nav-logo{display:flex;align-items:center;gap:6px;margin-right:auto}
+.nav-logo .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--lilac),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff}
+.nav-logo .logo-text{font-size:.8rem;font-weight:800;color:#fff}
+.nav-actions{display:flex;gap:4px}
+.nav-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:rgba(255,255,255,.7);background:none;border:none;cursor:pointer;text-decoration:none}
+.nav-badge{position:absolute;top:4px;right:4px;background:var(--accent);color:#fff;font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.container{margin-top:8px;max-width:620px;margin:0 auto;padding:16px 14px 100px}
+.card{background:var(--white);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:18px 20px;margin-bottom:12px;border:1px solid #e8e5e0}
+.mi{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #e8e5e0;cursor:pointer;text-decoration:none}
+.mi:last-child{border-bottom:none}
+.mi-icon{font-size:1.1rem;width:22px;text-align:center}
+.mi-info{flex:1}
+.mi-label{font-size:.78rem;font-weight:700}
+.mi-sub{font-size:.68rem;color:var(--muted)}
+.mi-arrow{color:#ccc}
+
+/* ── Profile card ── */
+.profile-card{background:var(--white);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:32px 20px 28px;margin-bottom:12px;border:1px solid #e8e5e0;text-align:center;position:relative}
+.avatar-wrap{position:relative;display:inline-block}
+.avatar{width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:#fff;overflow:hidden;background:linear-gradient(135deg,var(--lilac),var(--teal));box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar-edit{position:absolute;bottom:0;right:0;width:30px;height:30px;border-radius:50%;background:var(--fg);color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.avatar-edit svg{width:14px;height:14px}
+.profile-name{font-size:1.15rem;font-weight:800;margin-top:12px}
+.profile-username{font-size:.78rem;color:var(--teal);font-weight:700;margin-top:2px}
+.profile-email{font-size:.72rem;color:var(--muted);margin-top:3px}
+.pic-actions{margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.pic-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;font-size:.7rem;font-weight:700;cursor:pointer;border:1.5px solid #e8e5e0;background:#fff;color:var(--fg);transition:.15s}
+.pic-btn:hover{border-color:var(--lilac)}
+.pic-btn.danger{color:var(--accent);border-color:#f3c4c4}
+.pic-btn.danger:hover{border-color:var(--accent)}
+
+/* ── Auth gate ── */
+.auth-gate{background:var(--white);border-radius:16px;padding:40px 24px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #e8e5e0;margin-bottom:12px}
+.auth-gate .lock{font-size:2rem;margin-bottom:12px}
+.auth-gate h2{font-size:1.1rem;font-weight:800;margin-bottom:6px}
+.auth-gate p{font-size:.78rem;color:var(--muted);margin-bottom:20px}
+.auth-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 28px;border-radius:9999px;font-size:.78rem;font-weight:700;cursor:pointer;border:none;text-decoration:none}
+.btn-primary{background:var(--fg);color:#fff}
+.btn-outline{background:#fff;color:var(--fg);border:1.5px solid #e0ddd7}
+.btn-danger{background:var(--accent);color:#fff}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 28px;border-radius:9999px;font-size:.75rem;font-weight:700;z-index:999;transition:.3s}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── Slide menu (professional, no emojis, colour shading) ── */
+.hamburger-btn svg line{transition:all .2s}
+.slide-menu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;pointer-events:none}
+.slide-menu.open{pointer-events:auto}
+.slide-backdrop{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);opacity:0;transition:opacity .25s}
+.slide-menu.open .slide-backdrop{opacity:1}
+.slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:66px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
+.slide-menu.open .slide-panel{transform:translateX(0)}
+.slide-item{display:flex;align-items:center;gap:12px;padding:13px 22px;font-size:.8rem;color:#222;text-decoration:none;font-weight:500}
+.slide-item:hover{background:#f6f4f0}
+.slide-ico{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:.62rem;font-weight:800}
+.slide-divider{height:1px;background:#e8e5e0;margin:8px 16px}
+.slide-heading{font-size:.62rem;font-weight:800;color:#9b978f;text-transform:uppercase;letter-spacing:.08em;padding:14px 22px 6px}
+.slide-close{position:absolute;top:20px;right:16px;width:36px;height:36px;border:none;background:none;font-size:1.2rem;cursor:pointer;color:#666;z-index:10}
+.search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:flex-start;justify-content:center;padding-top:100px}
+.search-overlay.show{display:flex}
+.search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+.search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
+.search-box input:focus{border-color:#B8A9E8}
+</style></head><body>
+<div class="promo-strip"><span>Free Shipping A$29+ &middot; SSL Encrypted &middot; Verified Seller &middot; 30-Day Returns</span></div>
+<nav class="navbar">
+  <a href="/" class="nav-logo">
+    <div class="logo-icon">BD</div>
+    <div class="logo-text">BARGAIN DROP</div>
+  </a>
+  <div class="nav-actions">
+    <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
+      <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    </a>
+    <a href="cart.html" class="nav-btn" aria-label="Cart">
+      <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span class="nav-badge" id="nav-cart-count" style="display:none;position:relative">0</span>
+    </a>
+    <button class="nav-btn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</nav>
+<div class="slide-menu" id="slide-menu">
+  <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+  <div class="slide-panel">
+    <button class="slide-close" onclick="document.getElementById('slide-menu').classList.remove('open')">&times;</button>
+    <div class="slide-heading">Shop</div>
+    <a href="/" class="slide-item"><span class="slide-ico" style="background:#4ECDC4">H</span>Home</a>
+    <a href="category.html" class="slide-item"><span class="slide-ico" style="background:#B8A9E8">C</span>All Categories</a>
+    <a href="wishlist.html" class="slide-item"><span class="slide-ico" style="background:#FF6B6B">W</span>Wishlist</a>
+    <a href="cart.html" class="slide-item"><span class="slide-ico" style="background:#F5A623">C</span>Cart</a>
+    <div class="slide-divider"></div>
+    <div class="slide-heading">Account</div>
+    <div id="slide-auth-items"></div>
+    <div id="slide-guest-items"></div>
+    <div class="slide-divider"></div>
+    <div class="slide-heading">Support</div>
+    <a href="customer-service.html" class="slide-item"><span class="slide-ico" style="background:#4ADE80">S</span>Customer Service</a>
+    <a href="policy.html" class="slide-item"><span class="slide-ico" style="background:#9b978f">P</span>Privacy Policy</a>
+  </div>
+</div>
+<div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="container">
+  <!-- Signed-out gate -->
+  <div class="auth-gate" id="auth-gate" style="display:none">
+    <div class="lock"><svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" fill="#e8e5e0"/><path d="M8 11V7a4 4 0 018 0v4" stroke="#9b978f" stroke-width="2" fill="none"/></svg></div>
+    <h2>Sign in to your account</h2>
+    <p>Track orders, manage your profile and check out faster.</p>
+    <div class="auth-actions">
+      <a href="sign-in.html" class="btn btn-primary">Sign In</a>
+      <a href="register.html" class="btn btn-outline">Create Account</a>
+    </div>
+  </div>
+
+  <!-- Signed-in content -->
+  <div id="signed-in" style="display:none">
+    <div class="profile-card">
+      <div class="avatar-wrap">
+        <div class="avatar" id="avatar"><span id="avatar-initial">?</span></div>
+        <span class="avatar-edit" id="avatar-edit" title="Change photo" onclick="document.getElementById('pic-input').click()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V5M7 10l5-5 5 5M5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
       </div>
-    </nav>
-    <div class="slide-menu" id="slide-menu">
-      <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
-      <div class="slide-panel">
-        <a href="/" class="slide-item">🏠 Home</a>
-        <a href="category.html" class="slide-item">🛍️ All Categories</a>
-        <a href="wishlist.html" class="slide-item">❤️ Wishlist</a>
-        <a href="cart.html" class="slide-item">🛒 Cart</a>
-        <a href="orders.html" class="slide-item">📦 Orders</a>
-        <a href="profile.html" class="slide-item">👤 My Account</a>
-        <a href="sign-in.html" class="slide-item">🔑 Sign In</a>
-        <div class="slide-divider"></div>
-        <a href="profile.html" class="slide-item">📋 Profile Information</a>
-        <a href="addresses.html" class="slide-item">📍 Addresses</a>
-        <a href="payment-methods.html" class="slide-item">💳 Payment Methods</a>
-        <a href="returns.html" class="slide-item">🔄 Returns</a>
-        <a href="wallet.html" class="slide-item">💰 Wallet</a>
-        <a href="gift-cards.html" class="slide-item">🎁 Gift Cards</a>
-        <a href="customer-service.html" class="slide-item">💬 Customer Service</a>
-        <a href="policy.html" class="slide-item">📜 Privacy Policy</a>
+      <div class="profile-name" id="name">Welcome</div>
+      <div class="profile-username" id="username"></div>
+      <div class="profile-email" id="email"></div>
+      <input type="file" id="pic-input" accept="image/*" style="display:none" onchange="uploadPic(this)">
+      <div class="pic-actions" id="pic-actions" style="display:none">
+        <button class="pic-btn" onclick="document.getElementById('pic-input').click()">Change Photo</button>
+        <button class="pic-btn danger" onclick="removePic()">Remove</button>
       </div>
     </div>
-  <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div><div class="toast" id="toast"></div><div class="container"><div class="profile-card"><div class="avatar" id="avatar">?</div><div class="profile-name" id="name">Welcome</div><div class="profile-email" id="email"></div></div><div class="card" style="padding:0"><a href="orders.html" class="mi"><div class="mi-icon">📦</div><div class="mi-info"><div class="mi-label">Orders</div><div class="mi-sub">Track, return or buy again</div></div><span class="mi-arrow">→</span></a><a href="account-info.html" class="mi"><div class="mi-icon">👤</div><div class="mi-info"><div class="mi-label">Profile Information</div></div><span class="mi-arrow">→</span></a><a href="addresses.html" class="mi"><div class="mi-icon">📍</div><div class="mi-info"><div class="mi-label">Addresses</div></div><span class="mi-arrow">→</span></a><a href="payment-methods.html" class="mi"><div class="mi-icon">💳</div><div class="mi-info"><div class="mi-label">Payment methods</div></div><span class="mi-arrow">→</span></a><a href="returns.html" class="mi"><div class="mi-icon">🔄</div><div class="mi-info"><div class="mi-label">Returns & exchanges</div></div><span class="mi-arrow">→</span></a></div><div class="card" style="padding:0"><a href="gift-cards.html" class="mi"><div class="mi-icon">🎁</div><div class="mi-info"><div class="mi-label">Gift Cards</div></div><span class="mi-arrow">→</span></a><a href="wallet.html" class="mi"><div class="mi-icon">💰</div><div class="mi-info"><div class="mi-label">Wallet & Store Credit</div></div><span class="mi-arrow">→</span></a></div><div class="card" style="padding:0"><a href="security.html" class="mi"><div class="mi-icon">🔒</div><div class="mi-info"><div class="mi-label">Login & security</div></div><span class="mi-arrow">→</span></a><a href="wishlist.html" class="mi"><div class="mi-icon">❤️</div><div class="mi-info"><div class="mi-label">Wishlist</div></div><span class="mi-arrow">→</span></a><a href="communication-preferences.html" class="mi"><div class="mi-icon">🔔</div><div class="mi-info"><div class="mi-label">Notifications</div></div><span class="mi-arrow">→</span></a></div><div class="card" style="padding:0"><a href="customer-service.html" class="mi"><div class="mi-icon">💬</div><div class="mi-info"><div class="mi-label">Customer service</div></div><span class="mi-arrow">→</span></a><a href="policy.html" class="mi"><div class="mi-icon">📄</div><div class="mi-info"><div class="mi-label">Privacy & policy</div></div><span class="mi-arrow">→</span></a></div><button class="btn btn-danger" onclick="signOut()" style="margin-top:16px">Sign out</button></div><script>function t(m){var e=document.getElementById("toast");if(!e)return;e.textContent=m;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},2000)}function gS(){try{return JSON.parse(localStorage.getItem("bd_session")||"null")}catch(e){return null}}function gN(){var s=gS();if(s&&s.name)return s.name;try{var p=JSON.parse(localStorage.getItem("bd_profile_guest")||"null");if(p&&p.name)return p.name}catch(e){}return localStorage.getItem("bd_user_name")||""}function gE(){var s=gS();return(s&&s.email)?s.email:""}function aC(seed){var p=["#B8A9E8","#4ECDC4","#F5A623","#FF6B6B","#4ADE80"],h=0;for(var i=0;i<seed.length;i++)h=(h*31+seed.charCodeAt(i))&0x7fffffff;return p[Math.abs(h)%p.length]}function init(){var n=gN(),e=gE();document.getElementById("name").textContent=n||"Welcome";document.getElementById("email").textContent=e||"Sign in to get started";var av=document.getElementById("avatar");av.style.background=aC(e||n||"BD");av.textContent=((n||e||"BD").split(/[\s.@_-]+/).filter(Boolean)[0]||"?").slice(0,2).toUpperCase()}function signOut(){var keys=[];for(var i=0;i<localStorage.length;i++)keys.push(localStorage.key(i));keys.forEach(function(k){if(k.startsWith("bd_"))localStorage.removeItem(k)});t("Signed out");setTimeout(function(){location.href="/"},1500)}(function(){init()})();</script><script>
+
+    <div class="card" style="padding:0">
+      <a href="account-info.html" class="mi"><div class="mi-icon" style="color:#B8A9E8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Profile Information</div><div class="mi-sub">Name, username, email</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="orders.html" class="mi"><div class="mi-icon" style="color:#F5A623"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 7h18v13H3z" stroke="currentColor" stroke-width="1.8"/><path d="M8 7V4h8v3" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Orders</div><div class="mi-sub">Track, return or buy again</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="addresses.html" class="mi"><div class="mi-icon" style="color:#4ECDC4"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Addresses</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="payment-methods.html" class="mi"><div class="mi-icon" style="color:#4ADE80"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Payment Methods</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="returns.html" class="mi"><div class="mi-icon" style="color:#FF6B6B"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 109-9" stroke="currentColor" stroke-width="1.8"/><path d="M3 5v4h4" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Returns &amp; Exchanges</div></div><span class="mi-arrow">&rarr;</span></a>
+    </div>
+
+    <div class="card" style="padding:0">
+      <a href="gift-cards.html" class="mi"><div class="mi-icon" style="color:#B8A9E8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 13h18M12 8v13" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Gift Cards</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="wallet.html" class="mi"><div class="mi-icon" style="color:#4ECDC4"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 12h2" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Wallet &amp; Store Credit</div></div><span class="mi-arrow">&rarr;</span></a>
+    </div>
+
+    <div class="card" style="padding:0">
+      <a href="security.html" class="mi"><div class="mi-icon" style="color:#9b978f"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Login &amp; Security</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="wishlist.html" class="mi"><div class="mi-icon" style="color:#FF6B6B"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="mi-info"><div class="mi-label">Wishlist</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="communication-preferences.html" class="mi"><div class="mi-icon" style="color:#F5A623"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8"/><path d="M13.7 21a2 2 0 01-3.4 0" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Notifications</div></div><span class="mi-arrow">&rarr;</span></a>
+    </div>
+
+    <div class="card" style="padding:0">
+      <a href="customer-service.html" class="mi"><div class="mi-icon" style="color:#4ADE80"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5z" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Customer Service</div></div><span class="mi-arrow">&rarr;</span></a>
+      <a href="policy.html" class="mi"><div class="mi-icon" style="color:#9b978f"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9l-6-6z" stroke="currentColor" stroke-width="1.8"/><path d="M14 3v6h6" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="mi-info"><div class="mi-label">Privacy &amp; Policy</div></div><span class="mi-arrow">&rarr;</span></a>
+    </div>
+
+    <button class="btn btn-danger" onclick="signOut()" style="margin-top:16px;width:100%">Sign Out</button>
+  </div>
+</div>
+
+<script>
+var API_BASE = window.location.origin;
+function t(m){var e=document.getElementById("toast");if(!e)return;e.textContent=m;e.classList.add("show");clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},2000)}
+function gS(){try{return JSON.parse(localStorage.getItem("bd_session")||"null")}catch(e){return null}}
+function aC(seed){var p=["#B8A9E8","#4ECDC4","#F5A623","#FF6B6B","#4ADE80"],h=0;for(var i=0;i<seed.length;i++)h=(h*31+seed.charCodeAt(i))&0x7fffffff;return p[Math.abs(h)%p.length]}
+
+function currentUser(){
+  var s = gS();
+  if (s && s.email) return s;
+  // fallback from local keys
+  var email = localStorage.getItem("bd_user_email");
+  var name = localStorage.getItem("bd_user_name");
+  if (email) return { email: email, name: name || "", username: localStorage.getItem("bd_user_username") || null, picture: localStorage.getItem("bd_user_pic") || null };
+  return null;
+}
+
+function renderSlideMenu(){
+  var u = currentUser();
+  var authBox = document.getElementById("slide-auth-items");
+  var guestBox = document.getElementById("slide-guest-items");
+  var owned = [
+    { href:"orders.html", label:"Orders", bg:"#F5A623", ch:"O" },
+    { href:"profile.html", label:"My Account", bg:"#B8A9E8", ch:"A" },
+    { href:"account-info.html", label:"Profile Information", bg:"#B8A9E8", ch:"P" },
+    { href:"addresses.html", label:"Addresses", bg:"#4ECDC4", ch:"A" },
+    { href:"payment-methods.html", label:"Payment Methods", bg:"#4ADE80", ch:"P" },
+    { href:"returns.html", label:"Returns", bg:"#FF6B6B", ch:"R" },
+    { href:"wallet.html", label:"Wallet", bg:"#4ECDC4", ch:"W" },
+    { href:"gift-cards.html", label:"Gift Cards", bg:"#B8A9E8", ch:"G" }
+  ];
+  if (u) {
+    var h = '';
+    owned.forEach(function(it){ h += '<a href="'+it.href+'" class="slide-item"><span class="slide-ico" style="background:'+it.bg+'">'+it.ch+'</span>'+it.label+'</a>'; });
+    h += '<a href="#" class="slide-item" onclick="event.preventDefault();signOut();"><span class="slide-ico" style="background:#9b978f">X</span>Sign Out</a>';
+    authBox.innerHTML = h;
+    guestBox.innerHTML = '';
+  } else {
+    authBox.innerHTML = '';
+    guestBox.innerHTML = '<a href="sign-in.html" class="slide-item"><span class="slide-ico" style="background:#4ADE80">S</span>Sign In</a>' +
+      '<a href="register.html" class="slide-item"><span class="slide-ico" style="background:#B8A9E8">R</span>Create Account</a>';
+  }
+}
+
+function render(){
+  var u = currentUser();
+  var gate = document.getElementById("auth-gate");
+  var signedIn = document.getElementById("signed-in");
+  renderSlideMenu();
+  if (!u) {
+    gate.style.display = "";
+    signedIn.style.display = "none";
+    return;
+  }
+  gate.style.display = "none";
+  signedIn.style.display = "";
+
+  var name = u.name || "";
+  var email = u.email || "";
+  var username = u.username || "";
+  var pic = u.picture || localStorage.getItem("bd_user_pic") || "";
+
+  document.getElementById("name").textContent = name || "Welcome";
+  document.getElementById("email").textContent = email || "";
+  document.getElementById("username").textContent = username ? ("@" + username) : "";
+  document.getElementById("username").style.display = username ? "" : "none";
+
+  var av = document.getElementById("avatar");
+  var seed = name || email || "BD";
+  if (pic) {
+    av.innerHTML = '<img src="'+pic+'" alt="Profile photo">';
+  } else {
+    av.style.background = aC(seed);
+    av.innerHTML = '<span id="avatar-initial">' + (seed.split(/[\s.@_-]+/).filter(Boolean)[0]||"?").slice(0,2).toUpperCase() + '</span>';
+  }
+  document.getElementById("pic-actions").style.display = "flex";
+}
+
+function uploadPic(input){
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { t("Image too large (max 2MB)"); return; }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var dataUrl = e.target.result;
+    localStorage.setItem("bd_user_pic", dataUrl);
+    // persist to server profile if signed in via email provider
+    var u = currentUser();
+    if (u && u.email) {
+      localStorage.setItem("bd_user_name", u.name || "");
+      localStorage.setItem("bd_user_email", u.email);
+      // update local session cache
+      try {
+        var sess = gS() || {};
+        sess.picture = dataUrl;
+        localStorage.setItem("bd_session", JSON.stringify(sess));
+      } catch(err){}
+      // best-effort server sync
+      fetch(API_BASE+'/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_profile',email:u.email,picture:dataUrl})}).catch(function(){});
+    }
+    render();
+    t("Profile photo updated");
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePic(){
+  localStorage.removeItem("bd_user_pic");
+  var u = currentUser();
+  if (u && u.email) {
+    try { var sess = gS() || {}; sess.picture = null; localStorage.setItem("bd_session", JSON.stringify(sess)); } catch(err){}
+    fetch(API_BASE+'/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_profile',email:u.email,picture:null})}).catch(function(){});
+  }
+  render();
+  t("Profile photo removed");
+}
+
+// Also fetch live session from server to reconcile
+function refreshFromServer(){
+  fetch(API_BASE+'/api/auth?action=me',{credentials:'include'})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if (d && d.user) {
+        var u = d.user;
+        localStorage.setItem("bd_session", JSON.stringify(u));
+        localStorage.setItem("bd_user_name", u.name || "");
+        localStorage.setItem("bd_user_email", u.email || "");
+        if (u.username) localStorage.setItem("bd_user_username", u.username);
+        if (u.picture) localStorage.setItem("bd_user_pic", u.picture);
+        render();
+      }
+    }).catch(function(){});
+}
+
+function signOut(){
+  var keys = []; for(var i=0;i<localStorage.length;i++) keys.push(localStorage.key(i));
+  keys.forEach(function(k){ if(k.indexOf("bd_")===0 && k!=="bd_cart") localStorage.removeItem(k) });
+  fetch(API_BASE+'/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signout'})}).catch(function(){});
+  t("Signed out");
+  setTimeout(function(){ location.href="/" },900);
+}
+
+(function(){ render(); refreshFromServer(); })();
+</script>
+<script>
 (function(){try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("nav-cart-count");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}})();
 </script>
-
 </body></html>
