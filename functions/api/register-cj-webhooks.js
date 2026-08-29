@@ -3,18 +3,17 @@
 // (/api/cj-webhook) and subscribes product IDs so CJ pushes real-time change events.
 //
 // GET                -> report current intent (no mutation)
-// GET ?run=1         -> enable topics + subscribe products (performs mutation)
 // GET ?topics=1      -> enable message topics only (webhook/set)
-// GET ?subscribe=1   -> subscribe product IDs only (webhook/product/subscribe)
+// GET ?subscribe=1&limit=N -> subscribe product IDs (batched, resumable via progress file)
+// GET ?run=1         -> topics + subscribe
 //
-// CJ API contract (see docs /api/api2/api/webhook.html):
-//   webhook/set:  { product/stock/order/logistics/makeup/privateOrder: { type:"ENABLE", callbackUrls:[url] } }
-//   subscribe:    { productIds:[...], subscribeAll:false } (max 100/req)
-//   callbacks must be public HTTPS and return 200 within 3s (our receiver acks first).
+// Subscription is batched in groups of 100 (CJ max) and resumable via data/cj-subscribe-progress.json.
 
-import { corsHeaders, cjToken, isAdmin, adminDenied, shopifyFetch } from '../_sync-lib.js';
+import { corsHeaders, cjToken, isAdmin, adminDenied, ghRead, ghWrite } from '../_sync-lib.js';
 
 const TOPICS = ['product', 'stock', 'order', 'logistics', 'makeup', 'privateOrder'];
+const PROGRESS_PATH = 'data/cj-subscribe-progress.json';
+const BATCH = 100; // CJ max productIds per subscribe call
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -25,57 +24,66 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const run = url.searchParams.get('run') === '1';
   const topicsOnly = url.searchParams.get('topics') === '1';
-  const subscribeOnly = url.searchParams.get('subscribe') === '1';
+  const subscribeOnly = url.searchParams.get('subscribe') === '1' || run;
+  const reset = url.searchParams.get('reset') === '1';
+  const limit = parseInt(url.searchParams.get('limit') || '8', 10); // batches per call
   const callbackUrl = url.origin + '/api/cj-webhook';
 
   try {
-    const result = {
-      callbackUrl,
-      intent: { topics: TOPICS, productSubscription: 'list of Shopify SKU-derived CJ pids' },
-      steps: {},
-    };
-
+    const result = { callbackUrl, topics: TOPICS, steps: {} };
     if (!run && !topicsOnly && !subscribeOnly) {
       return new Response(JSON.stringify(result), { headers: H });
     }
 
-    const tok = await cjToken(env);
-    const cj = async (path, body, method = 'POST') => {
-      const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1${path}`, {
-        method,
-        headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      return r.json();
-    };
-
     // ── 1. Enable message topics ──────────────────────────────────────────
     if (run || topicsOnly) {
-      const topicBody = {};
-      for (const t of TOPICS) topicBody[t] = { type: 'ENABLE', callbackUrls: [callbackUrl] };
-      const res = await cj('/webhook/set', topicBody);
-      result.steps.topics = { ok: res?.result === true || res?.success === true, code: res?.code, message: res?.message };
+      const tok = await cjToken(env);
+      const body = {};
+      for (const t of TOPICS) body[t] = { type: 'ENABLE', callbackUrls: [callbackUrl] };
+      const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/set', {
+        method: 'POST',
+        headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      result.steps.topics = { ok: j?.code === 200 || j?.success === true, code: j?.code, message: j?.message };
     }
 
-    // ── 2. Subscribe product IDs ──────────────────────────────────────────
-    if (run || subscribeOnly) {
-      // Build the list of CJ product ids from Shopify variants' SKUs.
-      // SKU shape: 'CJQC255986401AZ' -> CJ product base 'CJQC2559864' (strip trailing NN{2letters}).
-      // We resolve each base SKU to its CJ `pid` via /product/list, then subscribe in batches of 100.
-      const pids = await collectPids(env);
-      result.steps.subscribe = { candidates: pids.length };
-      const batches = [];
-      for (let i = 0; i < pids.length; i += 100) batches.push(pids.slice(i, i + 100));
-      const subRes = [];
-      for (const b of batches) {
-        const res = await cj('/webhook/product/subscribe', { productIds: b, subscribeAll: false });
-        subRes.push({
-          ok: res?.success === true, code: res?.code, message: res?.message,
-          success: res?.data?.successProductIds?.length || 0,
-          fail: res?.data?.failProductIds?.length || 0,
+    // ── 2. Subscribe product IDs (resumable, batched) ──────────────────────
+    if (subscribeOnly) {
+      const prog = reset ? { done: 0, subscribed: 0, startedAt: Date.now() }
+                        : await readProgress(env);
+
+      // Resolve all CJ pids (paginated) — cached in progress between calls.
+      const all = (reset || !Array.isArray(prog.all)) ? await getPids(env, prog.all) : prog.all;
+      prog.all = all;
+
+      const tok = await cjToken(env);
+      let processed = 0;
+      const end = Math.min(prog.done + limit * BATCH, all.length);
+      for (let i = prog.done; i < end; i += BATCH) {
+        const chunk = all.slice(i, i + BATCH);
+        const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', {
+          method: 'POST',
+          headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productIds: chunk, subscribeAll: false }),
         });
+        const j = await r.json();
+        const okCount = (j?.code === 200 || j?.success === true) ? (j?.data?.successProductIds?.length || chunk.length) : 0;
+        prog.subscribed += okCount;
+        prog.done += chunk.length;
+        processed += chunk.length;
+        await writeProgress(env, prog).catch(() => {});
       }
-      result.steps.subscribe.batches = subRes;
+
+      result.steps.subscribe = {
+        total: all.length,
+        done: prog.done,
+        subscribed: prog.subscribed,
+        processedThisCall: processed,
+        complete: prog.done >= all.length,
+        resumeHint: prog.done < all.length ? ('call again with ?subscribe=1&limit=' + limit) : 'done',
+      };
     }
 
     return new Response(JSON.stringify(result), { headers: H });
@@ -84,46 +92,42 @@ export async function onRequest(context) {
   }
 }
 
-// Collect CJ product ids from the Shopify catalog (SKU -> CJ pid).
-async function collectPids(env) {
-  const baseSkus = new Set();
-  let page = '/products.json?limit=250&fields=id,variants';
-  let guard = 0;
-  while (page && guard < 20) {
-    const { body, headers } = await shopifyFetch(env, page);
-    for (const p of (body.products || [])) {
-      for (const v of (p.variants || [])) {
-        const sku = v.sku;
-        if (!sku) continue;
-        // strip trailing NN{2letters} variant marker and -N suffix -> base SKU
-        let base = String(sku).replace(/-\d+$/, '').replace(/\d{2}[A-Z]{2}$/, '');
-        if (base) baseSkus.add(base);
-      }
-    }
-    const link = headers?.get?.('Link') || '';
-    const m = link.split(',').find(s => s.includes('rel="next"'));
-    if (!m) break;
-    const u = (m.match(/<([^>]+)>/) || [])[1];
-    page = u ? new URL(u).pathname + new URL(u).search : null;
-    guard++;
-  }
-
-  // Resolve base SKUs -> CJ pids via /product/list (pageSize up to 50).
+// Fetch all CJ product ids via paginated /product/list (bulk).
+async function getPids(env, cached) {
+  if (Array.isArray(cached) && cached.length) return cached;
+  const tok = await cjToken(env);
   const pids = [];
-  const arr = [...baseSkus];
-  for (let i = 0; i < arr.length; i += 50) {
-    const chunk = arr.slice(i, i + 50);
-    for (const sku of chunk) {
-      try {
-        const tok = await cjToken(env);
-        const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=5`, {
-          headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
-        });
-        const j = await r.json();
-        const list = j?.data?.list || [];
-        if (list.length) pids.push(String(list[0].pid));
-      } catch {}
-    }
+  let pageNum = 1;
+  for (let guard = 0; guard < 400; guard++) {
+    const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1/product/list?pageNum=${pageNum}&pageSize=50`, {
+      headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
+    });
+    const j = await r.json();
+    const list = j?.data?.list || [];
+    if (!list.length) break;
+    for (const p of list) if (p.pid) pids.push(String(p.pid));
+    const total = j?.data?.total || 0;
+    if (pids.length >= total || list.length < 50) break;
+    pageNum++;
   }
   return [...new Set(pids)];
+}
+
+async function readProgress(env) {
+  try {
+    const j = await ghRead(env, PROGRESS_PATH); // GitHub contents API response
+    if (!j || !j.content) return { done: 0, subscribed: 0, startedAt: Date.now() };
+    const txt = decodeBase64(j.content);
+    const p = JSON.parse(txt);
+    p.sha = j.sha;
+    return p;
+  } catch { return { done: 0, subscribed: 0, startedAt: Date.now() }; }
+}
+async function writeProgress(env, prog) {
+  const { sha, ...body } = prog;
+  return ghWrite(env, PROGRESS_PATH, JSON.stringify(body, null, 2), 'cj-subscribe: progress', sha);
+}
+function decodeBase64(s) {
+  try { return new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0))); }
+  catch { return atob(s.replace(/\s/g, '')); }
 }
