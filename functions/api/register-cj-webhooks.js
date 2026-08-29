@@ -28,6 +28,7 @@ export async function onRequest(context) {
   const subscribeOnly = url.searchParams.get('subscribe') === '1' || run;
   const reset = url.searchParams.get('reset') === '1';
   const limit = parseInt(url.searchParams.get('limit') || '6', 10);
+  const subscribeAll = url.searchParams.get('all') === '1';
   const callbackUrl = url.origin + '/api/cj-webhook';
 
   try {
@@ -48,6 +49,16 @@ export async function onRequest(context) {
     }
 
     if (subscribeOnly) {
+      if (subscribeAll) {
+        const tok = await cjToken(env);
+        const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', {
+          method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscribeAll: true }),
+        });
+        const j = await r.json();
+        result.steps.subscribe = { mode: 'subscribeAll', ok: j?.code === 200 || j?.success === true, code: j?.code, message: j?.message, data: j?.data };
+        return new Response(JSON.stringify(result), { headers: H });
+      }
       const prog = reset ? { phase: 'resolve', pids: [], done: 0, subscribed: 0 } : await readProgress(env);
       prog.phase = prog.phase || 'resolve';
 
