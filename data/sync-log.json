@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "12********bc",
+    "valid": true,
+    "paramKeys": [
+      "2037440720109416450"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2037440720109416450\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:30:26.609Z",
+    "at": "2026-08-29T23:30:26.864Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "24********53",
     "valid": true,
     "paramKeys": [
@@ -1553,13 +1575,5 @@
     "sku": "CJLX306485909IR",
     "available": 100,
     "at": "2026-08-18T09:32:47.060Z"
-  },
-  {
-    "action": "import",
-    "pid": "2088757519963693057",
-    "shopifyId": 9233327325315,
-    "title": "2026 Explosions Retro Jewelry Exaggerated Necklace Earrings Large Suit Luxury Crystal Jewelry Banquet Wear Wholesale",
-    "ok": true,
-    "at": "2026-08-18T09:32:44.342Z"
   }
 ]
