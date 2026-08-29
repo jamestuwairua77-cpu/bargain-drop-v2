@@ -1,6 +1,43 @@
 [
   {
     "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
+    "messageId": "ed********ae",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productProperty2",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "CJ variant query failed",
+    "pid": "04557F37-4CBB-4163-AA92-386D0BF778E7",
+    "receivedAt": "2026-08-29T23:52:05.701Z",
+    "at": "2026-08-29T23:52:05.873Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "a0********41",
@@ -4176,12 +4213,5 @@
     "sku": "CJLX306156113MN",
     "available": 100,
     "at": "2026-08-18T13:09:56.262Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49733064163459,
-    "sku": "CJLX306156102BY",
-    "available": 100,
-    "at": "2026-08-18T13:09:51.827Z"
   }
 ]
