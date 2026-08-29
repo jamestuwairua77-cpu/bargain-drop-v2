@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "2e********75",
+    "valid": true,
+    "paramKeys": [
+      "2001198600089939969"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2001198600089939969\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:30:22.946Z",
+    "at": "2026-08-29T23:30:23.122Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "90********e8",
     "valid": true,
     "paramKeys": [
@@ -1494,13 +1516,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T09:32:22.471Z"
-  },
-  {
-    "action": "import",
-    "pid": "2608150212551614600",
-    "shopifyId": 9233326375043,
-    "title": "Womens Summer Red Asymmetrical Waist-Cinching Dress",
-    "ok": true,
-    "at": "2026-08-18T09:32:18.609Z"
   }
 ]
