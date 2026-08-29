@@ -136,8 +136,8 @@ async function resolvePids(env, prog) {
   for (const sku of skuArr) {
     if (seen.has(sku)) continue;
     try {
-      const j = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(sku));
-      const pid = j?.data?.pid || j?.data?.productId || j?.data?.id;
+      const j = await cjFetchMulti(env, '/product/list?productSku=' + encodeURIComponent(sku) + '&pageNum=1&pageSize=10');
+      const pid = j?.data?.list?.[0]?.pid;
       if (pid) { const ps = String(pid); if (!pids.includes(ps)) { pids.push(ps); seen.add(ps); newPids++; } }
       else seen.add(sku);
     } catch { /* skip, will not retry */ }
