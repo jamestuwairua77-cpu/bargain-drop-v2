@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "91********59",
+    "valid": true,
+    "paramKeys": [
+      "1988881812731064321"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1988881812731064321\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:35:20.197Z",
+    "at": "2026-08-29T23:35:20.436Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "df********63",
     "valid": true,
     "paramKeys": [
@@ -2030,12 +2052,5 @@
     "sku": "CJYD306304103CX",
     "available": 100,
     "at": "2026-08-18T09:34:50.738Z"
-  },
-  {
-    "action": "import",
-    "pid": "2088759459015598082",
-    "ok": false,
-    "error": "Shopify API Error 429: \"Exceeded 2 calls per second for api client. Reduce request rates to resume uninterrupted service.\"",
-    "at": "2026-08-18T09:34:38.652Z"
   }
 ]
