@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "2b********5d",
+    "valid": true,
+    "paramKeys": [
+      "1993020452388651009"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1993020452388651009\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-08-29T23:30:19.453Z",
+    "at": "2026-08-29T23:30:19.641Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
     "messageId": "ac********26",
@@ -1450,12 +1472,5 @@
     "sku": null,
     "available": 100,
     "at": "2026-08-18T09:32:07.743Z"
-  },
-  {
-    "action": "back-sync-inventory",
-    "inventoryItemId": 49734129123459,
-    "sku": "CJNS306904102BY",
-    "available": 100,
-    "at": "2026-08-18T09:32:06.753Z"
   }
 ]
