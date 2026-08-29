@@ -6,7 +6,9 @@
 // GET                 -> report intent (no mutation)
 // GET ?topics=1       -> enable message topics (webhook/set)
 // GET ?subscribe=1&limit=N -> resolve+subscribe our sourced CJ pids (resumable)
+// GET ?all=1          -> subscribeAll shortcut (pre-June-2026 accounts)
 // GET ?run=1          -> topics + subscribe
+// GET ?reset=1        -> clear progress and start resolve phase fresh
 //
 // Persists state to data/cj-subscribe-progress.json (GitHub-backed store).
 
@@ -59,12 +61,14 @@ export async function onRequest(context) {
         result.steps.subscribe = { mode: 'subscribeAll', ok: j?.code === 200 || j?.success === true, code: j?.code, message: j?.message, data: j?.data };
         return new Response(JSON.stringify(result), { headers: H });
       }
-      const prog = reset ? { phase: 'resolve', pids: [], done: 0, subscribed: 0 } : await readProgress(env);
+
+      // load clean progress (ignore stale pre-phase shapes)
+      const prog = reset ? { phase: 'resolve', pids: [], done: 0, subscribed: 0, baseSkus: [], triedSkus: [], cursor: 0 } : await readProgress(env);
       prog.phase = prog.phase || 'resolve';
 
       // Phase 1: resolve CJ pids from our Shopify SKUs (cursor-resumable)
       if (prog.phase === 'resolve') {
-        const r = await resolvePids(env, prog);   // mutates prog.pids + prog.cursor, returns {done}
+        const r = await resolvePids(env, prog);   // mutates prog.pids/cursor/baseSkus/triedSkus
         if (r.done) { prog.phase = 'subscribe'; }
         await writeProgress(env, prog).catch(() => {});
       }
@@ -102,26 +106,39 @@ export async function onRequest(context) {
   }
 }
 
+function isFlattenedSku(sku) {
+  if (!sku) return false;
+  const s = String(sku).trim();
+  return /-\d+$/.test(s) || /\d{2}[A-Z]{2}$/.test(s);
+}
+
 function parentSku(sku) {
   if (!sku) return null;
-  return String(sku).trim().replace(/-(\d+)$/, '').replace(/(\d{2})([A-Z]{2})$/, '');
+  let s = String(sku).trim();
+  s = s.replace(/-\d+$/, '');
+  s = s.replace(/(\d{2})([A-Z]{2})$/, '');
+  return s;
 }
 
 // Resolve CJ pids by walking Shopify products via cursor (since_id pagination) and
-// querying CJ /product/query?variantSku= for each unique base SKU. Bounded pages/call.
+// querying CJ /product/list?productSku= for each unique base SKU. Bounded pages/call.
+// Only NEW base SKUs (not in triedSkus) are resolved each call, so progression is monotonic.
 async function resolvePids(env, prog) {
   const pids = [...(prog.pids || [])];
-  const seen = new Set(pids);
-  // cursors: track last Shopify product id (since_id) for resume
-  let sinceId = prog.cursor || 0;
-  const baseSkus = prog.baseSkus ? new Set(prog.baseSkus) : new Set();
+  const baseSkus = prog.baseSkus ? [...prog.baseSkus] : [];
+  const triedSkus = prog.triedSkus ? [...prog.triedSkus] : [];
+  const triedSet = new Set(triedSkus);
+  const pidSet = new Set(pids);
+  const baseSet = new Set(baseSkus);
 
+  let sinceId = prog.cursor || 0;
   const MAX_PRODUCTS = 120; // bound per call
   let fetched = 0;
   let page = `/products.json?limit=250&fields=id,variants&since_id=${sinceId}`;
   let guard = 0;
   let eof = false;
 
+  // Walk Shopify products to collect NEW base SKUs.
   while (fetched < MAX_PRODUCTS && guard < 3) {
     const { body } = await shopifyFetch(env, page);
     const products = body?.products || [];
@@ -130,54 +147,61 @@ async function resolvePids(env, prog) {
       sinceId = Math.max(sinceId, Number(p.id));
       for (const v of (p.variants || [])) {
         const base = parentSku(v.sku);
-        if (base) baseSkus.add(base);
+        if (base && !baseSet.has(base)) { baseSet.add(base); baseSkus.push(base); }
       }
       fetched++;
       if (fetched >= MAX_PRODUCTS) break;
     }
-    // after collecting baseSkus in this batch, resolve them to pids
     guard++;
     if (products.length < 250) { eof = true; break; }
     if (fetched < MAX_PRODUCTS) page = `/products.json?limit=250&fields=id,variants&since_id=${sinceId}`;
   }
 
-  // Resolve newly-collected baseSkus -> pids
+  // Resolve only base SKUs not yet tried.
   let newPids = 0;
-  const skuArr = [...baseSkus];
+  const skuArr = baseSkus.filter(s => !triedSet.has(s));
   for (const sku of skuArr) {
-    if (seen.has(sku)) continue;
+    triedSet.add(sku);
     try {
       const j = await cjFetchMulti(env, '/product/list?productSku=' + encodeURIComponent(sku) + '&pageNum=1&pageSize=10');
       const pid = j?.data?.list?.[0]?.pid;
-      if (pid) { const ps = String(pid); if (!pids.includes(ps)) { pids.push(ps); seen.add(ps); newPids++; } }
-      else seen.add(sku);
-    } catch { /* skip, will not retry */ }
+      if (pid) {
+        const ps = String(pid);
+        if (!pidSet.has(ps)) { pids.push(ps); pidSet.add(ps); newPids++; }
+      }
+    } catch { /* keep tried marker, skip */ }
+    await new Promise(r => setTimeout(r, 150));
   }
 
   prog.pids = pids;
-  prog.baseSkus = [...baseSkus];
+  prog.baseSkus = baseSkus;
+  prog.triedSkus = [...triedSet];
   prog.cursor = eof ? -1 : sinceId; // -1 = done resolving
 
   return { done: eof };
 }
 
-function nextPage(headers) {
-  const link = headers?.get?.('Link') || '';
-  const m = link.split(',').find(s => s.includes('rel="next"'));
-  if (!m) return null;
-  const u = (m.match(/<([^>]+)>/) || [])[1];
-  return u ? new URL(u).pathname + new URL(u).search : null;
-}
-
 async function readProgress(env) {
   try {
     const j = await ghRead(env, PROGRESS_PATH);
-    if (!j || !j.content) return { phase: 'resolve', pids: [], done: 0, subscribed: 0 };
+    if (!j || !j.content) return { phase: 'resolve', pids: [], done: 0, subscribed: 0, baseSkus: [], triedSkus: [], cursor: 0 };
     const p = JSON.parse(decodeBase64(j.content));
+    // Ignore stale pre-phase shapes: {done, subscribed, all:[...]} is a marketplace
+    // subscribeAll run, NOT our sourced pids. Only accept the new {phase,...} shape.
+    if (!p || typeof p !== 'object' || !p.phase) {
+      return { phase: 'resolve', pids: [], done: 0, subscribed: 0, baseSkus: [], triedSkus: [], cursor: 0 };
+    }
     p.sha = j.sha;
+    p.pids = Array.isArray(p.pids) ? p.pids : [];
+    p.baseSkus = Array.isArray(p.baseSkus) ? p.baseSkus : [];
+    p.triedSkus = Array.isArray(p.triedSkus) ? p.triedSkus : [];
+    p.done = p.done || 0;
+    p.subscribed = p.subscribed || 0;
+    p.cursor = p.cursor || 0;
     return p;
-  } catch { return { phase: 'resolve', pids: [], done: 0, subscribed: 0 }; }
+  } catch { return { phase: 'resolve', pids: [], done: 0, subscribed: 0, baseSkus: [], triedSkus: [], cursor: 0 }; }
 }
+
 async function writeProgress(env, prog) {
   const { sha, ...body } = prog;
   return ghWrite(env, PROGRESS_PATH, JSON.stringify(body, null, 2), 'cj-subscribe: progress', sha);
