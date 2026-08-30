@@ -84,6 +84,7 @@ async function cjFetchKey(env, apiKey, path) {
   return r.json();
 }
 
+// Resolve full CJ variant matrix for a product using ONLY the pinned key.
 async function resolveCjKey(env, apiKey, p) {
   const firstRaw = (p.variants||[]).map(v=>v.sku).filter(Boolean)[0];
   const candidates = [];
@@ -186,8 +187,8 @@ function buildCjPayload(p, cj){
 
 async function putProduct(env, p, payload){
   let res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
-  for (let t=0; t<6 && res && (res.status===409 || res.status===429); t++) {
-    await new Promise(r=>setTimeout(r, 1200 + t*700));
+  for (let t=0; t<2 && res && (res.status===409 || res.status===429); t++) {
+    await new Promise(r=>setTimeout(r, 800 + t*500));
     res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
   }
   return res;
@@ -229,9 +230,9 @@ export async function onRequest(context){
     }
 
     const limitRaw = parseInt(url.searchParams.get('limit')||'',10);
-    const limit = priceOnly
-      ? (isNaN(limitRaw) ? 120 : Math.min(limitRaw, 200))
-      : Math.min(isNaN(limitRaw) ? 40 : limitRaw, 120);
+    // Pages Functions enforce a ~50 subrequest ceiling per invocation. Each product
+    // PUT is 1 subrequest (+ rare retry), the products list is 1, progress rw is 1-2.
+    const limit = Math.min(isNaN(limitRaw) ? 40 : limitRaw, 40);
 
     const progDoc = await ghRead(env, 'data/reimport-progress.json');
     let prog = (progDoc && progDoc.content) ? JSON.parse(atob(progDoc.content.replace(/\n/g,''))) : {};
@@ -262,14 +263,14 @@ export async function onRequest(context){
 
     const lookups = new Map();
     if (!priceOnly && remaining.length) {
-      const lkres = await mapWithConcurrency(remaining, 12, async (p) => {
+      const lkres = await mapWithConcurrency(remaining, 6, async (p) => {
         try { return { p, cj: await resolveCjKey(env, apiKey, p) }; }
         catch (e) { return { p, cj: null, err: String(e.message||e) }; }
       });
       for (const r of lkres) { if (r && r.p) lookups.set(String(r.p.id), r); }
     }
 
-    const resultsArr = await mapWithConcurrency(remaining, 20, async (p) => {
+    const resultsArr = await mapWithConcurrency(remaining, 8, async (p) => {
       const id = String(p.id);
       try {
         let r;
