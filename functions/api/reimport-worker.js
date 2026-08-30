@@ -8,16 +8,15 @@
 //   ?run=1&limit=M    -> full variant recovery via CJ (rebuild variant matrix + tier pricing)
 //   ?priceOnly=1      -> tiered re-price only (NO CJ, no variant rebuild, very fast)
 //   ?stats=1          -> report configured key prefixes + openIds (no work)
-//   ?reset=1          -> clear progress
+//   ?reset=1          -> clear progress (for THIS key's shard)
 //   ?dryRun=1         -> count products needing a fix (no changes)
+//   ?shards=S         -> number of catalog shards (default 4). Each key owns shard == key % shards.
 //
-// Concurrency model (the whole point vs reimport-products.js):
-//   Phase 1: fan out ALL CJ lookups for the batch in a single Promise.all (one key).
-//   Phase 2: fan out ALL Shopify PUTs in a single Promise.all (per-product 409/429 retry).
-// This fits as many products as possible into ONE request/call instead of serializing.
-//
-// Resumable via data/reimport-progress.json (keyed by live product id; cursor = since_id).
-// Progress shape is the SAME as reimport-products.js so the two endpoints can share state.
+// PARALLEL SLICES (option B): every key scans a DISJOINT slice of the catalog by
+// product-id remainder (Number(id) % shards === shard), and keeps its OWN progress
+// file (data/reimport-progress-{key}.json). No shared cursor, no overlap, no clobber.
+// Each key's cursor advances independently within its own slice, so 4 keys chew
+// through 4 different regions of the catalog in parallel (~4x the single-agent rate).
 
 import { corsHeaders, shopifyFetch, ghRead, ghWriteLarge, isAdmin, adminDenied, cjKeys } from '../_sync-lib.js';
 
@@ -62,7 +61,7 @@ function needsFix(p){
 }
 
 // Single-key CJ fetch: exchange the token ONCE for the pinned key, cache it for the
-// whole request, and reuse it for every lookup. No round-robin across 6 keys.
+// whole request, and reuse it for every lookup. No round-robin across keys.
 let _tokCache = new Map(); // apiKey -> { token, exp }
 async function keyToken(apiKey) {
   const c = _tokCache.get(apiKey);
@@ -194,8 +193,6 @@ async function putProduct(env, p, payload){
 }
 
 // Run `fn(item)` over `items` with at most `concurrency` in flight at once.
-// Stays well under Cloudflare's 100-subrequest-per-invocation limit while still
-// fanning out aggressively (batches of ~20), so large limits don't 502.
 async function mapWithConcurrency(items, concurrency, fn) {
   const results = new Array(items.length);
   let i = 0;
@@ -225,37 +222,53 @@ export async function onRequest(context){
     const keys = cjKeys(env);
     const keyIdx = Math.max(0, Math.min(parseInt(url.searchParams.get('key')||'0',10)||0, keys.length-1));
     const apiKey = keys[keyIdx];
+    const shards = Math.max(1, parseInt(url.searchParams.get('shards')||'4',10)||4);
+    const shard = Math.max(0, Math.min(keyIdx, shards-1)); // each key owns shard == keyIdx % shards
 
     if (stats) {
       const prefixes = keys.map(k => String(k).slice(0, 12) + '...');
-      return new Response(JSON.stringify({ keys: keys.length, keyIndex: keyIdx, keyPrefixes: prefixes }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+      return new Response(JSON.stringify({ keys: keys.length, keyIndex: keyIdx, keyPrefixes: prefixes, shards, shard }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
     }
 
     const limitRaw = parseInt(url.searchParams.get('limit')||'',10);
     // Cloudflare Pages has a hard subrequest limit of 50.
-    // For full variant recovery: limit to 6 (each does ~4 subrequests).
-    // For priceOnly: limit to 15 (each does ~2 subrequests).
     const limit = priceOnly
       ? (isNaN(limitRaw) ? 15 : Math.min(limitRaw, 20))
       : (isNaN(limitRaw) ? 6 : Math.min(limitRaw, 10));
 
-    const progDoc = await ghRead(env, 'data/reimport-progress.json');
+    // PER-KEY progress file — disjoint slice, no cross-key contention.
+    const progPath = `data/reimport-progress-${keyIdx}.json`;
+    const progDoc = await ghRead(env, progPath);
     let prog = (progDoc && progDoc.content) ? JSON.parse(atob(progDoc.content.replace(/\n/g,''))) : {};
     if (reset || typeof prog !== 'object' || !prog) prog = {};
     const attempts = prog.attempts || {};
     const cursor = prog.cursor || 0;
 
-    const res = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,options,variants,images&since_id=${cursor}`);
-    const batch = res.body?.products || [];
-    const newCursor = batch.length ? batch.reduce((m,p)=>Math.max(m,Number(p.id)), cursor) : cursor;
-    const eof = batch.length < 250;
+    // Scan the catalog by since_id but FILTER to this key's shard (id % shards === shard).
+    // Each page is 250 products; we keep paging until we've collected `limit` shard members
+    // or we exhaust this shard, whichever comes first.
+    const collect = [];
+    let scanCursor = cursor;
+    let eof = false;
+    while (collect.length < limit) {
+      const res = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,options,variants,images&since_id=${scanCursor}`);
+      const batch = res.body?.products || [];
+      if (!batch.length) { eof = true; break; }
+      const maxId = Math.max(...batch.map(p=>Number(p.id)));
+      const mine = batch.filter(p => (Number(p.id) % shards) === shard);
+      for (const p of mine) { if (collect.length < limit) collect.push(p); }
+      if (batch.length < 250) { eof = true; break; }
+      scanCursor = maxId;
+    }
+    const newCursor = scanCursor;
+    const batch = collect;
     const todoP = batch.filter(needsFix);
 
     if (dryRun) {
-      return new Response(JSON.stringify({ cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+      return new Response(JSON.stringify({ cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length, shard, shards }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
     }
     if (!run) {
-      return new Response(JSON.stringify({ cursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+      return new Response(JSON.stringify({ cursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length, shard, shards }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
     }
 
     const doneIds = new Set(Object.keys(prog).filter(k => k!=='attempts' && k!=='cursor' && prog[k] && typeof prog[k]==='object' && ('n' in prog[k] || 'skip' in prog[k] || 'm' in prog[k])));
@@ -290,7 +303,6 @@ export async function onRequest(context){
         }
         const lk = lookups.get(id) || { cj: null };
         if (!lk.cj) {
-          // Fallback: re-price only (no CJ matrix).
           r = await putProduct(env, p, buildRepricePayload(p));
           if (!r.ok) return { id, ok:false, err:'no-cj reprice put '+r.status };
           const n = (buildRepricePayload(p).product.variants||[]).length;
@@ -322,16 +334,16 @@ export async function onRequest(context){
     prog.attempts = attempts;
 
     try {
-      const fresh = await ghRead(env, 'data/reimport-progress.json');
+      const fresh = await ghRead(env, progPath);
       let merged = prog;
       if (fresh && fresh.content) {
         try { const existing = JSON.parse(atob(fresh.content.replace(/\n/g,''))); merged = { ...existing, ...prog, attempts: { ...(existing.attempts||{}), ...attempts } }; } catch {}
       }
-      await ghWriteLarge(env, 'data/reimport-progress.json', JSON.stringify(merged), 'auto: reimport progress');
+      await ghWriteLarge(env, progPath, JSON.stringify(merged), 'auto: reimport progress key ' + keyIdx);
     } catch (we) { void we; }
 
     const elapsed = Date.now() - startedAt;
-    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, elapsedMs: elapsed, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, shard, shards, elapsedMs: elapsed, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
   } catch (err) {
     return new Response(JSON.stringify({ error:String(err&&err.message||err), stack:String(err&&err.stack||'').slice(0,400) }), { status:500, headers:{'Content-Type':'application/json',...corsHeaders()} });
   }
