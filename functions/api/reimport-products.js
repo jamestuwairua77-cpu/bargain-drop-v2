@@ -5,7 +5,9 @@
 // and PUTs it back to the SAME live product id with tiered computePrice().
 //
 // GET ?dryRun=1        -> count only (how many live products need a fix)
-// GET ?run=1&limit=N   -> update up to N live products in place
+// GET ?run=1&limit=N   -> update up to N live products in place (variant recovery via CJ)
+// GET ?priceOnly=1&limit=N -> re-price ONLY (no CJ, single Shopify PUT per product, fast).
+//                               Default limit = 200 when not specified.
 // GET ?reset=1         -> clear progress + restart from cursor 0
 // Resumable via data/reimport-progress.json (cursor = since_id, keyed by live id).
 
@@ -200,9 +202,14 @@ export async function onRequest(context){
     if (!isAdmin(request, env)) return adminDenied();
     const url=new URL(request.url);
     const run=url.searchParams.get('run')==='1';
+    const priceOnly=url.searchParams.get('priceOnly')==='1';
     const dryRun=url.searchParams.get('dryRun')==='1';
     const reset=url.searchParams.get('reset')==='1';
-    const limit=Math.min(parseInt(url.searchParams.get('limit')||'10',10), 25);
+    const limitRaw=parseInt(url.searchParams.get('limit')||'',10);
+    // priceOnly (no-CJ) is fast: default 200, cap 250. CJ path stays capped at 25.
+    const limit = priceOnly
+      ? (isNaN(limitRaw) ? 200 : Math.min(limitRaw, 250))
+      : Math.min(isNaN(limitRaw) ? 10 : limitRaw, 25);
 
     const progDoc=await ghRead(env,'data/reimport-progress.json');
     let prog=(progDoc&&progDoc.content)?JSON.parse(atob(progDoc.content.replace(/\n/g,''))):{};
@@ -231,18 +238,26 @@ export async function onRequest(context){
       .slice(0, limit);
 
     let ok=0, fail=0; const results=[];
+    const startedAt = Date.now();
+    // priceOnly mode: skip CJ entirely, minimal sleep to fit as many as possible
+    // within the Pages Function wall-clock budget (~10s).
+    const sleepMs = priceOnly ? 30 : 600;
+    // Hard stop: leave ~2s headroom to persist progress before the timeout.
+    const DEADLINE = startedAt + (priceOnly ? 7000 : 9000);
+
     for(const p of remaining){
+      if (Date.now() >= DEADLINE) { results.push({ id: String(p.id), ok:false, err:'deadline-stop' }); break; }
       const id=String(p.id);
       let r_ok=false;
       try{
-        const r=await reimport(env,p);
+        const r = priceOnly ? await repriceOnly(env,p) : await reimport(env,p);
         prog[id]=r.ok?{n:r.variants,colors:r.colors,sizes:r.sizes,m:r.mode||''}:{skip:r.skip||r.error||'fail'};
         r_ok=!!r.ok;
         if(r_ok) ok++; else fail++;
         results.push({id, ok:r_ok, variants:r.variants, colors:r.colors, sizes:r.sizes, mode:r.mode, err:r.error||r.skip});
       }catch(e){ prog[id]={skip:'ex:'+String(e.message||e).slice(0,50)}; fail++; results.push({id, ok:false, err:String(e.message||e).slice(0,80)}); }
       if(!r_ok) attempts[id]=(attempts[id]||0)+1;
-      await new Promise(r=>setTimeout(r,600));
+      await new Promise(r=>setTimeout(r,sleepMs));
     }
 
     const allPageDone = todoP.every(p => doneIds.has(String(p.id)) || prog[String(p.id)]);
@@ -259,7 +274,7 @@ export async function onRequest(context){
       await ghWriteLarge(env, 'data/reimport-progress.json', JSON.stringify(merged), 'auto: reimport progress');
     } catch (we) { void we; }
 
-    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:remaining.length, ok, fail, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
+    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
   }catch(err){
     return new Response(JSON.stringify({error:String(err&&err.message||err),stack:String(err&&err.stack||'').slice(0,400)}),{status:500,headers:{'Content-Type':'application/json',...corsHeaders()}});
   }
