@@ -120,9 +120,12 @@ function quickAdd(id){
   var b=document.getElementById("nav-cart-count");if(b){b.textContent=n;b.style.display=n>0?"":"none"}
   alert("Added to cart!")}catch(e){}
 }
+function skuOf(p){var v=(p.variants||[])[0];var s=v&&v.sku;return(s&&String(s).trim())||null}
+function dedupeProducts(list){if(!list||!list.length)return list;var seen={},out=[];for(var i=0;i<list.length;i++){var p=list[i],s=skuOf(p),k;if(s)k='sku:'+s;else{var img=p.image||(Array.isArray(p.images)?p.images[0]:'')||'';k='tpi:'+String(p.title||'').trim().toLowerCase()+'|'+Number(p.price||0)+'|'+img}if(k&&seen[k])continue;if(k)seen[k]=1;out.push(p)}return out}
+
 (function loadProds(){
   var x=new XMLHttpRequest();x.open("GET","/all-products.json?v=853778fbfc",true);x.timeout=10000;
-  x.onload=function(){if(x.status>=200&&x.status<400)try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false});renderHome();}catch(e){}};x.send();
+  x.onload=function(){if(x.status>=200&&x.status<400)try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false});ALL=dedupeProducts(ALL);renderHome();}catch(e){}};x.send();
 })();
 
 /* === Dynamically render hero + trending from the live catalog ===

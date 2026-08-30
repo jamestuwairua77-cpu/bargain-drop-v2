@@ -1,6 +1,8 @@
 // Bargain Drop v11 — 5-Zone JS
 (function(){
   var ALL=[];
+  function skuOf(p){var v=(p.variants||[])[0];var s=v&&v.sku;return(s&&String(s).trim())||null}
+  function dedupeProducts(list){if(!list||!list.length)return list;var seen={},out=[];for(var i=0;i<list.length;i++){var p=list[i],s=skuOf(p),k;if(s)k='sku:'+s;else{var img=p.image||(Array.isArray(p.images)?p.images[0]:'')||'';k='tpi:'+String(p.title||'').trim().toLowerCase()+'|'+Number(p.price||0)+'|'+img}if(k&&seen[k])continue;if(k)seen[k]=1;out.push(p)}return out}
   var wishlist=JSON.parse(localStorage.getItem('bd_wishlist')||'[]');
 
   // Init cart count
@@ -73,7 +75,7 @@
     x.timeout=15000;
     x.onload=function(){
       if(x.status>=200&&x.status<400){
-        try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false})}catch(e){ALL=[]}
+        try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false});ALL=dedupeProducts(ALL)}catch(e){ALL=[]}
       }
     };
     x.send();

@@ -180,6 +180,8 @@ window.__CAT_PRODS = null;
 </script>
 <script>
 document.addEventListener("cat-prods-ready", function() {
+  function skuOf(p){var v=(p.variants||[])[0];var s=v&&v.sku;return(s&&String(s).trim())||null}
+  function dedupeProducts(list){if(!list||!list.length)return list;var seen={},out=[];for(var i=0;i<list.length;i++){var p=list[i],s=skuOf(p),k;if(s)k='sku:'+s;else{var img=p.image||(Array.isArray(p.images)?p.images[0]:'')||'';k='tpi:'+String(p.title||'').trim().toLowerCase()+'|'+Number(p.price||0)+'|'+img}if(k&&seen[k])continue;if(k)seen[k]=1;out.push(p)}return out}
   var raw = window.__CAT_PRODS;
   if (!raw || typeof raw !== 'object') {
     var _g0 = document.getElementById('product-grid');
@@ -231,7 +233,7 @@ document.addEventListener("cat-prods-ready", function() {
         if (pr && pr.id && !seen[pr.id]) { seen[pr.id] = 1; out.push(pr); }
       });
     });
-    return out;
+    return dedupeProducts(out);
   }
 
   // Resolve the selected subcategory: exact key match first, then prefix match on first segment,
@@ -252,7 +254,7 @@ document.addEventListener("cat-prods-ready", function() {
           if (pr && pr.id && !seen[pr.id]) { seen[pr.id] = 1; out.push(pr); }
         });
       });
-      return { key: uc, prods: out };
+      return { key: uc, prods: dedupeProducts(out) };
     }
     return null;
   }
