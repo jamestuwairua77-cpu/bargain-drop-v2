@@ -1,6 +1,13 @@
 [
   {
     "action": "back-sync-inventory",
+    "inventoryItemId": 49728092340355,
+    "sku": "CJYD307048425YB",
+    "available": 0,
+    "at": "2026-08-30T00:14:22.911Z"
+  },
+  {
+    "action": "back-sync-inventory",
     "inventoryItemId": 49728092176515,
     "sku": null,
     "available": 0,
@@ -4705,27 +4712,5 @@
     "changed": 0,
     "receivedAt": "2026-08-30T00:09:13.903Z",
     "at": "2026-08-30T00:09:14.064Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "29********fe",
-    "valid": true,
-    "paramKeys": [
-      "2003277028649775105"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2003277028649775105\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-30T00:09:12.971Z",
-    "at": "2026-08-30T00:09:13.264Z"
   }
 ]
