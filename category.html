@@ -180,7 +180,246 @@ window.__CAT_PRODS = null;
 </script>
 <script>
 document.addEventListener("cat-prods-ready", function() {
-  var d=window.__CAT_PRODS;if(!d||typeof d!=='object'){document.getElementById('product-grid').innerHTML='<div class="loading-text">No products found.</div>';return;}var p=new URLSearchParams(location.search),uc=p.get('cat')||'',un=p.get('name')||'Products',us=p.get('search')||'',is=us.length>0,cats=Object.keys(d);if(!cats.length)return;document.title=un+' — Bargain Drop';var h1=document.querySelector('.page-header h1');if(h1)h1.textContent=un||'All Products';var cnEl=document.getElementById('cat-name');if(cnEl)cnEl.textContent=un;if(!is){var cb=document.querySelector('.subcat-bar');if(cb){cb.innerHTML='';var ac=document.createElement('button');ac.className='subcat-chip'+(uc?'':' active');var allFirst=null;for(var _k in d){if(d[_k]&&d[_k][0]&&d[_k][0].image){allFirst=d[_k][0].image;break}}ac.innerHTML=(allFirst?'<img class="subcat-chip-img" src="'+allFirst+'" alt="All" loading="lazy">':'<div class="subcat-chip-placeholder">📦</div>')+'<span class="subcat-chip-label">All</span>';ac.onclick=function(){fp('')};cb.appendChild(ac);var chipCats=uc&&d[uc]?[uc]:cats;chipCats.forEach(function(s){var ch=document.createElement('button');ch.className='subcat-chip'+(s===uc?' active':'');var nm=s.split('-').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1)}).join(' ');var firstProd=(d[s]&&d[s][0])||null;var img=firstProd&&firstProd.image?firstProd.image:'';var visual=img?'<img class="subcat-chip-img" src="'+img+'" alt="'+nm+'" loading="lazy" onerror="this.outerHTML=\'<div class=subcat-chip-placeholder>\ud83d\udce6</div>\'">':'<div class="subcat-chip-placeholder">\ud83d\udce6</div>';ch.innerHTML=visual+'<span class="subcat-chip-label">'+nm+'</span>';ch.onclick=function(){fp(s)};cb.appendChild(ch)})}if(uc){document.getElementById('cat-name').textContent=uc.split('-').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1)}).join(' ')}}else{var sc=document.querySelector('.subcat-bar');if(sc)sc.style.display='none'}var cc=uc,cpg=1,PP=20;function fp(s){cc=s;cpg=1;document.querySelectorAll('.subcat-chip').forEach(function(c){c.classList.remove('active')});if(!s){var fc=document.querySelectorAll('.subcat-chip')[0];if(fc)fc.classList.add('active');if(h1)h1.textContent='All Products';if(cnEl)cnEl.textContent='All Products'}else{var cs=document.querySelectorAll('.subcat-chip'),sn=s.split('-').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1)}).join(' ');for(var i=0;i<cs.length;i++){if(cs[i].querySelector('.subcat-chip-label')&&cs[i].querySelector('.subcat-chip-label').textContent===sn){cs[i].classList.add('active');break}}if(h1)h1.textContent=sn;if(cnEl)cnEl.textContent=sn}rg();document.getElementById('product-grid').scrollIntoView({behavior:'smooth',block:'start'})}function gp(){if(cc&&d[cc])return d[cc];var a=[];cats.forEach(function(s){a=a.concat(d[s])});return a}function es(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}function mn(n){return'A$'+Number(n||0).toFixed(2)}function rg(){var ps=gp(),g=document.getElementById('product-grid');if(!g)return;if(!ps.length){g.innerHTML='<div class="loading-text">No products in this category yet.</div>';document.getElementById('pagination').innerHTML='';return}var s=(cpg-1)*PP,e=Math.min(s+PP,ps.length),pp=ps.slice(s,e);g.innerHTML='';pp.forEach(function(p){var id=p.id||'',ti=(p.title||'').length>80?p.title.substr(0,80)+'...':(p.title||'Untitled'),pr=p.price||0,im=p.image||'',c=document.createElement('a');c.href='product.html?id='+encodeURIComponent(id);c.className='product-card fade-in';c.innerHTML=im?'<img src="'+es(im)+'" alt="'+es(ti)+'" loading="lazy" onerror="this.outerHTML=\'<div class=prod-placeholder>📦</div>\'">':'<div class="prod-placeholder">📦</div>';c.innerHTML+='<div class="product-info"><div class="product-title">'+es(ti)+'</div><div class="product-price">'+mn(pr)+'</div></div>';g.appendChild(c)});var tp=Math.ceil(ps.length/PP),pag=document.getElementById('pagination');if(tp<=1){if(pag)pag.innerHTML='';return}if(pag)pag.innerHTML='<button '+(cpg===1?'disabled ':'')+'onclick="document.__cg('+(cpg-1)+')">← Prev</button><span>Page '+cpg+' of '+tp+'</span><button '+(cpg===tp?'disabled ':'')+'onclick="document.__cg('+(cpg+1)+')">Next →</button>'}document.__cg=function(pg){var ps=gp(),tp=Math.ceil(ps.length/PP);if(pg<1||pg>tp)return;cpg=pg;rg();document.getElementById('product-grid').scrollIntoView({behavior:'smooth',block:'start'})};rg();window.es=function(){var s=document.getElementById('nav-search');if(s)s.classList.add('expanded');var i=document.getElementById('search-input');if(i)i.focus()};window.ds=function(){var q=document.getElementById('search-input').value.trim();if(q)location.href='category.html?search='+encodeURIComponent(q)};try{var c=JSON.parse(localStorage.getItem('bd_cart')||'[]'),cn=c.reduce(function(s,i){return s+(i.qty||1)},0),cb=document.getElementById('nav-cart-count');if(cb&&cn>0){cb.textContent=cn;cb.style.display=''}}catch(e){}var __n=0;window.addEventListener('scroll',function(){var n=document.getElementById('navbar'),s=window.scrollY;if(!n)return;if(s<__n||s<100)n.classList.remove('hidden');else if(s>__n&&s>200)n.classList.add('hidden');if(s>10)n.classList.add('scrolled');else n.classList.remove('scrolled');__n=s},{passive:true})  });
+  var raw = window.__CAT_PRODS;
+  if (!raw || typeof raw !== 'object') {
+    var _g0 = document.getElementById('product-grid');
+    if (_g0) _g0.innerHTML = '<div class="loading-text">No products found.</div>';
+    return;
+  }
+
+  // Normalize nested { key: { name, products: [...] } } OR flat { key: [...] } into { key: [products] }
+  var d = {};
+  Object.keys(raw).forEach(function(k) {
+    var v = raw[k];
+    if (Array.isArray(v)) { d[k] = v; }
+    else if (v && typeof v === 'object') {
+      var arr = Array.isArray(v.products) ? v.products : (Array.isArray(v) ? v : null);
+      if (arr) d[k] = arr;
+    }
+  });
+
+  var p = new URLSearchParams(location.search);
+  var uc = (p.get('cat') || '').trim();
+  var un = p.get('name') || 'Products';
+  var us = (p.get('search') || '').trim();
+  var is = us.length > 0;
+
+  // Build flat subcategory list: each entry { key, label, prods }.
+  // Sort keys so related subcategories group together.
+  var keys = Object.keys(d).sort();
+  var rawNames = {};
+  keys.forEach(function(k) { rawNames[k] = (raw[k] && raw[k].name) || ''; });
+  var subs = keys.map(function(k) {
+    var entry = d[k];
+    var label = rawNames[k] || '';
+    if (!label) {
+      label = k.split(/\s*[>\/]\s*/).map(function(seg){ return seg.replace(/-/g, ' ').trim(); }).filter(Boolean).pop() || k;
+    } else {
+      // use last segment of the friendly name (the subcategory itself)
+      var segs = label.split(/\s*[>\/]\s*/).filter(Boolean);
+      label = segs[segs.length - 1] || label;
+    }
+    label = label.replace(/\s+/g, ' ').trim();
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+    return { key: k, label: label, prods: entry };
+  });
+
+  function allProds() {
+    var seen = {}, out = [];
+    subs.forEach(function(s) {
+      (s.prods || []).forEach(function(pr) {
+        if (pr && pr.id && !seen[pr.id]) { seen[pr.id] = 1; out.push(pr); }
+      });
+    });
+    return out;
+  }
+
+  // Resolve the selected subcategory: exact key match first, then prefix match on first segment,
+  // then (if uc matches a top-level category like "womens-clothing") union of all keys starting with it.
+  function resolve(uc) {
+    if (!uc) return null;
+    if (d[uc]) return { key: uc, prods: d[uc] };
+    // prefix match on key start
+    var matches = subs.filter(function(s) {
+      return s.key === uc || s.key.indexOf(uc) === 0;
+    });
+    if (matches.length) {
+      if (matches.length === 1) return matches[0];
+      // union all matches
+      var seen = {}, out = [];
+      matches.forEach(function(s) {
+        (s.prods || []).forEach(function(pr) {
+          if (pr && pr.id && !seen[pr.id]) { seen[pr.id] = 1; out.push(pr); }
+        });
+      });
+      return { key: uc, prods: out };
+    }
+    return null;
+  }
+
+  document.title = un + ' \u2014 Bargain Drop';
+  var h1 = document.querySelector('.page-header h1');
+  if (h1) h1.textContent = un || 'All Products';
+  var cnEl = document.getElementById('cat-name');
+  if (cnEl) cnEl.textContent = un;
+
+  var cc = uc, cpg = 1, PP = 20;
+
+  function showLabel(s) {
+    var m = resolve(s);
+    var lbl = (m && m.label) ? m.label : s.split('-').map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); }).join(' ');
+    if (h1) h1.textContent = lbl;
+    if (cnEl) cnEl.textContent = lbl;
+  }
+
+  // Render subcategory chips
+  if (!is) {
+    var cb = document.querySelector('.subcat-bar');
+    if (cb) {
+      cb.innerHTML = '';
+      var allFirst = null;
+      for (var fi = 0; fi < subs.length; fi++) {
+        var fp0 = subs[fi].prods && subs[fi].prods[0];
+        if (fp0 && fp0.image) { allFirst = fp0.image; break; }
+      }
+      var ac = document.createElement('button');
+      ac.className = 'subcat-chip' + (uc ? '' : ' active');
+      ac.innerHTML = (allFirst ? '<img class="subcat-chip-img" src="' + allFirst + '" alt="All" loading="lazy">' : '<div class="subcat-chip-placeholder">\ud83d\udce6</div>') + '<span class="subcat-chip-label">All</span>';
+      ac.onclick = function() { fp(''); };
+      cb.appendChild(ac);
+
+      var chips = uc ? subs.filter(function(s){ return s.key === uc || s.key.indexOf(uc) === 0; }) : subs;
+      if (!chips.length) chips = subs;
+      chips.forEach(function(s) {
+        var ch = document.createElement('button');
+        ch.className = 'subcat-chip' + (s.key === uc ? ' active' : '');
+        var fp0 = s.prods && s.prods[0];
+        var img = fp0 && fp0.image ? fp0.image : '';
+        var visual = img ? '<img class="subcat-chip-img" src="' + img + '" alt="' + s.label + '" loading="lazy" onerror="this.outerHTML=\'<div class=subcat-chip-placeholder>\ud83d\udce6</div>\'">' : '<div class="subcat-chip-placeholder">\ud83d\udce6</div>';
+        ch.innerHTML = visual + '<span class="subcat-chip-label">' + s.label + '</span>';
+        ch.onclick = function() { fp(s.key); };
+        cb.appendChild(ch);
+      });
+    }
+    if (uc) showLabel(uc);
+  } else {
+    var sc = document.querySelector('.subcat-bar');
+    if (sc) sc.style.display = 'none';
+  }
+
+  function fp(s) {
+    cc = s;
+    cpg = 1;
+    document.querySelectorAll('.subcat-chip').forEach(function(c) { c.classList.remove('active'); });
+    if (!s) {
+      var fc0 = document.querySelectorAll('.subcat-chip')[0];
+      if (fc0) fc0.classList.add('active');
+      if (h1) h1.textContent = 'All Products';
+      if (cnEl) cnEl.textContent = 'All Products';
+    } else {
+      var cs = document.querySelectorAll('.subcat-chip');
+      for (var ci = 0; ci < cs.length; ci++) {
+        var lblEl = cs[ci].querySelector('.subcat-chip-label');
+        if (lblEl && cs[ci].getAttribute && cs[ci].onclick) {
+          // match by key via closure is hard post-hoc; mark by label equality instead
+        }
+      }
+      showLabel(s);
+      var m = resolve(s);
+      if (m) {
+        var ml = m.label;
+        for (var ci2 = 0; ci2 < cs.length; ci2++) {
+          var l2 = cs[ci2].querySelector('.subcat-chip-label');
+          if (l2 && l2.textContent === ml) { cs[ci2].classList.add('active'); break; }
+        }
+      }
+    }
+    rg();
+    var g = document.getElementById('product-grid');
+    if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function gp() {
+    if (cc) {
+      var m = resolve(cc);
+      if (m) return m.prods;
+    }
+    return allProds();
+  }
+
+  function es(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function mn(n) { return 'A$' + Number(n || 0).toFixed(2); }
+
+  function rg() {
+    var ps = gp(), g = document.getElementById('product-grid');
+    if (!g) return;
+    if (!ps.length) {
+      g.innerHTML = '<div class="loading-text">No products in this category yet.</div>';
+      var pg0 = document.getElementById('pagination');
+      if (pg0) pg0.innerHTML = '';
+      return;
+    }
+    var s = (cpg - 1) * PP, e = Math.min(s + PP, ps.length), pp = ps.slice(s, e);
+    g.innerHTML = '';
+    pp.forEach(function(pr) {
+      var id = pr.id || '';
+      var ti = (pr.title || '').length > 80 ? pr.title.substr(0, 80) + '...' : (pr.title || 'Untitled');
+      var price = Number(pr.price || 0);
+      var im = pr.image || '';
+      var c = document.createElement('a');
+      c.href = 'product.html?id=' + encodeURIComponent(id);
+      c.className = 'product-card fade-in';
+      c.innerHTML = im ? '<img src="' + es(im) + '" alt="' + es(ti) + '" loading="lazy" onerror="this.outerHTML=\'<div class=prod-placeholder>\ud83d\udce6</div>\'">' : '<div class="prod-placeholder">\ud83d\udce6</div>';
+      c.innerHTML += '<div class="product-info"><div class="product-title">' + es(ti) + '</div><div class="product-price">' + mn(price) + '</div></div>';
+      g.appendChild(c);
+    });
+    var tp = Math.ceil(ps.length / PP), pag = document.getElementById('pagination');
+    if (tp <= 1) { if (pag) pag.innerHTML = ''; return; }
+    if (pag) pag.innerHTML = '<button ' + (cpg === 1 ? 'disabled ' : '') + 'onclick="document.__cg(' + (cpg - 1) + ')">\u2190 Prev</button><span>Page ' + cpg + ' of ' + tp + '</span><button ' + (cpg === tp ? 'disabled ' : '') + 'onclick="document.__cg(' + (cpg + 1) + ')">Next \u2192</button>';
+  }
+
+  document.__cg = function(pg) {
+    var ps = gp(), tp = Math.ceil(ps.length / PP);
+    if (pg < 1 || pg > tp) return;
+    cpg = pg;
+    rg();
+    var g = document.getElementById('product-grid');
+    if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  rg();
+
+  window.es = function() {
+    var s = document.getElementById('nav-search');
+    if (s) s.classList.add('expanded');
+    var i = document.getElementById('search-input');
+    if (i) i.focus();
+  };
+  window.ds = function() {
+    var q = document.getElementById('search-input').value.trim();
+    if (q) location.href = 'category.html?search=' + encodeURIComponent(q);
+  };
+  try {
+    var c = JSON.parse(localStorage.getItem('bd_cart') || '[]');
+    var cn = c.reduce(function(s, i) { return s + (i.qty || 1); }, 0);
+    var cb2 = document.getElementById('nav-cart-count');
+    if (cb2 && cn > 0) { cb2.textContent = cn; cb2.style.display = ''; }
+  } catch (e) {}
+  var __n = 0;
+  window.addEventListener('scroll', function() {
+    var n = document.getElementById('navbar'), s = window.scrollY;
+    if (!n) return;
+    if (s < __n || s < 100) n.classList.remove('hidden');
+    else if (s > __n && s > 200) n.classList.add('hidden');
+    if (s > 10) n.classList.add('scrolled');
+    else n.classList.remove('scrolled');
+    __n = s;
+  }, { passive: true });
+  });
 </script>
 
 <script>
