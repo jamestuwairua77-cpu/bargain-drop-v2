@@ -84,7 +84,6 @@ async function cjFetchKey(env, apiKey, path) {
   return r.json();
 }
 
-// Resolve full CJ variant matrix for a product using ONLY the pinned key.
 async function resolveCjKey(env, apiKey, p) {
   const firstRaw = (p.variants||[]).map(v=>v.sku).filter(Boolean)[0];
   const candidates = [];
@@ -194,10 +193,6 @@ async function putProduct(env, p, payload){
   return res;
 }
 
-
-// Run `fn(item)` over `items` with at most `concurrency` in flight at once.
-// Stays well under Cloudflare's 100-subrequest-per-invocation limit while still
-// fanning out aggressively (batches of ~20), so large limits don't 502.
 async function mapWithConcurrency(items, concurrency, fn) {
   const results = new Array(items.length);
   let i = 0;
@@ -265,17 +260,15 @@ export async function onRequest(context){
 
     const startedAt = Date.now();
 
-    // Phase 1: fan out CJ lookups CONCURRENTLY (only when not priceOnly).
     const lookups = new Map();
     if (!priceOnly && remaining.length) {
-      const results = await mapWithConcurrency(remaining, 12, async (p) => {
+      const lkres = await mapWithConcurrency(remaining, 12, async (p) => {
         try { return { p, cj: await resolveCjKey(env, apiKey, p) }; }
         catch (e) { return { p, cj: null, err: String(e.message||e) }; }
       });
-      for (const r of results) { if (r && r.p) lookups.set(String(r.p.id), r); }
+      for (const r of lkres) { if (r && r.p) lookups.set(String(r.p.id), r); }
     }
 
-    // Phase 2: fan out Shopify PUTs CONCURRENTLY.
     const resultsArr = await mapWithConcurrency(remaining, 20, async (p) => {
       const id = String(p.id);
       try {
@@ -289,7 +282,6 @@ export async function onRequest(context){
         }
         const lk = lookups.get(id) || { cj: null };
         if (!lk.cj) {
-          // Fallback: re-price only (no CJ matrix).
           r = await putProduct(env, p, buildRepricePayload(p));
           if (!r.ok) return { id, ok:false, err:'no-cj reprice put '+r.status };
           const n = (buildRepricePayload(p).product.variants||[]).length;
@@ -308,7 +300,7 @@ export async function onRequest(context){
         prog[id] = { skip:'ex:'+String(e.message||e).slice(0,50) };
         return { id, ok:false, err:String(e.message||e).slice(0,80) };
       }
-    }));
+    });
 
     let ok=0, fail=0;
     for (const r of resultsArr) {
