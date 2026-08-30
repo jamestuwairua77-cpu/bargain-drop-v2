@@ -111,11 +111,11 @@ a{color:inherit;text-decoration:none}
   </div>
   <div class="form-group">
     <label>Username</label>
-    <input type="text" id="acct-username" placeholder="Choose a username" autocomplete="username">
+    <input type="text" id="acct-username" placeholder="Choose a username" autocomplete="username" readonly disabled>
   </div>
   <div class="form-group">
     <label>Email Address</label>
-    <input type="email" id="acct-email" placeholder="you@example.com" autocomplete="email">
+    <input type="email" id="acct-email" placeholder="you@example.com" autocomplete="email" readonly disabled>
   </div>
   <div class="form-group">
     <label>Phone Number</label>
@@ -173,7 +173,33 @@ document.querySelectorAll('.gender-opt').forEach(function(g){
   for(var j=y;j>=y-100;j--){var o=document.createElement('option');o.value=String(j);o.textContent=j;ys.appendChild(o)}
 })();
 
-// Load saved profile
+// Populate name/email/username from session (authoritative, locked fields)
+function applySessionToForm(sess){
+  if(!sess)return;
+  if(sess.name) document.getElementById('acct-name').value = sess.name;
+  if(sess.username) document.getElementById('acct-username').value = sess.username;
+  if(sess.email) document.getElementById('acct-email').value = sess.email;
+  // cache for other pages
+  if(sess.email) localStorage.setItem('bd_user_email', sess.email);
+  if(sess.name) localStorage.setItem('bd_user_name', sess.name);
+  if(sess.username) localStorage.setItem('bd_user_username', sess.username);
+}
+(function(){
+  var sess = null;
+  try{ sess = JSON.parse(localStorage.getItem('bd_session')||'null'); }catch(e){}
+  if(sess && sess.email){ applySessionToForm(sess); return; }
+  // Reconcile from the real server session cookie
+  fetch('/api/auth?action=me',{credentials:'include'})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d && d.user){
+        localStorage.setItem('bd_session', JSON.stringify(d.user));
+        applySessionToForm(d.user);
+      }
+    }).catch(function(){});
+})();
+
+// Load saved profile (fills in the rest: name, phone, gender, dob)
 (function(){
   var p=null;
   try{var raw=localStorage.getItem('bd_profile');if(raw)p=JSON.parse(raw)}catch(e){}
@@ -197,6 +223,8 @@ document.querySelectorAll('.gender-opt').forEach(function(g){
 function saveProfile(){
   var name=document.getElementById('acct-name').value.trim();
   var email=document.getElementById('acct-email').value.trim();
+  // email is locked; fall back to session if field is somehow empty
+  if(!email){ try{ var ss=JSON.parse(localStorage.getItem('bd_session')||'null'); if(ss&&ss.email)email=ss.email; }catch(e){} }
   var phone=document.getElementById('acct-phone').value.trim();
   var genderEl=document.querySelector('.gender-opt.selected');
   var gender=genderEl?genderEl.dataset.val:'';

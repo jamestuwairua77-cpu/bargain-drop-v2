@@ -236,7 +236,9 @@ function render(){
   var pic = u.picture || localStorage.getItem("bd_user_pic") || "";
 
   document.getElementById("name").textContent = name || "Welcome";
-  document.getElementById("email").textContent = email || "";
+  // Hide the email line — only the username should appear under the profile picture.
+  var emailEl = document.getElementById("email");
+  if (emailEl) emailEl.style.display = "none";
   document.getElementById("username").textContent = username ? ("@" + username) : "";
   document.getElementById("username").style.display = username ? "" : "none";
 
