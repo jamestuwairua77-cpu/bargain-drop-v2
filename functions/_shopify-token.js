@@ -9,6 +9,11 @@
 //      To get auto-refresh behaviour, ALSO set SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET,
 //      in which case a cached access token is preferred and re-exchanged on 401.
 //   2. Otherwise exchange client credentials on demand.
+//
+// NOTE (perf): when SHOPIFY_ACCESS_TOKEN is present we use it DIRECTLY and skip the
+// OAuth client_credentials exchange entirely. The client_credentials grant is not
+// supported by Shopify custom apps, so attempting it per-call just burns a subrequest
+// and hits Cloudflare's Pages subrequest limit during parallel reimport.
 
 const SHOPIFY_DOMAIN = 'bargain-drop-8194.myshopify.com';
 const OAUTH_URL = `https://${SHOPIFY_DOMAIN}/admin/oauth/access_token`;
@@ -40,9 +45,13 @@ async function exchangeClientCredentials(env) {
  * @param {boolean} force If true, always re-exchange (e.g. after a 401).
  */
 export async function getShopifyToken(env, force = false) {
+  const staticToken = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
+
+  // PERF: static token wins outright. No OAuth exchange, no extra subrequest.
+  if (staticToken) return staticToken;
+
   const clientId = env.SHOPIFY_OAUTH_CLIENT_ID || env.SHOPIFY_CLIENT_ID || '';
   const clientSecret = env.SHOPIFY_OAUTH_CLIENT_SECRET || env.SHOPIFY_CLIENT_SECRET || '';
-  const staticToken = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
 
   // Auto-refresh only possible when client credentials are present.
   if (clientId && clientSecret) {
@@ -51,8 +60,6 @@ export async function getShopifyToken(env, force = false) {
     return tok;
   }
 
-  // Fallback: static token (no auto-refresh).
-  if (staticToken) return staticToken;
   throw new Error('Shopify token not configured (set SHOPIFY_ACCESS_TOKEN or SHOPIFY_CLIENT_ID+SECRET)');
 }
 
