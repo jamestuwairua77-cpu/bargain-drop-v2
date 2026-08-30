@@ -42,6 +42,7 @@ input:focus{border-color:var(--lilac)}
   <button class="btn" id="signin-btn" onclick="handleSignIn()">Sign In</button>
   <a href="forgot-password.html" style="display:block;text-align:right;font-size:.72rem;color:#555;margin:8px 0 0;text-decoration:none;font-weight:600">Forgot password?</a>
   <div class="error" id="signin-error"></div>
+  <div class="reset-banner" id="reset-banner" style="display:none;background:#d1fae5;color:#065f46;padding:10px 12px;border-radius:8px;font-size:.75rem;text-align:center;margin-top:8px">✓ Password updated — sign in with your new password</div>
 
   <div class="divider">or</div>
 
@@ -86,6 +87,14 @@ function handleSignIn(){
     .catch(function(){btn.disabled=false;btn.textContent='Sign In';err.textContent='Network error — please try again'});
 }
 document.addEventListener('keydown',function(e){if(e.key==='Enter'){handleSignIn()}});
+
+// Pre-fill email + show success banner when arriving from a password reset
+try {
+  var _p = new URLSearchParams(window.location.search);
+  var _em = _p.get('email');
+  if (_em) { var emEl = document.getElementById('signin-email'); if (emEl) emEl.value = _em; }
+  if (_p.get('reset') === '1') { document.getElementById('reset-banner').style.display = ''; }
+} catch (e) {}
 
 // Show error parameter if returned from callback redirect
 try {

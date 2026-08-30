@@ -118,7 +118,8 @@ export async function onRequest(context) {
   if (!checkRateLimit(ip)) return json({ error: 'Too many attempts. Try again later.' }, 429);
 
   const body = await request.json().catch(() => ({}));
-  const { action, email, password, name, username, picture, first_name, last_name, phone, addresses } = body;
+  const { action, password, name, username, picture, first_name, last_name, phone, addresses } = body;
+  const email = body.email ? String(body.email).trim().toLowerCase() : '';
 
   if (action === 'signout') {
     return new Response(JSON.stringify({ success: true }), {
@@ -155,7 +156,7 @@ export async function onRequest(context) {
   }
 
   if (action === 'signin') {
-    const user = users.find(u => u.email === email);
+    const user = users.find(u => (u.email || '').toLowerCase() === email);
     if (!user || !user.password || !(await verifyPassword(password, user.password))) return json({ error: 'Invalid email or password' }, 401);
     const cookie = await createSessionCookie(user.id, env);
     return new Response(JSON.stringify({ success: true, user: safeUser(user) }), {
@@ -164,7 +165,7 @@ export async function onRequest(context) {
   }
 
   if (action === 'update_profile') {
-    const user = users.find(u => u.email === email);
+    const user = users.find(u => (u.email || '').toLowerCase() === email);
     if (!user) return json({ error: 'User not found' }, 404);
     if (first_name != null) user.first_name = first_name;
     if (last_name != null) user.last_name = last_name;

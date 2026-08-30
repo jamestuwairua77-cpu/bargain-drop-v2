@@ -83,7 +83,7 @@ export async function onRequest(context) {
     const em = String(email).toLowerCase().trim();
 
     const { users, sha } = await loadUsers(env);
-    const user = users.find(u => u.email === em);
+    const user = users.find(u => (u.email || '').toLowerCase() === em);
 
     // Always return success to avoid leaking account existence.
     if (!user) return json({ success: true });
@@ -98,7 +98,7 @@ export async function onRequest(context) {
       return json({ error: 'Could not process request', detail: e && e.message }, 500);
     }
 
-    const resetUrl = new URL(request.url).origin + '/reset-password.html?token=' + resetToken;
+    const resetUrl = new URL(request.url).origin + '/reset-password.html?token=' + resetToken + '&email=' + encodeURIComponent(em);
     const sent = await sendResetEmail(env, em, resetUrl);
 
     return json({ success: true, sent: sent.sent, detail: sent });
