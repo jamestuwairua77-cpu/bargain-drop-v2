@@ -49,7 +49,7 @@ function parseVariantKey(key, nameEn=''){
   return [color.trim(), size.trim()];
 }
 function parentSku(sku) { if(!sku) return sku; let s=String(sku).trim(); s=s.replace(/-(\d+)$/,''); s=s.replace(/(\d{2})([A-Z]{2})$/,''); return s; }
-function hasSkuSuffix(sku) { if(!sku) return false; const s=String(sku).trim(); return /-\d+$/.test(s)||/\d{2}[A-Z]{2}$/.test(s); }
+function hasSkuSuffix(sku) { if(!sku) return false; const s=String(sku).trim(); return /-\d+$/.test(s) || /\d{2}[A-Z]{2}$/.test(s); }
 function needsFix(p){
   const v = p.variants || [];
   if (!v.length) return false;
@@ -63,7 +63,7 @@ function needsFix(p){
 
 // Single-key CJ fetch: exchange the token ONCE for the pinned key, cache it for the
 // whole request, and reuse it for every lookup. No round-robin across 6 keys.
-let _tokCache = new Map(); // apiKey -> { tok, exp }
+let _tokCache = new Map(); // apiKey -> { token, exp }
 async function keyToken(apiKey) {
   const c = _tokCache.get(apiKey);
   if (c && Date.now() < c.exp) return c.tok;
@@ -173,8 +173,7 @@ function buildCjPayload(p, cj){
   if(colors.length) options.push({name:'Color', values:colors});
   if (hasSizes) {
     const used = new Set(variants.map(x=>x.option2).filter(s=>s && s!=='One Size'));
-    const vals = [...new Set([...sizeValues, ...used])];
-    options.push({name:'Size', values: vals});
+    options.push({name:'Size', values: [...new Set([...sizeValues, ...used])]});
   }
   if(!options.length) options.push({name:'Title', values:['Default Title']});
   const images=[]; const seenImg=new Set();
@@ -187,13 +186,16 @@ function buildCjPayload(p, cj){
 
 async function putProduct(env, p, payload){
   let res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
-  for (let t=0; t<2 && res && (res.status===409 || res.status===429); t++) {
-    await new Promise(r=>setTimeout(r, 800 + t*500));
+  for (let t=0; t<6 && res && (res.status===409 || res.status===429); t++) {
+    await new Promise(r=>setTimeout(r, 1200 + t*700));
     res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
   }
   return res;
 }
 
+// Run `fn(item)` over `items` with at most `concurrency` in flight at once.
+// Stays well under Cloudflare's 100-subrequest-per-invocation limit while still
+// fanning out aggressively (batches of ~20), so large limits don't 502.
 async function mapWithConcurrency(items, concurrency, fn) {
   const results = new Array(items.length);
   let i = 0;
@@ -230,9 +232,9 @@ export async function onRequest(context){
     }
 
     const limitRaw = parseInt(url.searchParams.get('limit')||'',10);
-    // Pages Functions enforce a ~50 subrequest ceiling per invocation. Each product
-    // PUT is 1 subrequest (+ rare retry), the products list is 1, progress rw is 1-2.
-    const limit = Math.min(isNaN(limitRaw) ? 40 : limitRaw, 40);
+    const limit = priceOnly
+      ? (isNaN(limitRaw) ? 120 : Math.min(limitRaw, 200))
+      : Math.min(isNaN(limitRaw) ? 40 : limitRaw, 120);
 
     const progDoc = await ghRead(env, 'data/reimport-progress.json');
     let prog = (progDoc && progDoc.content) ? JSON.parse(atob(progDoc.content.replace(/\n/g,''))) : {};
@@ -261,16 +263,18 @@ export async function onRequest(context){
 
     const startedAt = Date.now();
 
+    // Phase 1: fan out ALL CJ lookups CONCURRENTLY (only when not priceOnly).
     const lookups = new Map();
     if (!priceOnly && remaining.length) {
-      const lkres = await mapWithConcurrency(remaining, 6, async (p) => {
+      const results = await mapWithConcurrency(remaining, 12, async (p) => {
         try { return { p, cj: await resolveCjKey(env, apiKey, p) }; }
         catch (e) { return { p, cj: null, err: String(e.message||e) }; }
       });
-      for (const r of lkres) { if (r && r.p) lookups.set(String(r.p.id), r); }
+      for (const r of results) { if (r && r.p) lookups.set(String(r.p.id), r); }
     }
 
-    const resultsArr = await mapWithConcurrency(remaining, 8, async (p) => {
+    // Phase 2: fan out ALL Shopify PUTs CONCURRENTLY.
+    const resultsArr = await mapWithConcurrency(remaining, 20, async (p) => {
       const id = String(p.id);
       try {
         let r;
@@ -283,6 +287,7 @@ export async function onRequest(context){
         }
         const lk = lookups.get(id) || { cj: null };
         if (!lk.cj) {
+          // Fallback: re-price only (no CJ matrix).
           r = await putProduct(env, p, buildRepricePayload(p));
           if (!r.ok) return { id, ok:false, err:'no-cj reprice put '+r.status };
           const n = (buildRepricePayload(p).product.variants||[]).length;
@@ -305,7 +310,8 @@ export async function onRequest(context){
 
     let ok=0, fail=0;
     for (const r of resultsArr) {
-      if (r.ok) ok++; else { fail++; attempts[r.id]=(attempts[r.id]||0)+1; }
+      if (r.ok) ok++;
+      else { fail++; attempts[r.id] = (attempts[r.id]||0) + 1; }
     }
 
     const allPageDone = todoP.every(p => doneIds.has(String(p.id)) || prog[String(p.id)]);
@@ -322,7 +328,7 @@ export async function onRequest(context){
     } catch (we) { void we; }
 
     const elapsed = Date.now() - startedAt;
-    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, elapsedMs: elapsed, results: resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, elapsedMs: elapsed, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
   } catch (err) {
     return new Response(JSON.stringify({ error:String(err&&err.message||err), stack:String(err&&err.stack||'').slice(0,400) }), { status:500, headers:{'Content-Type':'application/json',...corsHeaders()} });
   }

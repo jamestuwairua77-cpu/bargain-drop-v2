@@ -351,6 +351,50 @@ export async function ghWrite(env, path, content, msg, existingSha) {
 const SYNC_LOG_PATH = 'data/sync-log.json';
 const ORDERS_PATH = 'data/orders.json';
 
+// Module-level throttle to stop the runaway "sync: append log entry" flood.
+// CJ re-delivers a huge backlog of webhook pushes, each of which calls
+// appendSyncLog → ghWrite → a 6-step git commit. Writing every push saturates
+// the GitHub API and cancels real deploys. We coalesce to at most one write
+// per SYNC_LOG_MIN_INTERVAL_MS across ALL isolates (backed by the log file's
+// own latest timestamp, so it survives isolate resets).
+const SYNC_LOG_MIN_INTERVAL_MS = 60 * 1000; // 60 seconds
+let _lastSyncLogWrite = 0; // per-isolate fast-path guard
+
+export async function appendSyncLog(env, entry) {
+  try {
+    const now = Date.now();
+    // Fast path: if this isolate already wrote within the window, skip immediately
+    if (now - _lastSyncLogWrite < SYNC_LOG_MIN_INTERVAL_MS) return false;
+
+    const existing = await ghRead(env, SYNC_LOG_PATH);
+    let log = [];
+    let latestAt = 0;
+    if (existing && existing.content) {
+      const decoded = atob(existing.content);
+      try {
+        log = JSON.parse(decoded);
+        if (Array.isArray(log) && log.length && log[0] && log[0].at) {
+          latestAt = new Date(log[0].at).getTime() || 0;
+        }
+      } catch {}
+    }
+    // Cross-isolate throttle: if the last persisted entry is within the window, skip.
+    if (now - latestAt < SYNC_LOG_MIN_INTERVAL_MS) {
+      _lastSyncLogWrite = now; // still refresh local guard
+      return false;
+    }
+
+    log.unshift({ ...entry, at: new Date().toISOString() });
+    await ghWrite(env, SYNC_LOG_PATH, JSON.stringify(log.slice(0, 200), null, 2),
+      'sync: append log entry', existing?.sha);
+    _lastSyncLogWrite = now;
+    return true;
+  } catch (e) {
+    console.error('appendSyncLog failed:', e.message);
+    return false;
+  }
+}
+
 // ─── Durable order ledger (GitHub-backed, same mechanism as sync log) ────
 export async function listOrders(env) {
   const existing = await ghRead(env, ORDERS_PATH);
@@ -374,47 +418,6 @@ export async function updateOrderStatus(env, orderId, status, extra) {
   orders[idx] = { ...orders[idx], status, ...(extra || {}), updatedAt: new Date().toISOString() };
   await ghWrite(env, ORDERS_PATH, JSON.stringify(orders, null, 2), 'orders: ' + status + ' ' + orderId);
   return orders[idx];
-}
-
-let _lastSyncLogWrite = 0;
-const SYNC_LOG_MIN_INTERVAL_MS = 60000; // one write per minute max
-
-export async function appendSyncLog(env, entry) {
-  try {
-    const now = Date.now();
-    // Module-level fast-path throttle: skip the (expensive, git-committing)
-    // read/write entirely if we wrote less than MIN_INTERVAL ago. This breaks
-    // the runaway "sync: append log entry" commit flood caused by CJ webhook
-    // redelivery bursts.
-    if (now - _lastSyncLogWrite < SYNC_LOG_MIN_INTERVAL_MS) return;
-    const existing = await ghRead(env, SYNC_LOG_PATH);
-    let log = [];
-    let latestAt = 0;
-    if (existing && existing.content) {
-      const decoded = atob(existing.content);
-      try {
-        const parsed = JSON.parse(decoded);
-        if (Array.isArray(parsed)) log = parsed;
-        if (log.length && log[0] && log[0].at) {
-          const t = new Date(log[0].at).getTime();
-          if (!isNaN(t)) latestAt = t;
-        }
-      } catch {}
-    }
-    // Cross-isolate throttle: honor the timestamp of the most recent entry so
-    // multiple worker instances don't each write once per minute. This keys off
-    // the persisted log, so it survives isolate resets.
-    if (now - latestAt < SYNC_LOG_MIN_INTERVAL_MS) {
-      _lastSyncLogWrite = now;
-      return;
-    }
-    log.unshift({ ...entry, at: new Date().toISOString() });
-    await ghWrite(env, SYNC_LOG_PATH, JSON.stringify(log.slice(0, 200), null, 2),
-      'sync: append log entry', existing?.sha);
-    _lastSyncLogWrite = now;
-  } catch (e) {
-    console.error('appendSyncLog failed:', e.message);
-  }
 }
 
 // ─── Find Shopify order by BD id ─────────────────────────────────────────
@@ -691,7 +694,7 @@ export async function recordShopifyTransaction(env, shopifyOrderId, tx) {
   let gql = null;
   try {
     const q = JSON.stringify({
-      query: `mutation { orderCapture(input: { id: "gid://shopify/Order/${shopifyOrderId}", amount: "${amount}" }) { transaction { id kind status } userErrors { field message } } }`,
+      query: `mutation { orderCapture(input: { id: "gid://shopify/Order/${shopifyOrderId}", amount: "${amount}" }) { transaction { id kind status } userErrors { field message } }`,
     });
     const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: q });
     gql = r.body || null;
