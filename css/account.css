@@ -3,13 +3,14 @@
  * hairline borders, rounded corners, bottom nav, top bar.
  */
 :root {
-  --bg: #fff;
-  --fg: #111;
-  --muted: #777;
-  --line: #eee;
-  --line-2: #f5f5f5;
-  --accent: #111;
+  --bg: #f6f1ea;
+  --fg: #141414;
+  --muted: #7a6f66;
+  --line: #1a1a1a;
+  --line-2: #e9e2d8;
+  --accent: #e60023;
   --red: #e6002c;
+  --paper: #ffffff;
   --green: #10b981;
   --amber: #f59e0b;
   --blue: #3b82f6;
@@ -21,6 +22,7 @@ html, body { -webkit-tap-highlight-color: transparent; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg); color: var(--fg);
+  background-image: radial-gradient(1200px 600px at 100% -10%, rgba(230,0,35,.06), transparent 60%), radial-gradient(900px 500px at -10% 10%, rgba(20,20,20,.05), transparent 55%);
   padding-bottom: 80px;
 }
 a { color: inherit; text-decoration: none; }
@@ -54,8 +56,9 @@ button { font-family: inherit; }
 
 /* Card list */
 .card-list {
-  background: #fff; border: 1.5px solid var(--line);
-  border-radius: 12px; overflow: hidden; margin-bottom: 12px;
+  background: var(--paper); border: 2px solid var(--line);
+  border-radius: 14px; overflow: hidden; margin-bottom: 14px;
+  box-shadow: 0 2px 0 rgba(20,20,20,.06);
 }
 .list-row {
   display: flex; align-items: center; gap: 12px;
@@ -64,7 +67,7 @@ button { font-family: inherit; }
   transition: background .15s;
 }
 .list-row:last-child { border-bottom: none; }
-.list-row:hover { background: #fafafa; }
+.list-row:hover { background: #f7efe4; }
 .list-row .mi-icon {
   width: 36px; height: 36px; border-radius: 10px; background: #f5f5f5;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -79,17 +82,17 @@ button { font-family: inherit; }
 /* Buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 11px 18px; border: none; border-radius: 10px;
+  padding: 11px 18px; border: 2px solid transparent; border-radius: 12px;
   font-size: .78rem; font-weight: 700; cursor: pointer;
   transition: all .15s; text-align: center;
 }
 .btn-primary { background: var(--fg); color: #fff; }
 .btn-primary:hover { opacity: .88; }
-.btn-secondary { background: #fff; color: var(--fg); border: 1.5px solid var(--line); }
+.btn-secondary { background: #fff; color: var(--fg); border: 2px solid var(--line); }
 .btn-secondary:hover { background: #fafafa; border-color: #ddd; }
 .btn-danger { background: var(--red); color: #fff; }
 .btn-danger:hover { opacity: .9; }
-.btn-danger-outline { background: #fff; color: var(--red); border: 1.5px solid var(--red); }
+.btn-danger-outline { background: #fff; color: var(--red); border: 2px solid var(--red); }
 .btn-danger-outline:hover { background: #fef2f2; }
 .btn-block { width: 100%; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -120,7 +123,7 @@ button { font-family: inherit; }
   margin-bottom: 6px;
 }
 .form-group input, .form-group select, .form-group textarea {
-  width: 100%; padding: 12px 14px; border: 1.5px solid var(--line);
+  width: 100%; padding: 12px 14px; border: 1.5px solid #c9c0b4;
   border-radius: 10px; font-size: .82rem; outline: none;
   transition: border-color .15s; background: #fff; color: var(--fg);
   font-family: inherit;
