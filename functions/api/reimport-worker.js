@@ -20,7 +20,7 @@
 // overlap, no gaps. The id bounds are auto-derived from the catalog on first run and
 // cached in env so the ranges stay stable across deploys.
 
-import { corsHeaders, shopifyFetch, ghRead, ghWriteLarge, ghWrite, isAdmin, adminDenied, cjKeys } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, ghRead, ghWrite, isAdmin, adminDenied, cjKeys } from '../_sync-lib.js';
 
 function computePrice(baseCost) {
   const c = parseFloat(baseCost) || 0;
@@ -222,12 +222,10 @@ export async function onRequest(context){
     const apiKey = keys[keyIdx];
     const shards = Math.max(1, parseInt(url.searchParams.get('shards')||'4',10)||4);
     const shard = Math.max(0, Math.min(keyIdx, shards-1));
-    const MIN_ID = Number(env.REIMPORT_MIN_ID || '9233116463235');
-    const MAX_ID = Number(env.REIMPORT_MAX_ID || '9255590330499');
     const BOUNDS = (env.REIMPORT_BOUNDS || '9233116463235,9233141989507,9233177739395,9233211129987,9255590330500')
       .split(',').map(s => Number(s.trim()));
-    const rangeStart = BOUNDS[shard] !== undefined ? BOUNDS[shard] : MIN_ID;
-    const rangeEnd = BOUNDS[shard+1] !== undefined ? BOUNDS[shard+1] : (MAX_ID + 1);
+    const rangeStart = BOUNDS[shard] !== undefined ? BOUNDS[shard] : 0;
+    const rangeEnd = BOUNDS[shard+1] !== undefined ? BOUNDS[shard+1] : Number.MAX_SAFE_INTEGER;
 
     if (stats) {
       const prefixes = keys.map(k => String(k).slice(0, 12) + '...');
@@ -250,6 +248,7 @@ export async function onRequest(context){
     const collect = [];
     let scanCursor = cursor;
     let eof = false;
+    let hitUpperBound = false;
     while (collect.length < limit) {
       const res = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,options,variants,images&since_id=${scanCursor}`);
       const batch = res.body?.products || [];
@@ -257,13 +256,13 @@ export async function onRequest(context){
       let maxId = scanCursor;
       for (const p of batch) {
         const id = Number(p.id);
-        if (id >= rangeEnd) { eof = true; break; }
+        if (id >= rangeEnd) { hitUpperBound = true; break; }
         if (id > maxId) maxId = id;
         if (collect.length < limit) collect.push(p);
       }
-      if (eof) break;
-      if (batch.length < 250) { eof = true; break; }
       scanCursor = maxId;
+      if (hitUpperBound) { eof = true; break; }
+      if (batch.length < 250) { eof = true; break; }
     }
     const newCursor = scanCursor;
     const batch = collect;
