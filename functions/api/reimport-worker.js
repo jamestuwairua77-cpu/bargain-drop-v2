@@ -232,9 +232,12 @@ export async function onRequest(context){
     }
 
     const limitRaw = parseInt(url.searchParams.get('limit')||'',10);
+    // Cloudflare Pages has a hard subrequest limit of 50.
+    // For full variant recovery: limit to 6 (each does ~4 subrequests).
+    // For priceOnly: limit to 15 (each does ~2 subrequests).
     const limit = priceOnly
-      ? (isNaN(limitRaw) ? 120 : Math.min(limitRaw, 200))
-      : Math.min(isNaN(limitRaw) ? 40 : limitRaw, 120);
+      ? (isNaN(limitRaw) ? 15 : Math.min(limitRaw, 20))
+      : (isNaN(limitRaw) ? 6 : Math.min(limitRaw, 10));
 
     const progDoc = await ghRead(env, 'data/reimport-progress.json');
     let prog = (progDoc && progDoc.content) ? JSON.parse(atob(progDoc.content.replace(/\n/g,''))) : {};
