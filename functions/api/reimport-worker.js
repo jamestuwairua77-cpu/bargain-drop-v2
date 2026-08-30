@@ -20,7 +20,7 @@
 // overlap, no gaps. The id bounds are auto-derived from the catalog on first run and
 // cached in env so the ranges stay stable across deploys.
 
-import { corsHeaders, shopifyFetch, ghRead, ghWriteLarge, isAdmin, adminDenied, cjKeys } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, ghRead, ghWriteLarge, ghWrite, isAdmin, adminDenied, cjKeys } from '../_sync-lib.js';
 
 function computePrice(baseCost) {
   const c = parseFloat(baseCost) || 0;
@@ -62,9 +62,7 @@ function needsFix(p){
   return true;
 }
 
-// Single-key CJ fetch: exchange the token ONCE for the pinned key, cache it for the
-// whole request, and reuse it for every lookup. No round-robin across keys.
-let _tokCache = new Map(); // apiKey -> { token, exp }
+let _tokCache = new Map();
 async function keyToken(apiKey) {
   const c = _tokCache.get(apiKey);
   if (c && Date.now() < c.exp) return c.tok;
@@ -85,7 +83,6 @@ async function cjFetchKey(env, apiKey, path) {
   return r.json();
 }
 
-// Resolve full CJ variant matrix for a product using ONLY the pinned key.
 async function resolveCjKey(env, apiKey, p) {
   const firstRaw = (p.variants||[]).map(v=>v.sku).filter(Boolean)[0];
   const candidates = [];
@@ -194,7 +191,6 @@ async function putProduct(env, p, payload){
   return res;
 }
 
-// Run `fn(item)` over `items` with at most `concurrency` in flight at once.
 async function mapWithConcurrency(items, concurrency, fn) {
   const results = new Array(items.length);
   let i = 0;
@@ -228,8 +224,6 @@ export async function onRequest(context){
     const shard = Math.max(0, Math.min(keyIdx, shards-1));
     const MIN_ID = Number(env.REIMPORT_MIN_ID || '9233116463235');
     const MAX_ID = Number(env.REIMPORT_MAX_ID || '9255590330499');
-    // Quartile boundaries measured from the 1849-product catalog so each shard holds
-    // ~462 products (even load). Overridable via env.REIMPORT_BOUNDS for future catalogs.
     const BOUNDS = (env.REIMPORT_BOUNDS || '9233116463235,9233141989507,9233177739395,9233211129987,9255590330500')
       .split(',').map(s => Number(s.trim()));
     const rangeStart = BOUNDS[shard] !== undefined ? BOUNDS[shard] : MIN_ID;
@@ -245,7 +239,6 @@ export async function onRequest(context){
       ? (isNaN(limitRaw) ? 15 : Math.min(limitRaw, 20))
       : (isNaN(limitRaw) ? 6 : Math.min(limitRaw, 10));
 
-    // PER-KEY progress file — disjoint slice, no cross-key contention.
     const progPath = `data/reimport-progress-${keyIdx}.json`;
     const progDoc = await ghRead(env, progPath);
     let prog = (progDoc && progDoc.content) ? JSON.parse(atob(progDoc.content.replace(/\n/g,''))) : {};
@@ -254,7 +247,6 @@ export async function onRequest(context){
     const cursorStart = Math.max(0, rangeStart - 1);
     const cursor = Math.max(prog.cursor || 0, cursorStart);
 
-    // Scan this shard's CONTIGUOUS id-range [cursor, rangeEnd) via since_id.
     const collect = [];
     let scanCursor = cursor;
     let eof = false;
@@ -292,7 +284,6 @@ export async function onRequest(context){
 
     const startedAt = Date.now();
 
-    // Phase 1: fan out ALL CJ lookups CONCURRENTLY (only when not priceOnly).
     const lookups = new Map();
     if (!priceOnly && remaining.length) {
       const results = await mapWithConcurrency(remaining, 12, async (p) => {
@@ -302,7 +293,6 @@ export async function onRequest(context){
       for (const r of results) { if (r && r.p) lookups.set(String(r.p.id), r); }
     }
 
-    // Phase 2: fan out ALL Shopify PUTs CONCURRENTLY.
     const resultsArr = await mapWithConcurrency(remaining, 20, async (p) => {
       const id = String(p.id);
       try {
@@ -349,11 +339,16 @@ export async function onRequest(context){
     try {
       const fresh = await ghRead(env, progPath);
       let merged = prog;
+      let existingSha = undefined;
       if (fresh && fresh.content) {
-        try { const existing = JSON.parse(atob(fresh.content.replace(/\n/g,''))); merged = { ...existing, ...prog, attempts: { ...(existing.attempts||{}), ...attempts } }; } catch {}
+        try {
+          const existing = JSON.parse(atob(fresh.content.replace(/\n/g,'')));
+          merged = { ...existing, ...prog, attempts: { ...(existing.attempts||{}), ...attempts } };
+          existingSha = fresh.sha;
+        } catch {}
       }
-      await ghWriteLarge(env, progPath, JSON.stringify(merged), 'auto: reimport progress key ' + keyIdx);
-    } catch (we) { void we; }
+      await ghWrite(env, progPath, JSON.stringify(merged), 'auto: reimport progress key ' + keyIdx, existingSha);
+    } catch (we) { console.error('progress write failed: ' + (we && we.message)); }
 
     const elapsed = Date.now() - startedAt;
     return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, shard, shards, rangeStart, rangeEnd, elapsedMs: elapsed, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
