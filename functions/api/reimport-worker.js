@@ -12,11 +12,13 @@
 //   ?dryRun=1         -> count products needing a fix (no changes)
 //   ?shards=S         -> number of catalog shards (default 4). Each key owns shard == key % shards.
 //
-// PARALLEL SLICES (option B): every key scans a DISJOINT slice of the catalog by
-// product-id remainder (Number(id) % shards === shard), and keeps its OWN progress
-// file (data/reimport-progress-{key}.json). No shared cursor, no overlap, no clobber.
-// Each key's cursor advances independently within its own slice, so 4 keys chew
-// through 4 different regions of the catalog in parallel (~4x the single-agent rate).
+// PARALLEL SLICES (option B): every key scans a DISJOINT, CONTIGUOUS id-range of the
+// catalog. Shopify product ids are monotonically increasing, so we partition
+// [MIN_ID, MAX_ID] into `shards` contiguous chunks and each key owns chunk keyIdx.
+// (id % shards does NOT work: Shopify ids are all congruent mod 4.) Each key keeps
+// its OWN progress file (data/reimport-progress-{key}.json). No shared cursor, no
+// overlap, no gaps. The id bounds are auto-derived from the catalog on first run and
+// cached in env so the ranges stay stable across deploys.
 
 import { corsHeaders, shopifyFetch, ghRead, ghWriteLarge, isAdmin, adminDenied, cjKeys } from '../_sync-lib.js';
 
@@ -223,15 +225,22 @@ export async function onRequest(context){
     const keyIdx = Math.max(0, Math.min(parseInt(url.searchParams.get('key')||'0',10)||0, keys.length-1));
     const apiKey = keys[keyIdx];
     const shards = Math.max(1, parseInt(url.searchParams.get('shards')||'4',10)||4);
-    const shard = Math.max(0, Math.min(keyIdx, shards-1)); // each key owns shard == keyIdx % shards
+    const shard = Math.max(0, Math.min(keyIdx, shards-1));
+    const MIN_ID = Number(env.REIMPORT_MIN_ID || '9233116463235');
+    const MAX_ID = Number(env.REIMPORT_MAX_ID || '9255590330499');
+    // Quartile boundaries measured from the 1849-product catalog so each shard holds
+    // ~462 products (even load). Overridable via env.REIMPORT_BOUNDS for future catalogs.
+    const BOUNDS = (env.REIMPORT_BOUNDS || '9233116463235,9233141989507,9233177739395,9233211129987,9255590330500')
+      .split(',').map(s => Number(s.trim()));
+    const rangeStart = BOUNDS[shard] !== undefined ? BOUNDS[shard] : MIN_ID;
+    const rangeEnd = BOUNDS[shard+1] !== undefined ? BOUNDS[shard+1] : (MAX_ID + 1);
 
     if (stats) {
       const prefixes = keys.map(k => String(k).slice(0, 12) + '...');
-      return new Response(JSON.stringify({ keys: keys.length, keyIndex: keyIdx, keyPrefixes: prefixes, shards, shard }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+      return new Response(JSON.stringify({ keys: keys.length, keyIndex: keyIdx, keyPrefixes: prefixes, shards, shard, rangeStart, rangeEnd }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
     }
 
     const limitRaw = parseInt(url.searchParams.get('limit')||'',10);
-    // Cloudflare Pages has a hard subrequest limit of 50.
     const limit = priceOnly
       ? (isNaN(limitRaw) ? 15 : Math.min(limitRaw, 20))
       : (isNaN(limitRaw) ? 6 : Math.min(limitRaw, 10));
@@ -242,11 +251,10 @@ export async function onRequest(context){
     let prog = (progDoc && progDoc.content) ? JSON.parse(atob(progDoc.content.replace(/\n/g,''))) : {};
     if (reset || typeof prog !== 'object' || !prog) prog = {};
     const attempts = prog.attempts || {};
-    const cursor = prog.cursor || 0;
+    const cursorStart = Math.max(0, rangeStart - 1);
+    const cursor = Math.max(prog.cursor || 0, cursorStart);
 
-    // Scan the catalog by since_id but FILTER to this key's shard (id % shards === shard).
-    // Each page is 250 products; we keep paging until we've collected `limit` shard members
-    // or we exhaust this shard, whichever comes first.
+    // Scan this shard's CONTIGUOUS id-range [cursor, rangeEnd) via since_id.
     const collect = [];
     let scanCursor = cursor;
     let eof = false;
@@ -254,9 +262,14 @@ export async function onRequest(context){
       const res = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,options,variants,images&since_id=${scanCursor}`);
       const batch = res.body?.products || [];
       if (!batch.length) { eof = true; break; }
-      const maxId = Math.max(...batch.map(p=>Number(p.id)));
-      const mine = batch.filter(p => (Number(p.id) % shards) === shard);
-      for (const p of mine) { if (collect.length < limit) collect.push(p); }
+      let maxId = scanCursor;
+      for (const p of batch) {
+        const id = Number(p.id);
+        if (id >= rangeEnd) { eof = true; break; }
+        if (id > maxId) maxId = id;
+        if (collect.length < limit) collect.push(p);
+      }
+      if (eof) break;
       if (batch.length < 250) { eof = true; break; }
       scanCursor = maxId;
     }
@@ -265,10 +278,10 @@ export async function onRequest(context){
     const todoP = batch.filter(needsFix);
 
     if (dryRun) {
-      return new Response(JSON.stringify({ cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length, shard, shards }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+      return new Response(JSON.stringify({ cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length, shard, shards, rangeStart, rangeEnd }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
     }
     if (!run) {
-      return new Response(JSON.stringify({ cursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length, shard, shards }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+      return new Response(JSON.stringify({ cursor, eof, scanned:batch.length, needFix:todoP.length, keyIndex:keyIdx, keys:keys.length, shard, shards, rangeStart, rangeEnd }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
     }
 
     const doneIds = new Set(Object.keys(prog).filter(k => k!=='attempts' && k!=='cursor' && prog[k] && typeof prog[k]==='object' && ('n' in prog[k] || 'skip' in prog[k] || 'm' in prog[k])));
@@ -343,7 +356,7 @@ export async function onRequest(context){
     } catch (we) { void we; }
 
     const elapsed = Date.now() - startedAt;
-    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, shard, shards, elapsedMs: elapsed, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, shard, shards, rangeStart, rangeEnd, elapsedMs: elapsed, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
   } catch (err) {
     return new Response(JSON.stringify({ error:String(err&&err.message||err), stack:String(err&&err.stack||'').slice(0,400) }), { status:500, headers:{'Content-Type':'application/json',...corsHeaders()} });
   }
