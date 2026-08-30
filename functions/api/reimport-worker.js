@@ -335,6 +335,7 @@ export async function onRequest(context){
     if (allPageDone || eof) prog.cursor = newCursor;
     prog.attempts = attempts;
 
+    let writeOk = false, writeError = '';
     try {
       const fresh = await ghRead(env, progPath);
       let merged = prog;
@@ -346,11 +347,16 @@ export async function onRequest(context){
           existingSha = fresh.sha;
         } catch {}
       }
-      await ghWrite(env, progPath, JSON.stringify(merged), 'auto: reimport progress key ' + keyIdx, existingSha);
-    } catch (we) { console.error('progress write failed: ' + (we && we.message)); }
+      const wr = await ghWrite(env, progPath, JSON.stringify(merged), 'auto: reimport progress key ' + keyIdx, existingSha);
+      writeOk = !!(wr && wr.content);
+      if (!writeOk) writeError = 'ghWrite returned falsy';
+    } catch (we) {
+      writeError = String(we && we.message || we);
+      console.error('progress write failed: ' + writeError);
+    }
 
     const elapsed = Date.now() - startedAt;
-    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, shard, shards, rangeStart, rangeEnd, elapsedMs: elapsed, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
+    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:ok+fail, ok, fail, priceOnly, keyIndex:keyIdx, keys:keys.length, shard, shards, rangeStart, rangeEnd, elapsedMs: elapsed, writeOk, writeError, results:resultsArr }), { headers:{'Content-Type':'application/json',...corsHeaders()} });
   } catch (err) {
     return new Response(JSON.stringify({ error:String(err&&err.message||err), stack:String(err&&err.stack||'').slice(0,400) }), { status:500, headers:{'Content-Type':'application/json',...corsHeaders()} });
   }
