@@ -52,19 +52,33 @@ async function sendResetEmail(env, toEmail, resetUrl) {
     return { sent: false, reason: 'no_email_provider' };
   }
 
+  const subject = 'Reset your Bargain Drop password';
+  const plainText = 'Reset your Bargain Drop password\n\n'
+    + 'We received a request to reset your password. Click the link below to set a new one:\n\n'
+    + resetUrl + '\n\n'
+    + 'This link expires in 30 minutes. If you did not request this, you can safely ignore this email.\n';
+
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;background:#f4f4f5;padding:24px">'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">'
+    + '<tr><td style="padding:32px 36px">'
+    + '<div style="font-size:22px;font-weight:bold;color:#111111;margin-bottom:8px">Reset your password</div>'
+    + '<p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 24px">We received a request to reset your Bargain Drop password. Click the button below to set a new one.</p>'
+    + '<table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:8px;background:#111111">'
+    + '<a href="' + resetUrl + '" style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px">Reset password</a>'
+    + '</td></tr></table>'
+    + '<p style="font-size:13px;color:#6b7280;line-height:1.6;margin:24px 0 0;word-break:break-all">Or copy and paste this link into your browser:<br><a href="' + resetUrl + '" style="color:#2563eb">' + resetUrl + '</a></p>'
+    + '<p style="font-size:12px;color:#9ca3af;line-height:1.6;margin:24px 0 0">This link expires in 30 minutes. If you did not request this, you can safely ignore this email.</p>'
+    + '</td></tr></table></div>';
+
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from,
       to: [toEmail],
-      subject: 'Reset your Bargain Drop password',
-      html: '<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">'
-        + '<h2 style="color:#111">Reset your password</h2>'
-        + '<p>We received a request to reset your Bargain Drop password.</p>'
-        + '<p style="margin:24px 0"><a href="' + resetUrl + '" style="background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Reset password</a></p>'
-        + '<p style="color:#777;font-size:12px">This link expires in 30 minutes. If you didn\'t request this, you can safely ignore this email.</p>'
-        + '</div>',
+      subject,
+      text: plainText,
+      html,
     }),
   });
   return { sent: r.ok, status: r.status };
