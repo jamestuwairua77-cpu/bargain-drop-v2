@@ -788,7 +788,7 @@ function loadProductStatic(){
     renderProduct(product);
   };
   if(window.__staticProductCache){ render(window.__staticProductCache); return; }
-  var x=new XMLHttpRequest();x.open('GET','/all-products.json?v=11ed6fb19c',true);x.timeout=25000;
+  var x=new XMLHttpRequest();x.open('GET','/all-products.json?v=853778fbfc',true);x.timeout=25000;
   x.onload=function(){
     if(x.status===200){
       try{ window.__staticProductCache=JSON.parse(x.responseText); render(window.__staticProductCache); }
