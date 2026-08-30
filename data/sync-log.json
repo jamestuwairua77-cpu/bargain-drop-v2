@@ -4,6 +4,13 @@
     "inventoryItemId": 49728081887363,
     "sku": "CJXX307009306FU",
     "available": 100,
+    "at": "2026-08-30T00:04:16.586Z"
+  },
+  {
+    "action": "back-sync-inventory",
+    "inventoryItemId": 49728081887363,
+    "sku": "CJXX307009306FU",
+    "available": 100,
     "at": "2026-08-30T00:04:13.969Z"
   },
   {
@@ -4883,27 +4890,5 @@
     "changed": 0,
     "receivedAt": "2026-08-29T23:40:45.137Z",
     "at": "2026-08-29T23:40:45.353Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "5f********af",
-    "valid": true,
-    "paramKeys": [
-      "2036323881448693761"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2036323881448693761\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-29T23:40:44.403Z",
-    "at": "2026-08-29T23:40:44.561Z"
   }
 ]
