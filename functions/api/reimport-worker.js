@@ -287,12 +287,12 @@ export default {
     }
 
     const { lo, hi } = shardRange(env, shards, keyIdx);
-    const cursor = prog.data && prog.data.cursor ? prog.data.cursor : lo;
+    let cursor = prog.data && prog.data.cursor ? prog.data.cursor : lo;
     const done = (prog.data && prog.data.done) || {};
     const attempts = (prog.data && prog.data.attempts) || {};
 
     // Scan products in this shard's range using since_id cursor pagination.
-    let processed = 0, ok = 0, fail = 0, skipped = 0, subreqErr = 0;
+    let processed = 0, okCount = 0, fail = 0, skipped = 0, subreqErr = 0;
     let newCursor = cursor;
     let eof = false;
     let page = 1;
@@ -352,7 +352,7 @@ export default {
       for (const r of results) {
         processed++;
         if (r && r.skip) { skipped++; continue; }
-        if (r && r.ok) { ok++; done[r.id] = { ts: Date.now() }; }
+        if (r && r.ok) { okCount++; done[r.id] = { ts: Date.now() }; }
         else { fail++; }
       }
 
@@ -373,7 +373,7 @@ export default {
 
     return new Response(JSON.stringify({
       ok: true, keyIdx, lo, hi, dryRun, reset,
-      processed, ok, fail, skipped, subreqErr,
+      processed, okCount, fail, skipped, subreqErr,
       cursor: newCursor, eof,
       writeOk, writeError,
       cjErrors: cjErrors.slice(0, 3),
