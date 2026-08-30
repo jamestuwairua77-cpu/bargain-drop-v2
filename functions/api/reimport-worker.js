@@ -15,10 +15,7 @@
 // PARALLEL SLICES (option B): every key scans a DISJOINT, CONTIGUOUS id-range of the
 // catalog. Shopify product ids are monotonically increasing, so we partition
 // [MIN_ID, MAX_ID] into `shards` contiguous chunks and each key owns chunk keyIdx.
-// (id % shards does NOT work: Shopify ids are all congruent mod 4.) Each key keeps
-// its OWN progress file (data/reimport-progress-{key}.json). No shared cursor, no
-// overlap, no gaps. The id bounds are auto-derived from the catalog on first run and
-// cached in env so the ranges stay stable across deploys.
+// Progress lives in Shopify shop metafields (namespace=reimport, key=progress_{keyIdx}).
 
 import { corsHeaders, shopifyFetch, isAdmin, adminDenied, cjKeys, nextPageCursor } from '../_sync-lib.js';
 
@@ -74,7 +71,7 @@ async function keyToken(apiKey) {
   if (tok) _tokCache.set(apiKey, { tok, exp: Date.now() + 12 * 3600 * 1000 });
   return tok;
 }
-async function cjFetchKey(env, apiKey, path) {
+async function cjFetchKey(apiKey, path) {
   const tok = await keyToken(apiKey);
   if (!tok) return null;
   const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1${path}`, {
@@ -83,7 +80,7 @@ async function cjFetchKey(env, apiKey, path) {
   return r.json();
 }
 
-async function resolveCjKey(env, apiKey, p) {
+async function resolveCjKey(apiKey, p) {
   const firstRaw = (p.variants||[]).map(v=>v.sku).filter(Boolean)[0];
   const candidates = [];
   if (firstRaw) {
@@ -93,13 +90,13 @@ async function resolveCjKey(env, apiKey, p) {
   }
   if (!candidates.length) return null;
   for (const sku of candidates) {
-    const list = await cjFetchKey(env, apiKey, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
+    const list = await cjFetchKey(apiKey, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
     const pid = list?.data?.list?.[0]?.pid;
     if (pid) {
-      const detail = await cjFetchKey(env, apiKey, `/product/query?pid=${encodeURIComponent(pid)}`);
+      const detail = await cjFetchKey(apiKey, `/product/query?pid=${encodeURIComponent(pid)}`);
       if (detail && detail.code === 200 && detail.data) return detail.data;
     }
-    const q = await cjFetchKey(env, apiKey, `/product/query?productSku=${encodeURIComponent(sku)}`);
+    const q = await cjFetchKey(apiKey, `/product/query?productSku=${encodeURIComponent(sku)}`);
     if (q && q.code === 200 && q.data && q.data.variants && q.data.variants.length) return q.data;
   }
   return null;
@@ -184,7 +181,7 @@ function buildCjPayload(p, cj){
 
 async function putProduct(env, p, payload){
   let res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
-  for (let t=0; t<6 && res && (res.status===409 || res.status===-429); t++) {
+  for (let t=0; t<6 && res && (res.status===409 || res.status===429); t++) {
     await new Promise(r=>setTimeout(r, 1200 + t*700));
     res = await shopifyFetch(env, `/products/${p.id}.json`, { method:'PUT', body:JSON.stringify(payload) });
   }
@@ -207,7 +204,6 @@ async function mapWithConcurrency(items, concurrency, fn) {
 
 async function readProgress(env, keyIdx) {
   // Per-shard progress lives in a Shopify shop metafield (source of truth), NOT GitHub.
-  // This avoids GITHUB_TOKEN 401/rate-limit contention and the 50-subrequest cap.
   try {
     const res = await shopifyFetch(env, `/metafields.json?namespace=reimport&key=progress_${keyIdx}`);
     if (!res || !res.ok || !res.body) return { id: null, data: null };
@@ -222,19 +218,13 @@ async function readProgress(env, keyIdx) {
 }
 
 async function writeProgress(env, keyIdx, data, existingId) {
-  const body = {
-    namespace: 'reimport',
-    key: 'progress_' + keyIdx,
-    value: JSON.stringify(data),
-    type: 'json',
-    owner_resource: 'shop',
-  };
+  const value = JSON.stringify(data);
   try {
     if (existingId) {
-      const res = await shopifyFetch(env, `/metafields/${existingId}.json`, { method: 'PUT', body: JSON.stringify({ metafield: { id: existingId, value: body.value, type: 'json' } }) });
+      const res = await shopifyFetch(env, `/metafields/${existingId}.json`, { method: 'PUT', body: JSON.stringify({ metafield: { id: existingId, value, type: 'json' } }) });
       return !!(res && res.ok);
     }
-    const res = await shopifyFetch(env, `/metafields.json`, { method: 'POST', body: JSON.stringify({ metafield: body }) });
+    const res = await shopifyFetch(env, `/metafields.json`, { method: 'POST', body: JSON.stringify({ metafield: { namespace: 'reimport', key: 'progress_' + keyIdx, value, type: 'json', owner_resource: 'shop' } }) });
     return !!(res && res.ok);
   } catch (e) {
     return false;
@@ -256,129 +246,129 @@ function shardRange(env, shards, keyIdx) {
   return { lo, hi };
 }
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    const cors = corsHeaders(request);
-    if (!isAdmin(request, env)) return adminDenied(cors);
+export async function onRequest(context) {
+  const { request, env } = context;
+  const cors = corsHeaders();
+  const url = new URL(request.url);
 
-    const q = url.searchParams;
-    const keyIdx = parseInt(q.get('key') || '0', 10) || 0;
-    const stats = q.get('stats') === '1';
-    const dryRun = q.get('dryRun') === '1';
-    const run = q.get('run') === '1';
-    const reset = q.get('reset') === '1';
-    const priceOnly = q.get('priceOnly') === '1';
-    const shards = Math.max(1, parseInt(q.get('shards') || '4', 10) || 4);
-    const limit = Math.max(1, parseInt(q.get('limit') || '6', 10) || 6);
+  if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: cors });
+  if (!isAdmin(request, env)) return adminDenied();
 
-    const apiKey = cjKeys()[keyIdx];
-    if (!apiKey) return new Response(JSON.stringify({ ok: false, error: 'no CJ key at index ' + keyIdx }), { status: 400, headers: { 'Content-Type': 'application/json', ...cors } });
+  const q = url.searchParams;
+  const keyIdx = parseInt(q.get('key') || '0', 10) || 0;
+  const stats = q.get('stats') === '1';
+  const dryRun = q.get('dryRun') === '1';
+  const run = q.get('run') === '1';
+  const reset = q.get('reset') === '1';
+  const priceOnly = q.get('priceOnly') === '1';
+  const shards = Math.max(1, parseInt(q.get('shards') || '4', 10) || 4);
+  const limit = Math.max(1, parseInt(q.get('limit') || '6', 10) || 6);
 
-    if (stats) {
-      const keys = cjKeys().map((k, i) => ({ i, prefix: String(k).slice(0, 8) }));
-      return new Response(JSON.stringify({ ok: true, stats: true, keyIdx, totalKeys: keys.length, keys }), { headers: { 'Content-Type': 'application/json', ...cors } });
-    }
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'Content-Type': 'application/json', ...cors } });
 
-    const prog = await readProgress(env, keyIdx);
-    if (reset) {
-      await writeProgress(env, keyIdx, { cursor: null, done: {}, attempts: {} }, prog.id);
-      return new Response(JSON.stringify({ ok: true, reset: true, keyIdx }), { headers: { 'Content-Type': 'application/json', ...cors } });
-    }
+  const apiKey = cjKeys(env)[keyIdx];
+  if (!apiKey) return json({ ok: false, error: 'no CJ key at index ' + keyIdx }, 400);
 
-    const { lo, hi } = shardRange(env, shards, keyIdx);
-    let cursor = prog.data && prog.data.cursor ? prog.data.cursor : lo;
-    const done = (prog.data && prog.data.done) || {};
-    const attempts = (prog.data && prog.data.attempts) || {};
-
-    // Scan products in this shard's range using since_id cursor pagination.
-    let processed = 0, okCount = 0, fail = 0, skipped = 0, subreqErr = 0;
-    let newCursor = cursor;
-    let eof = false;
-    let page = 1;
-    const cjErrors = [];
-
-    while (processed < limit && !eof) {
-      const listRes = await shopifyFetch(env, `/products.json?since_id=${cursor}&limit=200&fields=id,variants,options,images,title`);
-      if (!listRes || !listRes.ok || !listRes.body) {
-        fail++;
-        break;
-      }
-      const products = (listRes.body.products || []).filter(p => p && p.id && p.id >= lo && p.id < hi);
-      if (!products.length) {
-        // no products in range on this page -> check if we've hit the upper bound
-        const rawIds = (listRes.body.products || []).map(p => p.id);
-        const maxId = rawIds.length ? Math.max(...rawIds) : cursor;
-        if (maxId > hi) { eof = true; newCursor = maxId; }
-        else {
-          const next = nextPageCursor(listRes.headers);
-          if (!next) { eof = true; newCursor = maxId; }
-          else { cursor = maxId; page++; }
-        }
-        continue;
-      }
-
-      const batch = products.slice(0, limit - processed);
-      const results = await mapWithConcurrency(batch, 8, async (p) => {
-        if (done[p.id]) return { skip: true, id: p.id };
-        try {
-          let payload;
-          if (priceOnly) {
-            payload = buildRepricePayload(p);
-          } else {
-            const cj = await resolveCjKey(env, apiKey, p);
-            if (!cj) {
-              attempts[p.id] = (attempts[p.id] || 0) + 1;
-              return { fail: true, id: p.id, reason: 'no-cj-match', attempts: attempts[p.id] };
-            }
-            payload = buildCjPayload(p, cj);
-          }
-          const res = await putProduct(env, p, payload);
-          if (!res || (!res.ok && res.status !== 409 && res.status !== -429)) {
-            try { if (res && res.body && String(res.body).includes('subrequest')) subreqErr++; } catch (e) {}
-            attempts[p.id] = (attempts[p.id] || 0) + 1;
-            return { fail: true, id: p.id, reason: 'put-fail-' + (res ? res.status : 'no-res'), attempts: attempts[p.id] };
-          }
-          return { ok: true, id: p.id };
-        } catch (e) {
-          const msg = String(e && e.message || e);
-          if (/subrequest|too many/i.test(msg)) subreqErr++;
-          else cjErrors.push(msg);
-          attempts[p.id] = (attempts[p.id] || 0) + 1;
-          return { fail: true, id: p.id, reason: 'err-' + msg.slice(0, 80), attempts: attempts[p.id] };
-        }
-      });
-
-      for (const r of results) {
-        processed++;
-        if (r && r.skip) { skipped++; continue; }
-        if (r && r.ok) { okCount++; done[r.id] = { ts: Date.now() }; }
-        else { fail++; }
-      }
-
-      // advance cursor to max id seen on this page
-      const maxId = Math.max(...batch.map(p => p.id));
-      newCursor = maxId;
-      const next = nextPageCursor(listRes.headers);
-      if (!next) { eof = true; }
-      else { cursor = maxId; page++; }
-    }
-
-    const finalProg = { cursor: newCursor, done, attempts };
-    let writeOk = false, writeError = null;
-    if (!dryRun && run) {
-      writeOk = await writeProgress(env, keyIdx, finalProg, prog.id);
-      if (!writeOk) writeError = 'writeProgress returned false';
-    }
-
-    return new Response(JSON.stringify({
-      ok: true, keyIdx, lo, hi, dryRun, reset,
-      processed, okCount, fail, skipped, subreqErr,
-      cursor: newCursor, eof,
-      writeOk, writeError,
-      cjErrors: cjErrors.slice(0, 3),
-      attemptsTotal: Object.keys(attempts).length,
-      doneTotal: Object.keys(done).length,
-    }), { headers: { 'Content-Type': 'application/json', ...cors } });
+  if (stats) {
+    const keys = cjKeys(env).map((k, i) => ({ i, prefix: String(k).slice(0, 8) }));
+    return json({ ok: true, stats: true, keyIdx, totalKeys: keys.length, keys });
   }
-};
+
+  const prog = await readProgress(env, keyIdx);
+  if (reset) {
+    await writeProgress(env, keyIdx, { cursor: null, done: {}, attempts: {} }, prog.id);
+    return json({ ok: true, reset: true, keyIdx });
+  }
+
+  const { lo, hi } = shardRange(env, shards, keyIdx);
+  let cursor = prog.data && prog.data.cursor ? prog.data.cursor : lo;
+  const done = (prog.data && prog.data.done) || {};
+  const attempts = (prog.data && prog.data.attempts) || {};
+
+  let processed = 0, okCount = 0, fail = 0, skipped = 0, subreqErr = 0;
+  let newCursor = cursor;
+  let eof = false;
+  let page = 1;
+  const cjErrors = [];
+
+  while (processed < limit && !eof) {
+    const listRes = await shopifyFetch(env, `/products.json?since_id=${cursor}&limit=200&fields=id,variants,options,images,title`);
+    if (!listRes || !listRes.ok || !listRes.body) {
+      fail++;
+      break;
+    }
+    const products = (listRes.body.products || []).filter(p => p && p.id && p.id >= lo && p.id < hi);
+    if (!products.length) {
+      const rawIds = (listRes.body.products || []).map(p => p.id);
+      const maxId = rawIds.length ? Math.max(...rawIds) : cursor;
+      if (maxId > hi) { eof = true; newCursor = maxId; }
+      else {
+        const next = nextPageCursor(listRes.headers);
+        if (!next) { eof = true; newCursor = maxId; }
+        else { cursor = maxId; page++; }
+      }
+      continue;
+    }
+
+    const batch = products.slice(0, limit - processed);
+    const results = await mapWithConcurrency(batch, 8, async (p) => {
+      if (done[p.id]) return { skip: true, id: p.id };
+      try {
+        let payload;
+        if (priceOnly) {
+          payload = buildRepricePayload(p);
+        } else {
+          const cj = await resolveCjKey(apiKey, p);
+          if (!cj) {
+            attempts[p.id] = (attempts[p.id] || 0) + 1;
+            return { fail: true, id: p.id, reason: 'no-cj-match', attempts: attempts[p.id] };
+          }
+          payload = buildCjPayload(p, cj);
+        }
+        const res = await putProduct(env, p, payload);
+        if (!res || (!res.ok && res.status !== 409 && res.status !== 429)) {
+          try { if (res && res.body && JSON.stringify(res.body).toLowerCase().includes('subrequest')) subreqErr++; } catch (e) {}
+          attempts[p.id] = (attempts[p.id] || 0) + 1;
+          return { fail: true, id: p.id, reason: 'put-fail-' + (res ? res.status : 'no-res'), attempts: attempts[p.id] };
+        }
+        return { ok: true, id: p.id };
+      } catch (e) {
+        const msg = String(e && e.message || e);
+        if (/subrequest|too many/i.test(msg)) subreqErr++;
+        else cjErrors.push(msg);
+        attempts[p.id] = (attempts[p.id] || 0) + 1;
+        return { fail: true, id: p.id, reason: 'err-' + msg.slice(0, 80), attempts: attempts[p.id] };
+      }
+    });
+
+    for (const r of results) {
+      processed++;
+      if (r && r.skip) { skipped++; continue; }
+      if (r && r.ok) { okCount++; done[r.id] = { ts: Date.now() }; }
+      else { fail++; }
+    }
+
+    const maxId = Math.max(...batch.map(p => p.id));
+    newCursor = maxId;
+    const next = nextPageCursor(listRes.headers);
+    if (!next) { eof = true; }
+    else { cursor = maxId; page++; }
+  }
+
+  const finalProg = { cursor: newCursor, done, attempts };
+  let writeOk = false, writeError = null;
+  if (!dryRun && run) {
+    writeOk = await writeProgress(env, keyIdx, finalProg, prog.id);
+    if (!writeOk) writeError = 'writeProgress returned false';
+  }
+
+  return json({
+    ok: true, keyIdx, lo, hi, dryRun, reset,
+    processed, okCount, fail, skipped, subreqErr,
+    cursor: newCursor, eof,
+    writeOk, writeError,
+    cjErrors: cjErrors.slice(0, 3),
+    attemptsTotal: Object.keys(attempts).length,
+    doneTotal: Object.keys(done).length,
+  });
+}
