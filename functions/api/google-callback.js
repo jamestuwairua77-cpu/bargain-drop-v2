@@ -99,7 +99,7 @@ export async function onRequest(context) {
 
     // 3. Provision (or match) the user in users-seed.json
     const users = await loadUsers(env);
-    let user = users.find(u => u.email === email);
+    let user = users.find(u => (u.email || '').toLowerCase() === email);
     if (!user) {
       user = {
         id: 'u-' + Date.now(),
