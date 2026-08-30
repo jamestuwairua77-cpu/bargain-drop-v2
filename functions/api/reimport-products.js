@@ -6,13 +6,12 @@
 //
 // GET ?dryRun=1        -> count only (how many live products need a fix)
 // GET ?run=1&limit=N   -> update up to N live products in place
-// Resumable via data/reimport-progress.json (keyed by live Shopify product id).
+// GET ?reset=1         -> clear progress + restart from cursor 0
+// Resumable via data/reimport-progress.json (cursor = since_id, keyed by live id).
 
 import { corsHeaders, shopifyFetch, ghRead, ghWriteLarge, isAdmin, adminDenied, cjFetchMulti } from '../_sync-lib.js';
 
 // ── Product-aware pricing (tiered by base cost) ──────────────────────────
-// Cheap items get an aggressive multiplier, expensive items a gentle one, so
-// retail prices stay sane and per-unit profit is healthy. Ends in .95.
 function computePrice(baseCost) {
   const c = parseFloat(baseCost) || 0;
   if (c <= 0) return 0;
@@ -41,7 +40,6 @@ function parseVariantKey(key, nameEn=''){
   return [color.trim(), size.trim()];
 }
 
-// Normalize a variant SKU to its CJ parent SKU for product/list lookup.
 function parentSku(sku) {
   if (!sku) return sku;
   let s = String(sku).trim();
@@ -56,9 +54,6 @@ function hasSkuSuffix(sku) {
   return /-\d+$/.test(s) || /\d{2}[A-Z]{2}$/.test(s);
 }
 
-// Decide if a LIVE Shopify product needs re-pricing / variant recovery.
-// We always reprice (flat 2.5x -> tiered) for every product, but mark the
-// structurally-broken ones separately so they get full CJ variant recovery.
 function needsFix(p){
   const v = p.variants || [];
   if (!v.length) return false;
@@ -70,7 +65,6 @@ function needsFix(p){
   return true; // everything else still needs tiered re-pricing
 }
 
-// Resolve CJ product detail by walking candidate SKUs (parent + raw) across keys.
 async function resolveCj(env, p) {
   const firstRaw = (p.variants||[]).map(v=>v.sku).filter(Boolean)[0];
   const candidates = [];
@@ -111,7 +105,6 @@ async function repriceOnly(env, p){
       fulfillment_service: v.fulfillment_service||'manual', requires_shipping: v.requires_shipping!==false, taxable: v.taxable!==false,
     };
   });
-  // Rebuild options from existing variants (in case p.options wasn't returned).
   let options = (p.options && p.options.length) ? p.options : null;
   if (!options) {
     const colors=[]; const sizes=[]; const seenC=new Set(); const seenS=new Set();
@@ -136,14 +129,10 @@ async function repriceOnly(env, p){
 
 async function reimport(env, p){
   const cj = await resolveCj(env, p);
-  // If CJ resolves, use its full variant matrix. Otherwise fall back to a pure
-  // re-price of the existing variants (base = currentPrice / 2.5), which still
-  // migrates flat-2.5x pricing to tiered without needing a CJ round-trip.
   if (!cj) return repriceOnly(env, p);
   const cjv = (cj.variants || []);
   if (!cjv.length) return repriceOnly(env, p);
 
-  // Preserve existing variant ids matched by option1 (so Shopify updates in place).
   const existingByOpt1 = {};
   for(const v of (p.variants||[])){ const c=String(v.option1||''); if(c && !(c in existingByOpt1)) existingByOpt1[c]=v; }
 
@@ -212,31 +201,30 @@ export async function onRequest(context){
     const url=new URL(request.url);
     const run=url.searchParams.get('run')==='1';
     const dryRun=url.searchParams.get('dryRun')==='1';
-    const limit=parseInt(url.searchParams.get('limit')||'10',10);
-    const startId=parseInt(url.searchParams.get('since')||'0',10);
-
-    // Gather live products via deterministic since_id pagination.
-    const products=[]; let guard=0; let sinceId=startId;
-    while (guard < 6) {
-      const res = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,options,variants,images&since_id=${sinceId}`);
-      const batch = res.body?.products || [];
-      if (!batch.length) break;
-      products.push(...batch);
-      sinceId = batch.reduce((m,p)=>Math.max(m,Number(p.id)), sinceId);
-      if (batch.length < 250) break; // last page
-      if (products.length >= limit + 500) break; // enough to process
-      guard++;
-    }
-
-    const todoP = products.filter(needsFix);
-
-    if (dryRun) return new Response(JSON.stringify({ liveTotal:products.length, scanned:products.length, needFix:todoP.length, sinceId }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
+    const reset=url.searchParams.get('reset')==='1';
+    const limit=Math.min(parseInt(url.searchParams.get('limit')||'10',10), 25);
 
     const progDoc=await ghRead(env,'data/reimport-progress.json');
-    const prog=(progDoc&&progDoc.content)?JSON.parse(atob(progDoc.content.replace(/\n/g,''))):{};
+    let prog=(progDoc&&progDoc.content)?JSON.parse(atob(progDoc.content.replace(/\n/g,''))):{};
+    if (reset || typeof prog !== 'object' || !prog) prog = {};
     const attempts = prog.attempts || {};
+    const cursor = prog.cursor || 0;
 
-    const doneIds = new Set(Object.keys(prog).filter(k => k!=='attempts' && prog[k] && typeof prog[k]==='object' && ('n' in prog[k] || 'skip' in prog[k])));
+    const res = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,options,variants,images&since_id=${cursor}`);
+    const batch = res.body?.products || [];
+    const newCursor = batch.length ? batch.reduce((m,p)=>Math.max(m,Number(p.id)), cursor) : cursor;
+    const eof = batch.length < 250;
+
+    const todoP = batch.filter(needsFix);
+
+    if (dryRun) {
+      return new Response(JSON.stringify({ cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
+    }
+    if (!run) {
+      return new Response(JSON.stringify({ cursor, eof, scanned:batch.length, needFix:todoP.length }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
+    }
+
+    const doneIds = new Set(Object.keys(prog).filter(k => k!=='attempts' && k!=='cursor' && prog[k] && typeof prog[k]==='object' && ('n' in prog[k] || 'skip' in prog[k] || 'm' in prog[k])));
     const remaining = todoP
       .filter(p => !doneIds.has(String(p.id)))
       .filter(p => (attempts[String(p.id)]||0) < 3)
@@ -248,13 +236,18 @@ export async function onRequest(context){
       let r_ok=false;
       try{
         const r=await reimport(env,p);
-        prog[id]=r.ok?{n:r.variants,colors:r.colors,sizes:r.sizes}:{skip:r.skip||r.error||'fail'};
+        prog[id]=r.ok?{n:r.variants,colors:r.colors,sizes:r.sizes,m:r.mode||''}:{skip:r.skip||r.error||'fail'};
         r_ok=!!r.ok;
         if(r_ok) ok++; else fail++;
-        results.push({id, ok:r_ok, variants:r.variants, colors:r.colors, sizes:r.sizes, err:r.error||r.skip});
+        results.push({id, ok:r_ok, variants:r.variants, colors:r.colors, sizes:r.sizes, mode:r.mode, err:r.error||r.skip});
       }catch(e){ prog[id]={skip:'ex:'+String(e.message||e).slice(0,50)}; fail++; results.push({id, ok:false, err:String(e.message||e).slice(0,80)}); }
       if(!r_ok) attempts[id]=(attempts[id]||0)+1;
-      await new Promise(r=>setTimeout(r,700));
+      await new Promise(r=>setTimeout(r,600));
+    }
+
+    const allPageDone = todoP.every(p => doneIds.has(String(p.id)) || prog[String(p.id)]);
+    if (allPageDone || eof) {
+      prog.cursor = newCursor;
     }
     prog.attempts = attempts;
     try {
@@ -266,7 +259,7 @@ export async function onRequest(context){
       await ghWriteLarge(env, 'data/reimport-progress.json', JSON.stringify(merged), 'auto: reimport progress');
     } catch (we) { void we; }
 
-    return new Response(JSON.stringify({ scanned:products.length, needFix:todoP.length, processed:remaining.length, ok, fail, sinceId, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
+    return new Response(JSON.stringify({ cursor:prog.cursor, newCursor, eof, scanned:batch.length, needFix:todoP.length, processed:remaining.length, ok, fail, results }),{headers:{'Content-Type':'application/json',...corsHeaders()}});
   }catch(err){
     return new Response(JSON.stringify({error:String(err&&err.message||err),stack:String(err&&err.stack||'').slice(0,400)}),{status:500,headers:{'Content-Type':'application/json',...corsHeaders()}});
   }
