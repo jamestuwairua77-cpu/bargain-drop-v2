@@ -526,16 +526,43 @@ export async function verifyPassword(password, stored) {
 }
 
 // ─── Server-side fulfillment: push a paid order to CJ + Shopify (idempotent) ──
+// Resolve a CJ numeric variant id (`vid`) from a store SKU or a raw numeric vid.
+// CJ createOrderV2 requires the numeric `vid` (from /product/query variants[]),
+// NOT the store SKU (e.g. CJGJ30573020001). If the item carries a numeric vid we
+// use it directly; otherwise we look it up via /product/query?variantSku=.
+async function resolveCjVid(env, sku, vid) {
+  if (vid && /^[0-9]+$/.test(String(vid))) return String(vid); // already numeric vid
+  if (sku) {
+    try {
+      const r = await cjFetch(env, '/product/query?variantSku=' + encodeURIComponent(sku));
+      if (r && r.code === 200 && r.data && Array.isArray(r.data.variants) && r.data.variants.length) {
+        const v = r.data.variants[0];
+        if (v && v.vid) return String(v.vid);
+      }
+    } catch (e) { /* fall through */ }
+  }
+  // also accept non-numeric vid strings (UUID-style) as a last resort
+  if (vid) return String(vid);
+  return null;
+}
+
 async function pushOrderToCj(env, order) {
+  const items = order.items || [];
+  const products = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const vid = await resolveCjVid(env, it.sku || it.vid || null, it.vid || null);
+    products.push({
+      vid,
+      quantity: it.qty || it.quantity || 1,
+      storeLineItemId: order.id + '-' + i,
+    });
+  }
   const payload = buildCjOrderFromBody({
     order_id: order.id,
     customer_email: order.email || (order.shipping && order.shipping.email) || '',
     shipping_address: order.shipping || {},
-    products: (order.items || []).map((it, i) => ({
-      vid: it.sku || it.vid || null,
-      quantity: it.qty || it.quantity || 1,
-      storeLineItemId: order.id + '-' + i,
-    })),
+    products,
   });
   return await cjFetch(env, '/shopping/order/createOrderV2', { method: 'POST', body: JSON.stringify(payload) });
 }
