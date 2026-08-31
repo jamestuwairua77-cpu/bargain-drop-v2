@@ -1,6 +1,12 @@
 [
   {
     "action": "save-order",
+    "id": "E2E-2026-0831-002",
+    "status": "unpaid",
+    "at": "2026-08-31T13:07:48.422Z"
+  },
+  {
+    "action": "save-order",
     "id": "E2E-2026-0831-001",
     "status": "unpaid",
     "at": "2026-08-31T13:01:18.118Z"
@@ -6036,27 +6042,5 @@
     "changed": 0,
     "receivedAt": "2026-08-30T00:11:09.329Z",
     "at": "2026-08-30T00:11:09.576Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "05********ab",
-    "valid": true,
-    "paramKeys": [
-      "2013541172186296321"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2013541172186296321\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-30T00:11:08.106Z",
-    "at": "2026-08-30T00:11:08.265Z"
   }
 ]
