@@ -831,3 +831,20 @@ export async function backsyncInventory(env, inventoryItemId, availableOverride)
   }
   return { ok: true, sku, available, hits };
 }
+
+// ─── User ledger (GitHub-backed users-seed.json) ─────────────────────────
+const USERS_PATH = 'users-seed.json';
+
+export async function listUsers(env) {
+  const existing = await ghRead(env, USERS_PATH);
+  if (!existing || !existing.content) return [];
+  try { return JSON.parse(atob(existing.content)); } catch { return []; }
+}
+
+// Find a single user by normalized email (case-insensitive).
+export async function findUserByEmail(env, email) {
+  const target = String(email || '').trim().toLowerCase();
+  if (!target) return null;
+  const users = await listUsers(env);
+  return users.find(u => String(u.email || '').trim().toLowerCase() === target) || null;
+}

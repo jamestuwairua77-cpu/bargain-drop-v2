@@ -99,7 +99,7 @@ var prefs;
 (function(){
   var user = BD.requireAuth(); if (!user) return;
   prefs = BD.prefs.get();
-  var emails = [{k:'emailOrders',l:'Order Updates',d:'Receive confirmation, shipping and delivery updates'},{k:'emailPromos',l:'Promotions & Deals',d:'Exclusive discounts and promo offers'},{k:'emailNewsletter',l:'Newsletter',d:'Company news, new arrivals and more'},{k:'emailPriceDrops',l:'Price Drops',d:'Alerts when items in your wishlist drop in price'}];
+  var emails = [{k:'emailOrders',l:'Order Updates',d:'Confirmation, shipping and delivery updates'},{k:'emailPriceDrops',l:'Price Drops',d:'Alerts when wishlist items drop in price'},{k:'emailBackInStock',l:'Back In Stock',d:'Alerts when wishlist items come back in stock'},{k:'emailCart',l:'Cart Reminders',d:'Reminders when items sit in your cart'},{k:'emailReviews',l:'Review Requests',d:'A reminder to review delivered items'},{k:'emailAccount',l:'Account & Security',d:'Email verification, sign-in and security alerts'},{k:'emailPromos',l:'Promotions & Deals',d:'Exclusive discounts and promo offers'},{k:'emailNewsletter',l:'Newsletter',d:'Company news, new arrivals and more'}];
   var sms = [{k:'smsOrders',l:'Order Updates',d:'Get order updates via SMS'},{k:'smsPromos',l:'Promos',d:'Promotional offers via SMS'}];
   var push = [{k:'pushOrders',l:'Order Updates',d:'Prop notifications for orders'},{k:'pushPromos',l:'Promos',d:'Prop notifications for deals'}];
   function render(arr,containerId,groupName){

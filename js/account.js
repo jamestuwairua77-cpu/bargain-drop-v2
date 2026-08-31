@@ -153,6 +153,7 @@
   BD.prefs = {
     defaults: {
       emailOrders: true, emailPromos: true, emailNewsletter: false, emailPriceDrops: true,
+      emailBackInStock: true, emailCart: true, emailReviews: true, emailAccount: true,
       smsOrders: false, smsPromos: false,
       pushOrders: true, pushPromos: false,
       language: 'en', currency: 'AUD'

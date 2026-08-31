@@ -1,38 +1,37 @@
 // Cloudflare Pages Function: /api/my-notifications
-// GET — returns order-status notifications for the logged-in user.
+// GET — full, category-aware notification feed for the signed-in user.
 //
-// Notifications are DERIVED from the durable order ledger (data/orders.json) on read,
-// so they are always in sync with the actual order state — no separate write path,
-// no GitHub write contention, no desync between "order status" and "notification".
+// Notifications are DERIVED on read from durable ledgers (data/orders.json,
+// users-seed.json) so they always reflect the true current state — no separate
+// write path, no write contention, no desync.
 //
-// Each notification gives the user a plain-language rundown of what's happening
-// to their order right now: payment received, packed, shipped, delivered, or an issue.
+// COVERAGE (mirrors what real e-commerce platforms notify users about):
+//   ORDER      — payment pending, payment received, processing, shipped,
+//                delivered, review request, return, fulfilment issue.
+//   ACCOUNT    — email not verified, no default address, missing phone/name,
+//                incomplete profile — things the user NEEDS TO DO.
+//   WISHLIST   — (client-side only: price drops / back-in-stock) — see js/notifications.js
+//   CART       — (client-side only: abandoned cart, checkout not completed) — see js/notifications.js
+//   SECURITY   — password change, new login (seeded from account activity).
+//   WALLET     — store credit balance / expiry, gift-card reminders.
+//
+// Each notification carries: id, category, type, icon, title, message, at,
+// plus category-specific metadata (orderId, total, action, href).
 
-import { corsHeaders, listOrders } from '../_sync-lib.js';
+import { corsHeaders, listOrders, findUserByEmail } from '../_sync-lib.js';
 
 function normalizeEmail(e) {
   return String(e || '').trim().toLowerCase();
 }
 
-// Canonical status → human messaging.
-const STATUS_LABEL = {
-  unpaid: 'Payment pending',
-  processing: 'Processing',
-  shipped: 'Shipped',
-  delivered: 'Delivered',
-  review: 'To review',
-  return: 'Return',
-  fulfilled: 'Fulfilled',
-};
-
-const STATUS_ICON = {
-  unpaid: '💳',
-  processing: '📦',
-  shipped: '🚚',
-  delivered: '✅',
-  review: '⭐',
-  return: '↩️',
-  fulfilled: '✅',
+const CATEGORY = {
+  order:   { label: 'Orders',        icon: '📦' },
+  account: { label: 'Account',       icon: '👤' },
+  security:{ label: 'Security',      icon: '🔐' },
+  wallet:  { label: 'Wallet',        icon: '💳' },
+  wishlist:{ label: 'Wishlist',      icon: '❤️' },
+  cart:    { label: 'Cart',          icon: '🛒' },
+  promo:   { label: 'Promotions',    icon: '🏷️' },
 };
 
 function canonStatus(s) {
@@ -46,28 +45,232 @@ function canonStatus(s) {
   return s || 'unpaid';
 }
 
-// Descriptive "what's happening" copy per status.
-function statusMessage(o, st) {
-  const id = String(o.id || '').slice(0, 18);
-  const items = (o.items && o.items.length) ? o.items.length : 1;
-  switch (st) {
-    case 'unpaid':
-      return `We're still waiting for payment on order ${id}. Complete payment to get it moving.`;
-    case 'processing':
-      return `Good news — order ${id} is paid and being prepared for dispatch.`;
-    case 'fulfilled':
-      return `Order ${id} has been handed to our fulfilment partner and is on its way.`;
-    case 'shipped':
-      return `Order ${id} has shipped and is heading to your door.`;
-    case 'delivered':
-      return `Order ${id} was delivered. Enjoy your ${items} item${items === 1 ? '' : 's'}!`;
-    case 'review':
-      return `Your ${items} item${items === 1 ? '' : 's'} from order ${id} are ready — please leave a review.`;
-    case 'return':
-      return `A return was recorded for order ${id}.`;
-    default:
-      return `Order ${id} status updated.`;
+const STATUS_LABEL = {
+  unpaid: 'Payment pending',
+  processing: 'Processing',
+  fulfilled: 'On its way',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
+  review: 'Leave a review',
+  return: 'Return',
+};
+const STATUS_ICON = {
+  unpaid: '💳', processing: '📦', fulfilled: '📦', shipped: '🚚',
+  delivered: '✅', review: '⭐', return: '↩️',
+};
+
+function iso(ts) {
+  const t = new Date(ts);
+  return isNaN(t.getTime()) ? null : t.toISOString();
+}
+
+// ── Order notifications (one per order, most recent first) ───────────────
+function orderNotifications(orders) {
+  return orders.map((o) => {
+    const st = canonStatus(o.status);
+    const id = String(o.id || '').slice(0, 18);
+    const items = (o.items && o.items.length) ? o.items.length : 1;
+    const when = o.updatedAt || (o.fulfillment && o.fulfillment.at) || o.date || null;
+
+    // Has issue if fulfillment explicitly recorded errors, OR cj/shopify failed.
+    const f = o.fulfillment || {};
+    const cjBad = f.cj && (f.cj.result === false || f.cj.code !== 200);
+    const shopBad = f.shopify && f.shopify.ok === false;
+    const hasIssue = !!(f.errors && f.errors.length) || cjBad || shopBad;
+
+    let title = STATUS_LABEL[st] || 'Order update';
+    let message, icon = STATUS_ICON[st] || '📦';
+    switch (st) {
+      case 'unpaid':
+        message = `We're still waiting for payment on order #${id}. Complete payment so it can head your way.`;
+        break;
+      case 'processing':
+        message = `Order #${id} is paid and being prepared for dispatch.`;
+        break;
+      case 'fulfilled':
+        message = `Order #${id} has been handed to our fulfilment partner and is on its way.`;
+        break;
+      case 'shipped':
+        message = `Order #${id} has shipped and is heading to your door.`;
+        break;
+      case 'delivered':
+        message = `Order #${id} was delivered. Enjoy your ${items} item${items === 1 ? '' : 's'}!`;
+        break;
+      case 'review':
+        message = `How did you like your ${items} item${items === 1 ? '' : 's'} from order #${id}? Let other shoppers know.`;
+        break;
+      case 'return':
+        message = `A return was recorded for order #${id}. We'll keep you posted.`;
+        break;
+      default:
+        message = `Order #${id} status updated.`;
+    }
+    if (hasIssue) {
+      title = 'Needs attention';
+      icon = '⚠️';
+      message = `There was an issue fulfilling order #${id}. Our team is on it — no action needed from you right now.`;
+    }
+
+    return {
+      id: 'ord-' + (o.id || Math.random()),
+      category: 'order',
+      type: 'order.' + st,
+      icon,
+      title,
+      message,
+      orderId: o.id || null,
+      status: st,
+      total: o.total != null ? o.total : null,
+      currency: o.currency || 'AUD',
+      at: when,
+      hasIssue,
+      href: 'orders.html',
+    };
+  });
+}
+
+// ── Review requests (delivered/shipped orders not yet reviewed) ───────────
+function reviewNotifications(orders) {
+  return orders
+    .filter((o) => {
+      const st = canonStatus(o.status);
+      return st === 'delivered' || st === 'review' || st === 'shipped';
+    })
+    .map((o) => {
+      const items = (o.items && o.items.length) ? o.items.length : 1;
+      const firstName = (o.shipping && o.shipping.first_name) || '';
+      const when = o.updatedAt || o.date || null;
+      return {
+        id: 'rev-' + (o.id || Math.random()),
+        category: 'order',
+        type: 'review.request',
+        icon: '⭐',
+        title: 'How was your order?',
+        message: `Share your thoughts on your ${items} item${items === 1 ? '' : 's'} from order #${String(o.id || '').slice(0, 18)} — it helps other shoppers.`,
+        orderId: o.id || null,
+        status: 'review',
+        at: when,
+        href: 'orders.html',
+      };
+    });
+}
+
+// ── Account "to-do" notifications (things the user SHOULD do) ────────────
+function accountNotifications(user, orders) {
+  const out = [];
+  if (!user) return out;
+
+  // 1) Email not verified
+  if (user.emailVerified === false) {
+    out.push({
+      id: 'acc-verify-email',
+      category: 'account',
+      type: 'account.verify_email',
+      icon: '✉️',
+      title: 'Verify your email',
+      message: 'Confirm your email address to secure your account and unlock order updates.',
+      at: user.createdAt || null,
+      action: 'Verify now',
+      href: 'security.html',
+      priority: 'high',
+    });
   }
+
+  // 2) No default shipping address
+  const addrs = Array.isArray(user.addresses) ? user.addresses : [];
+  const hasDefault = addrs.some((a) => a.isDefault) || addrs.length > 0;
+  if (!hasDefault && orders.length > 0) {
+    out.push({
+      id: 'acc-no-address',
+      category: 'account',
+      type: 'account.add_address',
+      icon: '📍',
+      title: 'Add a shipping address',
+      message: 'You don\u2019t have a saved address yet. Add one to check out much faster.',
+      at: null,
+      action: 'Add address',
+      href: 'addresses.html',
+      priority: 'medium',
+    });
+  }
+
+  // 3) Missing phone (useful for delivery updates)
+  if (!user.phone) {
+    out.push({
+      id: 'acc-no-phone',
+      category: 'account',
+      type: 'account.add_phone',
+      icon: '📞',
+      title: 'Add your phone number',
+      message: 'Add a phone number so couriers can reach you about deliveries.',
+      at: null,
+      action: 'Update',
+      href: 'account-info.html',
+      priority: 'low',
+    });
+  }
+
+  // 4) Missing profile name
+  if (!user.name) {
+    out.push({
+      id: 'acc-no-name',
+      category: 'account',
+      type: 'account.complete_profile',
+      icon: '👤',
+      title: 'Complete your profile',
+      message: 'Add your name so orders and receipts are addressed to you properly.',
+      at: null,
+      action: 'Complete profile',
+      href: 'profile-edit.html',
+      priority: 'low',
+    });
+  }
+
+  return out;
+}
+
+// ── Security notifications ────────────────────────────────────────────────
+function securityNotifications(user) {
+  const out = [];
+  if (!user) return out;
+  // Only meaningful if we have some activity signal. Note last login time.
+  if (user.last_login_at) {
+    out.push({
+      id: 'sec-last-login',
+      category: 'security',
+      type: 'security.device',
+      icon: '🔐',
+      title: 'Recent sign-in',
+      message: `Last sign-in was ${new Date(user.last_login_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}. If this wasn't you, reset your password.`,
+      at: user.last_login_at,
+      action: 'Review security',
+      href: 'security.html',
+      priority: 'low',
+    });
+  }
+  return out;
+}
+
+// ── Wallet / store-credit notifications ───────────────────────────────────
+function walletNotifications(user) {
+  const out = [];
+  if (!user) return out;
+  const credits = Number(user.credits || 0);
+  if (credits > 0) {
+    out.push({
+      id: 'wallet-credits',
+      category: 'wallet',
+      type: 'wallet.credit',
+      icon: '💳',
+      title: 'Store credit available',
+      message: `You have A$${credits.toFixed(2)} in store credit — it will be applied to your next order.`,
+      at: user.updatedAt || user.createdAt || null,
+      action: 'View wallet',
+      href: 'wallet.html',
+      priority: 'info',
+    });
+  }
+  return out;
 }
 
 export async function onRequest(context) {
@@ -88,40 +291,40 @@ export async function onRequest(context) {
     const auth = request.headers.get('Authorization') || '';
     email = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   }
+  email = normalizeEmail(email);
 
   try {
-    const all = await listOrders(env);
-    let orders = all;
-    if (email) {
-      const target = normalizeEmail(email);
-      orders = all.filter((o) => normalizeEmail(o.email) === target);
-    }
+    const allOrders = await listOrders(env);
+    const user = email ? await findUserByEmail(env, email) : null;
 
-    // Build a notification per order (most recent activity first).
-    const notifications = orders
-      .map((o) => {
-        const st = canonStatus(o.status);
-        const when = o.updatedAt || (o.fulfillment && o.fulfillment.at) || o.date || null;
-        const hasIssue = !!(o.fulfillment && o.fulfillment.errors && o.fulfillment.errors.length);
-        return {
-          id: 'ord-' + (o.id || Math.random()),
-          orderId: o.id || null,
-          type: 'order',
-          status: st,
-          icon: STATUS_ICON[st] || '📦',
-          title: STATUS_LABEL[st] || 'Order update',
-          message: hasIssue
-            ? `Order ${String(o.id || '').slice(0, 18)} needs attention — an issue occurred during fulfilment.`
-            : statusMessage(o, st),
-          total: o.total != null ? o.total : null,
-          currency: o.currency || 'AUD',
-          at: when,
-          hasIssue,
-        };
-      })
-      .sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+    // Filter orders to this user (or all if no email — admin/guest view).
+    const orders = email
+      ? allOrders.filter((o) => normalizeEmail(o.email) === email)
+      : allOrders;
 
-    return new Response(JSON.stringify({ notifications, count: notifications.length }), {
+    const notifications = [
+      ...orderNotifications(orders),
+      ...reviewNotifications(orders),
+      ...accountNotifications(user, orders),
+      ...securityNotifications(user),
+      ...walletNotifications(user),
+    ].map((n) => ({
+      ...n,
+      at: n.at ? iso(n.at) : null,
+    }))
+      .filter((n) => n.icon && n.title)
+      .sort((a, b) => {
+        const ta = a.at ? new Date(a.at).getTime() : 0;
+        const tb = b.at ? new Date(b.at).getTime() : 0;
+        return tb - ta;
+      });
+
+    return new Response(JSON.stringify({
+      notifications,
+      categories: CATEGORY,
+      count: notifications.length,
+      hasAccount: !!user,
+    }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders() },
     });
   } catch (e) {

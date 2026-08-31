@@ -40,6 +40,15 @@
     .notif .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
     .notif .status-pill{font-size:.58rem;font-weight:700;padding:2px 8px;border-radius:var(--pill);margin-left:auto;white-space:nowrap}
     .st-unpaid{background:#fef2f2;color:var(--accent)}.st-processing{background:#fffbeb;color:#b45309}.st-shipped,.st-fulfilled{background:#eff6ff;color:#1d4ed8}.st-delivered{background:#ecfdf5;color:#047857}.st-review{background:#f5f3ff;color:#6d28d9}.st-return{background:#faf5ff;color:#7c3aed}
+    .cat-head{display:flex;align-items:center;gap:8px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#8a857d;margin:14px 0 2px}
+    .cat-head:first-of-type{margin-top:0}
+    .cat-ico{font-size:.85rem}
+    .cat-count{font-size:.58rem;font-weight:700;color:var(--accent);background:#fdeef0;padding:1px 8px;border-radius:var(--pill)}
+    .notif-action{display:inline-block;margin-top:6px;font-size:.68rem;font-weight:700;color:var(--accent);text-decoration:none}
+    .notif-action:hover{text-decoration:underline}
+    .pill-high{font-size:.55rem;font-weight:800;color:#fff;background:var(--accent);padding:1px 6px;border-radius:6px}
+    .notif .body .title{display:flex;align-items:center;gap:6px}
+
     .empty-state{text-align:center;padding:60px 20px}
     .empty-state .empty-icon{font-size:3rem;margin-bottom:12px}
     .empty-state h2{font-size:1rem;font-weight:700;margin-bottom:6px}
@@ -117,13 +126,13 @@
   <div class="container">
     <div class="page-header">
       <h1>🔔 Notifications</h1>
-      <p class="page-sub" id="notif-count">Loading your order updates…</p>
+      <p class="page-sub" id="notif-count">Loading your updates…</p>
     </div>
     <div class="feed" id="feed"></div>
     <div class="empty-state" id="empty" style="display:none">
       <div class="empty-icon">🔕</div>
-      <h2>No notifications yet</h2>
-      <p>Order updates will appear here — payment confirmations, dispatch, shipping and delivery.</p>
+      <h2>You’re all caught up</h2>
+      <p>Order updates, price drops, delivery alerts, and things that need your attention will appear here.</p>
       <a href="orders.html" class="btn btn-primary">View My Orders</a>
     </div>
   </div>
@@ -150,29 +159,72 @@
       var empty=document.getElementById("empty");
       var cnt=document.getElementById("notif-count");
       if(!window.BDRefreshNotifications){
-        // fallback if the shared script never loaded
         feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🔕</div><h2>Sign in to see notifications</h2></div>';
         return;
       }
       window.BDRefreshNotifications().then(function(list){
-        cnt.textContent = list.length + " update" + (list.length!==1?"s":"") + " for your orders";
-        if(!list.length){ feed.innerHTML=""; empty.style.display=""; return; }
+        if(!list || !list.length){
+          cnt.textContent = "No updates right now";
+          feed.innerHTML=""; empty.style.display=""; return;
+        }
         empty.style.display="none";
-        feed.innerHTML = list.map(function(n){
-          var unread = n.unread ? " unread" : "";
-          var pill = '<span class="status-pill '+stClass(n.status)+'">'+es(n.title)+'</span>';
-          return '<a class="notif'+unread+'" href="orders.html">' +
-            '<div class="ico">'+es(n.icon)+'</div>' +
-            '<div class="body">' +
-              '<div class="title">'+es(n.title)+'</div>' +
-              '<div class="msg">'+es(n.message)+'</div>' +
-              '<div class="meta">'+(n.at?'<span class="dot"></span><span>'+es(rel(n.at))+'</span>':'') +
-                (n.orderId?'<span>#'+es(n.orderId)+'</span>':'') +
-                (n.total!=null?'<span>'+es(money(n.total))+'</span>':'') +
-              '</div>' +
-            '</div>'+pill+'</a>';
-        }).join("");
-        // mark as seen now that the feed is visible
+
+        // Group by category
+        var catLabel = {
+          order:'Orders', account:'Account', security:'Security',
+          wallet:'Wallet', wishlist:'Wishlist', cart:'Cart', promo:'Promotions'
+        };
+        var catIcon = {
+          order:'📦', account:'👤', security:'🔐',
+          wallet:'💳', wishlist:'❤️', cart:'🛒', promo:'🏷️'
+        };
+        var order = ['order','account','security','wallet','wishlist','cart','promo'];
+        var catOrder = {};
+        order.forEach(function(c,i){ catOrder[c]=i; });
+
+        // Sort categories into a stable group order, keeping "high" priority first.
+        var groups = {};
+        list.forEach(function(n){
+          var c = n.category || 'order';
+          (groups[c] = groups[c] || []).push(n);
+        });
+        var catKeys = Object.keys(groups).sort(function(a,b){
+          return (catOrder[a]||99) - (catOrder[b]||99);
+        });
+
+        var total = list.length;
+        cnt.textContent = total + " update" + (total!==1?"s":"");
+
+        var html = "";
+        catKeys.forEach(function(c){
+          var items = groups[c];
+          var unreadN = items.filter(function(n){ return n.unread; }).length;
+          html += '<div class="cat-head"><span class="cat-ico">' + catIcon[c] + '</span>'
+               + '<span>' + catLabel[c] + '</span>'
+               + (unreadN ? '<span class="cat-count">' + unreadN + ' new</span>' : '')
+               + '</div>';
+          items.forEach(function(n){
+            var unread = n.unread ? " unread" : "";
+            var href = n.href || "orders.html";
+            var actionHtml = n.action
+              ? '<a class="notif-action" href="' + es(href) + '" onclick="event.stopPropagation()">' + es(n.action) + ' →</a>'
+              : '';
+            var meta = (n.at?'<span class="dot"></span><span>'+es(rel(n.at))+'</span>':'')
+                     + (n.orderId?'<span>#'+es(String(n.orderId).slice(0,18))+'</span>':'')
+                     + (n.total!=null?'<span>'+es(money(n.total))+'</span>':'')
+                     + (n.priority && n.priority==='high'?'<span class="pill-high">!</span>':'');
+            html += '<a class="notif'+unread+'" href="'+es(href)+'">'
+                 + '<div class="ico">'+es(n.icon)+'</div>'
+                 + '<div class="body">'
+                 +   '<div class="title">'+es(n.title)+'</div>'
+                 +   '<div class="msg">'+es(n.message)+'</div>'
+                 +   actionHtml
+                 +   '<div class="meta">'+meta+'</div>'
+                 + '</div>'
+                 + '</a>';
+          });
+        });
+        feed.innerHTML = html;
         if(window.BDMarkNotificationsRead) window.BDMarkNotificationsRead();
       });
     }
