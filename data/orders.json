@@ -7,14 +7,14 @@
     "date": "2026-08-15T10:36:20.772Z",
     "items": [
       {
-        "_key": "undefined||Ã¦ÂÂ¥Ã§Â§ÂÃ¦ÂÂ°Ã¦Â¬Â¾Ã¨Â·Â¨Ã¥Â¢ÂÃ§ÂÂ­Ã¥ÂÂÃ¦Â¬Â¾",
+        "_key": "undefined||ÃÂ¦ÃÂÃÂ¥ÃÂ§ÃÂ§ÃÂÃÂ¦ÃÂÃÂ°ÃÂ¦ÃÂ¬ÃÂ¾ÃÂ¨ÃÂ·ÃÂ¨ÃÂ¥ÃÂ¢ÃÂÃÂ§ÃÂÃÂ­ÃÂ¥ÃÂÃÂÃÂ¦ÃÂ¬ÃÂ¾",
         "product_id": "9193046769795",
         "title": "Lightweight Soft-soled Rocking Shoes With A Flyknit Mesh Upper And Air Cushion",
         "price": 6.63,
         "qty": 1,
         "image": "https://cdn.shopify.com/s/files/1/0735/9404/4547/files/a2327462-23ba-481e-ac4d-e049ee90d802.jpg?v=1784285826",
         "size": "",
-        "color": "Ã¦ÂÂ¥Ã§Â§ÂÃ¦ÂÂ°Ã¦Â¬Â¾Ã¨Â·Â¨Ã¥Â¢ÂÃ§ÂÂ­Ã¥ÂÂÃ¦Â¬Â¾",
+        "color": "ÃÂ¦ÃÂÃÂ¥ÃÂ§ÃÂ§ÃÂÃÂ¦ÃÂÃÂ°ÃÂ¦ÃÂ¬ÃÂ¾ÃÂ¨ÃÂ·ÃÂ¨ÃÂ¥ÃÂ¢ÃÂÃÂ§ÃÂÃÂ­ÃÂ¥ÃÂÃÂÃÂ¦ÃÂ¬ÃÂ¾",
         "sku": "CJYD2990452"
       }
     ],
@@ -38,7 +38,7 @@
   {
     "id": "E2E-2026-0831-001",
     "email": "jamestuwairua77@gmail.com",
-    "status": "paid",
+    "status": "fulfilling",
     "total": 37.95,
     "currency": "AUD",
     "items": [
@@ -70,10 +70,32 @@
       "amount": 37.95,
       "currency": "AUD"
     },
-    "updatedAt": "2026-08-31T13:01:46.065Z",
+    "updatedAt": "2026-08-31T13:01:48.971Z",
     "paymentStatus": "paid",
     "amount_total": 3795,
     "stripe_session_id": "cs_test",
-    "paidAt": "2026-08-31T13:01:45.667Z"
+    "paidAt": "2026-08-31T13:01:45.667Z",
+    "fulfillment": {
+      "done": true,
+      "at": "2026-08-31T13:01:47.660Z",
+      "cj": {
+        "code": 1600101,
+        "result": false,
+        "message": "Interface not found",
+        "data": null,
+        "requestId": "f89cfe0659454e979c976f744c441681",
+        "pointsInfo": null,
+        "success": false
+      },
+      "shopify": {
+        "ok": false,
+        "status": 401,
+        "body": {
+          "errors": "[API] Invalid API key or access token (unrecognized login or wrong password)"
+        },
+        "headers": {}
+      },
+      "errors": []
+    }
   }
 ]
