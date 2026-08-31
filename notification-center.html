@@ -6,6 +6,10 @@
   <title>Notifications — Bargain Drop</title>
   <link rel="icon" href="favicon.svg">
   <meta name="theme-color" content="#0F0F0F">
+  <script>
+/* Member-only page: redirect guests to sign in (fail-closed). */
+(function(){try{var s=JSON.parse(localStorage.getItem("bd_session")||"null");if(!s||!s.email){window.location.replace("/sign-in.html?redirect="+encodeURIComponent(window.location.href));}}catch(e){window.location.replace("/sign-in.html");}})();
+</script>
   <script src="/js/cart-count.js?v=f6b6f33d4d" defer></script>
   <script src="/js/notifications.js?v=2" defer></script>
   <style>

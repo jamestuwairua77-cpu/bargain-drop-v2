@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Orders — Bargain Drop</title>
+<script>
+/* Member-only page: redirect guests to sign in (fail-closed). */
+(function(){try{var s=JSON.parse(localStorage.getItem("bd_session")||"null");if(!s||!s.email){window.location.replace("/sign-in.html?redirect="+encodeURIComponent(window.location.href));}}catch(e){window.location.replace("/sign-in.html");}})();
+</script>
+
 <style>
 :root{--bg:#f6f1ea;--fg:#111;--muted:#777;--line:#eee;--accent:#111;--red:#e60023;--green:#10b981;--amber:#f59e0b;--blue:#3b82f6}
 *{margin:0;padding:0;box-sizing:border-box}

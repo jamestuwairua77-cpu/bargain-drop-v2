@@ -18,10 +18,14 @@
   var SEEN_KEY_BASE = 'bd_notif_seen::';
 
   function email() {
+    // Notifications are member-only: only a REAL session (bd_session.email)
+    // counts. Guests (no session, or a stray bd_user_email) get nothing.
     var s = getSession();
-    if (s && s.email) return String(s.email).toLowerCase();
-    var u = localStorage.getItem('bd_user_email');
-    return u ? String(u).toLowerCase() : '';
+    return (s && s.email) ? String(s.email).toLowerCase() : '';
+  }
+  function isSignedIn() {
+    var s = getSession();
+    return !!(s && s.email);
   }
   function seenKey() {
     return SEEN_KEY_BASE + (email() || 'guest');
@@ -225,10 +229,19 @@
     applyBadges(0);
   };
 
+  // Hide the notification bell for guests (member-only feature).
+  function hideBellForGuest() {
+    if (isSignedIn()) return;
+    var bell = document.querySelector('a[aria-label="Notifications"]');
+    if (bell) bell.style.display = 'none';
+    applyBadges(0);
+  }
+
   // Auto-refresh on load.
   function boot() {
     try {
-      if (document.querySelector('#nav-notif-count')) {
+      hideBellForGuest();
+      if (document.querySelector('#nav-notif-count') && isSignedIn()) {
         global.BDRefreshNotifications();
       }
     } catch (e) {}

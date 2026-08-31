@@ -7,6 +7,11 @@
 <link rel="icon" href="favicon.svg">
 <meta name="theme-color" content="#0F0F0F">
 <script src="/js/account.js?v=notify2026"></script>
+<script>
+/* Member-only page: redirect guests to sign in (fail-closed). */
+(function(){try{var s=JSON.parse(localStorage.getItem("bd_session")||"null");if(!s||!s.email){window.location.replace("/sign-in.html?redirect="+encodeURIComponent(window.location.href));}}catch(e){window.location.replace("/sign-in.html");}})();
+</script>
+
 <style>
 :root{--bg:#f6f1ea;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--green:#10b981;--nav-h:54px;--promo-h:28px}
 *,::before,::after{margin:0;padding:0;box-sizing:border-box}
