@@ -1,5 +1,12 @@
 [
   {
+    "action": "stripe-webhook",
+    "event": "checkout.session.completed",
+    "order_id": "E2E-2026-0831-002",
+    "paymentStatus": "paid",
+    "at": "2026-08-31T13:09:54.069Z"
+  },
+  {
     "action": "save-order",
     "id": "E2E-2026-0831-002",
     "status": "unpaid",
@@ -6020,27 +6027,5 @@
     "changed": 0,
     "receivedAt": "2026-08-30T00:11:10.702Z",
     "at": "2026-08-30T00:11:11.074Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "f2********b6",
-    "valid": true,
-    "paramKeys": [
-      "2013548700155789315"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2013548700155789315\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-30T00:11:09.329Z",
-    "at": "2026-08-30T00:11:09.576Z"
   }
 ]
