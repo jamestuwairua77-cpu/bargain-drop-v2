@@ -5,7 +5,7 @@ export async function onRequest(context) {
   const orderNumber = url.searchParams.get('number');
   if (!orderNumber) return new Response(JSON.stringify({ error: 'Order number required' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   try {
-    const cjResult = await cjFetch(env, '/order/getOrderDetail?orderNumber='+encodeURIComponent(orderNumber));
+    const cjResult = await cjFetch(env, '/shopping/order/getOrderDetail?orderId='+encodeURIComponent(orderNumber));
     if (cjResult.code === 200 && cjResult.data) return new Response(JSON.stringify({ source: 'cj', data: cjResult.data }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
     const { body } = await shopifyFetch(env, '/orders.json?name='+encodeURIComponent(orderNumber)+'&status=any');
     const order = body.orders?.[0];

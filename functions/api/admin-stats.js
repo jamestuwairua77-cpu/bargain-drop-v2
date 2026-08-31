@@ -13,7 +13,7 @@ export async function onRequest(context) {
     const [productCount, orderCount, cjOrders] = await Promise.all([
       shopifyFetch(env, '/products/count.json'),
       shopifyFetch(env, '/orders/count.json?status=any'),
-      cjFetch(env, '/order/getOrderList?pageNum=1&pageSize=50').catch(() => ({ data: { total: 0 } })),
+      cjFetch(env, '/shopping/order/list?pageNum=1&pageSize=50').catch(() => ({ data: { total: 0 } })),
     ]);
 
     return new Response(JSON.stringify({

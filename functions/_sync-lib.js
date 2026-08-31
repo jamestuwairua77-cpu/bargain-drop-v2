@@ -481,7 +481,7 @@ export function buildCjOrderFromBody(body) {
     shippingAddress: [sa.address1 || sa.addr || sa.address, sa.address2].filter(Boolean).join(' '),
     email: body.customer_email || body.email || sa.email || '',
     remark: body.remark || ('BD order ' + orderNumber),
-    platform: 'custom',
+    platform: 'shopify',
     fromCountryCode: 'CN',
     logisticName: 'CJPacket Ordinary',
     products,
@@ -537,7 +537,7 @@ async function pushOrderToCj(env, order) {
       storeLineItemId: order.id + '-' + i,
     })),
   });
-  return await cjFetch(env, '/order/createOrderV2', { method: 'POST', body: JSON.stringify(payload) });
+  return await cjFetch(env, '/shopping/order/createOrderV2', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 async function pushOrderToShopify(env, order) {

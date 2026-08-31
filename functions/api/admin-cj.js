@@ -6,7 +6,7 @@ export async function onRequest(context) {
   if (!isAdmin(request, env)) return adminDenied();
 
   try {
-    const orders = await cjFetch(env, '/order/getOrderList?pageNum=1&pageSize=20');
+    const orders = await cjFetch(env, '/shopping/order/list?pageNum=1&pageSize=20');
     return new Response(JSON.stringify({connected: true, recentOrders: orders.data?.list || [], total: orders.data?.total || 0}), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   } catch (e) {
     return new Response(JSON.stringify({ connected: false, error: e.message }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
