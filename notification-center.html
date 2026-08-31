@@ -11,7 +11,7 @@
 (function(){try{var s=JSON.parse(localStorage.getItem("bd_session")||"null");if(!s||!s.email){window.location.replace("/sign-in.html?redirect="+encodeURIComponent(window.location.href));}}catch(e){window.location.replace("/sign-in.html");}})();
 </script>
   <script src="/js/cart-count.js?v=f6b6f33d4d" defer></script>
-  <script src="/js/notifications.js?v=2" defer></script>
+  <script src="/js/notifications.js?v=2"></script>
   <style>
     :root{--bg:#f6f1ea;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--nav-h:54px;--promo-h:28px;--radius:14px;--pill:9999px}
     *,::before,::after{margin:0;padding:0;box-sizing:border-box}
@@ -158,12 +158,27 @@
     }
     function stClass(s){ return "st-"+String(s||"").replace(/[^a-z]/gi,""); }
 
+    function email(){
+      try{ var s=JSON.parse(localStorage.getItem('bd_session')||'null'); return (s&&s.email)?String(s.email).toLowerCase():''; }catch(e){ return ''; }
+    }
     function render(){
       var feed=document.getElementById("feed");
       var empty=document.getElementById("empty");
       var cnt=document.getElementById("notif-count");
       if(!window.BDRefreshNotifications){
-        feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🔕</div><h2>Sign in to see notifications</h2></div>';
+        // notifications.js is defer-loaded; it may not be ready on first paint.
+        // Only show "sign in" if genuinely signed out — otherwise wait for it.
+        if(!email()){
+          feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🔕</div><h2>Sign in to see notifications</h2><p><a href="sign-in.html">Sign in</a> to view your order, price-drop and account updates.</p></div>';
+          return;
+        }
+        // Wait (up to ~3s) for notifications.js, then render.
+        var tries = 0;
+        var t = setInterval(function(){
+          tries++;
+          if (window.BDRefreshNotifications) { clearInterval(t); render(); }
+          else if (tries >= 30) { clearInterval(t); feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🔕</div><h2>Loading notifications…</h2><p>Still loading — <a href="#" onclick="location.reload();return false">retry</a>.</p></div>'; }
+        }, 100);
         return;
       }
       window.BDRefreshNotifications().then(function(list){
