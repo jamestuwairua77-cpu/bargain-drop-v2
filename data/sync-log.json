@@ -1,5 +1,19 @@
 [
   {
+    "action": "cron-sync",
+    "summary": {
+      "startedAt": "2026-08-31T13:17:12.222Z",
+      "triggeredBy": "manual",
+      "scanned": 0,
+      "priceUpdates": 0,
+      "stockUpdates": 0,
+      "noChange": 0,
+      "errors": [],
+      "finishedAt": "2026-08-31T13:17:12.455Z"
+    },
+    "at": "2026-08-31T13:17:12.637Z"
+  },
+  {
     "action": "stripe-webhook",
     "event": "checkout.session.completed",
     "order_id": "E2E-2026-0831-002",
@@ -6005,27 +6019,5 @@
     "changed": 0,
     "receivedAt": "2026-08-30T00:11:12.177Z",
     "at": "2026-08-30T00:11:12.362Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "73********d0",
-    "valid": true,
-    "paramKeys": [
-      "2016770847161208837"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2016770847161208837\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-30T00:11:10.702Z",
-    "at": "2026-08-30T00:11:11.074Z"
   }
 ]
