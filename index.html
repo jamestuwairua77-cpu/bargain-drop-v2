@@ -132,7 +132,7 @@ function skuOf(p){var v=(p.variants||[])[0];var s=v&&v.sku;return(s&&String(s).t
 function dedupeProducts(list){if(!list||!list.length)return list;var seen={},out=[];for(var i=0;i<list.length;i++){var p=list[i],s=skuOf(p),k;if(s)k='sku:'+s;else{var img=p.image||(Array.isArray(p.images)?p.images[0]:'')||'';k='tpi:'+String(p.title||'').trim().toLowerCase()+'|'+Number(p.price||0)+'|'+img}if(k&&seen[k])continue;if(k)seen[k]=1;out.push(p)}return out}
 
 (function loadProds(){
-  var x=new XMLHttpRequest();x.open("GET","/all-products.json?v=3d366bd808",true);x.timeout=10000;
+  var x=new XMLHttpRequest();x.open("GET","/all-products.json?v=1b22f26b7b",true);x.timeout=10000;
   x.onload=function(){if(x.status>=200&&x.status<400)try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false});ALL=dedupeProducts(ALL);renderHome();}catch(e){}};x.send();
 })();
 
@@ -317,5 +317,8 @@ document.body.style.position='';
   }catch(e){}
 })();
 </script>
-<script src="/js/notifications.js?v=2"></script>
+<script src="/js/notifications.js?v=cbf6dd568a"></script>
+<script src="/js/icon-library.js?v=4adb1260b7"></script>
+<script src="/js/slide-icons.js?v=21c87ba29a"></script>
+<script src="/js/auto-iconify.js?v=49867b897b"></script>
 </body></html>

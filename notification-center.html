@@ -11,7 +11,9 @@
 (function(){try{var s=JSON.parse(localStorage.getItem("bd_session")||"null");if(!s||!s.email){window.location.replace("/sign-in.html?redirect="+encodeURIComponent(window.location.href));}}catch(e){window.location.replace("/sign-in.html");}})();
 </script>
   <script src="/js/cart-count.js?v=f6b6f33d4d" defer></script>
-  <script src="/js/notifications.js?v=2"></script>
+  <script src="/js/icon-library.js?v=4adb1260b7"></script>
+  <script src="/js/icon-map.js?v=0e9cc73a5f"></script>
+  <script src="/js/notifications.js?v=cbf6dd568a"></script>
   <style>
     :root{--bg:#f6f1ea;--fg:#111;--muted:#666;--accent:#e60023;--lilac:#B8A9E8;--teal:#4ECDC4;--dark:#0F0F0F;--white:#fff;--nav-h:54px;--promo-h:28px;--radius:14px;--pill:9999px}
     *,::before,::after{margin:0;padding:0;box-sizing:border-box}
@@ -144,6 +146,13 @@
   <script>
   (function(){
     function es(s){return String(s||"").replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+    function ico(val, size){
+      size = size || 22;
+      if (window.BDIconify && window.BDIcon) {
+        return window.BDIconify.renderIcon(val, { size: size, color: '#444' });
+      }
+      return '<span style="font-size:'+Math.round(size*0.6)+'px">'+es(val)+'</span>';
+    }
     function money(n){ return "A$" + Number(n||0).toFixed(2); }
     function rel(t){
       if(!t) return "";
@@ -169,7 +178,7 @@
         // notifications.js is defer-loaded; it may not be ready on first paint.
         // Only show "sign in" if genuinely signed out — otherwise wait for it.
         if(!email()){
-          feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🔕</div><h2>Sign in to see notifications</h2><p><a href="sign-in.html">Sign in</a> to view your order, price-drop and account updates.</p></div>';
+          feed.innerHTML = '<div class="empty-state"><div class="empty-icon">'+ico('notifications',34)+'</div><h2>Sign in to see notifications</h2><p><a href="sign-in.html">Sign in</a> to view your order, price-drop and account updates.</p></div>';
           return;
         }
         // Wait (up to ~3s) for notifications.js, then render.
@@ -177,7 +186,7 @@
         var t = setInterval(function(){
           tries++;
           if (window.BDRefreshNotifications) { clearInterval(t); render(); }
-          else if (tries >= 30) { clearInterval(t); feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🔕</div><h2>Loading notifications…</h2><p>Still loading — <a href="#" onclick="location.reload();return false">retry</a>.</p></div>'; }
+          else if (tries >= 30) { clearInterval(t); feed.innerHTML = '<div class="empty-state"><div class="empty-icon">'+ico('notifications',34)+'</div><h2>Loading notifications…</h2><p>Still loading — <a href="#" onclick="location.reload();return false">retry</a>.</p></div>'; }
         }, 100);
         return;
       }
@@ -194,8 +203,8 @@
           wallet:'Wallet', wishlist:'Wishlist', cart:'Cart', promo:'Promotions'
         };
         var catIcon = {
-          order:'📦', account:'👤', security:'🔐',
-          wallet:'💳', wishlist:'❤️', cart:'🛒', promo:'🏷️'
+          order:'orders', account:'account', security:'security',
+          wallet:'payment', wishlist:'wishlist', cart:'cart', promo:'priceDrop'
         };
         var order = ['order','account','security','wallet','wishlist','cart','promo'];
         var catOrder = {};
@@ -218,7 +227,7 @@
         catKeys.forEach(function(c){
           var items = groups[c];
           var unreadN = items.filter(function(n){ return n.unread; }).length;
-          html += '<div class="cat-head"><span class="cat-ico">' + catIcon[c] + '</span>'
+          html += '<div class="cat-head"><span class="cat-ico">' + ico(catIcon[c], 16) + '</span>'
                + '<span>' + catLabel[c] + '</span>'
                + (unreadN ? '<span class="cat-count">' + unreadN + ' new</span>' : '')
                + '</div>';
@@ -233,7 +242,7 @@
                      + (n.total!=null?'<span>'+es(money(n.total))+'</span>':'')
                      + (n.priority && n.priority==='high'?'<span class="pill-high">!</span>':'');
             html += '<a class="notif'+unread+'" href="'+es(href)+'">'
-                 + '<div class="ico">'+es(n.icon)+'</div>'
+                 + '<div class="ico">'+ico(n.icon, 22)+'</div>'
                  + '<div class="body">'
                  +   '<div class="title">'+es(n.title)+'</div>'
                  +   '<div class="msg">'+es(n.message)+'</div>'
@@ -292,5 +301,7 @@
   }catch(e){}
 })();
 </script>
+<script src="/js/slide-icons.js?v=21c87ba29a"></script>
+<script src="/js/auto-iconify.js?v=49867b897b"></script>
 </body>
 </html>

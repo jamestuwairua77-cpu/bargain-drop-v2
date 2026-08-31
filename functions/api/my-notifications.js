@@ -25,13 +25,13 @@ function normalizeEmail(e) {
 }
 
 const CATEGORY = {
-  order:   { label: 'Orders',        icon: '📦' },
-  account: { label: 'Account',       icon: '👤' },
-  security:{ label: 'Security',      icon: '🔐' },
-  wallet:  { label: 'Wallet',        icon: '💳' },
-  wishlist:{ label: 'Wishlist',      icon: '❤️' },
-  cart:    { label: 'Cart',          icon: '🛒' },
-  promo:   { label: 'Promotions',    icon: '🏷️' },
+  order:   { label: 'Orders',        icon: 'orders' },
+  account: { label: 'Account',       icon: 'account' },
+  security:{ label: 'Security',      icon: 'security' },
+  wallet:  { label: 'Wallet',        icon: 'payment' },
+  wishlist:{ label: 'Wishlist',      icon: 'wishlist' },
+  cart:    { label: 'Cart',          icon: 'cart' },
+  promo:   { label: 'Promotions',    icon: 'priceDrop' },
 };
 
 function canonStatus(s) {
@@ -55,8 +55,8 @@ const STATUS_LABEL = {
   return: 'Return',
 };
 const STATUS_ICON = {
-  unpaid: '💳', processing: '📦', fulfilled: '📦', shipped: '🚚',
-  delivered: '✅', review: '⭐', return: '↩️',
+  unpaid: 'payment', processing: 'orders', fulfilled: 'orders', shipped: 'truck',
+  delivered: 'check', review: 'review', return: 'returns',
 };
 
 function iso(ts) {
@@ -79,7 +79,7 @@ function orderNotifications(orders) {
     const hasIssue = !!(f.errors && f.errors.length) || cjBad || shopBad;
 
     let title = STATUS_LABEL[st] || 'Order update';
-    let message, icon = STATUS_ICON[st] || '📦';
+    let message, icon = STATUS_ICON[st] || 'orders';
     switch (st) {
       case 'unpaid':
         message = `We're still waiting for payment on order #${id}. Complete payment so it can head your way.`;
@@ -107,7 +107,7 @@ function orderNotifications(orders) {
     }
     if (hasIssue) {
       title = 'Needs attention';
-      icon = '⚠️';
+      icon = 'warning';
       message = `There was an issue fulfilling order #${id}. Our team is on it — no action needed from you right now.`;
     }
 
@@ -144,7 +144,7 @@ function reviewNotifications(orders) {
         id: 'rev-' + (o.id || Math.random()),
         category: 'order',
         type: 'review.request',
-        icon: '⭐',
+        icon: 'review',
         title: 'How was your order?',
         message: `Share your thoughts on your ${items} item${items === 1 ? '' : 's'} from order #${String(o.id || '').slice(0, 18)} — it helps other shoppers.`,
         orderId: o.id || null,
@@ -166,7 +166,7 @@ function accountNotifications(user, orders) {
       id: 'acc-verify-email',
       category: 'account',
       type: 'account.verify_email',
-      icon: '✉️',
+      icon: 'verifyEmail',
       title: 'Verify your email',
       message: 'Confirm your email address to secure your account and unlock order updates.',
       at: user.createdAt || null,
@@ -184,7 +184,7 @@ function accountNotifications(user, orders) {
       id: 'acc-no-address',
       category: 'account',
       type: 'account.add_address',
-      icon: '📍',
+      icon: 'location',
       title: 'Add a shipping address',
       message: 'You don\u2019t have a saved address yet. Add one to check out much faster.',
       at: null,
@@ -200,7 +200,7 @@ function accountNotifications(user, orders) {
       id: 'acc-no-phone',
       category: 'account',
       type: 'account.add_phone',
-      icon: '📞',
+      icon: 'phone',
       title: 'Add your phone number',
       message: 'Add a phone number so couriers can reach you about deliveries.',
       at: null,
@@ -216,7 +216,7 @@ function accountNotifications(user, orders) {
       id: 'acc-no-name',
       category: 'account',
       type: 'account.complete_profile',
-      icon: '👤',
+      icon: 'account',
       title: 'Complete your profile',
       message: 'Add your name so orders and receipts are addressed to you properly.',
       at: null,
@@ -239,7 +239,7 @@ function securityNotifications(user) {
       id: 'sec-last-login',
       category: 'security',
       type: 'security.device',
-      icon: '🔐',
+      icon: 'security',
       title: 'Recent sign-in',
       message: `Last sign-in was ${new Date(user.last_login_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}. If this wasn't you, reset your password.`,
       at: user.last_login_at,
@@ -261,7 +261,7 @@ function walletNotifications(user) {
       id: 'wallet-credits',
       category: 'wallet',
       type: 'wallet.credit',
-      icon: '💳',
+      icon: 'credit',
       title: 'Store credit available',
       message: `You have A$${credits.toFixed(2)} in store credit — it will be applied to your next order.`,
       at: user.updatedAt || user.createdAt || null,

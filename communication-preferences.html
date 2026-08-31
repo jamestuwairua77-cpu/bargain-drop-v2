@@ -1,4 +1,4 @@
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"><title>Comm Prefs — Bargain Drop</title><link rel="stylesheet" href="/css/account.css?v=d46b992408">  
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"><title>Comm Prefs — Bargain Drop</title><link rel="stylesheet" href="/css/account.css?v=94e0b22e57">  
 <style>
 :root{--nav-h:54px;--promo-h:28px;--lilac:#B8A9E8;--teal:#4ECDC4;--accent:#e60023;--dark:#0F0F0F;--pill:9999px}
 body{padding-top:calc(var(--nav-h) + var(--promo-h))}
@@ -93,7 +93,7 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
     </div>
   <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
 <!-- SLIDE-OUT MENU -->
-<div class="top-bar"><a href="profile.html" class="active">← Back</a><div>Free Shipping $29+</div></div><div class="page-header"><div class="breadcrumb"><a href="profile.html">My Account</a> →> Communication Preferences</div><h1>Communication Preferences</h1></div><div class="section"><div class="section-title">Email</div><div class="card-list" id="email-prefs"></div></div><div class="section"><div class="section-title">SMS</div><div class="card-list" id="sms-prefs"></div></div><div class="section"><div class="section-title">Push Notifications</div><div class="card-list" id="push-prefs"></div></div><div class="section"><button class="btn btn-primary btn-block" onclick="savePrefs()">Save Preferences</button></div><div class="toast" id="toast"></div><script src="/js/account.js?v=notify2026"></script><script>
+<div class="top-bar"><a href="profile.html" class="active">← Back</a><div>Free Shipping $29+</div></div><div class="page-header"><div class="breadcrumb"><a href="profile.html">My Account</a> →> Communication Preferences</div><h1>Communication Preferences</h1></div><div class="section"><div class="section-title">Email</div><div class="card-list" id="email-prefs"></div></div><div class="section"><div class="section-title">SMS</div><div class="card-list" id="sms-prefs"></div></div><div class="section"><div class="section-title">Push Notifications</div><div class="card-list" id="push-prefs"></div></div><div class="section"><button class="btn btn-primary btn-block" onclick="savePrefs()">Save Preferences</button></div><div class="toast" id="toast"></div><script src="/js/account.js?v=459bfff12d"></script><script>
 "use strict";
 var prefs;
 (function(){
@@ -190,5 +190,8 @@ function collapseSearch(e){
   }catch(e){}
 })();
 </script>
-<script src="/js/notifications.js?v=2"></script>
+<script src="/js/notifications.js?v=cbf6dd568a"></script>
+<script src="/js/icon-library.js?v=4adb1260b7"></script>
+<script src="/js/slide-icons.js?v=21c87ba29a"></script>
+<script src="/js/auto-iconify.js?v=49867b897b"></script>
 </body></html>

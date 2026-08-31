@@ -194,7 +194,7 @@ function dedupeProducts(list){
 var all=[],display=[],pageSize=50,current=1;
 (function loadAll(){
   var x=new XMLHttpRequest();
-  x.open("GET","/all-products.json?v=3d366bd808",true);
+  x.open("GET","/all-products.json?v=1b22f26b7b",true);
   x.timeout=15000;
   x.onload=function(){
     if(x.status>=200&&x.status<400){try{all=JSON.parse(x.responseText)}catch(e){all=[]};all=all.filter(function(p){return p.visible!==false});all=dedupeProducts(all);display=all.slice(0,pageSize);renderProducts()}else{showEmpty()}};
@@ -300,5 +300,8 @@ function collapseSearch(e){
   }catch(e){}
 })();
 </script>
-<script src="/js/notifications.js?v=2"></script>
+<script src="/js/notifications.js?v=cbf6dd568a"></script>
+<script src="/js/icon-library.js?v=4adb1260b7"></script>
+<script src="/js/slide-icons.js?v=21c87ba29a"></script>
+<script src="/js/auto-iconify.js?v=49867b897b"></script>
 </body></html>
