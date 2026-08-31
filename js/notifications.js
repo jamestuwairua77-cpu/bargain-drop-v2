@@ -116,9 +116,27 @@
       .catch(function () { return {}; });
   }
 
+  // The wishlist is stored GLOBALLY (bd_wishlist — written by product.js,
+  // read by wishlist.html), not per-user. Also accept the legacy
+  // bd_wishlists_v2 (save-for-later) shape, which nests items under .items
+  // and products under .product.
+  function readWishlist() {
+    var arr = [];
+    try { arr = JSON.parse(localStorage.getItem('bd_wishlist') || '[]'); } catch (e) { arr = []; }
+    if (Array.isArray(arr) && arr.length) return arr;
+    // legacy v2 shape
+    try {
+      var v2 = JSON.parse(localStorage.getItem('bd_wishlists_v2') || 'null');
+      if (v2 && Array.isArray(v2.items) && v2.items.length) {
+        return v2.items.map(function (it) { return it.product || it; });
+      }
+    } catch (e) {}
+    return [];
+  }
+
   function wishlistNotifications() {
     if (!enabled('emailPriceDrops', true) && !enabled('emailBackInStock', true)) return Promise.resolve([]);
-    var list = perUser('wishlist', []);
+    var list = readWishlist();
     if (!Array.isArray(list) || !list.length) return Promise.resolve([]);
     return loadCatalog().then(function (catalog) {
       var out = [];
