@@ -2,6 +2,20 @@
   {
     "action": "cron-sync",
     "summary": {
+      "startedAt": "2026-09-03T13:17:12.339Z",
+      "triggeredBy": "manual",
+      "scanned": 0,
+      "priceUpdates": 0,
+      "stockUpdates": 0,
+      "noChange": 0,
+      "errors": [],
+      "finishedAt": "2026-09-03T13:17:12.631Z"
+    },
+    "at": "2026-09-03T13:17:12.789Z"
+  },
+  {
+    "action": "cron-sync",
+    "summary": {
       "startedAt": "2026-09-03T07:17:12.204Z",
       "triggeredBy": "manual",
       "scanned": 0,
@@ -5988,27 +6002,5 @@
     "changed": 0,
     "receivedAt": "2026-08-30T00:11:16.987Z",
     "at": "2026-08-30T00:11:17.134Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "5c********08",
-    "valid": true,
-    "paramKeys": [
-      "2036730259225743361"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2036730259225743361\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-30T00:11:16.210Z",
-    "at": "2026-08-30T00:11:16.376Z"
   }
 ]
