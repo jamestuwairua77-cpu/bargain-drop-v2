@@ -63,7 +63,10 @@ export async function onRequest(context) {
       }
 
       // load clean progress (ignore stale pre-phase shapes)
-      const prog = reset ? { phase: 'resolve', pids: [], done: 0, subscribed: 0, baseSkus: [], triedSkus: [], cursor: 0 } : await readProgress(env);
+      // Always read current progress first so we capture its `sha` for ghWrite.
+      // (A reset WITHOUT the sha would 422 on PUT and silently fail to persist.)
+      const _prev = await readProgress(env);
+      const prog = reset ? { phase: 'resolve', pids: [], done: 0, subscribed: 0, baseSkus: [], triedSkus: [], cursor: 0, sha: _prev?.sha } : _prev;
       prog.phase = prog.phase || 'resolve';
 
       // Phase 1: resolve CJ pids from our Shopify SKUs (cursor-resumable)
