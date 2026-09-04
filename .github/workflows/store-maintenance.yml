@@ -1,0 +1,59 @@
+name: Store Maintenance (Non-Zaro Scheduler)
+
+# Replaces the 6 Zaro scheduled tasks with a scheduler that runs entirely on
+# GitHiub Actions. Zaro is NOT involved in any way. All work is done by calling
+# the store's own Cloudflare endpoints with the admin PIN — the exact same
+# endpoints Zaro used, now triggered by GitHub's own cron.
+#
+# Every endpoint is idempotent + resumable (each advances its own persisted
+# cursor), so overlapping/repeated runs are safe.
+
+on:
+  schedule:
+    # Frequent maintenance: re-import products + keep CJ webhooks subscribed.
+    - cron: '*/10 * * * *'
+    # Daily sweep: sync CJ price/stock to Shopify + inventory + dedup safety net.
+    - cron: '15 4 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  reimport-and-subscribe:
+    if: github.event.schedule == '*/10 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Re-import products (4 parallel slices, 2 batches each)
+        run: |
+          set -e
+          for batch in 1 2; do
+            for key in 0 1 2 3; do
+              echo "::group::reimport slice key=$key batch=$batch"
+              curl -fsS "https://bargain-drop.online/api/reimport-worker?run=1&limit=6&key=$key" \
+                -H "X-Admin-Pin: ${{ secrets.ADMIN_PIN }}" || true
+              sleep 1
+              echo "::endgroup::"
+            done
+          done
+
+      - name: Keep CJ product webhook subscription alive
+        run: |
+          curl -fsS "https://bargain-drop.online/api/register-cj-webhooks?subscribe=1&limit=1" \
+            -H "X-Admin-Pin: ${{ secrets.ADMIN_PIN }}" || true
+
+  daily-sweep:
+    if: github.event.schedule == '15 4 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Sync CJ price + stock to Shopify
+        run: |
+          curl -fsS "https://bargain-drop.online/api/cron-sync-cj?limit=200" \
+            -H "X-Admin-Pin: ${{ secrets.ADMIN_PIN }}" || true
+
+      - name: Sync CJ inventory
+        run: |
+          curl -fsS "https://bargain-drop.online/api/sync-inventory" \
+            -H "X-Admin-Pin: ${{ secrets.ADMIN_PIN }}" || true
