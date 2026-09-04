@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "a2********4a",
+    "valid": true,
+    "paramKeys": [
+      "1849640631783018496"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1849640631783018496\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T21:05:16.727Z",
+    "at": "2026-09-04T21:05:22.618Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
     "messageId": "81********bf",
@@ -4991,43 +5013,5 @@
     "sku": "CJNS303446202BY",
     "receivedAt": "2026-09-04T15:00:03.273Z",
     "at": "2026-09-04T15:00:03.696Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "c1********95",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus",
-      "supplierId"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "shopify create 401",
-    "pid": "38C3F792-1196-450A-9FF5-BB4C18B1BE00",
-    "receivedAt": "2026-09-04T14:57:44.514Z",
-    "at": "2026-09-04T14:57:44.780Z"
   }
 ]
