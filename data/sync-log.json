@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "1f********b6",
+    "valid": true,
+    "paramKeys": [
+      "2001494239242330114"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2001494239242330114\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T20:36:23.128Z",
+    "at": "2026-09-04T20:36:23.412Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "24********dc",
     "valid": true,
     "paramKeys": [
@@ -5035,27 +5057,5 @@
     "sku": "CJBHNSNS25445-Brown-47",
     "receivedAt": "2026-09-04T14:30:04.654Z",
     "at": "2026-09-04T14:30:04.880Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "05********71",
-    "valid": true,
-    "paramKeys": [
-      "2609041426321614609"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2609041426321614609\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609041426321613800\",\"storageNum\":8774,\"vid\":\"2609041426321614609\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609041426321613800\",\"storageNum\":5014,\"vid\":\"2609041426321614611\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609041426321613800\",\"storageNum\":9736,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T14:28:43.287Z",
-    "at": "2026-09-04T14:28:43.534Z"
   }
 ]
