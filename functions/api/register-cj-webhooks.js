@@ -76,8 +76,25 @@ export async function onRequest(context) {
       // Phase 2: subscribe pids in batches
       if (prog.phase === 'subscribe') {
         const tok = await cjToken(env);
+
+        // Pre-subscribe safety: CJ rejects per-product subscription (1606010) unless the
+        // 'product' webhook TOPIC is enabled first. Ensure topics are enabled so the
+        // subscription loop can actually succeed instead of silently failing.
+        let topicsOk = false;
+        try {
+          const tbody = {};
+          for (const t of TOPICS) tbody[t] = { type: 'ENABLE', callbackUrls: [callbackUrl] };
+          const tr = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/set', {
+            method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' }, body: JSON.stringify(tbody),
+          });
+          const tj = await tr.json();
+          topicsOk = (tj?.code === 200 || tj?.success === true);
+          if (!result.steps.topics) result.steps.topics = { ok: topicsOk, code: tj?.code, message: tj?.message };
+        } catch {}
+
         const end = Math.min(prog.done + limit * BATCH, prog.pids.length);
         let processed = 0;
+        let failed = 0;
         for (let i = prog.done; i < end; i += BATCH) {
           const chunk = prog.pids.slice(i, i + BATCH);
           const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', {
@@ -85,14 +102,25 @@ export async function onRequest(context) {
             body: JSON.stringify({ productIds: chunk, subscribeAll: false }),
           });
           const j = await r.json();
-          prog.subscribed += (j?.code === 200 || j?.success === true) ? (j?.data?.successProductIds?.length || chunk.length) : 0;
-          prog.done += chunk.length;
-          processed += chunk.length;
+          const ok = (j?.code === 200 || j?.success === true);
+          if (ok) {
+            const n = Array.isArray(j?.data?.successProductIds) ? j.data.successProductIds.length : chunk.length;
+            prog.subscribed += n;
+            prog.done += chunk.length;   // only advance on REAL success
+            processed += chunk.length;
+          } else {
+            // Do NOT advance `done` on failure — otherwise the loop falsely reports
+            // complete while nothing is actually subscribed. Report the CJ error.
+            failed++;
+            result.steps.subscribeLastError = { code: j?.code, message: j?.message };
+            break;  // stop this call; next finisher run will retry from same cursor
+          }
         }
         await writeProgress(env, prog).catch(() => {});
         result.steps.subscribe = {
           phase: prog.phase, total: prog.pids.length, done: prog.done, subscribed: prog.subscribed,
-          processedThisCall: processed, complete: prog.done >= prog.pids.length,
+          processedThisCall: processed, failedThisCall: failed, topicsOk,
+          complete: prog.done >= prog.pids.length && prog.subscribed >= prog.pids.length,
           resumeHint: prog.done < prog.pids.length ? ('call again ?subscribe=1&limit=' + limit) : 'done',
         };
       } else {
