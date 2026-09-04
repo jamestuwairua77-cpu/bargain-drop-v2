@@ -113,10 +113,22 @@
         for(var w=0;w<words.length;w++){
           var wd=words[w];
           if(!wd)continue;
-          if(title.indexOf(wd)>=0){score+=10;matched++;}
-          else if(type.indexOf(wd)>=0||tags.indexOf(wd)>=0){score+=6;matched++;}
-          else if(body.indexOf(wd)>=0){score+=3;matched++;}
-          else if(hay.indexOf(wd)>=0){score+=1;matched++;}
+          // word-boundary match: reject substring hits like "washed" matching "shed"
+          function hasW(txt,term){
+            if(txt.indexOf(term)>=0){
+              if(term.length>=4) return true; // long terms: substring ok (e.g. "gazebo" in "gazebos")
+              var re=new RegExp('(^|[^a-z0-9])'+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'([^a-z0-9]|$)');
+              if(re.test(txt)) return true;
+              // fallback: plural/singular
+              var re2=new RegExp('(^|[^a-z0-9])'+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'s?([^a-z0-9]|$)');
+              return re2.test(txt);
+            }
+            return false;
+          }
+          if(hasW(title,wd)){score+=10;matched++;}
+          else if(hasW(type,wd)||hasW(tags,wd)){score+=6;matched++;}
+          else if(hasW(body,wd)){score+=3;matched++;}
+          else if(hasW(hay,wd)){score+=1;matched++;}
         }
         if(matched>=words.length){scored.push({p:p,score:score});}
       });
