@@ -1,6 +1,43 @@
 [
   {
     "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
+    "messageId": "ee********c6",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productProperty2",
+      "productProperty3",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "error": "auth fail CJ5734804@",
+    "receivedAt": "2026-09-04T23:42:10.417Z",
+    "at": "2026-09-04T23:42:10.634Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "dc********50",
@@ -4928,27 +4965,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T16:55:16.200Z",
     "at": "2026-09-04T16:55:16.454Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "fb********06",
-    "valid": true,
-    "paramKeys": [
-      "2607230824501635000"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2607230824501635000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2607230824491639300\",\"storageNum\":6329,\"vid\":\"2607230824501635500\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2607230824491639300\",\"storageNum\":6845,\"vid\":\"2607230824511632500\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2607230824491639300\",\"storageNum\":7971,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T16:53:37.155Z",
-    "at": "2026-09-04T16:53:37.301Z"
   }
 ]
