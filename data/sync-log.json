@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "ef********1e",
+    "valid": true,
+    "paramKeys": [
+      "2036378400298500097"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2036378400298500097\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T19:16:21.157Z",
+    "at": "2026-09-04T19:16:21.455Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "38********91",
     "valid": true,
     "paramKeys": [
@@ -5252,27 +5274,5 @@
     "sku": "CJNS225265602BY",
     "receivedAt": "2026-09-04T12:16:54.442Z",
     "at": "2026-09-04T12:16:54.630Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "2d********b7",
-    "valid": true,
-    "paramKeys": [
-      "2512180701521630700"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2512180701521630700\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2512180701511638000\",\"storageNum\":6685,\"vid\":\"2512180701521632100\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2512180701511638000\",\"storageNum\":9817,\"vid\":\"2512180701521630700\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2512180701511638000\",\"storageNum\":8392,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T12:15:25.038Z",
-    "at": "2026-09-04T12:15:25.204Z"
   }
 ]
