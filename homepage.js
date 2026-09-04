@@ -100,11 +100,35 @@
       if(trendingHdr)trendingHdr.style.display='none';
       if(searchHdr)searchHdr.style.display='';
 
-      var results=ALL.filter(function(p){
-        return (p.title||'').toLowerCase().indexOf(q)>=0;
-      }).slice(0,30);
+      var words=q.split(/\s+/).filter(Boolean);
+      var scored=[];
+      ALL.forEach(function(p){
+        var title=String(p.title||'').toLowerCase();
+        var type=String(p.product_type||'').toLowerCase();
+        var tags=String(p.tags||'').toLowerCase();
+        var vendor=String(p.vendor||'').toLowerCase();
+        var body=String(p.body_html||'').replace(/<[^>]*>/g,' ').toLowerCase();
+        var hay=title+' | '+type+' | '+tags+' | '+vendor+' | '+body;
+        var score=0, matched=0;
+        for(var w=0;w<words.length;w++){
+          var wd=words[w];
+          if(!wd)continue;
+          if(title.indexOf(wd)>=0){score+=10;matched++;}
+          else if(type.indexOf(wd)>=0||tags.indexOf(wd)>=0){score+=6;matched++;}
+          else if(body.indexOf(wd)>=0){score+=3;matched++;}
+          else if(hay.indexOf(wd)>=0){score+=1;matched++;}
+        }
+        if(matched>=words.length){scored.push({p:p,score:score});}
+      });
+      scored.sort(function(a,b){return b.score-a.score;});
+      var results=scored.slice(0,120).map(function(x){return x.p;});
 
-      if(count)count.textContent=results.length+' results';
+      if(count)count.textContent=results.length+' result'+(results.length===1?'':'s')+' for "'+esc(q)+'"';
+      if(!results.length){
+        scroll.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:3rem 1rem;color:#888;">No products found. Try a different keyword.</div>';
+        return;
+      }
+
       scroll.innerHTML='';
       results.forEach(function(p,i){
         var img=p.image||'';
