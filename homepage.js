@@ -113,17 +113,14 @@
         for(var w=0;w<words.length;w++){
           var wd=words[w];
           if(!wd)continue;
-          // word-boundary match: reject substring hits like "washed" matching "shed"
+          // word/prefix match: "shed" matches "shed" and "sheds" but NOT "washed" (suffix)
           function hasW(txt,term){
-            if(txt.indexOf(term)>=0){
-              if(term.length>=4) return true; // long terms: substring ok (e.g. "gazebo" in "gazebos")
-              var re=new RegExp('(^|[^a-z0-9])'+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'([^a-z0-9]|$)');
-              if(re.test(txt)) return true;
-              // fallback: plural/singular
-              var re2=new RegExp('(^|[^a-z0-9])'+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'s?([^a-z0-9]|$)');
-              return re2.test(txt);
-            }
-            return false;
+            if(!txt) return false;
+            var esc=term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+            var wall=new RegExp('(^|[^a-z0-9])'+esc+'(?=$|[^a-z0-9])');
+            if(wall.test(txt)) return true;
+            var pref=new RegExp('(^|[^a-z0-9])'+esc+'[a-z]');
+            return pref.test(txt);
           }
           if(hasW(title,wd)){score+=10;matched++;}
           else if(hasW(type,wd)||hasW(tags,wd)){score+=6;matched++;}
