@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "58********f9",
+    "valid": true,
+    "paramKeys": [
+      "1993014064109625346"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1993014064109625346\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T15:22:49.103Z",
+    "at": "2026-09-04T15:22:49.399Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "52********6b",
@@ -6734,27 +6756,5 @@
     "sku": "CJTZ306983120TG",
     "available": 0,
     "at": "2026-08-30T00:14:56.216Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "a7********9f",
-    "valid": true,
-    "paramKeys": [
-      "1992914089602228225"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1992914089602228225\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-30T00:14:54.942Z",
-    "at": "2026-08-30T00:14:55.245Z"
   }
 ]
