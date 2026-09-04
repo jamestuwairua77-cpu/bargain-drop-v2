@@ -3,6 +3,45 @@
     "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
+    "messageId": "25********b2",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productDescription",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus",
+      "supplierId",
+      "supplierName"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "shopify create 401",
+    "pid": "2067545707825332226",
+    "receivedAt": "2026-09-04T17:04:35.631Z",
+    "at": "2026-09-04T17:04:35.828Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
     "messageId": "83********f1",
     "valid": true,
     "paramKeys": [
@@ -5422,22 +5461,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T10:57:27.294Z",
     "at": "2026-09-04T10:57:27.541Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "",
-    "messageId": "n/a",
-    "valid": true,
-    "paramKeys": null,
-    "topKeys": [
-      "type"
-    ],
-    "paramsKind": "undefined",
-    "stockSample": null,
-    "imported": false,
-    "reason": "no pid/productSku",
-    "receivedAt": "2026-09-04T10:55:01.988Z",
-    "at": "2026-09-04T10:55:02.310Z"
   }
 ]
