@@ -244,6 +244,38 @@ document.addEventListener("cat-prods-ready", function() {
     return dedupeProducts(out);
   }
 
+  function hasW(txt, term) {
+    if (!txt) return false;
+    var esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp('(^|[^a-z0-9])' + esc + '(?=$|[^a-z0-9])').test(txt)) return true;
+    return new RegExp('(^|[^a-z0-9])' + esc + '[a-z]').test(txt);
+  }
+  function searchProds(list) {
+    if (!us) return list;
+    var words = us.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return list;
+    var scored = [];
+    list.forEach(function(p) {
+      var title = String(p.title || '').toLowerCase();
+      var type = String(p.product_type || '').toLowerCase();
+      var tags = String(p.tags || '').toLowerCase();
+      var vendor = String(p.vendor || '').toLowerCase();
+      var body = String(p.body_html || '').replace(/<[^>]*>/g, ' ').toLowerCase();
+      var hay = title + ' | ' + type + ' | ' + tags + ' | ' + vendor + ' | ' + body;
+      var score = 0, matched = 0;
+      for (var w = 0; w < words.length; w++) {
+        var wd = words[w]; if (!wd) continue;
+        if (hasW(title, wd)) { score += 10; matched++; }
+        else if (hasW(type, wd) || hasW(tags, wd)) { score += 6; matched++; }
+        else if (hasW(body, wd)) { score += 3; matched++; }
+        else if (hasW(hay, wd)) { score += 1; matched++; }
+      }
+      if (matched >= words.length) scored.push({ p: p, score: score });
+    });
+    scored.sort(function(a, b) { return b.score - a.score; });
+    return scored.map(function(x) { return x.p; });
+  }
+
   // Resolve the selected subcategory: exact key match first, then prefix match on first segment,
   // then (if uc matches a top-level category like "womens-clothing") union of all keys starting with it.
   function resolve(uc) {
@@ -350,11 +382,13 @@ document.addEventListener("cat-prods-ready", function() {
   }
 
   function gp() {
+    var base;
     if (cc) {
       var m = resolve(cc);
-      if (m) return m.prods;
+      if (m) base = m.prods;
     }
-    return allProds();
+    if (!base) base = allProds();
+    return searchProds(base);
   }
 
   function es(s) {
