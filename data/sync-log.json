@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "a6********97",
+    "valid": true,
+    "paramKeys": [
+      "A85AB795-8C0E-4EB4-885B-F655627CFC83"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"A85AB795-8C0E-4EB4-885B-F655627CFC83\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"912FBD75-19EB-4652-B59D-4CE79F736C92\",\"storageNum\":13769,\"vid\":\"1D1ECBDC-2F82-49DE-8D99-A86B964AB96D\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"912FBD75-19EB-4652-B59D-4CE79F736C92\",\"storageNum\":12793,\"vid\":\"8C09966B-FA6B-4207-8F76-513053AA6D50\"},{\"areaEn\":\"China Wa",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T19:22:24.080Z",
+    "at": "2026-09-04T19:22:24.435Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "11********40",
     "valid": true,
     "paramKeys": [
@@ -5224,41 +5246,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T12:21:56.396Z",
     "at": "2026-09-04T12:21:56.768Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "73********82",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJJT102897705EV",
-    "receivedAt": "2026-09-04T12:20:56.035Z",
-    "at": "2026-09-04T12:20:56.259Z"
   }
 ]
