@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "e0********42",
+    "valid": true,
+    "paramKeys": [
+      "1573919163868000256"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1573919163868000256\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1573919163796697088\",\"storageNum\":11623,\"vid\":\"1573919163868000256\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T18:45:16.447Z",
+    "at": "2026-09-04T18:45:16.720Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
     "messageId": "87********ef",
@@ -5333,41 +5355,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T11:45:18.097Z",
     "at": "2026-09-04T11:45:18.329Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "8b********f5",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJLX155613801AZ",
-    "receivedAt": "2026-09-04T11:44:03.020Z",
-    "at": "2026-09-04T11:44:03.208Z"
   }
 ]
