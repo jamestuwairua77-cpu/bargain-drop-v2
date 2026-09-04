@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "43********fe",
+    "valid": true,
+    "paramKeys": [
+      "2001537053971947522"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2001537053971947522\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T18:22:30.960Z",
+    "at": "2026-09-04T18:22:31.160Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "66********ff",
     "valid": true,
     "paramKeys": [
@@ -5390,42 +5412,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T11:25:14.210Z",
     "at": "2026-09-04T11:25:14.507Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "e3********80",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJLT114279203CX",
-    "receivedAt": "2026-09-04T11:24:02.249Z",
-    "at": "2026-09-04T11:24:02.479Z"
   }
 ]
