@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "c8********e8",
+    "valid": true,
+    "paramKeys": [
+      "2034884236873347073"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2034884236873347073\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T16:31:46.437Z",
+    "at": "2026-09-04T16:31:46.667Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "44********c8",
     "valid": true,
     "paramKeys": [
@@ -6870,27 +6892,5 @@
     "changed": 0,
     "receivedAt": "2026-08-30T00:15:42.469Z",
     "at": "2026-08-30T00:15:42.608Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "0b********58",
-    "valid": true,
-    "paramKeys": [
-      "2003028602465480706"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2003028602465480706\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-08-30T00:15:41.388Z",
-    "at": "2026-08-30T00:15:41.570Z"
   }
 ]
