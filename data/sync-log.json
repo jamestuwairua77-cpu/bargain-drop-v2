@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "ed********f7",
+    "valid": true,
+    "paramKeys": [
+      "2607300915561603700"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2607300915561603700\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2607300915561601700\",\"storageNum\":9025,\"vid\":\"2607300915561603300\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2607300915561601700\",\"storageNum\":5887,\"vid\":\"2607300915561602400\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2607300915561601700\",\"storageNum\":9202,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T11:22:19.468Z",
+    "at": "2026-09-04T11:22:19.735Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "0f********d6",
     "valid": true,
     "paramKeys": [
@@ -6056,43 +6078,5 @@
     "changed": 0,
     "receivedAt": "2026-08-30T00:12:10.951Z",
     "at": "2026-08-30T00:12:11.306Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "04********bb",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "shopify create 422",
-    "pid": "1662877680657764352",
-    "receivedAt": "2026-08-30T00:12:09.781Z",
-    "at": "2026-08-30T00:12:10.078Z"
   }
 ]
