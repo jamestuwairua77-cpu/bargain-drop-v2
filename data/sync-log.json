@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "95********c2",
+    "valid": true,
+    "paramKeys": [
+      "1849648419724742656"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1849648419724742656\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T20:30:14.205Z",
+    "at": "2026-09-04T20:30:14.471Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "18********b3",
     "valid": true,
     "paramKeys": [
@@ -5034,27 +5056,5 @@
     "sku": "CJLX312764301AZ",
     "receivedAt": "2026-09-04T14:24:40.554Z",
     "at": "2026-09-04T14:24:40.979Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "88********7d",
-    "valid": true,
-    "paramKeys": [
-      "2001468227484827649"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2001468227484827649\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T14:23:15.906Z",
-    "at": "2026-09-04T14:23:16.149Z"
   }
 ]
