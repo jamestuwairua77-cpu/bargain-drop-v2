@@ -80,7 +80,12 @@ export async function onRequest(context) {
   const raw = new Uint8Array(await request.arrayBuffer());
   const sign = request.headers.get('sign') || '';
 
-  const secret = env.CJ_OPEN_ID || '';
+  // CJ webhook HMAC signing secret = the CJ account openId. This is the SAME
+  // value CJ returns as `openId` in the Get Access Token exchange. Prefer the
+  // env var when present; otherwise fall back to the baked-in openId so the
+  // receiver works even if the env var is missing / not yet deployed.
+  const FALLBACK_OPEN_ID = '38749';
+  const secret = env.CJ_OPEN_ID || FALLBACK_OPEN_ID;
   if (!secret) {
     return new Response(JSON.stringify({ ok: false, error: 'CJ_OPEN_ID not configured' }), { status: 500, headers });
   }
