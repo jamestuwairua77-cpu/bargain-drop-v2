@@ -25,11 +25,14 @@ async function rebuildAllProducts(env) {
     const { body: shopBody } = await shopifyFetch(env,
       '/products.json?limit=250&fields=id,title,body_html,vendor,product_type,tags,variants,images,image,status&since_id=' + since_id
     );
-    const batch = (shopBody.products || []).filter(p => p.status === 'active' && p.title);
-    if (batch.length === 0) break;
+    const rawProducts = (shopBody.products || []);
+    const batch = rawProducts.filter(p => p.status === 'active' && p.title);
+    if (rawProducts.length === 0) break;
     prods.push(...batch);
-    since_id = batch[batch.length - 1].id;
-    if (batch.length < 250) break;
+    // Advance using the RAW last product id (not the filtered one) so we never
+    // get stuck or skip rows, and keep paginating while the RAW page is full.
+    since_id = rawProducts[rawProducts.length - 1].id;
+    if (rawProducts.length < 250) break;
     await new Promise(r => setTimeout(r, 500));
   }
   if (!prods.length) throw new Error('No active products');
