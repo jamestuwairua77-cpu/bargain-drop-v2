@@ -114,12 +114,19 @@ export async function cjFetchMulti(env, path, opts = {}) {
         headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
       });
       const body = await r.json();
-      // 1600014 = product not found on THIS account; try the next key
+      // 1600014 = product not found on THIS account -> try the next key
       if (body && body.code === 1600014) { lastBody = body; continue; }
+      // Point exhaustion (HTTP 429 / "Insufficient API points") -> try the next key,
+      // because each CJ account has its OWN points bucket. One exhausted key must
+      // not block a sibling key that still has points.
+      const msg = String((body && body.message) || '');
+      if ((body && body.code === 429) || msg.toLowerCase().includes('insufficient api points')) {
+        lastBody = body; continue;
+      }
       return body;
     } catch (e) { lastErr = e; }
   }
-  if (lastBody) return lastBody; // all keys said "not found" -> genuinely not found
+  if (lastBody) return lastBody; // all keys failed (not-found OR points) -> return last
   throw lastErr || new Error('all CJ keys failed');
 }
 
