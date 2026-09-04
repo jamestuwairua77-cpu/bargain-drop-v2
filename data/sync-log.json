@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "b3********76",
+    "valid": true,
+    "paramKeys": [
+      "2412120705181601800"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2412120705181601800\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1726205591435091968\",\"storageNum\":39,\"vid\":\"2412120705181601800\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1726205591435091968\",\"storageNum\":13083,\"vid\":\"2412120705181601800\"},{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1726205591435091968\",\"storageNum\":105,\"vid\":\"1",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-04T18:25:14.994Z",
+    "at": "2026-09-04T18:25:15.346Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "06********40",
     "valid": true,
     "paramKeys": [
@@ -5390,27 +5412,5 @@
     "sku": "CJYD245378702BY",
     "receivedAt": "2026-09-04T11:27:18.351Z",
     "at": "2026-09-04T11:27:18.691Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "10********d3",
-    "valid": true,
-    "paramKeys": [
-      "2501030701311622400"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2501030701311622400\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2501030701311622200\",\"storageNum\":7109,\"vid\":\"2501030701311622400\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2501030701311622200\",\"storageNum\":8774,\"vid\":\"2501030701311622600\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T11:26:18.058Z",
-    "at": "2026-09-04T11:26:18.257Z"
   }
 ]
