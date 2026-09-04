@@ -1,6 +1,43 @@
 [
   {
     "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
+    "messageId": "fe********c5",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productProperty2",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "shopify create 401",
+    "pid": "04557F37-4CBB-4163-AA92-386D0BF778E7",
+    "receivedAt": "2026-09-04T18:33:54.981Z",
+    "at": "2026-09-04T18:33:55.279Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "27********38",
@@ -5344,27 +5381,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T11:35:25.799Z",
     "at": "2026-09-04T11:35:25.997Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "92********b7",
-    "valid": true,
-    "paramKeys": [
-      "2609041132421623201"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2609041132421623201\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609041132421622400\",\"storageNum\":8522,\"vid\":\"2609041132421623201\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609041132421622400\",\"storageNum\":8987,\"vid\":\"2609041132421623200\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609041132421622400\",\"storageNum\":8497,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T11:34:19.398Z",
-    "at": "2026-09-04T11:34:19.672Z"
   }
 ]
