@@ -1,6 +1,39 @@
 [
   {
     "action": "cj-webhook",
+    "type": "ORDER",
+    "messageType": "UPDATE",
+    "messageId": "6c********28",
+    "valid": true,
+    "paramKeys": [
+      "cjOrderId",
+      "createDate",
+      "deliveryDate",
+      "orderNum",
+      "orderStatus",
+      "logisticName",
+      "trackNumber",
+      "payDate",
+      "postage",
+      "updateDate"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "openId",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "note": "order recorded (fulfillment flow owns orders)",
+    "cjOrderId": "test",
+    "receivedAt": "2026-09-05T18:48:29.609Z",
+    "at": "2026-09-05T18:48:29.766Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "64********88",
@@ -5616,27 +5649,5 @@
     "changed": 0,
     "receivedAt": "2026-09-05T01:07:36.613Z",
     "at": "2026-09-05T01:07:36.873Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "d3********c8",
-    "valid": true,
-    "paramKeys": [
-      "1892084228684824578"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1892084228684824578\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-05T01:06:24.845Z",
-    "at": "2026-09-05T01:06:25.029Z"
   }
 ]
