@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "75********3f",
+    "valid": true,
+    "paramKeys": [
+      "1962347926653026310"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1962347926653026310\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1962347926556557314\",\"storageNum\":12258,\"vid\":\"1962347926653026311\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1962347926556557314\",\"storageNum\":12026,\"vid\":\"1962347926653026307\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1962347926556557314\",\"storageNum\":117",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T19:18:05.802Z",
+    "at": "2026-09-05T19:18:06.041Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
     "messageId": "ac********26",
@@ -5660,43 +5682,5 @@
     "pid": "2609041118181613500",
     "receivedAt": "2026-09-05T01:17:23.693Z",
     "at": "2026-09-05T01:17:23.973Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "46********da",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2609050107591631700",
-    "receivedAt": "2026-09-05T01:16:15.170Z",
-    "at": "2026-09-05T01:16:15.355Z"
   }
 ]
