@@ -1,6 +1,43 @@
 [
   {
     "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
+    "messageId": "1a********23",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJJT195274410JQ",
+    "receivedAt": "2026-09-05T11:28:02.784Z",
+    "at": "2026-09-05T11:28:02.995Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "88********da",
@@ -5548,27 +5585,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T21:31:34.796Z",
     "at": "2026-09-04T21:31:34.994Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "5d********2e",
-    "valid": true,
-    "paramKeys": [
-      "2505210747491629000"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2505210747491629000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2505210747491621800\",\"storageNum\":6276,\"vid\":\"2505210747501624600\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2505210747491621800\",\"storageNum\":9097,\"vid\":\"2505210747491629000\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2505210747491621800\",\"storageNum\":8144,",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T21:30:33.510Z",
-    "at": "2026-09-04T21:30:33.664Z"
   }
 ]
