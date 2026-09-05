@@ -12,7 +12,7 @@
 //
 // Persists state to data/cj-subscribe-progress.json (GitHub-backed store).
 
-import { corsHeaders, cjToken, isAdmin, adminDenied, ghRead, ghWrite, shopifyFetch, cjFetchMulti, cjWebhookRegister } from '../_sync-lib.js';
+import { corsHeaders, cjToken, isAdmin, adminDenied, ghRead, ghWrite, shopifyFetch, cjFetchMulti, cjWebhookRegister, cjWebhookList } from '../_sync-lib.js';
 
 const TOPICS = ['product', 'stock', 'order', 'logistics', 'makeup', 'privateOrder'];
 const BATCH = 100;
@@ -33,10 +33,15 @@ export async function onRequest(context) {
   const reset = url.searchParams.get('reset') === '1';
   const limit = parseInt(url.searchParams.get('limit') || '6', 10);
   const subscribeAll = url.searchParams.get('all') === '1';
+  const listOnly = url.searchParams.get('list') === '1';
   const callbackUrl = url.origin + '/api/cj-webhook';
 
   try {
     const result = { callbackUrl, topics: TOPICS, steps: {} };
+    if (listOnly) {
+      const L = await cjWebhookList(env, { pageNum: parseInt(url.searchParams.get('page') || '1', 10), pageSize: parseInt(url.searchParams.get('size') || '100', 10) });
+      return new Response(JSON.stringify({ ok: L.ok, code: L.code, message: L.message, data: L.data, keyIndex: L.keyIndex }), { headers: H });
+    }
     if (!run && !topicsOnly && !subscribeOnly) {
       return new Response(JSON.stringify(result), { headers: H });
     }

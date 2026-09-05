@@ -1010,3 +1010,29 @@ export async function cjWebhookRegister(env, { subscribeAll = false, productIds 
   }
   return last || { ok: false, code: 'none', message: 'no CJ keys configured' };
 }
+
+// Query CJ's current webhook product subscriptions (GET /webhook/product/subscribe/list).
+// Returns the first successful page result across keys.
+export async function cjWebhookList(env, { pageNum = 1, pageSize = 100, sku = '', shopId = '' } = {}) {
+  const keys = cjKeys(env);
+  let last = null;
+  for (let k = 0; k < keys.length; k++) {
+    const apiKey = keys[k];
+    const tok = await keyToken(apiKey);
+    if (!tok) { last = { ok: false, code: 'auth', message: 'auth fail for key ' + k, keyIndex: k }; continue; }
+    await cjThrottle();
+    const qs = new URLSearchParams({ pageNum: String(pageNum), pageSize: String(pageSize) });
+    if (sku) qs.set('sku', sku);
+    if (shopId) qs.set('shopId', shopId);
+    const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe/list?' + qs.toString(), {
+      method: 'GET', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
+    });
+    let j = null;
+    try { j = await r.json(); } catch {}
+    if (j && (j.code === 200 || j.success === true)) {
+      return { ok: true, code: j?.code, message: j?.message || 'Success', data: j?.data, keyIndex: k };
+    }
+    last = { ok: false, code: j?.code, message: j?.message, data: j?.data, keyIndex: k };
+  }
+  return last || { ok: false, code: 'none', message: 'no CJ keys configured' };
+}
