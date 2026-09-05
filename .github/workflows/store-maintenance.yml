@@ -12,6 +12,8 @@ on:
   schedule:
     # Frequent maintenance: re-import products + keep CJ webhooks subscribed.
     - cron: '*/10 * * * *'
+    # Category import: new CJ products (every 5 min, background).
+    - cron: '*/5 * * * *'
     # Daily sweep: sync CJ price/stock to Shopify + inventory + dedup safety net.
     - cron: '15 4 * * *'
   workflow_dispatch: {}
@@ -42,6 +44,21 @@ jobs:
         run: |
           curl -fsS "https://bargain-drop.online/api/register-cj-webhooks?subscribe=1&limit=1" \
             -H "X-Admin-Pin: ${{ secrets.ADMIN_PIN }}" || true
+
+  category-import:
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Import new CJ products across 5 categories (bulk, 2.5x markup)
+        run: |
+          for batch in 1 2 3; do
+            echo "::group::cj-category-import batch=$batch"
+            curl -fsS "https://bargain-drop.online/api/cj-category-import?limit=80" \
+              -H "X-Admin-Pin: ${{ secrets.ADMIN_PIN }}" || true
+            sleep 1
+            echo "::endgroup::"
+          done
 
   daily-sweep:
     if: github.event.schedule == '15 4 * * *'
