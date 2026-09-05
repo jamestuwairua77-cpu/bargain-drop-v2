@@ -114,15 +114,19 @@ export async function cjFetchMulti(env, path, opts = {}) {
         headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
       });
       const body = await r.json();
-      // 1600014 = product not found on THIS account -> try the next key
-      if (body && body.code === 1600014) { lastBody = body; continue; }
-      // Point exhaustion (HTTP 429 / "Insufficient API points") -> try the next key,
-      // because each CJ account has its OWN points bucket. One exhausted key must
-      // not block a sibling key that still has points.
+      // Any account-level failure (product-not-found 1600014, insufficient points,
+      // subscription/location errors like 1600200, HTTP 429, etc.) -> try the next
+      // key, because each CJ account has its OWN points bucket and subscription.
+      // One failing/limited account must never block a sibling key that works.
+      const code = body && body.code;
       const msg = String((body && body.message) || '');
-      if ((body && body.code === 429) || msg.toLowerCase().includes('insufficient api points')) {
-        lastBody = body; continue;
-      }
+      const isAccountError =
+        code === 1600014 ||
+        code === 1600200 ||
+        code === 429 ||
+        (typeof code === 'number' && code !== 200) ||
+        msg.toLowerCase().includes('insufficient api points');
+      if (isAccountError) { lastBody = body; continue; }
       return body;
     } catch (e) { lastErr = e; }
   }
