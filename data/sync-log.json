@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "10********a8",
+    "valid": true,
+    "paramKeys": [
+      "2608210143121604713"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2608210143121604713\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2601020227251610600\",\"storageNum\":5131,\"vid\":\"2601020227251614700\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2601020227251610600\",\"storageNum\":5506,\"vid\":\"2608210143121604702\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2601020227251610600\",\"storageNum\":5387,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T10:36:24.094Z",
+    "at": "2026-09-05T10:36:24.384Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "a4********4e",
     "valid": true,
     "paramKeys": [
@@ -5374,43 +5396,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T20:54:14.948Z",
     "at": "2026-09-04T20:54:15.181Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "16********52",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "12A2FDB1-7A83-4811-8D60-DC1B9920D02B",
-    "receivedAt": "2026-09-04T20:53:14.720Z",
-    "at": "2026-09-04T20:53:14.885Z"
   }
 ]
