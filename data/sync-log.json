@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "22********26",
+    "valid": true,
+    "paramKeys": [
+      "2501060919571606600"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2501060919571606600\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1766804251147251712\",\"storageNum\":6057,\"vid\":\"2501060919571606600\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1766804251147251712\",\"storageNum\":5033,\"vid\":\"2501060919571606700\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T13:19:38.946Z",
+    "at": "2026-09-05T13:19:39.233Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "62********1b",
     "valid": true,
     "paramKeys": [
@@ -5751,27 +5773,5 @@
     "id": "BD-CC-MTNMKJE3",
     "status": "unpaid",
     "at": "2026-09-05T00:08:51.815Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "23********4f",
-    "valid": true,
-    "paramKeys": [
-      "1909882049890529281"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1909882049890529281\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-05T00:07:46.483Z",
-    "at": "2026-09-05T00:07:46.843Z"
   }
 ]
