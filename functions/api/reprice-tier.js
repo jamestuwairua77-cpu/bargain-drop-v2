@@ -8,11 +8,11 @@
 // the storefront reflects the new prices immediately.
 //
 // Tiers (profit model: cost-plus %, cheaper items scale up more):
-//   cost < $5      → +150%
-//   cost $5–$20    → +100%
-//   cost $20–$60   → +75%
-//   cost $60–$150  → +50%
-//   cost > $150    → +35%
+//   cost < $5      → +105%
+//   cost $5–$20    → +70%
+//   cost $20–$60   → +50%
+//   cost $60–$150  → +35%
+//   cost > $150    → +25%
 //
 // Constants: USD_AUD = 1.5, FLOOR = 9.95 (AUD).
 //
@@ -28,11 +28,11 @@ const USD_AUD = 1.5;
 const FLOOR = 9.95;
 
 function markupFor(cost) {
-  if (cost < 5)   return 1.50;   // +150%
-  if (cost < 20)  return 1.00;   // +100%
-  if (cost < 60)  return 0.75;   // +75%
-  if (cost < 150) return 0.50;   // +50%
-  return 0.35;                    // +35%
+  if (cost < 5)   return 1.05;   // +105%
+  if (cost < 20)  return 0.70;   // +70%
+  if (cost < 60)  return 0.50;   // +50%
+  if (cost < 150) return 0.35;   // +35%
+  return 0.25;                    // +25%
 }
 
 export function computeTierPrice(costUsd) {
