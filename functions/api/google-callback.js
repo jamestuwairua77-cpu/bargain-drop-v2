@@ -113,7 +113,7 @@ export async function onRequest(context) {
         phone: null,
         addresses: null,
         provider: 'google',
-        credits: 10,
+        credits: 0,
         createdAt: new Date().toISOString(),
       };
       users.push(user);
