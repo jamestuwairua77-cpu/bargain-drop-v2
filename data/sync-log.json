@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "a7********c6",
+    "valid": true,
+    "paramKeys": [
+      "2001233464453951489"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2001233464453951489\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1790923312701382656\",\"storageNum\":14764,\"vid\":\"2001233465213120514\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1790923312701382656\",\"storageNum\":11271,\"vid\":\"2001233464453951489\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1790923312701382656\",\"storageNum\":121",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T23:14:50.939Z",
+    "at": "2026-09-05T23:14:51.155Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "75********3f",
     "valid": true,
     "paramKeys": [
@@ -5644,43 +5666,5 @@
     "sku": "CJYD253073107GT",
     "receivedAt": "2026-09-05T01:18:32.053Z",
     "at": "2026-09-05T01:18:32.265Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "a9********c6",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "CJ variant query failed",
-    "pid": "2609041118181613500",
-    "receivedAt": "2026-09-05T01:17:23.693Z",
-    "at": "2026-09-05T01:17:23.973Z"
   }
 ]
