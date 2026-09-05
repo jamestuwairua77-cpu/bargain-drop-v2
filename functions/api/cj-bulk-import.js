@@ -236,9 +236,8 @@ async function fireBulkCreate(env, items) {
 
 // ── Phase 1b: poll an already-fired bulk op, download results, map to items ─
 async function pollBulkResult(env, inFlight) {
-  const opId = inFlight.opId;
+  const opId = inFlight.opId;   // full gid://shopify/BulkOperation/{id}
   const items = inFlight.items || [];
-  const opGid = opId.split('/').pop();
   const pollQ = `query($id: ID!) { node(id: $id) { ... on BulkOperation { id status objectCount errorCode url } } }`;
 
   const started = Date.now();
@@ -246,7 +245,7 @@ async function pollBulkResult(env, inFlight) {
   let node = null;
   while (Date.now() - started < POLL_TIMEOUT) {
     await new Promise(r => setTimeout(r, POLL_INTERVAL));
-    const pRes = await gqlRaw(env, pollQ, { id: opGid });
+    const pRes = await gqlRaw(env, pollQ, { id: opId });
     node = (pRes && pRes.data && pRes.data.node) || null;
     if (node && node.status === 'COMPLETED') { resultUrl = node.url || null; break; }
     if (node && node.status === 'FAILED') return { done: true, failed: true, error: 'bulk op FAILED: ' + node.errorCode, objectCount: node.objectCount, created: [] };
