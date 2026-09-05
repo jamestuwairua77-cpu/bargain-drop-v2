@@ -86,31 +86,38 @@ export async function onRequest(context) {
         const end = Math.min(prog.done + limit * BATCH, prog.pids.length);
         let processed = 0;
         let failed = 0;
+        const okSet = new Set(prog.subscribedPids || []);   // pids already confirmed subscribed
+        const failSet = new Set(prog.failedPids || []);      // pids CJ reported as failing
         for (let i = prog.done; i < end; i += BATCH) {
-          const chunk = prog.pids.slice(i, i + BATCH);
+          const chunk = prog.pids.slice(i, i + BATCH)
+            .filter((pid) => !okSet.has(pid) && !failSet.has(pid));
+          if (!chunk.length) { prog.done = i + BATCH; processed += BATCH; continue; }
           const subRes = await cjWebhookRegister(env, { productIds: chunk, topicNames: TOPICS, callbackUrls: [callbackUrl] });
           const j = subRes;
           const ok = subRes.ok;
           if (ok) {
-            const n = Array.isArray(j?.subscribedIds) ? j.subscribedIds.length : chunk.length;
-            prog.subscribed += n;
-            prog.done += chunk.length;   // advance by chunk size (CJ counts subscription per product)
+            const succ = (j?.subscribedIds || []).map(String);
+            const fails = (j?.failedIds || []).map(String);
+            succ.forEach((p) => okSet.add(p));
+            fails.forEach((p) => failSet.add(p));
             processed += chunk.length;
-            if (j?.subscribedIds && !Array.isArray(j.subscribedIds)) prog.subscribed = Math.max(prog.subscribed, 0);
+            prog.done += chunk.length;   // this chunk has been fully attempted across all keys
           } else {
-            // Do NOT advance `done` on failure — otherwise the loop falsely reports
-            // complete while nothing is actually subscribed. Report the CJ error.
             failed++;
             result.steps.subscribeLastError = { code: j?.code, message: j?.message };
-            break;  // stop this call; next finisher run will retry from same cursor
+            break;  // hard error (auth/QPS exhausted) -> retry next run
           }
         }
+        prog.subscribed = okSet.size;
+        prog.subscribedPids = [...okSet];
+        prog.failedPids = [...failSet];
         await writeProgress(env, prog).catch(() => {});
+        const doneAll = prog.done >= prog.pids.length;
         result.steps.subscribe = {
           phase: prog.phase, total: prog.pids.length, done: prog.done, subscribed: prog.subscribed,
-          processedThisCall: processed, failedThisCall: failed, topicsOk,
-          complete: prog.done >= prog.pids.length && prog.subscribed >= prog.pids.length,
-          resumeHint: prog.done < prog.pids.length ? ('call again ?subscribe=1&limit=' + limit) : 'done',
+          failed: failSet.size, processedThisCall: processed, failedThisCall: failed, topicsOk,
+          complete: doneAll,
+          resumeHint: doneAll ? 'done' : ('call again ?subscribe=1&limit=' + limit),
         };
       } else {
         result.steps.subscribe = { phase: 'resolve', resolvedSoFar: prog.pids.length, cursor: prog.cursor || 0, resumeHint: 'call again ?subscribe=1' };

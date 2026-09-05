@@ -979,36 +979,76 @@ async function cjWebhookCall(pathname, headers, payload, retries = 4) {
 export async function cjWebhookRegister(env, { subscribeAll = false, productIds = null, topicNames = null, callbackUrls = null } = {}) {
   const keys = cjKeys(env);
   let last = null;
-  for (let k = 0; k < keys.length; k++) {
-    const apiKey = keys[k];
-    const tok = await keyToken(apiKey);
-    if (!tok) { last = { ok: false, code: 'auth', message: 'auth fail for key ' + k, keyIndex: k }; continue; }
-    const headers = { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' };
-    // 1) enable topics (if provided)
-    if (topicNames && topicNames.length) {
+
+  // Enable topics once using the first key that authenticates (topics are per-account
+  // state; we fire on every authenticating key so all accounts get the callback URLs).
+  if (topicNames && topicNames.length) {
+    let topicsDone = false;
+    for (let k = 0; k < keys.length; k++) {
+      const tok = await keyToken(keys[k]);
+      if (!tok) { last = { ok: false, code: 'auth', message: 'auth fail for key ' + k, keyIndex: k, step: 'topics' }; continue; }
       await cjThrottle();
       const body = {};
       for (const t of topicNames) body[t] = { type: 'ENABLE', callbackUrls: callbackUrls || [] };
-      const { resp: j } = await cjWebhookCall('/webhook/set', headers, body);
-      if (!(j?.code === 200 || j?.success === true)) { last = { ok: false, code: j?.code, message: j?.message, keyIndex: k, step: 'topics' }; continue; }
+      const { resp: j } = await cjWebhookCall('/webhook/set', { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' }, body);
+      if (j?.code === 200 || j?.success === true) topicsDone = true;
+      else last = { ok: false, code: j?.code, message: j?.message, keyIndex: k, step: 'topics' };
     }
-    // 2) subscribe (if requested)
-    if (subscribeAll || (productIds && productIds.length)) {
-      await cjThrottle();
-      const payload = subscribeAll ? { subscribeAll: true } : { productIds, subscribeAll: false };
-      const { resp: j } = await cjWebhookCall('/webhook/product/subscribe', headers, payload);
-      if (j?.code === 200 || j?.success === true) {
-        // CJ returns subscribed ids variously as successProductIds / successPids / ids
-        const d = j?.data || {};
-        const ids = d.successProductIds || d.successPids || d.successPidList || d.subscribedProductIds || null;
-        return { ok: true, code: j?.code, message: j?.message || 'Success', data: d, subscribedIds: ids, keyIndex: k };
-      }
-      last = { ok: false, code: j?.code, message: j?.message, data: j?.data, keyIndex: k, step: 'subscribe' };
-    } else {
-      return { ok: true, code: 200, message: 'Success', keyIndex: k };
-    }
+    if (!topicsDone) return last || { ok: false, code: 'none', message: 'no key could enable topics' };
   }
-  return last || { ok: false, code: 'none', message: 'no CJ keys configured' };
+
+  // Subscribe (if requested). For per-pid subscriptions, we maintain a working set of
+  // still-unsubscribed pids and run them against EVERY key, because a pid is only
+  // subscribable by the account that owns it (cross-account = failProductIds).
+  if (subscribeAll || (productIds && productIds.length)) {
+    const successful = new Set();
+    const allFailed = new Set();
+    let gotResponse = false;
+
+    if (subscribeAll) {
+      for (let k = 0; k < keys.length; k++) {
+        const tok = await keyToken(keys[k]);
+        if (!tok) continue;
+        await cjThrottle();
+        const { resp: j } = await cjWebhookCall('/webhook/product/subscribe', { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' }, { subscribeAll: true });
+        if (j?.code === 200 || j?.success === true) { gotResponse = true; return { ok: true, code: j.code, message: j.message || 'Success', data: j.data || {}, subscribedIds: null, keyIndex: k }; }
+        last = { ok: false, code: j?.code, message: j?.message, data: j?.data, keyIndex: k, step: 'subscribe' };
+      }
+      return last || { ok: false, code: 'none', message: 'no CJ keys configured' };
+    }
+
+    // per-pid: retry failures across keys until no key remains or all succeed.
+    let remaining = [...productIds];
+    for (let k = 0; k < keys.length && remaining.length; k++) {
+      const tok = await keyToken(keys[k]);
+      if (!tok) continue;
+      await cjThrottle();
+      const { resp: j } = await cjWebhookCall('/webhook/product/subscribe', { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' }, { productIds: remaining, subscribeAll: false });
+      if (j?.code === 200 || j?.success === true) {
+        gotResponse = true;
+        const d = j?.data || {};
+        const okIds = d.successProductIds || d.successPids || d.successPidList || [];
+        const failIds = d.failProductIds || d.failPids || [];
+        okIds.forEach((x) => successful.add(String(x)));
+        failIds.forEach((x) => allFailed.add(String(x)));
+        remaining = remaining.filter((pid) => !(okIds.some((o) => String(o) === String(pid))));
+      } else {
+        last = { ok: false, code: j?.code, message: j?.message, data: j?.data, keyIndex: k, step: 'subscribe' };
+      }
+    }
+    return {
+      ok: gotResponse,
+      code: gotResponse ? 200 : (last?.code || 'none'),
+      message: gotResponse ? 'Success' : (last?.message || 'no key could subscribe'),
+      data: {},
+      subscribedIds: [...successful],
+      failedIds: [...allFailed],
+      keyIndex: null,
+    };
+  }
+
+  // Only topics requested (already succeeded above).
+  return { ok: true, code: 200, message: 'Success', keyIndex: null };
 }
 
 // Query CJ's current webhook product subscriptions (GET /webhook/product/subscribe/list).
