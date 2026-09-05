@@ -94,6 +94,7 @@ export async function onRequest(context) {
           if (!chunk.length) { prog.done = i + BATCH; processed += BATCH; continue; }
           const subRes = await cjWebhookRegister(env, { productIds: chunk, topicNames: TOPICS, callbackUrls: [callbackUrl] });
           const j = subRes;
+          if (!result.steps.subscribeRaw) result.steps.subscribeRaw = subRes.data;
           const ok = subRes.ok;
           if (ok) {
             const succ = (j?.subscribedIds || []).map(String);
