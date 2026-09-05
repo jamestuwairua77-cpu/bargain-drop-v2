@@ -152,7 +152,7 @@ export async function onRequest(context) {
     let ok = 0, fail = 0;
     const results = [];
     const startedAt = Date.now();
-    const DEADLINE = startedAt + 8000; // Pages Function ~10s wall-clock; leave headroom
+    const DEADLINE = startedAt + 25000; // Pages Function ~30s wall-clock; leave headroom
 
     for (const p of remaining) {
       if (Date.now() >= DEADLINE) { results.push({ id: String(p.id), ok: false, skip: 'deadline-stop' }); break; }
@@ -166,7 +166,7 @@ export async function onRequest(context) {
         fail++;
         results.push({ id, ok: false, skip: 'ex:' + String(e.message || e).slice(0, 60) });
       }
-      await new Promise(r => setTimeout(r, 40));
+      await new Promise(r => setTimeout(r, 5));
     }
 
     // advance cursor only when this page is fully handled
