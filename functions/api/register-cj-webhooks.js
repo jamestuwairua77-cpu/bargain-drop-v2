@@ -12,7 +12,7 @@
 //
 // Persists state to data/cj-subscribe-progress.json (GitHub-backed store).
 
-import { corsHeaders, cjToken, isAdmin, adminDenied, ghRead, ghWrite, shopifyFetch, cjFetchMulti } from '../_sync-lib.js';
+import { corsHeaders, cjToken, isAdmin, adminDenied, ghRead, ghWrite, shopifyFetch, cjFetchMulti, cjWebhookRegister } from '../_sync-lib.js';
 
 const TOPICS = ['product', 'stock', 'order', 'logistics', 'makeup', 'privateOrder'];
 const PROGRESS_PATH = 'data/cj-subscribe-progress.json';
@@ -40,20 +40,14 @@ export async function onRequest(context) {
     }
 
     if (run || topicsOnly) {
-      const body = {};
-      for (const t of TOPICS) body[t] = { type: 'ENABLE', callbackUrls: [callbackUrl] };
-      const j = await cjFetchMulti(env, '/webhook/set', {
-        method: 'POST', body: JSON.stringify(body),
-      });
-      result.steps.topics = { ok: j?.code === 200 || j?.success === true, code: j?.code, message: j?.message };
+      const topRes = await cjWebhookRegister(env, { topicNames: TOPICS, callbackUrls: [callbackUrl] });
+      result.steps.topics = { ok: topRes.ok, code: topRes.code, message: topRes.message, keyIndex: topRes.keyIndex };
     }
 
     if (subscribeOnly) {
       if (subscribeAll) {
-        const j = await cjFetchMulti(env, '/webhook/product/subscribe', {
-          method: 'POST', body: JSON.stringify({ subscribeAll: true }),
-        });
-        result.steps.subscribe = { mode: 'subscribeAll', ok: j?.code === 200 || j?.success === true, code: j?.code, message: j?.message, data: j?.data };
+        const sub = await cjWebhookRegister(env, { subscribeAll: true, topicNames: TOPICS, callbackUrls: [callbackUrl] });
+        result.steps.subscribe = { mode: 'subscribeAll', ok: sub.ok, code: sub.code, message: sub.message, data: sub.data, keyIndex: sub.keyIndex, step: sub.step };
         return new Response(JSON.stringify(result), { headers: H });
       }
 
@@ -78,13 +72,9 @@ export async function onRequest(context) {
         // subscription loop can actually succeed instead of silently failing.
         let topicsOk = false;
         try {
-          const tbody = {};
-          for (const t of TOPICS) tbody[t] = { type: 'ENABLE', callbackUrls: [callbackUrl] };
-          const tj = await cjFetchMulti(env, '/webhook/set', {
-            method: 'POST', body: JSON.stringify(tbody),
-          });
-          topicsOk = (tj?.code === 200 || tj?.success === true);
-          if (!result.steps.topics) result.steps.topics = { ok: topicsOk, code: tj?.code, message: tj?.message };
+          const tRes = await cjWebhookRegister(env, { topicNames: TOPICS, callbackUrls: [callbackUrl] });
+          topicsOk = tRes.ok;
+          if (!result.steps.topics) result.steps.topics = { ok: topicsOk, code: tRes.code, message: tRes.message };
         } catch {}
 
         const end = Math.min(prog.done + limit * BATCH, prog.pids.length);
@@ -92,10 +82,9 @@ export async function onRequest(context) {
         let failed = 0;
         for (let i = prog.done; i < end; i += BATCH) {
           const chunk = prog.pids.slice(i, i + BATCH);
-          const j = await cjFetchMulti(env, '/webhook/product/subscribe', {
-            method: 'POST', body: JSON.stringify({ productIds: chunk, subscribeAll: false }),
-          });
-          const ok = (j?.code === 200 || j?.success === true);
+          const subRes = await cjWebhookRegister(env, { productIds: chunk, topicNames: TOPICS, callbackUrls: [callbackUrl] });
+          const j = subRes;
+          const ok = subRes.ok;
           if (ok) {
             const n = Array.isArray(j?.data?.successProductIds) ? j.data.successProductIds.length : chunk.length;
             prog.subscribed += n;

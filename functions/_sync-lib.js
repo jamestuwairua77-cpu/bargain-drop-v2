@@ -928,3 +928,41 @@ export async function getSessionUser(request, env) {
   const users = await listUsers(env);
   return users.find(u => u.id === userId) || null;
 }
+
+// Pinned-key CJ webhook registration: webhook topic enablement and product
+// subscription are PER-ACCOUNT state, so BOTH calls must hit the SAME CJ key.
+// Iterates keys; for each, enables topics then subscribes, both on that key.
+// Returns { ok, code, message, data, keyIndex } for the first key that fully
+// succeeds (or the last error if none succeed).
+export async function cjWebhookRegister(env, { subscribeAll = false, productIds = null, topicNames = null, callbackUrls = null } = {}) {
+  const keys = cjKeys(env);
+  let last = null;
+  for (let k = 0; k < keys.length; k++) {
+    const apiKey = keys[k];
+    const tok = await keyToken(apiKey);
+    if (!tok) { last = { ok: false, code: 'auth', message: 'auth fail for key ' + k, keyIndex: k }; continue; }
+    const headers = { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' };
+    // 1) enable topics (if provided)
+    if (topicNames && topicNames.length) {
+      const body = {};
+      for (const t of topicNames) body[t] = { type: 'ENABLE', callbackUrls: callbackUrls || [] };
+      const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/set', { method: 'POST', headers, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!(j?.code === 200 || j?.success === true)) { last = { ok: false, code: j?.code, message: j?.message, keyIndex: k, step: 'topics' }; continue; }
+    }
+    // 2) subscribe (if requested)
+    if (subscribeAll || (productIds && productIds.length)) {
+      const payload = subscribeAll ? { subscribeAll: true } : { productIds, subscribeAll: false };
+      const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', { method: 'POST', headers, body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (j?.code === 200 || j?.success === true) {
+        return { ok: true, code: j?.code, message: j?.message || 'Success', data: j?.data, keyIndex: k };
+      }
+      last = { ok: false, code: j?.code, message: j?.message, data: j?.data, keyIndex: k, step: 'subscribe' };
+    } else {
+      // only topics requested and succeeded
+      return { ok: true, code: 200, message: 'Success', keyIndex: k };
+    }
+  }
+  return last || { ok: false, code: 'none', message: 'no CJ keys configured' };
+}
