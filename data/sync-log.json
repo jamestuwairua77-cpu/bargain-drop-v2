@@ -1,5 +1,27 @@
 [
   {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "4b********df",
+    "valid": true,
+    "paramKeys": [
+      "2003375903089774593"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2003375903089774593\":[]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T00:10:02.201Z",
+    "at": "2026-09-05T00:10:02.404Z"
+  },
+  {
     "action": "save-order",
     "id": "BD-CC-MTNMKJE3",
     "status": "unpaid",
@@ -4912,42 +4934,5 @@
     "pid": "2067545707825332226",
     "receivedAt": "2026-09-04T17:04:35.631Z",
     "at": "2026-09-04T17:04:35.828Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "83********f1",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "shopify create 401",
-    "pid": "04557F37-4CBB-4163-AA92-386D0BF778E7",
-    "receivedAt": "2026-09-04T17:03:15.620Z",
-    "at": "2026-09-04T17:03:15.848Z"
   }
 ]
