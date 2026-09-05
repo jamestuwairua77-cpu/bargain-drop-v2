@@ -25,6 +25,11 @@ input:focus{border-color:var(--lilac)}
 .google-btn:hover{border-color:var(--lilac);background:#fafaff}
 .google-btn svg{flex-shrink:0}
 .back{display:block;text-align:center;font-size:.78rem;color:var(--muted);margin-top:20px;text-decoration:underline}
+.pw-wrap{position:relative;display:block}
+.pw-wrap input{width:100%;padding-right:42px}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:none;background:none;cursor:pointer;color:#999;display:flex;align-items:center;justify-content:center;border-radius:8px;padding:0;margin:0}
+.pw-eye:hover{color:#333}
+.pw-eye svg{width:20px;height:20px}
 </style>
 </head>
 <body>
@@ -36,7 +41,7 @@ input:focus{border-color:var(--lilac)}
     <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email">
   </label>
   <label>Password
-    <input type="password" id="signin-password" placeholder="Your password" autocomplete="current-password">
+    <span class="pw-wrap"><input type="password" id="signin-password" placeholder="Your password" autocomplete="current-password"><button type="button" class="pw-eye" onclick="togglePw('signin-password',this)" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span>
   </label>
 
   <button class="btn" id="signin-btn" onclick="handleSignIn()">Sign In</button>
@@ -56,6 +61,16 @@ input:focus{border-color:var(--lilac)}
 </div>
 
 <script>
+function togglePw(id,btn){
+  var el=document.getElementById(id);
+  if(!el) return;
+  var show = el.type==='password';
+  el.type = show?'text':'password';
+  btn.innerHTML = show
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+}
+
 function redirectTarget(){
   try { var m = location.search.match(/[?&]redirect=([^&]+)/); if (m) { var u = decodeURIComponent(m[1]); if (u.charAt(0)==='/' && u.indexOf('//')===-1) return u; } } catch(e){}
   return null;
