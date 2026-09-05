@@ -97,7 +97,8 @@ function buildBulkProduct(pid, d) {
   let opts = optionNames.slice(0, 3).map((name, i) => ({
     name,
     position: i + 1,
-    values: [...optionValues[i]],
+    // OptionValueCreateInput requires { name } objects, not bare strings.
+    values: [...optionValues[i]].map(v => ({ name: v })),
   }));
 
   const title = d.productNameEn || d.productName || 'Imported Product';
