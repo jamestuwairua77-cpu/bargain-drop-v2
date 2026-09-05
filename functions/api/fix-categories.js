@@ -113,13 +113,21 @@ async function recoverFromCj(env, product) {
 }
 
 async function loadState(env) {
+  let raw = null;
   try {
     const q = `query { shop { metafields(first:1, keys: ["${NS}.${KEY}"]) { edges { node { value } } } } }`;
     const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
     const edges = body?.data?.shop?.metafields?.edges || [];
-    if (edges.length) return JSON.parse(edges[0].node.value || '{}');
+    if (edges.length) raw = JSON.parse(edges[0].node.value || '{}');
   } catch {}
-  return { done: [], fixed: 0, recovered: 0, normalized: 0 };
+  raw = raw && typeof raw === 'object' ? raw : {};
+  // Defensive: `done` is stored as an array of product-id strings. If an older
+  // deploy wrote it as an object-map ({id:name}), coerce it back to an array.
+  let done = Array.isArray(raw.done) ? raw.done : [];
+  if (!Array.isArray(raw.done) && raw.done && typeof raw.done === 'object') {
+    done = Object.keys(raw.done);
+  }
+  return { done, fixed: raw.fixed || 0, recovered: raw.recovered || 0, normalized: raw.normalized || 0 };
 }
 async function saveState(env, state) {
   try {
