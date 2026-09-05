@@ -26,7 +26,7 @@ const STATE_NAMESPACE = 'cjreprice';
 const STATE_KEY = 'state';
 const SHOP_GID = 'gid://shopify/Shop/73594044547';
 const SHOPIFY_GQ = '/graphql.json';
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 function computePriceAUD(usdCost) {
   const c = parseFloat(usdCost) || 0;
