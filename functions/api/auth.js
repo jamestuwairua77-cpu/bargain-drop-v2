@@ -128,8 +128,12 @@ export async function onRequest(context) {
     });
   }
 
-  if (!email) return json({ error: 'Email required' }, 400);
-  if (action !== 'update_profile' && !password) return json({ error: 'Password required' }, 400);
+  // update_profile is identity-resolved from the verified session cookie below;
+  // it does not require (or trust) a body email.
+  if (action !== 'update_profile') {
+    if (!email) return json({ error: 'Email required' }, 400);
+    if (!password) return json({ error: 'Password required' }, 400);
+  }
 
   const users = await loadUsers(env);
 
@@ -175,7 +179,10 @@ export async function onRequest(context) {
   }
 
   if (action === 'update_profile') {
-    const user = users.find(u => (u.email || '').toLowerCase() === email);
+    // Resolve identity from the verified __session cookie, NOT a body email.
+    const userId = await verifySessionCookie(parseCookies(request)[COOKIE_NAME], env);
+    if (!userId) return json({ error: 'Sign in required' }, 401);
+    const user = users.find(u => u.id === userId);
     if (!user) return json({ error: 'User not found' }, 404);
     if (first_name != null) user.first_name = first_name;
     if (last_name != null) user.last_name = last_name;
@@ -193,7 +200,7 @@ export async function onRequest(context) {
     }
 
     let shopify_customer;
-    try { shopify_customer = await syncCustomer(env, { email, first_name: user.first_name, last_name: user.last_name, phone: user.phone, addresses: user.addresses }); }
+    try { shopify_customer = await syncCustomer(env, { email: user.email, first_name: user.first_name, last_name: user.last_name, phone: user.phone, addresses: user.addresses }); }
     catch (ce) { shopify_customer = { error: ce.message }; }
 
     return json({ success: true, user: safeUser(user), shopify_customer });

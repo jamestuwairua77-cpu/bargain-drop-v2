@@ -18,7 +18,7 @@
 // Each notification carries: id, category, type, icon, title, message, at,
 // plus category-specific metadata (orderId, total, action, href).
 
-import { corsHeaders, listOrders, findUserByEmail } from '../_sync-lib.js';
+import { corsHeaders, listOrders, getSessionUser } from '../_sync-lib.js';
 
 function normalizeEmail(e) {
   return String(e || '').trim().toLowerCase();
@@ -286,21 +286,28 @@ export async function onRequest(context) {
     });
   }
 
-  let email = url.searchParams.get('email') || '';
-  if (!email) {
-    const auth = request.headers.get('Authorization') || '';
-    email = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  // Identity is resolved SERVER-SIDE from the verified __session cookie, so a
+  // user can never request another account's notifications via a spoofed ?email=.
+  const user = await getSessionUser(request, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'Sign in required' }), {
+      status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
   }
-  email = normalizeEmail(email);
+  const email = normalizeEmail(user.email);
 
   try {
     const allOrders = await listOrders(env);
-    const user = email ? await findUserByEmail(env, email) : null;
 
-    // Filter orders to this user (or all if no email — admin/guest view).
-    const orders = email
-      ? allOrders.filter((o) => normalizeEmail(o.email) === email)
-      : allOrders;
+    // Scope orders to this account only (by userId or stored email).
+    const orders = allOrders.filter((o) => {
+      if (o.userId && String(o.userId) === String(user.id)) return true;
+      const emails = [];
+      if (o.email) emails.push(normalizeEmail(o.email));
+      if (o.shipping && o.shipping.email) emails.push(normalizeEmail(o.shipping.email));
+      if (o.customer_email) emails.push(normalizeEmail(o.customer_email));
+      return email && emails.indexOf(email) >= 0;
+    });
 
     const notifications = [
       ...orderNotifications(orders),

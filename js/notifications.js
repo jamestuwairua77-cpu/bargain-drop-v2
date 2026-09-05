@@ -204,7 +204,8 @@
     var e = email();
     if (!e) { applyBadges(0); return Promise.resolve([]); }
 
-    var serverUrl = '/api/my-notifications?email=' + encodeURIComponent(e) + '&_=' + Date.now();
+    // Session cookie identifies the user server-side; never send a spoofable email.
+    var serverUrl = '/api/my-notifications?_=' + Date.now();
     return fetch(serverUrl, { credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : { notifications: [] }; })
       .then(function (data) {

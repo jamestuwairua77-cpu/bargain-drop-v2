@@ -855,3 +855,56 @@ export async function findUserByEmail(env, email) {
   const users = await listUsers(env);
   return users.find(u => String(u.email || '').trim().toLowerCase() === target) || null;
 }
+
+// ─── Session helpers (shared across /api handlers) ───────────────────────
+// The session is a stateless __session cookie: <userId>.<expiry>.<hmac>,
+// signed with SESSION_SECRET. These helpers resolve the *verified* identity
+// server-side so no endpoint trusts a client-supplied email/id for scoping
+// user-private data (orders, notifications, profile, wallet, etc.).
+
+const SESSION_COOKIE_NAME = '__session';
+
+function sessionSecret(env) { return (env && env.SESSION_SECRET) || 'bargain-drop-session-secret-v1'; }
+
+async function sessionB64url(buf) {
+  let bin = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function sessionSign(payload, env) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(sessionSecret(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+  return await sessionB64url(sig);
+}
+
+export function sessionParseCookies(request) {
+  const out = {};
+  (request.headers.get('cookie') || '').split(';').forEach(function (p) {
+    const i = p.indexOf('='); if (i < 0) return;
+    out[p.slice(0, i).trim()] = p.slice(i + 1).trim();
+  });
+  return out;
+}
+
+// Verify the __session cookie and return the userId it was minted for, or null.
+export async function getSessionUserId(request, env) {
+  const cookieVal = sessionParseCookies(request)[SESSION_COOKIE_NAME];
+  if (!cookieVal) return null;
+  const parts = cookieVal.split('.');
+  if (parts.length !== 3) return null;
+  const expiry = parseInt(parts[1], 10);
+  if (!expiry || Date.now() / 1000 > expiry) return null;
+  const expected = await sessionSign(parts[0] + '.' + parts[1], env);
+  if (parts[2] !== expected) return null;
+  return parts[0];
+}
+
+// Resolve the signed-in user object (or null) from the verified session cookie.
+export async function getSessionUser(request, env) {
+  const userId = await getSessionUserId(request, env);
+  if (!userId) return null;
+  const users = await listUsers(env);
+  return users.find(u => u.id === userId) || null;
+}

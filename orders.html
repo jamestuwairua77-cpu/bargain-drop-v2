@@ -242,8 +242,9 @@ function saveOrders(orders){
 // Fetch the user's orders from the server (source of truth), falling back to any
 // locally cached orders if the network / endpoint is unavailable.
 function loadOrdersFromServer(){
-  var email = sessionEmail();
-  var url = "/api/my-orders" + (email ? "?email=" + encodeURIComponent(email) : "");
+  // Identity is resolved server-side from the __session cookie; do NOT send
+  // a client-controlled email (that would let one account read another's orders).
+  var url = "/api/my-orders";
   return fetch(url, { credentials: "same-origin" })
     .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
     .then(function(data){
