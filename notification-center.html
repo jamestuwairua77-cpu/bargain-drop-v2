@@ -50,7 +50,7 @@
     .cat-head:first-of-type{margin-top:0}
     .cat-ico{font-size:.85rem}
     .cat-count{font-size:.58rem;font-weight:700;color:var(--accent);background:#fdeef0;padding:1px 8px;border-radius:var(--pill)}
-    .notif-action{display:inline-block;margin-top:6px;font-size:.68rem;font-weight:700;color:var(--accent);text-decoration:none}
+    .notif-action{display:inline-block;margin-top:6px;font-size:.68rem;font-weight:700;color:var(--accent);text-decoration:none;cursor:pointer}
     .notif-action:hover{text-decoration:underline}
     .pill-high{font-size:.55rem;font-weight:800;color:#fff;background:var(--accent);padding:1px 6px;border-radius:6px}
 
@@ -234,7 +234,7 @@
             var unread = n.unread ? " unread" : "";
             var href = n.href || "orders.html";
             var actionHtml = n.action
-              ? '<a class="notif-action" href="' + es(href) + '" onclick="event.stopPropagation()">' + es(n.action) + ' →</a>'
+              ? '<span class="notif-action" onclick="event.stopPropagation();location.href=\'' + es(href) + '\'">' + es(n.action) + ' →</span>'
               : '';
             var meta = (n.at?'<span class="dot"></span><span>'+es(rel(n.at))+'</span>':'')
                      + (n.orderId?'<span>#'+es(String(n.orderId).slice(0,18))+'</span>':'')
