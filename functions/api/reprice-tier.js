@@ -67,6 +67,13 @@ async function repriceProduct(env, p) {
   const vs = p.variants || [];
   if (!vs.filter(v => v && v.id).length) return { ok: false, skip: 'no-variant-ids', id: p.id };
 
+  // IDEMPOTENCY GUARD: if the current price already equals the computed target,
+  // the product is already correctly repriced — skip it (prevents double-markup
+  // when a prior run already converted USD cost -> AUD). This is the key safety
+  // check that the earlier double-pricing bug was missing.
+  const cur = parseFloat((vs[0] && vs[0].price)) || 0;
+  if (Math.abs(cur - price) < 0.02) return { ok: false, skip: 'already-repriced', id: p.id };
+
   // build variant list preserving existing options, setting new price + compare_at
   const variants = vs.map(v => {
     if (!v || !v.id) return null;
