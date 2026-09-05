@@ -143,29 +143,38 @@ export async function shopifyFetch(env, path, opts = {}) {
     if (!token) throw new Error('SHOPIFY_ACCESS_TOKEN not configured');
   }
 
-  let r = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2025-10${path}`, {
+  const doFetch = async (tk) => fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2025-10${path}`, {
     ...opts,
     headers: {
-      'X-Shopify-Access-Token': token,
+      'X-Shopify-Access-Token': tk,
       'Content-Type': 'application/json',
       ...(opts.headers || {}),
     },
   });
+
+  let r = await doFetch(token);
 
   // 401 → token was invalid/expired. Invalidate + re-exchange + retry once.
   if (r.status === 401) {
     invalidateShopifyToken();
     try {
       token = await getShopifyToken(env, true);
-      r = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2025-10${path}`, {
-        ...opts,
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json',
-          ...(opts.headers || {}),
-        },
-      });
+      r = await doFetch(token);
     } catch {}
+  }
+
+  // 429 → rate limited. Honor Retry-After (fall back to exponential backoff),
+  // retrying a bounded number of times so bursts during sync/import don't abort.
+  let attempts = 1;
+  const MAX_429_ATTEMPTS = 5;
+  while (r.status === 429 && attempts <= MAX_429_ATTEMPTS) {
+    const ra = parseFloat(r.headers.get('retry-after'));
+    const waitMs = Number.isFinite(ra) && ra > 0
+      ? Math.min(ra * 1000, 20000)
+      : Math.min(500 * Math.pow(2, attempts), 20000);
+    await new Promise((res) => setTimeout(res, waitMs));
+    r = await doFetch(token);
+    attempts++;
   }
 
   const text = await r.text();

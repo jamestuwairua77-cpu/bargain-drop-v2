@@ -208,7 +208,8 @@ export async function onRequest(context) {
         if (m) state.donePids[m[1]] = true;
       }
     } else {
-      const msg = String((r.body && (r.body.errors || r.body.error || r.body.message)) || r.status);
+      let _e = (r.body && (r.body.errors || r.body.error || r.body.message)) || r.status;
+      const msg = (typeof _e === 'string') ? _e : JSON.stringify(_e);
       summary.errors.push({ batch: i, error: 'shopify bulk create: ' + msg });
       for (const p of chunk) {
         const m = String(p.tags || '').match(/cj-pid-([^,\s]+)/);
