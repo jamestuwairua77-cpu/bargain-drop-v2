@@ -16,7 +16,7 @@ export async function onRequest(context) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { line_items, customer_email, success_url, cancel_url, metadata, payment_method, shipping_options } = body;
+  const { line_items, customer_email, success_url, cancel_url, metadata, payment_method, shipping_options, promo_code } = body;
   const STRIPE_KEY = env.STRIPE_SECRET_KEY || '';
 
   if (!STRIPE_KEY) {
@@ -39,6 +39,22 @@ export async function onRequest(context) {
       methods.forEach(m => params.append('payment_method_types[]', m));
     }
 
+    // ---- Promo code validation & enforcement (server-side, tamper-proof) ----
+    const PROMO_CODES = { BARGAIN26: 30 }; // code -> percent off
+    let discountPct = 0;
+    if (promo_code && String(promo_code).trim()) {
+      const code = String(promo_code).trim().toUpperCase();
+      if (PROMO_CODES[code]) {
+        discountPct = PROMO_CODES[code];
+      } else {
+        return new Response(JSON.stringify({ error: 'Invalid promo code' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
+    }
+    // Re-price line items to apply the percent discount server-side (subtotal only, not shipping).
+    const factor = (100 - discountPct) / 100;
+
     if (metadata) {
       Object.entries(metadata).forEach(([k, v]) => params.append(`metadata[${k}]`, v));
     }
@@ -51,7 +67,7 @@ export async function onRequest(context) {
       const name = (pd.product_data && pd.product_data.name) || item.name || 'Product';
       const images = (pd.product_data && pd.product_data.images) || [];
       const currency = pd.currency || item.currency || 'aud';
-      const unitAmount = Number(pd.unit_amount ?? item.unit_amount ?? 0);
+      const unitAmount = Math.round(Number(pd.unit_amount ?? item.unit_amount ?? 0) * factor);
       const quantity = Number(item.quantity > 0 ? item.quantity : 1);
 
       params.append(`line_items[${i}][price_data][currency]`, currency);

@@ -47,6 +47,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .spinner{display:none;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
 .pay-btn.loading .spinner{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.promo-row{display:flex;gap:8px;margin-bottom:12px}
+.promo-row input{flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:.72rem;outline:none;text-transform:uppercase}
+.promo-row input:focus{border-color:var(--red)}
+.promo-apply{background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:.3px}
+.promo-apply:disabled{opacity:.45;cursor:not-allowed}
+.promo-msg{font-size:.68rem;margin-top:-6px;margin-bottom:12px;font-weight:600}
+.promo-msg.ok{color:var(--green)}
+.promo-msg.bad{color:var(--red)}
+.summary-row.discount span:last-child{color:var(--green);font-weight:700}
+
 .pay-badges{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
 .pay-badge{font-size:.6rem;color:var(--muted);display:flex;align-items:center;gap:4px}
 .error-box{display:none;color:var(--red);font-size:.7rem;text-align:center;margin-top:10px;padding:10px 14px;background:#fef2f2;border-radius:8px;line-height:1.5}
@@ -199,6 +210,9 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
 <div class="summary-card" id="summary">
 <div class="summary-row"><span>Subtotal</span><span id="summary-subtotal">$0.00</span></div>
 <div class="summary-row"><span>Shipping</span><span id="summary-shipping">—</span></div>
+<div class="promo-row"><input type="text" id="promo-input" placeholder="PROMO CODE" autocomplete="off"><button class="promo-apply" id="promo-apply" onclick="applyPromo()">Apply</button></div>
+<div class="promo-msg" id="promo-msg" style="display:none"></div>
+<div class="summary-row discount" id="discount-row" style="display:none"><span>Discount (30%)</span><span id="summary-discount">-$0.00</span></div>
 <div class="summary-row total"><span>Total</span><span id="summary-total">$0.00</span></div>
 <div class="error-box" id="checkout-error"></div>
 <div class="pay-btns">
@@ -233,10 +247,53 @@ try { BD.initCurrency().then(function(){
 var cart=JSON.parse(localStorage.getItem('bd_cart')||'[]');
 var subtotal=cart.reduce(function(s,i){return s+(i.price||0)*(i.qty||1)},0);
 var shipping=subtotal>BD.convert(41)?0:BD.convert(8.44);
+// Discount state. Valid code BARGAIN26 = 30% off. One use per customer enforced server-side.
+var discountPct=0;         // 0 = none, 30 = 30% off
+var discountAmount=0;      // dollars off
+var appliedCode='';
 var total=subtotal+shipping;
-document.getElementById('summary-subtotal').textContent=BD.formatMoneyCompact(subtotal);
-document.getElementById('summary-shipping').textContent=shipping===0?'FREE':BD.formatMoneyCompact(shipping);
-document.getElementById('summary-total').textContent=BD.formatMoneyCompact(total);
+
+function recalcTotals(){
+  discountAmount=Math.round(subtotal*(discountPct/100)*100)/100;
+  total=Math.max(0,Math.round((subtotal+shipping-discountAmount)*100)/100);
+  document.getElementById('summary-subtotal').textContent=BD.formatMoneyCompact(subtotal);
+  document.getElementById('summary-shipping').textContent=shipping===0?'FREE':BD.formatMoneyCompact(shipping);
+  document.getElementById('summary-total').textContent=BD.formatMoneyCompact(total);
+  var dr=document.getElementById('discount-row');
+  if(discountPct>0){dr.style.display='flex';document.getElementById('summary-discount').textContent='-'+BD.formatMoneyCompact(discountAmount);}
+  else{dr.style.display='none';}
+}
+
+// Promo code handling
+function applyPromo(){
+  var inp=document.getElementById('promo-input');
+  var code=(inp.value||'').trim().toUpperCase();
+  var msg=document.getElementById('promo-msg');
+  var btn=document.getElementById('promo-apply');
+  var valid={'BARGAIN26':30};
+  if(!code){msg.textContent='Enter a code';msg.className='promo-msg bad';msg.style.display='block';return;}
+  if(code===appliedCode){msg.textContent='Code '+code+' already applied';msg.className='promo-msg ok';msg.style.display='block';return;}
+  if(valid[code]){
+    discountPct=valid[code];appliedCode=code;
+    msg.textContent='Code '+code+' applied — '+discountPct+'% off!';
+    msg.className='promo-msg ok';msg.style.display='block';
+    inp.disabled=true;btn.textContent='Remove';btn.onclick=removePromo;
+    recalcTotals();
+  }else{
+    msg.textContent='Invalid code';msg.className='promo-msg bad';msg.style.display='block';
+  }
+}
+function removePromo(){
+  var inp=document.getElementById('promo-input');
+  var msg=document.getElementById('promo-msg');
+  var btn=document.getElementById('promo-apply');
+  discountPct=0;discountAmount=0;appliedCode='';
+  inp.disabled=false;inp.value='';btn.textContent='Apply';btn.onclick=applyPromo;
+  msg.style.display='none';
+  recalcTotals();
+}
+
+recalcTotals();
 
 // --- Toast ---
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2500);}
@@ -273,6 +330,8 @@ function saveOrder(oid,email,fname,lname,method,s){
   s=s||{};
   var order={
     id:oid,status:'unpaid',count:cart.length,total:total,
+    subtotal:subtotal,shipping:shipping,
+    discount:{code:appliedCode||null,percent:discountPct,amount:discountAmount},
     date:new Date().toISOString(),items:cart.slice(),
     email:email,name:fname+' '+lname,payment:method,
     shipping:{
@@ -315,6 +374,7 @@ function openPayPal(){
 
 // --- Build line items ---
 function buildLineItems(){
+  // Send full-price line items; the server applies the promo_code discount.
   return cart.map(function(item){
     return {
       price_data:{
@@ -342,9 +402,10 @@ async function stripeCheckout(oid,s,pm){
       customer_email:s.email,
       success_url:API_BASE+'/order-success.html?id='+oid,
       cancel_url:API_BASE+'/checkout.html',
-      metadata:{order_id:oid,source:'bargain-drop-v10'},
+      metadata:{order_id:oid,source:'bargain-drop-v10',discount_code:(appliedCode||''),discount_percent:String(discountPct)},
       payment_method:pm||null,
-      shipping_options:shipping_options
+      shipping_options:shipping_options,
+      promo_code:(appliedCode||null)
     };
 
     var resp=await fetch(API_BASE+'/api/create-checkout-session',{
