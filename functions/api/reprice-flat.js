@@ -97,28 +97,37 @@ function pidFromTags(tags) {
 }
 
 // ─── Fetch CJ base costs via deployed proxy (valid env keys live there) ───
+async function cjFetch(url) {
+  // Retry on CJ QPS limit (code 1600200) with exponential backoff. Max 5 attempts.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const r = await fetch(url, { headers: { 'X-Admin-Pin': '03091996', 'User-Agent': 'bargain-drop-reprice/1.0' } });
+      const j = await r.json();
+      if (j && (j.code === 1600200 || String(j.message || '').toLowerCase().includes('too many requests'))) {
+        await new Promise(res => setTimeout(res, 300 * Math.pow(2, attempt))); // 300,600,1200,2400ms
+        continue;
+      }
+      return j;
+    } catch { /* retry */ }
+    if (attempt < 4) await new Promise(res => setTimeout(res, 300 * Math.pow(2, attempt)));
+  }
+  return null;
+}
+
 async function fetchCjCostsBySku(sku) {
-  const url = `https://bargain-drop.online/api/cj-product-query?variantSku=${encodeURIComponent(sku)}`;
-  try {
-    const r = await fetch(url, { headers: { 'X-Admin-Pin': '03091996', 'User-Agent': 'bargain-drop-reprice/1.0' } });
-    const j = await r.json();
-    if (!j || j.code !== 200 || !j.data) return null;
-    const map = {};
-    for (const v of (j.data.variants || [])) if (v.variantSku) map[v.variantSku] = parseFloat(v.variantSellPrice) || 0;
-    return map;
-  } catch { return null; }
+  const j = await cjFetch(`https://bargain-drop.online/api/cj-product-query?variantSku=${encodeURIComponent(sku)}`);
+  if (!j || j.code !== 200 || !j.data) return null;
+  const map = {};
+  for (const v of (j.data.variants || [])) if (v.variantSku) map[v.variantSku] = parseFloat(v.variantSellPrice) || 0;
+  return map;
 }
 
 async function fetchCjCosts(pid) {
-  const url = `https://bargain-drop.online/api/cj-product-query?pid=${encodeURIComponent(pid)}`;
-  try {
-    const r = await fetch(url, { headers: { 'X-Admin-Pin': '03091996', 'User-Agent': 'bargain-drop-reprice/1.0' } });
-    const j = await r.json();
-    if (!j || j.code !== 200 || !Array.isArray(j.data)) return null;
-    const map = {};
-    for (const v of j.data) if (v.variantSku) map[v.variantSku] = parseFloat(v.variantSellPrice) || 0;
-    return map;
-  } catch { return null; }
+  const j = await cjFetch(`https://bargain-drop.online/api/cj-product-query?pid=${encodeURIComponent(pid)}`);
+  if (!j || j.code !== 200 || !Array.isArray(j.data)) return null;
+  const map = {};
+  for (const v of j.data) if (v.variantSku) map[v.variantSku] = parseFloat(v.variantSellPrice) || 0;
+  return map;
 }
 
 // ─── Fire bulk productSet op for a batch of products ──────────────────────
@@ -209,6 +218,7 @@ export async function onRequest(context) {
         if (firstSku) costMap = await fetchCjCostsBySku(firstSku);
       }
       if (!costMap) { skippedNoCost++; continue; }
+      await new Promise(res => setTimeout(res, 120));  // throttle CJ lookups
 
       let allPriced = true;
       const pricedVariants = variants.map(v => {
