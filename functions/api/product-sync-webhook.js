@@ -19,7 +19,52 @@ function getImages(prod) {
   return out;
 }
 
+// ─── Rebuild debounce (stops the runaway "auto: rebuild" commit storm) ─────────
+// CJ + Shopify webhooks can fire in huge bursts (reimport, stock sync, CJ backlog
+// re-delivery). Each fire triggers a full all-products.json rebuild → a multi-MB
+// git commit → a full Pages redeploy. Writing every push saturates the GitHub API,
+// bloats the repo (14k+ commits / 100MB+ .git), and evicts real deploys.
+//
+// We coalesce rebuilds to at most one per REBUILD_MIN_INTERVAL_MS across ALL
+// isolates, backed by a tiny state file (data/rebuild-state.json) whose latest
+// timestamp survives isolate resets — the same pattern appendSyncLog already uses.
+// The FIRST webhook of a burst rebuilds immediately; the rest within the window
+// are skipped (the catalog is already up-to-date from that first rebuild).
+const REBUILD_STATE_PATH = 'data/rebuild-state.json';
+const REBUILD_MIN_INTERVAL_MS = 30 * 1000; // 30 seconds
+let _lastRebuildAt = 0; // per-isolate fast-path guard
+
+// Returns true if we should SKIP this rebuild (a rebuild happened too recently).
+async function rebuildThrottledOut(env) {
+  const now = Date.now();
+  if (now - _lastRebuildAt < REBUILD_MIN_INTERVAL_MS) return true;
+  try {
+    const existing = await ghRead(env, REBUILD_STATE_PATH);
+    if (existing && existing.content) {
+      const decoded = atob(existing.content);
+      const st = JSON.parse(decoded);
+      const lastAt = (st && st.lastRebuildAt) || 0;
+      if (now - lastAt < REBUILD_MIN_INTERVAL_MS) {
+        _lastRebuildAt = now; // still refresh local guard
+        return true;
+      }
+    }
+  } catch { /* state file missing/corrupt -> rebuild (fail open) */ }
+  return false;
+}
+
+async function rebuildMarkDone(env) {
+  const now = Date.now();
+  _lastRebuildAt = now;
+  try {
+    await ghWrite(env, REBUILD_STATE_PATH,
+      JSON.stringify({ lastRebuildAt: now, at: new Date().toISOString() }, null, 2),
+      'auto: rebuild throttle state', undefined);
+  } catch { /* best-effort; the local guard still throttles within this isolate */ }
+}
+
 async function rebuildAllProducts(env) {
+
   let prods = [], since_id = 0;
   while (true) {
     const { body: shopBody } = await shopifyFetch(env,
@@ -84,6 +129,8 @@ async function rebuildAllProducts(env) {
     results.push({ file: f.path, sha: r?.commit?.sha || r?.content?.sha || r?.sha });
   }
 
+  await rebuildMarkDone(env);
+
   return {
     total_products: all.length,
     with_descriptions: all.filter(p => p.body_html && p.body_html.length > 20).length,
@@ -121,6 +168,13 @@ export async function onRequest(context) {
 
   if (topic === 'products/create' || topic === 'products/update' || topic === 'products/delete') {
     try {
+      const throttled = await rebuildThrottledOut(env);
+      if (throttled) {
+        return new Response(JSON.stringify({
+          success: true, event: topic, throttled: true,
+          product_title: payload.title, product_id: payload.id,
+        }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+      }
       const result = await rebuildAllProducts(env);
       return new Response(JSON.stringify({
         success: true, event: topic,
