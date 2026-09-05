@@ -1,6 +1,44 @@
 [
   {
     "action": "cj-webhook",
+    "type": "PRODUCT",
+    "messageType": "UPDATE",
+    "messageId": "6c********af",
+    "valid": true,
+    "paramKeys": [
+      "categoryId",
+      "categoryName",
+      "fields",
+      "pid",
+      "productDescription",
+      "productImage",
+      "productName",
+      "productNameEn",
+      "productProperty1",
+      "productProperty2",
+      "productPropertyEn",
+      "productSellPrice",
+      "productSku",
+      "productStatus",
+      "productType",
+      "saleStatus"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "shopify create 422",
+    "pid": "0EEF2981-F91B-4DB6-8965-DB06B2FCAE56",
+    "receivedAt": "2026-09-05T11:32:11.754Z",
+    "at": "2026-09-05T11:32:11.972Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "b4********7b",
@@ -5564,27 +5602,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T21:36:23.983Z",
     "at": "2026-09-04T21:36:24.219Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "5b********c8",
-    "valid": true,
-    "paramKeys": [
-      "1654743271119265792"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1654743271119265792\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1654743271047962624\",\"storageNum\":10311,\"vid\":\"1654743271119265792\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T21:35:14.734Z",
-    "at": "2026-09-04T21:35:14.955Z"
   }
 ]
