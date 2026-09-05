@@ -76,7 +76,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
     .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
     .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
     .search-box input:focus{border-color:#B8A9E8}
-    </style>
+    .pw-wrap{position:relative;display:block}
+.pw-wrap input{width:100%;padding-right:42px}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:none;background:none;cursor:pointer;color:#999;display:flex;align-items:center;justify-content:center;border-radius:8px;padding:0}
+.pw-eye:hover{color:#333}
+.pw-eye svg{width:20px;height:20px}
+</style>
 
 </head>
 <body>
@@ -122,7 +127,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
     <h1>Welcome Back</h1>
     <p class="sub">Sign in to your account</p>
     <label for="email" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Email</label><input id="email" type="email" id="signin-email" placeholder="Email" autocomplete="email">
-    <label for="password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Password</label><input id="password" type="password" id="signin-password" placeholder="Password" autocomplete="current-password">
+    <label for="signin-password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Password</label><span class="pw-wrap"><input id="signin-password" type="password" placeholder="Password" autocomplete="current-password"><button type="button" class="pw-eye" onclick="togglePw('signin-password',this)" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span>
     <div class="error-msg" id="signin-error"></div>
     <button class="primary-btn" id="signin-btn" onclick="handleSignIn()">Sign In</button>
     <div class="separator">or</div>
@@ -135,7 +140,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
     <p class="sub">Join Bargain Drop today</p>
     <input type="text" id="reg-username" placeholder="Username" autocomplete="username">
     <label for="email" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Email</label><input id="email" type="email" id="reg-email" placeholder="Email" autocomplete="email">
-    <label for="password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Password</label><input id="password" type="password" id="reg-password" placeholder="Password" autocomplete="new-password">
+    <label for="reg-password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Password</label><span class="pw-wrap"><input id="reg-password" type="password" placeholder="Password" autocomplete="new-password"><button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span>
     <div class="error-msg" id="reg-error"></div>
     <button class="primary-btn" id="reg-btn" onclick="handleRegister()">Create Account</button>
     <div class="separator">or</div>
@@ -162,6 +167,17 @@ var GOOGLE_CLIENT_ID = '489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googl
   var sess = JSON.parse(localStorage.getItem('bd_session')||'null');
   if(sess && sess.email){ showProfile(sess) }
 })();
+
+function togglePw(id,btn){
+  var el=document.getElementById(id);
+  if(!el) return;
+  var show = el.type==='password';
+  el.type = show?'text':'password';
+  btn.innerHTML = show
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+}
+
 function toggleView(v){ document.getElementById('signin-view').style.display = v==='register'?'none':''; document.getElementById('register-view').style.display = v==='register'?'':'none'; document.getElementById('profile-view').style.display='none'; history.replaceState(null,null,v==='register'?'register.html':'sign-in.html'); }
 function showError(view,msg){ var el = document.getElementById(view+'-error'); el.textContent=msg;el.style.display=msg?'block':'none'; }
 function setBtnLoading(id,loading){ var btn=document.getElementById(id); if(loading){btn.disabled=true;btn.dataset.orig=btn.textContent;btn.innerHTML='<span class="loading-dots"><span></span><span></span><span></span></span>'} else{btn.disabled=false;btn.textContent=btn.dataset.orig||btn.textContent} }
