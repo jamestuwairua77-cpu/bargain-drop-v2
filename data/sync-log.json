@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "86********01",
+    "valid": true,
+    "paramKeys": [
+      "2411120800131620300"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2411120800131620300\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2411090939361614200\",\"storageNum\":11690,\"vid\":\"2411120800131620300\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2411090939361614200\",\"storageNum\":7442,\"vid\":\"2502210727311607600\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2411090939361614200\",\"storageNum\":8165",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T18:44:53.317Z",
+    "at": "2026-09-05T18:44:53.969Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "22********c5",
     "valid": true,
     "paramKeys": [
@@ -5616,42 +5638,5 @@
     "changed": 0,
     "receivedAt": "2026-09-05T01:05:15.332Z",
     "at": "2026-09-05T01:05:15.607Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "VARIANT",
-    "messageType": "UPDATE",
-    "messageId": "aa********b5",
-    "valid": true,
-    "paramKeys": [
-      "fields",
-      "pid",
-      "variantHeight",
-      "variantImage",
-      "variantKey",
-      "variantLength",
-      "variantName",
-      "variantSellPrice",
-      "variantSku",
-      "variantStatus",
-      "variantValue1",
-      "variantValue2",
-      "variantWeight",
-      "variantWidth",
-      "vid"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "product not found in Shopify",
-    "sku": "CJCS113756815OL",
-    "receivedAt": "2026-09-05T01:04:02.373Z",
-    "at": "2026-09-05T01:04:02.756Z"
   }
 ]
