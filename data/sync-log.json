@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "f9********48",
+    "valid": true,
+    "paramKeys": [
+      "1660534929559662592"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"1660534929559662592\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1660534929471582208\",\"storageNum\":11527,\"vid\":\"1660534929559662592\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T12:25:23.176Z",
+    "at": "2026-09-05T12:25:23.447Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "INSERT",
     "messageId": "9a********55",
@@ -5695,27 +5717,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T22:45:19.264Z",
     "at": "2026-09-04T22:45:19.446Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "5c********ef",
-    "valid": true,
-    "paramKeys": [
-      "2411070330511618200"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2411070330511618200\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2411070330511617600\",\"storageNum\":12210,\"vid\":\"2411070330511618200\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2411070330511617600\",\"storageNum\":10324,\"vid\":\"2411070330511618000\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2411070330511617600\",\"storageNum\":143",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T22:41:31.162Z",
-    "at": "2026-09-04T22:41:31.418Z"
   }
 ]
