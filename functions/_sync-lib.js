@@ -77,6 +77,17 @@ export async function cjFetch(env, path, opts = {}) {
 
 const _keyTokens = new Map(); // key -> { tok, exp }
 
+// ── Sticky key selection (sequential failover) ────────────────────────────
+// Keeps using one healthy key until it reports it's out of points (remaining
+// → 0 or a 16900500/429), and only then falls through to the NEXT key with
+// points. Prevents needless flapping between near-equal keys every call.
+let _preferredKey = null; // module-level "current" key, per isolate
+function _setExhausted(apiKey) {
+  const c = _keyTokens.get(apiKey);
+  if (c) c.remaining = 0;
+  if (_preferredKey === apiKey) _preferredKey = null; // step off the dead key
+}
+
 async function keyToken(apiKey) {
   const c = _keyTokens.get(apiKey);
   if (c && Date.now() < c.exp) return c.tok;
@@ -103,13 +114,43 @@ function recordKeyPoints(apiKey, code, pointsInfo) {
   if (pi && typeof pi.remaining === 'number') { c.remaining = pi.remaining; c.usedToday = pi.usedToday; }
   // Insufficient-points (16900500) / HTTP 429 => treat as exhausted so sibling calls
   // deprioritize this key until its per-minute replenishment / daily reset recovers it.
-  if (code === 16900500 || code === 429) { c.remaining = 0; }
+  // Also an explicit remaining === 0 from pointsInfo means it's empty.
+  if (code === 16900500 || code === 429 || (pi && pi.remaining === 0)) { _setExhausted(apiKey); }
 }
 
 // Sort the configured keys so the healthiest (most remaining points) is tried first.
 // Keys known to be exhausted (remaining === 0) are moved to the END, and keys whose
 // budget is unknown sort in the middle. This yields the same key SET as cjKeys(),
 // only ordered, so single-key behavior is unchanged.
+// Order keys for sequential failover: the currently-preferred key first (if it
+// still has points), then by remaining points desc, exhausted keys last.
+export function orderedCjKeys(env) {
+  const keys = cjKeys(env);
+  const out = keys.slice();
+  const pref = _preferredKey;
+  if (pref) {
+    const pc = _keyTokens.get(pref);
+    const prefOk = pc && pc.remaining !== 0; // still has points (or unknown)
+    if (prefOk && keys.includes(pref)) {
+      // keep preferred first, then remaining by points
+      out.sort((a, b) => {
+        if (a === pref && b !== pref) return -1;
+        if (b === pref && a !== pref) return 1;
+        const ca = _keyTokens.get(a); const cb = _keyTokens.get(b);
+        const ra = ca && typeof ca.remaining === 'number' ? ca.remaining : null;
+        const rb = cb && typeof cb.remaining === 'number' ? cb.remaining : null;
+        if (ra === 0 && rb !== 0) return 1;
+        if (rb === 0 && ra !== 0) return -1;
+        if (ra !== null && rb !== null && ra !== rb) return (rb||0) - (ra||0);
+        return 0;
+      });
+      return out;
+    }
+  }
+  // no sticky preference -> pure points-desc, exhausted last (existing behavior)
+  return sortedCjKeys(env);
+}
+
 export function sortedCjKeys(env) {
   const keys = cjKeys(env);
   return keys.slice().sort((a, b) => {
@@ -159,7 +200,7 @@ export function cjKeys(env) {
 }
 
 export async function cjFetchMulti(env, path, opts = {}) {
-  const keys = sortedCjKeys(env);
+  const keys = orderedCjKeys(env);
   let lastErr = null, lastBody = null;
   for (const apiKey of keys) {
     try {
@@ -185,6 +226,7 @@ export async function cjFetchMulti(env, path, opts = {}) {
         (typeof code === 'number' && code !== 200) ||
         msg.toLowerCase().includes('insufficient api points');
       if (isAccountError) { lastBody = body; continue; }
+      _preferredKey = apiKey; // sticky: keep using this key until it's exhausted
       return body;
     } catch (e) { lastErr = e; }
   }
