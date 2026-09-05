@@ -131,24 +131,47 @@ async function gqlRaw(env, query, variables) {
   return r.body;
 }
 
-// ── State helpers (GitHub-backed, resumable) ──────────────────────────────
+// ── State helpers (Shopify metafield-backed — NOT GitHub, which is rate-
+//    limited to 60 req/hr and 403s mid-import). GraphQL metafields avoid both
+//    the GitHub limit and the Shopify REST "2 calls/sec" throttle.          ──
+const STATE_NAMESPACE = 'cjbulk';
+const STATE_KEY = 'state';
+const SHOP_GID = 'gid://shopify/Shop/73594044547';
+
+function normalizeState(st) {
+  if (!st || typeof st !== 'object') return null;
+  if (!st.donePids) st.donePids = {};
+  if (!st.fetchedPids) st.fetchedPids = {};
+  if (!st.catCursor) st.catCursor = {};
+  if (!Array.isArray(st.pendingVariants)) st.pendingVariants = [];
+  if (st.inFlightOp && !st.inFlightOp.opId) delete st.inFlightOp;
+  return st;
+}
+
 async function loadState(env) {
-  const r = await ghRead(env, STATE_PATH).catch(() => null);
-  if (r && r.content) {
-    try {
-      const st = JSON.parse(atob(r.content.replace(/\n/g, '')));
-      if (!Array.isArray(st.pendingVariants)) st.pendingVariants = [];
-      if (st.inFlightOp && !st.inFlightOp.opId) delete st.inFlightOp;
-      return st;
-    } catch {}
+  const q = `query { shop { metafields(first: 5, namespace: "${STATE_NAMESPACE}") { edges { node { id namespace key value } } } } }`;
+  const res = await gqlRaw(env, q);
+  const edges = (res && res.data && res.data.shop && res.data.shop.metafields && res.data.shop.metafields.edges) || [];
+  for (const e of edges) {
+    const n = e.node;
+    if (n && n.key === STATE_KEY) {
+      try {
+        const parsed = normalizeState(JSON.parse(n.value));
+        if (parsed) return parsed;
+      } catch {}
+    }
   }
   return { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0, pendingVariants: [], inFlightOp: null };
 }
 
 async function saveState(env, state) {
-  const r = await ghRead(env, STATE_PATH).catch(() => null);
-  const sha = r && r.sha ? r.sha : null;
-  await ghWrite(env, STATE_PATH, JSON.stringify(state, null, 2), 'cj-bulk-import progress', sha);
+  const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
+  const res = await gqlRaw(env, mq, {
+    m: [{ ownerId: SHOP_GID, namespace: STATE_NAMESPACE, key: STATE_KEY, type: 'json', value: JSON.stringify(state) }],
+  });
+  const ue = (res && res.data && res.data.metafieldsSet && res.data.metafieldsSet.userErrors) || [];
+  if (ue.length) throw new Error('metafield save: ' + ue.map(x => x.message).join('; '));
+  if (res && res.errors && res.errors.length) throw new Error('metafield save: ' + res.errors.map(x => x.message).join('; '));
 }
 
 // ── Discovery: page listV2 for a category, return new (unfetched) pids ───
