@@ -36,11 +36,11 @@
     .mark-read{font-size:.7rem;font-weight:700;color:var(--dark);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0}
     /* notification feed */
     .feed{display:flex;flex-direction:column;gap:10px}
-    .notif{display:flex;gap:12px;background:var(--white);border:1px solid #e8e5e0;border-radius:var(--radius);padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative}
+    .notif{display:flex;flex-direction:column;gap:4px;background:var(--white);border:1px solid #e8e5e0;border-radius:var(--radius);padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative}
     .notif.unread{border-color:#e6b3bc;background:#fff8f8}
-    .notif .ico{width:40px;height:40px;border-radius:12px;background:#f2efe9;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+    .notif .t-ico{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
     .notif .body{flex:1;min-width:0}
-    .notif .title{font-size:.8rem;font-weight:700;margin-bottom:2px}
+    .notif .title{display:flex;align-items:center;gap:7px;font-size:.8rem;font-weight:700;margin-bottom:2px}
     .notif .msg{font-size:.72rem;color:var(--muted);line-height:1.45}
     .notif .meta{font-size:.62rem;color:#aaa;margin-top:6px;display:flex;align-items:center;gap:8px}
     .notif .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
@@ -53,7 +53,6 @@
     .notif-action{display:inline-block;margin-top:6px;font-size:.68rem;font-weight:700;color:var(--accent);text-decoration:none}
     .notif-action:hover{text-decoration:underline}
     .pill-high{font-size:.55rem;font-weight:800;color:#fff;background:var(--accent);padding:1px 6px;border-radius:6px}
-    .notif .body .title{display:flex;align-items:center;gap:6px}
 
     .empty-state{text-align:center;padding:60px 20px}
     .empty-state .empty-icon{font-size:3rem;margin-bottom:12px}
@@ -242,9 +241,8 @@
                      + (n.total!=null?'<span>'+es(money(n.total))+'</span>':'')
                      + (n.priority && n.priority==='high'?'<span class="pill-high">!</span>':'');
             html += '<a class="notif'+unread+'" href="'+es(href)+'">'
-                 + '<div class="ico">'+ico(n.icon, 22)+'</div>'
                  + '<div class="body">'
-                 +   '<div class="title">'+es(n.title)+'</div>'
+                 +   '<div class="title"><span class="t-ico">'+ico(n.icon, 18)+'</span><span>'+es(n.title)+'</span></div>'
                  +   '<div class="msg">'+es(n.message)+'</div>'
                  +   actionHtml
                  +   '<div class="meta">'+meta+'</div>'
