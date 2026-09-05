@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "63********bc",
+    "valid": true,
+    "paramKeys": [
+      "2609051013151617646"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2609051013151617646\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609051013151616800\",\"storageNum\":8461,\"vid\":\"2609051013151617601\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609051013151616800\",\"storageNum\":9882,\"vid\":\"2609051013151617645\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2609051013151616800\",\"storageNum\":9624,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T10:16:57.993Z",
+    "at": "2026-09-05T10:16:58.206Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "ab********e5",
     "valid": true,
     "paramKeys": [
@@ -5286,42 +5308,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T20:35:15.949Z",
     "at": "2026-09-04T20:35:16.206Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "6d********8c",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "shopify create 422",
-    "pid": "1655595198405152768",
-    "receivedAt": "2026-09-04T20:33:32.821Z",
-    "at": "2026-09-04T20:33:33.039Z"
   }
 ]
