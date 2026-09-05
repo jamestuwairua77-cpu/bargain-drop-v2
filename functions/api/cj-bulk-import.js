@@ -19,13 +19,14 @@ import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, ghRead, 
 const STATE_PATH = 'data/cj-bulk-import-state.json';
 const MARKUP = 2.5;              // flat 2.5x (USD cost → AUD retail)
 const AUD_FLOOR = 9.95;          // minimum retail (AUD)
-const MAX_PER_RUN = 50;          // products per run (bulk op handles this easily)
+const MAX_PER_RUN = 20;          // products per run (kept small so a run fits CF timeout)
 const LIST_PAGE_SIZE = 10;       // CJ listV2 hard cap
 const SHOP_INVENTORY_QTY = 100;  // seed stock so products are live & trackable
 const LOCATION_ID = 'gid://shopify/Location/91452932227';
 const SHOPIFY_GQ = '/graphql.json';           // GraphQL endpoint (no REST throttle)
-const POLL_INTERVAL = 5000;      // 5s between bulk-op polls
-const POLL_TIMEOUT = 300000;     // 5 min max wait for a bulk op to COMPLETE
+const POLL_INTERVAL = 1500;      // 1.5s between bulk-op polls
+const POLL_TIMEOUT = 20000;      // 20s max wait for a bulk op (CF function budget)
+const VARIANTS_PER_RUN = 8;      // variant-attach calls per run (phase 2 chunk)
 
 // ── Category map (leaf subcategory UUIDs per top-level category) ─────────
 const CATEGORY_MAP = {
@@ -134,9 +135,13 @@ async function gqlRaw(env, query, variables) {
 async function loadState(env) {
   const r = await ghRead(env, STATE_PATH).catch(() => null);
   if (r && r.content) {
-    try { return JSON.parse(atob(r.content.replace(/\n/g, ''))); } catch {}
+    try {
+      const st = JSON.parse(atob(r.content.replace(/\n/g, '')));
+      if (!Array.isArray(st.pendingVariants)) st.pendingVariants = [];
+      return st;
+    } catch {}
   }
-  return { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0 };
+  return { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0, pendingVariants: [] };
 }
 
 async function saveState(env, state) {
@@ -261,11 +266,42 @@ export async function onRequest(context) {
   const limit = Math.max(1, Math.min(MAX_PER_RUN, parseInt(url.searchParams.get('limit') || String(MAX_PER_RUN), 10)));
 
   const state = await loadState(env);
-  if (wantReset) Object.assign(state, { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0 });
+  if (wantReset) Object.assign(state, { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0, pendingVariants: [] });
 
-  const summary = { run: new Date().toISOString(), discovered: 0, fetched: 0, bulkCreated: 0, variantErrors: 0, skipped: 0, totalImported: state.imported || 0, errors: [] };
+  const summary = { run: new Date().toISOString(), discovered: 0, fetched: 0, bulkCreated: 0, variantsAttached: 0, variantErrors: 0, skipped: 0, totalImported: state.imported || 0, pending: (state.pendingVariants || []).length, errors: [] };
 
-  // 1. Discover pids
+  // ── STAGE B (first): drain pending variant-attach queue (leftover from a
+  //    prior run that timed out before phase 2 finished). Small chunk so we
+  //    always finish inside the CF function budget and persist state.
+  let pending = state.pendingVariants || [];
+  if (pending.length) {
+    const chunk = pending.slice(0, VARIANTS_PER_RUN);
+    const remaining = pending.slice(VARIANTS_PER_RUN);
+    for (const pv of chunk) {
+      try {
+        const vr = await attachVariants(env, pv.productId, pv.gqlVariants, pv.images);
+        if (vr.ok) {
+          if (pv.pid) { state.donePids[pv.pid] = true; delete state.fetchedPids[pv.pid]; }
+          summary.variantsAttached++;
+        } else {
+          summary.variantErrors++;
+          summary.errors.push({ pid: pv.pid, error: 'variants: ' + vr.error, productId: pv.productId });
+          remaining.push(pv); // retry next run
+        }
+      } catch (e) {
+        summary.variantErrors++;
+        summary.errors.push({ pid: pv.pid, error: String(e && e.message), productId: pv.productId });
+        remaining.push(pv);
+      }
+    }
+    state.pendingVariants = remaining;
+    state.imported = (state.imported || 0) + summary.variantsAttached;
+    summary.totalImported = state.imported;
+    await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
+  }
+
+  // ── STAGE A: discover → fetch → bulk-create products. Persist state as soon
+  //    as bulk-create resolves so we never re-create duplicates on a timeout.
   const catNames = Object.keys(CATEGORY_MAP);
   const discovered = [];
   let exhausted = 0;
@@ -281,7 +317,6 @@ export async function onRequest(context) {
   }
   summary.discovered = discovered.length;
 
-  // 2. Fetch detail + build bulk inputs
   const items = [];
   for (const pid of discovered) {
     if (items.length >= limit) break;
@@ -293,48 +328,40 @@ export async function onRequest(context) {
       items.push({ pid, ...built });
       state.fetchedPids[pid] = true;
       summary.fetched++;
-      await new Promise(r => setTimeout(r, 220));
+      await new Promise(r => setTimeout(r, 200));
     } catch (e) {
       summary.errors.push({ pid, error: String(e && e.message) });
     }
   }
 
-  // 3. Phase 1: bulk create products
   if (items.length) {
     const bulk = await bulkCreateProducts(env, items);
     if (!bulk.ok) {
       summary.errors.push({ phase: 'bulk', error: bulk.error });
     } else {
       for (const c of bulk.created) {
-        if (c.ok && c.productId) {
+        const it = items.find(x => x.pid === c.pid);
+        if (c.ok && c.productId && it) {
           summary.bulkCreated++;
-          // Phase 2: attach variants + images
-          const it = items.find(x => x.pid === c.pid);
-          if (it) {
-            const vr = await attachVariants(env, c.productId, it.gqlVariants, it.images);
-            if (vr.ok) {
-              if (c.pid) state.donePids[c.pid] = true;
-            } else {
-              summary.variantErrors++;
-              summary.errors.push({ pid: c.pid, error: 'variants: ' + vr.error, productId: c.productId });
-              // keep fetched so it's retried next run
-              if (c.pid) delete state.fetchedPids[c.pid];
-            }
-          }
+          // Queue phase 2 instead of doing it inline (avoids timeout).
+          state.pendingVariants = (state.pendingVariants || []).concat([{ pid: c.pid, productId: c.productId, gqlVariants: it.gqlVariants, images: it.images }]);
         } else {
           summary.errors.push({ pid: c.pid, error: 'bulk line: ' + c.error });
           if (c.pid) delete state.fetchedPids[c.pid];
         }
       }
+      // Persist immediately — products are created, variants queued.
+      summary.pending = state.pendingVariants.length;
+      await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
     }
+  } else {
+    await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
   }
 
-  state.imported = (state.imported || 0) + summary.bulkCreated - summary.variantErrors;
   summary.totalImported = state.imported;
-
-  await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
   summary.finished = new Date().toISOString();
   try { await appendSyncLog(env, { type: 'cj-bulk-import', ...summary }); } catch {}
+
 
   return new Response(JSON.stringify(summary), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders() },
