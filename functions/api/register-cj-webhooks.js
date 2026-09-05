@@ -140,12 +140,18 @@ export async function onRequest(context) {
 // tag that the importer stamps on every imported product. This is fast (no CJ API
 // calls) and picks up ALL sourced pids directly from the catalog.
 async function resolvePids(env, prog) {
+  // Resolve CJ pids by walking Shopify products and reading the CJ product SKU from
+  // each product's variant SKUs, then resolving pid via CJ /product/query?variantSku=.
+  // (The old tag-scan failed because imported products carry EMPTY tags — there is no
+  // `cj-pid-*` tag to read. Variant SKUs, however, are always present and embed the
+  // CJ product SKU, e.g. "CJFU29423110001" -> base product SKU "CJFU2942311".)
   const pidSet = new Set(prog.pids || []);
   let sinceId = prog.cursor || 0;
-  const MAX_PRODUCTS = 500; // bound per call (2 pages of 250)
+  const MAX_PRODUCTS = 40; // bound per call (CJ pid-resolution is quota/QPS limited)
   let fetched = 0;
+  let resolved = 0;
   let eof = false;
-  let page = `/products.json?limit=250&fields=id,tags&since_id=${sinceId}`;
+  let page = `/products.json?limit=250&fields=id,variants&since_id=${sinceId}`;
 
   while (fetched < MAX_PRODUCTS) {
     const { body } = await shopifyFetch(env, page);
@@ -153,20 +159,28 @@ async function resolvePids(env, prog) {
     if (!products.length) { eof = true; break; }
     for (const p of products) {
       sinceId = Math.max(sinceId, Number(p.id));
-      const tags = String(p.tags || '');
-      const m = tags.match(/cj-pid-(\d+)/);
-      if (m && m[1]) pidSet.add(m[1]);
+      // First variant SKU that looks like a CJ SKU (letters + digits).
+      const skus = (p.variants || []).map((v) => String(v.sku || '')).filter((x) => /^[A-Za-z]{2,}\d+/.test(x));
       fetched++;
+      if (!skus.length) { if (fetched >= MAX_PRODUCTS) break; continue; }
+      // Resolve pid from the FIRST variant SKU (contains the full variant sku incl. suffix).
+      const sku = skus[0];
+      let pid = null;
+      try {
+        const r = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(sku));
+        pid = r?.data?.pid || r?.pid || null;
+      } catch { /* quota/QPS — retry next run */ }
+      if (pid) { pidSet.add(String(pid)); resolved++; }
       if (fetched >= MAX_PRODUCTS) break;
     }
     if (products.length < 250) { eof = true; break; }
-    page = `/products.json?limit=250&fields=id,tags&since_id=${sinceId}`;
+    page = `/products.json?limit=250&fields=id,variants&since_id=${sinceId}`;
   }
 
   prog.pids = [...pidSet];
   prog.cursor = eof ? -1 : sinceId; // -1 = done resolving
 
-  return { done: eof, totalPids: prog.pids.length };
+  return { done: eof, totalPids: prog.pids.length, resolvedThisCall: resolved };
 }
 
 const EMPTY_PROG = () => ({ phase: 'resolve', pids: [], done: 0, subscribed: 0, cursor: 0 });
