@@ -14,7 +14,7 @@ import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, ghRead, 
 const STATE_PATH = 'data/cj-category-import-state.json';
 const MARKUP = 2.5;              // flat 2.5x (USD cost → AUD retail, no conversion)
 const AUD_FLOOR = 9.95;          // minimum retail (AUD)
-const MAX_PER_RUN = 80;          // products per run: fits in one Pages Function request
+const MAX_PER_RUN = 20;          // products per run: fits in one Pages Function request
 const BATCH = 200;               // max products bundled into ONE Shopify bulk-create call
 const LIST_PAGE_SIZE = 10;       // CJ listV2 hard cap
 const SHOP_INVENTORY_QTY = 100;  // seed stock so products are live & trackable
@@ -70,7 +70,7 @@ function buildShopifyProduct(pid, d) {
     return {
       ...ov,
       price: price != null ? String(price) : '0',
-      compare_at_price: price != null ? String(price) : undefined,
+      compare_at_price: price != null ? String((price * 1.5).toFixed(2)) : undefined,
       sku: v.variantSku != null ? String(v.variantSku) : undefined,
       grams: v.variantWeight != null ? Number(v.variantWeight) : undefined,
       inventory_management: 'shopify',
@@ -191,34 +191,25 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. Bulk-create in Shopify — bundle up to BATCH products per request,
-  //    each carrying its full variants + images + description so none are lost.
-  for (let i = 0; i < toCreate.length; i += BATCH) {
-    const chunk = toCreate.slice(i, i + BATCH);
+  // 3. Create in Shopify one product per request (REST `{"product": {...}}`).
+  for (const product of toCreate) {
+    const m = String(product.tags || '').match(/cj-pid-([^,\s]+)/);
+    const pid = m ? m[1] : null;
     const r = await shopifyFetch(env, `/products.json`, {
       method: 'POST',
-      body: JSON.stringify({ products: chunk }),
+      body: JSON.stringify({ product }),
     });
     if (r.ok) {
-      const out = r.body && (Array.isArray(r.body.products) ? r.body.products : (r.body.product ? [r.body.product] : []));
-      const made = out.length || 1;
-      summary.created += made;
-      for (const p of chunk) {
-        const m = String(p.tags || '').match(/cj-pid-([^,\s]+)/);
-        if (m) state.donePids[m[1]] = true;
-      }
+      summary.created += 1;
+      if (pid) state.donePids[pid] = true;
     } else {
       let _e = (r.body && (r.body.errors || r.body.error || r.body.message)) || r.status;
       const msg = (typeof _e === 'string') ? _e : JSON.stringify(_e);
-      summary.errors.push({ batch: i, error: 'shopify bulk create: ' + msg });
-      for (const p of chunk) {
-        const m = String(p.tags || '').match(/cj-pid-([^,\s]+)/);
-        if (m) delete state.fetchedPids[m[1]]; // un-fetch to retry next run
-      }
+      summary.errors.push({ pid, error: 'shopify create: ' + msg });
+      if (pid) delete state.fetchedPids[pid];
     }
     await new Promise(r => setTimeout(r, 400));
   }
-
   state.imported = (state.imported || 0) + summary.created;
   summary.totalImported = state.imported;
 

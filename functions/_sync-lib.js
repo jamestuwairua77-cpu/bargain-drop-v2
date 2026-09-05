@@ -340,13 +340,20 @@ export async function ghWrite(env, path, content, msg, existingSha) {
     return ghWriteLarge(env, path, content, msg);
   }
 
+  let sha = existingSha;
+  if (!sha) {
+    try {
+      const cur = await ghRead(env, path);
+      if (cur && cur.sha) sha = cur.sha;
+    } catch { /* file may not exist yet -> create without sha */ }
+  }
   const base64 = b64Encode(bytes);
   const body = {
     message: msg,
     content: base64,
     branch: 'main',
   };
-  if (existingSha) body.sha = existingSha;
+  if (sha) body.sha = sha;
   const r = await fetch(GHAPI + '/contents/' + path, {
     method: 'PUT',
     headers: {

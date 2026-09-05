@@ -31,7 +31,7 @@ function getImages(prod) {
 // The FIRST webhook of a burst rebuilds immediately; the rest within the window
 // are skipped (the catalog is already up-to-date from that first rebuild).
 const REBUILD_STATE_PATH = 'data/rebuild-state.json';
-const REBUILD_MIN_INTERVAL_MS = 30 * 1000; // 30 seconds
+const REBUILD_MIN_INTERVAL_MS = 120 * 1000; // 120 seconds
 let _lastRebuildAt = 0; // per-isolate fast-path guard
 
 // Returns true if we should SKIP this rebuild (a rebuild happened too recently).
