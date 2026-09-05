@@ -119,12 +119,8 @@ a{color:inherit;text-decoration:none}
   </div>
 
   <div class="form-group">
-    <label>Full Name</label>
-    <input type="text" id="acct-name" placeholder="Your full name" autocomplete="name">
-  </div>
-  <div class="form-group">
     <label>Username</label>
-    <input type="text" id="acct-username" placeholder="Choose a username" autocomplete="username" readonly disabled>
+    <input type="text" id="acct-username" placeholder="Username" autocomplete="username" readonly disabled>
   </div>
   <div class="form-group">
     <label>Email Address</label>
@@ -189,12 +185,10 @@ document.querySelectorAll('.gender-opt').forEach(function(g){
 // Populate name/email/username from session (authoritative, locked fields)
 function applySessionToForm(sess){
   if(!sess)return;
-  if(sess.name) document.getElementById('acct-name').value = sess.name;
   if(sess.username) document.getElementById('acct-username').value = sess.username;
   if(sess.email) document.getElementById('acct-email').value = sess.email;
   // cache for other pages
   if(sess.email) localStorage.setItem('bd_user_email', sess.email);
-  if(sess.name) localStorage.setItem('bd_user_name', sess.name);
   if(sess.username) localStorage.setItem('bd_user_username', sess.username);
 }
 (function(){
@@ -217,7 +211,6 @@ function applySessionToForm(sess){
   var p=null;
   try{var raw=localStorage.getItem('bd_profile');if(raw)p=JSON.parse(raw)}catch(e){}
   if(!p)return;
-  if(p.name)document.getElementById('acct-name').value=p.name;
   if(p.username)document.getElementById('acct-username').value=p.username;
   if(p.email)document.getElementById('acct-email').value=p.email;
   if(p.phone)document.getElementById('acct-phone').value=p.phone;
@@ -234,7 +227,6 @@ function applySessionToForm(sess){
 })();
 
 function saveProfile(){
-  var name=document.getElementById('acct-name').value.trim();
   var email=document.getElementById('acct-email').value.trim();
   // email is locked; fall back to session if field is somehow empty
   if(!email){ try{ var ss=JSON.parse(localStorage.getItem('bd_session')||'null'); if(ss&&ss.email)email=ss.email; }catch(e){} }
@@ -247,15 +239,14 @@ function saveProfile(){
   var dob=(y&&m&&d)?y+'-'+m+'-'+d:'';
   
   var username=document.getElementById('acct-username').value.trim();
-  var profile={name:name,username:username,email:email,phone:phone,gender:gender,dob:dob,updated:new Date().toISOString()};
+  var profile={username:username,email:email,phone:phone,gender:gender,dob:dob,updated:new Date().toISOString()};
   localStorage.setItem('bd_profile',JSON.stringify(profile));
   
-  // Update name/email/username in session auth uses too
-  if(name)localStorage.setItem('bd_user_name',name);
+  // Update email/username in session auth uses too (username is read-only here, but keep in sync)
   if(email)localStorage.setItem('bd_user_email',email);
   if(username)localStorage.setItem('bd_user_username',username);
-  // sync to server
-  if(email){ fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_profile',email:email,name:name||undefined,username:username||undefined,phone:phone||undefined})}).catch(function(){}); }
+  // sync to server (username is read-only; still send in case of drift)
+  if(email){ fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_profile',email:email,username:username||undefined,phone:phone||undefined})}).catch(function(){}); }
   
   toast('Profile saved successfully');
 }

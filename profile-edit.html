@@ -114,7 +114,7 @@ a{color:inherit;text-decoration:none}button{font-family:inherit}
 <div class="page-header"><h1>✏️ Profile Information</h1></div>
 <p class="page-sub">Update your name, phone, birthday, and more</p>
 <div class="card">
-<div class="form-group"><label>Full Name</label><input type="text" id="edit-name" placeholder="Your name"></div>
+<div class="form-group"><label>Username</label><input type="text" id="edit-name" placeholder="Username" readonly disabled></div>
 <div class="form-group"><label>Email</label><input type="email" id="edit-email" placeholder="your@email.com" disabled style="opacity:.6"></div>
 <div class="form-group"><label>Phone</label><input type="tel" id="edit-phone" placeholder="+61 4XX XXX XXX"></div>
 <div class="form-row">
@@ -128,13 +128,11 @@ a{color:inherit;text-decoration:none}button{font-family:inherit}
 function toast(m){var t=document.getElementById("to");t.textContent=m;t.classList.add("on");setTimeout(function(){t.classList.remove("on")},2000)}
 (function load(){
   try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("ncb");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}
-  try{var s=JSON.parse(localStorage.getItem("bd_session")||"null"),p=JSON.parse(localStorage.getItem("bd_profile_extra")||"{}");if(s){document.getElementById("edit-name").value=s.name||"";document.getElementById("edit-email").value=s.email||""}document.getElementById("edit-phone").value=p.phone||"";document.getElementById("edit-dob").value=p.dob||"";document.getElementById("edit-gender").value=p.gender||""}catch(e){}
+  try{var s=JSON.parse(localStorage.getItem("bd_session")||"null"),p=JSON.parse(localStorage.getItem("bd_profile_extra")||"{}");if(s){document.getElementById("edit-name").value=s.username||"";document.getElementById("edit-email").value=s.email||""}document.getElementById("edit-phone").value=p.phone||"";document.getElementById("edit-dob").value=p.dob||"";document.getElementById("edit-gender").value=p.gender||""}catch(e){}
 })();
 function saveProfile(){
-  var n=document.getElementById("edit-name").value.trim(),ph=document.getElementById("edit-phone").value.trim(),dob=document.getElementById("edit-dob").value,g=document.getElementById("edit-gender").value;
-  if(!n)return toast("Name is required");
+  var ph=document.getElementById("edit-phone").value.trim(),dob=document.getElementById("edit-dob").value,g=document.getElementById("edit-gender").value;
   try{
-    var s=JSON.parse(localStorage.getItem("bd_session")||"{}");s.name=n;localStorage.setItem("bd_session",JSON.stringify(s));localStorage.setItem("bd_user_name",n);
     localStorage.setItem("bd_profile_extra",JSON.stringify({phone:ph,dob:dob,gender:g}));
     toast("Profile saved!");setTimeout(function(){location.href="profile.html"},1000)
   }catch(e){toast("Could not save profile")}

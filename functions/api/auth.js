@@ -120,6 +120,7 @@ export async function onRequest(context) {
   const body = await request.json().catch(() => ({}));
   const { action, password, name, username, picture, first_name, last_name, phone, addresses } = body;
   const email = body.email ? String(body.email).trim().toLowerCase() : '';
+  const cleanUsername = username ? String(username).trim() : '';
 
   if (action === 'signout') {
     return new Response(JSON.stringify({ success: true }), {
@@ -133,11 +134,13 @@ export async function onRequest(context) {
   const users = await loadUsers(env);
 
   if (action === 'register') {
+    if (!cleanUsername) return json({ error: 'Username is required' }, 400);
     if (users.find(u => u.email === email)) return json({ error: 'Email already registered' }, 409);
+    if (users.find(u => (u.username || '').toLowerCase() === cleanUsername.toLowerCase())) return json({ error: 'Username is already taken' }, 409);
     const hashed = await hashPassword(password);
     const user = {
-      id: 'u-' + Date.now(), email, name: name || email.split('@')[0],
-      username: username || null, picture: picture || null,
+      id: 'u-' + Date.now(), email, name: null,
+      username: cleanUsername, picture: picture || null,
       first_name: first_name || null, last_name: last_name || null, phone: phone || null, addresses: addresses || null,
       password: hashed, provider: 'email', credits: 0, createdAt: new Date().toISOString(),
     };
@@ -171,7 +174,7 @@ export async function onRequest(context) {
     if (last_name != null) user.last_name = last_name;
     if (phone != null) user.phone = phone;
     if (addresses != null) user.addresses = addresses;
-    if (name != null) user.name = name;
+    // Full name is deprecated; keep username updatable (read-only in the UI, but server field remains).
     if (username != null) user.username = username;
     if (picture != null) user.picture = picture;
     const ex = await ghRead(env, USERS_PATH);

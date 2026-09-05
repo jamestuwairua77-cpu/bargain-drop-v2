@@ -31,9 +31,6 @@ input:focus{border-color:var(--lilac)}
   <h1>Create your account</h1>
   <p>Save your details, track orders, and check out faster.</p>
 
-  <label>Full name
-    <input type="text" id="reg-name" placeholder="Your name" autocomplete="name">
-  </label>
   <label>Username
     <input type="text" id="reg-username" placeholder="Choose a username" autocomplete="username">
   </label>
@@ -74,15 +71,14 @@ function startGoogleSignIn() {
 }
 
 function handleRegister(){
-  var name=document.getElementById('reg-name').value.trim();
   var username=document.getElementById('reg-username').value.trim();
   var email=document.getElementById('reg-email').value.trim();
   var pass=document.getElementById('reg-password').value;
   var err=document.getElementById('reg-error'); err.textContent='';
-  if(!name||!email||!pass){err.textContent='Please fill in all fields';return}
+  if(!username||!email||!pass){err.textContent='Please fill in all fields';return}
   if(pass.length<6){err.textContent='Password must be at least 6 characters';return}
   var btn=document.getElementById('reg-btn'); btn.disabled=true; btn.textContent='Creating account…';
-  fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name:name,username:username||null,email:email,password:pass})})
+  fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',username:username,email:email,password:pass})})
     .then(function(r){return r.json()})
     .then(function(d){
       btn.disabled=false; btn.textContent='Create Account';

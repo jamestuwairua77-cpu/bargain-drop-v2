@@ -243,15 +243,18 @@ function render(){
   var username = u.username || "";
   var pic = u.picture || localStorage.getItem("bd_user_pic") || "";
 
-  document.getElementById("name").textContent = name || "Welcome";
+  // Show the username as the primary display name; fall back to legacy name.
+  var displayName = username || name || "Welcome";
+  document.getElementById("name").textContent = displayName;
   // Hide the email line — only the username should appear under the profile picture.
   var emailEl = document.getElementById("email");
   if (emailEl) emailEl.style.display = "none";
-  document.getElementById("username").textContent = username ? ("@" + username) : "";
-  document.getElementById("username").style.display = username ? "" : "none";
+  // No separate @username line needed — the username is now the main name.
+  document.getElementById("username").textContent = "";
+  document.getElementById("username").style.display = "none";
 
   var av = document.getElementById("avatar");
-  var seed = name || email || "BD";
+  var seed = displayName || email || "BD";
   if (pic) {
     av.innerHTML = '<img src="'+pic+'" alt="Profile photo">';
   } else {

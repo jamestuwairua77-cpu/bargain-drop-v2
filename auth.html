@@ -133,7 +133,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
   <div id="register-view" style="display:none">
     <h1>Create Account</h1>
     <p class="sub">Join Bargain Drop today</p>
-    <input type="text" id="reg-name" placeholder="Full Name" autocomplete="name">
     <input type="text" id="reg-username" placeholder="Username" autocomplete="username">
     <label for="email" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Email</label><input id="email" type="email" id="reg-email" placeholder="Email" autocomplete="email">
     <label for="password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Password</label><input id="password" type="password" id="reg-password" placeholder="Password" autocomplete="new-password">
@@ -180,14 +179,13 @@ function handleSignIn(){
     .then(function(r){return r.json()}).then(function(d){ setBtnLoading('signin-btn',false); if(d.success){finishLogin(d.user)} else{showError('signin',d.error||'Sign in failed')} }).catch(function(e){setBtnLoading('signin-btn',false);showError('signin','Network error')});
 }
 function handleRegister(){
-  var name=document.getElementById('reg-name').value.trim();
   var username=document.getElementById('reg-username').value.trim();
   var email=document.getElementById('reg-email').value.trim();
   var pass=document.getElementById('reg-password').value;
-  if(!name||!email||!pass){showError('reg','Please fill in all fields');return}
+  if(!username||!email||!pass){showError('reg','Please fill in all fields');return}
   if(pass.length<6){showError('reg','Password must be at least 6 characters');return}
   showError('reg',''); setBtnLoading('reg-btn',true);
-  fetch(API_BASE+'/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',name:name,username:username||null,email:email,password:pass})})
+  fetch(API_BASE+'/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',username:username,email:email,password:pass})})
     .then(function(r){return r.json()}).then(function(d){ setBtnLoading('reg-btn',false); if(d.success){finishLogin(d.user)} else{showError('reg',d.error||'Registration failed')} }).catch(function(e){setBtnLoading('reg-btn',false);showError('reg','Network error')});
 }
 function handleGoogleSignIn(){

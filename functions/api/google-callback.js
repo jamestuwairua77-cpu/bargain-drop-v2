@@ -101,11 +101,12 @@ export async function onRequest(context) {
     const users = await loadUsers(env);
     let user = users.find(u => (u.email || '').toLowerCase() === email);
     if (!user) {
+      const fullName = [(userData.given_name || '').trim(), (userData.family_name || '').trim()].filter(Boolean).join(' ');
       user = {
         id: 'u-' + Date.now(),
         email,
-        name: userData.name || email.split('@')[0],
-        username: null,
+        name: null,
+        username: fullName || email.split('@')[0],
         picture: userData.picture || null,
         first_name: (userData.given_name) || null,
         last_name: (userData.family_name) || null,
@@ -117,11 +118,14 @@ export async function onRequest(context) {
       };
       users.push(user);
     } else {
-      // Update picture/name on subsequent Google logins but preserve provider fields
+      // Update picture/name/username on subsequent Google logins but preserve provider fields
       if (userData.picture && !user.picture) user.picture = userData.picture;
-      if (userData.name && !user.name) user.name = userData.name;
       if (userData.given_name && !user.first_name) user.first_name = userData.given_name;
       if (userData.family_name && !user.last_name) user.last_name = userData.family_name;
+      if (!user.username) {
+        const fullName = [(user.first_name || '').trim(), (user.last_name || '').trim()].filter(Boolean).join(' ');
+        user.username = fullName || user.email.split('@')[0];
+      }
     }
 
     let existing = null;
