@@ -159,7 +159,7 @@ const EMPTY_PROG = () => ({ phase: 'resolve', pids: [], done: 0, subscribed: 0, 
 // NOT the GitHub contents API which can 401 / exhaust its hourly rate limit).
 async function readProgress(env) {
   try {
-    const q = `query { shop { metafields(first:1, namespace: "${PROG_NS}", keys: ["${PROG_KEY}"]) { edges { node { value } } } } }`;
+    const q = `query { shop { metafields(first:1, keys: ["${PROG_NS}.${PROG_KEY}"]) { edges { node { value } } } } }`;
     const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
     const edges = body?.data?.shop?.metafields?.edges || [];
     if (!edges.length) return EMPTY_PROG();
