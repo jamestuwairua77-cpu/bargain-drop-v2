@@ -33,7 +33,7 @@
 //   - Uses CJK variant normalization matching sync-full.js (do not regress).
 //   - Never logs openId / raw sign header — only masked messageId + type.
 
-import { ghRead, ghWrite, shopifyFetch, cjFetchMulti } from './_sync-lib.js';
+import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory } from './_sync-lib.js';
 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 
@@ -283,29 +283,40 @@ async function importProduct(env, payload) {
   const productSku = p.productSku;
   if (!productSku && !pid) return { imported: false, reason: 'no pid/productSku' };
 
-  // Retrieve the FULL variant list from CJ via pid (CJ pushes only changed fields).
-  const cjData = await cjVariantsByPid(env, pid, productSku || p.variantSku);
-  if (!cjData) {
-    return { imported: false, reason: 'CJ variant query failed', pid };
-  }
-
-  // Resolve store (Shopify) product id.
+  // Resolve store (Shopify) product id from the push (by SKU), independent of any CJ call.
   const { shopifyId } = await resolveShopifyProduct(env, p);
 
-  if (!shopifyId) {
-    // Product not yet in Shopify → CREATE it from CJ data (full import w/ all variants).
-    const created = await createProductInShopify(env, pid, cjData, p);
-    return created;
-  }
-
-  // Reconcile: ensure Shopify has every CJ variant.
-  const rec = await reconcileVariantsToShopify(env, shopifyId, cjData);
-
-  // Update product-level fields (title/desc/price) so rebuild reflects them.
+  // Build the product-level patch from PUSH data only (zero extra CJ quota).
+  // This is the authoritative category fix: CJ's `categoryName` is the real
+  // category path; `productType` is a numeric CJ type ID and must NOT be used.
   const patches = {};
   if (p.productNameEn != null) patches.title = p.productNameEn;
   if (p.productDescription != null) patches.body_html = p.productDescription;
   if (p.productSellPrice != null) { const rp = repriceAUD(p.productSellPrice); if (rp != null) patches.price = rp; }
+  const mappedType = mapCategory(p.categoryName || p.productType);
+  if (mappedType && mappedType !== 'other') patches.product_type = mappedType;
+
+  // Retrieve the FULL variant list from CJ via pid (CJ pushes only changed fields).
+  // This is best-effort: if it fails we still apply the category patch above, so a
+  // CJ quota/rate hiccup never blocks the category fix.
+  const cjData = await cjVariantsByPid(env, pid, productSku || p.variantSku).catch(() => null);
+
+  if (!shopifyId) {
+    // Product not yet in Shopify → CREATE it (full import w/ all variants if we have them).
+    if (!cjData) {
+      // No variant data AND not in Shopify: we can still create a minimal product
+      // with the push's category/name/price so it shows up correctly categorized.
+      return createMinimalProductInShopify(env, p, patches, mappedType);
+    }
+    const created = await createProductInShopify(env, pid, cjData, p);
+    return created;
+  }
+
+  // Reconcile: ensure Shopify has every CJ variant (best-effort).
+  let rec = { created: 0, updated: 0 };
+  if (cjData) rec = await reconcileVariantsToShopify(env, shopifyId, cjData).catch(() => ({ created: 0, updated: 0 }));
+
+  // Apply product-level patch (title/desc/price/category).
   if (Object.keys(patches).length) {
     await shopifyFetch(env, `/products/${shopifyId}.json`, {
       method: 'PUT',
@@ -338,11 +349,40 @@ async function importProduct(env, payload) {
   }
 
   return {
-    imported: rec.created > 0 || rec.updated > 0,
+    imported: rec.created > 0 || rec.updated > 0 || Object.keys(patches).length > 0,
     pid,
     shopifyId,
+    categoryApplied: patches.product_type || null,
     ...rec,
   };
+}
+
+// ── Create a minimal Shopify product from PUSH data only (no CJ variant pull) ──
+// Used when a product isn't in Shopify yet AND the CJ variant query failed/rate-limited.
+// We still have the category/name/price in the push, so create a single-variant
+// product that shows up correctly categorized (variants get reconciled on a later push).
+async function createMinimalProductInShopify(env, p, patches, mappedType) {
+  const title = p.productNameEn || p.productName || p.cjProductTitle || 'Imported Product';
+  const sku = p.productSku || p.variantSku || undefined;
+  const price = p.productSellPrice != null ? (repriceAUD(p.productSellPrice) ?? 0) : 0;
+  const body = {
+    product: {
+      title,
+      body_html: p.productDescription || '',
+      product_type: mappedType && mappedType !== 'other' ? mappedType : 'other',
+      status: 'active',
+      variants: [{
+        price: String(price),
+        sku,
+        option1: 'Default Title',
+      }],
+      images: extractPushImages(p),
+    },
+  };
+  const r = await shopifyFetch(env, '/products.json', { method: 'POST', body: JSON.stringify(body) });
+  if (!r.ok) return { imported: false, reason: 'minimal create ' + r.status, pid: p.pid };
+  const newId = r.body && r.body.product && r.body.product.id;
+  return { imported: true, pid: p.pid, created: true, minimal: true, shopifyId: newId, categoryApplied: body.product.product_type };
 }
 
 // ── Create a brand-new Shopify product from CJ data (all variants) ───────
@@ -380,7 +420,7 @@ async function createProductInShopify(env, pid, cjData, p) {
     product: {
       title,
       body_html: p.productDescription || '',
-      product_type: p.productType != null ? String(p.productType) : undefined,
+      product_type: mapCategory(p.categoryName || p.productType),
       variants: shopVariants,
       options: options.length ? options : undefined,
       images: extractPushImages(p),
