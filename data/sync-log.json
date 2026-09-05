@@ -3,6 +3,43 @@
     "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
+    "messageId": "f5********c8",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJXX201544404DW",
+    "receivedAt": "2026-09-05T00:48:06.260Z",
+    "at": "2026-09-05T00:48:06.534Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
     "messageId": "81********ba",
     "valid": true,
     "paramKeys": [
@@ -4946,27 +4983,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T18:26:42.408Z",
     "at": "2026-09-04T18:26:42.671Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "b3********76",
-    "valid": true,
-    "paramKeys": [
-      "2412120705181601800"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"2412120705181601800\":[{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1726205591435091968\",\"storageNum\":39,\"vid\":\"2412120705181601800\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1726205591435091968\",\"storageNum\":13083,\"vid\":\"2412120705181601800\"},{\"areaEn\":\"US Warehouse\",\"areaId\":\"2\",\"countryCode\":\"US\",\"pid\":\"1726205591435091968\",\"storageNum\":105,\"vid\":\"1",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T18:25:14.994Z",
-    "at": "2026-09-04T18:25:15.346Z"
   }
 ]
