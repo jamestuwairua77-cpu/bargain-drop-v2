@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "d1********20",
+    "valid": true,
+    "paramKeys": [
+      "2609051020111602000"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2609051020111602000\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2507181122531612800\",\"storageNum\":7480,\"vid\":\"2609051020111602000\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T10:21:16.109Z",
+    "at": "2026-09-05T10:21:16.380Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "VARIANT",
     "messageType": "UPDATE",
     "messageId": "50********b4",
@@ -5331,11 +5353,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T20:40:14.277Z",
     "at": "2026-09-04T20:40:14.511Z"
-  },
-  {
-    "action": "save-order",
-    "id": "BD-CC-MTNF0NNX",
-    "status": "unpaid",
-    "at": "2026-09-04T20:37:31.926Z"
   }
 ]
