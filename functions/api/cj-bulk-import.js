@@ -24,8 +24,8 @@ const LIST_PAGE_SIZE = 10;       // CJ listV2 hard cap
 const SHOP_INVENTORY_QTY = 100;  // seed stock so products are live & trackable
 const LOCATION_ID = 'gid://shopify/Location/91452932227';
 const SHOPIFY_GQ = '/graphql.json';           // GraphQL endpoint (no REST throttle)
-const POLL_INTERVAL = 1500;      // 1.5s between bulk-op polls
-const POLL_TIMEOUT = 20000;      // 20s max wait for a bulk op (CF function budget)
+const POLL_INTERVAL = 4000;      // 4s between bulk-op polls
+const POLL_TIMEOUT = 24000;      // 24s max poll per run (returns 'still running' if op not done)
 const VARIANTS_PER_RUN = 8;      // variant-attach calls per run (phase 2 chunk)
 
 // ── Category map (leaf subcategory UUIDs per top-level category) ─────────
@@ -138,10 +138,11 @@ async function loadState(env) {
     try {
       const st = JSON.parse(atob(r.content.replace(/\n/g, '')));
       if (!Array.isArray(st.pendingVariants)) st.pendingVariants = [];
+      if (st.inFlightOp && !st.inFlightOp.opId) delete st.inFlightOp;
       return st;
     } catch {}
   }
-  return { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0, pendingVariants: [] };
+  return { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0, pendingVariants: [], inFlightOp: null };
 }
 
 async function saveState(env, state) {
@@ -174,61 +175,64 @@ async function discoverPids(env, catName, subcats, state, budget) {
   return found;
 }
 
-// ── Phase 1: bulk create products via bulkOperationRunMutation ───────────
-async function bulkCreateProducts(env, items) {
-  // items: [{ pid, productInput, gqlVariants, images }]
+// ── Phase 1a: fire a bulkOperationRunMutation(productCreate) — returns
+//    IMMEDIATELY with the op id + the items snapshot (for later result mapping).
+//    This is fire-and-forget: the op runs in Shopify's background while we
+//    persist state and let the NEXT run poll for completion. Avoids the CF
+//    function request timeout entirely.
+async function fireBulkCreate(env, items) {
   const mutation = 'mutation call($input: ProductCreateInput!) { productCreate(product: $input) { product { id title } userErrors { field message } } }';
   const jsonl = items.map(it => JSON.stringify({ input: it.productInput })).join('\n') + '\n';
 
-  // 1. stage upload
   const stageQ = `mutation stagedUploadsCreate($input: [StagedUploadInput!]!) { stagedUploadsCreate(input: $input) { stagedTargets { url parameters { name value } } userErrors { field message } } }`;
   const stageRes = await gqlRaw(env, stageQ, { input: [{ resource: 'BULK_MUTATION_VARIABLES', filename: 'bulk-products.jsonl', mimeType: 'text/jsonl', httpMethod: 'POST' }] });
   const targets = (stageRes && stageRes.data && stageRes.data.stagedUploadsCreate && stageRes.data.stagedUploadsCreate.stagedTargets) || [];
   if (!targets.length) return { ok: false, error: 'staged upload failed: ' + JSON.stringify(stageRes && stageRes.data) };
-  const target = targets[0];
   const params = {};
-  for (const p of (target.parameters || [])) params[p.name] = p.value;
-  const uploadUrl = target.url;
-  const key = params.key;
+  for (const p of (targets[0].parameters || [])) params[p.name] = p.value;
 
-  // 2. multipart upload to Google storage
   const form = new FormData();
   for (const [name, value] of Object.entries(params)) form.append(name, value);
   form.append('file', new Blob([jsonl], { type: 'text/jsonl' }), 'bulk-products.jsonl');
-  const up = await fetch(uploadUrl, { method: 'POST', body: form });
+  const up = await fetch(targets[0].url, { method: 'POST', body: form });
   if (up.status !== 200 && up.status !== 201) {
     return { ok: false, error: 'staged upload HTTP ' + up.status + ': ' + (await up.text()).slice(0, 300) };
   }
 
-  // 3. run bulk mutation
   const runQ = `mutation bulkOperationRunMutation($mutation: String!, $stagedUploadPath: String!, $clientIdentifier: String) { bulkOperationRunMutation(mutation: $mutation, stagedUploadPath: $stagedUploadPath, clientIdentifier: $clientIdentifier) { bulkOperation { id status } userErrors { field message } } }`;
-  const runRes = await gqlRaw(env, runQ, { mutation, stagedUploadPath: key, clientIdentifier: 'cjbulk-' + Date.now() });
+  const runRes = await gqlRaw(env, runQ, { mutation, stagedUploadPath: params.key, clientIdentifier: 'cjbulk-' + Date.now() });
   const bu = (runRes && runRes.data && runRes.data.bulkOperationRunMutation && runRes.data.bulkOperationRunMutation.bulkOperation) || null;
   const runErrs = (runRes && runRes.data && runRes.data.bulkOperationRunMutation && runRes.data.bulkOperationRunMutation.userErrors) || [];
   if (!bu) return { ok: false, error: 'bulk run failed: ' + JSON.stringify(runRes && runRes.data) };
-  const opId = bu.id;
-  const opGid = opId.split('/').pop();
-  if (runErrs.length) return { ok: false, error: 'bulk run userErrors: ' + JSON.stringify(runErrs), opId };
+  if (runErrs.length) return { ok: false, error: 'bulk run userErrors: ' + JSON.stringify(runErrs), opId: bu.id };
 
-  // 4. poll node(id:) until COMPLETED
+  // Persist the full items snapshot alongside the op id so the poller can map
+  // result JSONL lines back to pid + variant/images payload later.
+  return { ok: true, opId: bu.id, items: items.map(it => ({ pid: it.pid, gqlVariants: it.gqlVariants, images: it.images })) };
+}
+
+// ── Phase 1b: poll an already-fired bulk op, download results, map to items ─
+async function pollBulkResult(env, inFlight) {
+  const opId = inFlight.opId;
+  const items = inFlight.items || [];
+  const opGid = opId.split('/').pop();
   const pollQ = `query($id: ID!) { node(id: $id) { ... on BulkOperation { id status objectCount errorCode url } } }`;
+
   const started = Date.now();
   let resultUrl = null;
+  let node = null;
   while (Date.now() - started < POLL_TIMEOUT) {
     await new Promise(r => setTimeout(r, POLL_INTERVAL));
     const pRes = await gqlRaw(env, pollQ, { id: opGid });
-    const node = (pRes && pRes.data && pRes.data.node) || null;
-    if (!node) continue;
-    if (node.status === 'COMPLETED') { resultUrl = node.url || null; break; }
-    if (node.status === 'FAILED') return { ok: false, error: 'bulk op FAILED: ' + node.errorCode, opId, objectCount: node.objectCount };
+    node = (pRes && pRes.data && pRes.data.node) || null;
+    if (node && node.status === 'COMPLETED') { resultUrl = node.url || null; break; }
+    if (node && node.status === 'FAILED') return { done: true, failed: true, error: 'bulk op FAILED: ' + node.errorCode, objectCount: node.objectCount, created: [] };
   }
-  if (!resultUrl) return { ok: false, error: 'bulk op timed out', opId };
+  if (!resultUrl) return { done: false, created: [] }; // still running — poll again next run
 
-  // 5. download result JSONL → map line order → product id
   const resultText = await (await fetch(resultUrl)).text();
   const created = [];
-  const lines = resultText.split('\n').filter(l => l.trim());
-  lines.forEach((line, idx) => {
+  resultText.split('\n').filter(l => l.trim()).forEach((line, idx) => {
     try {
       const obj = JSON.parse(line);
       const pc = obj.data && obj.data.productCreate;
@@ -236,13 +240,14 @@ async function bulkCreateProducts(env, items) {
       if (errs.length) {
         created.push({ pid: items[idx] ? items[idx].pid : null, ok: false, error: errs.map(e => e.message).join('; ') });
       } else if (pc && pc.product && pc.product.id) {
-        created.push({ pid: items[idx] ? items[idx].pid : null, ok: true, productId: pc.product.id });
+        const it = items[idx] || {};
+        created.push({ pid: it.pid || null, ok: true, productId: pc.product.id, gqlVariants: it.gqlVariants, images: it.images });
       }
     } catch (e) {
       created.push({ pid: items[idx] ? items[idx].pid : null, ok: false, error: 'parse: ' + e.message });
     }
   });
-  return { ok: true, created, opId };
+  return { done: true, created, objectCount: node ? node.objectCount : undefined };
 }
 
 // ── Phase 2: attach variants + images via productVariantsBulkCreate ──────
@@ -266,9 +271,9 @@ export async function onRequest(context) {
   const limit = Math.max(1, Math.min(MAX_PER_RUN, parseInt(url.searchParams.get('limit') || String(MAX_PER_RUN), 10)));
 
   const state = await loadState(env);
-  if (wantReset) Object.assign(state, { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0, pendingVariants: [] });
+  if (wantReset) Object.assign(state, { donePids: {}, fetchedPids: {}, catCursor: {}, imported: 0, pendingVariants: [], inFlightOp: null });
 
-  const summary = { run: new Date().toISOString(), discovered: 0, fetched: 0, bulkCreated: 0, variantsAttached: 0, variantErrors: 0, skipped: 0, totalImported: state.imported || 0, pending: (state.pendingVariants || []).length, errors: [] };
+  const summary = { run: new Date().toISOString(), discovered: 0, fetched: 0, bulkCreated: 0, variantsAttached: 0, variantErrors: 0, skipped: 0, totalImported: state.imported || 0, pending: (state.pendingVariants || []).length, inFlight: !!state.inFlightOp, errors: [] };
 
   // ── STAGE B (first): drain pending variant-attach queue (leftover from a
   //    prior run that timed out before phase 2 finished). Small chunk so we
@@ -300,61 +305,75 @@ export async function onRequest(context) {
     await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
   }
 
-  // ── STAGE A: discover → fetch → bulk-create products. Persist state as soon
-  //    as bulk-create resolves so we never re-create duplicates on a timeout.
+  // ── STAGE A: discover → fetch → fire a bulk-create op (fire-and-forget).
+  //    If a previous op is still in flight, poll it first and queue results.
   const catNames = Object.keys(CATEGORY_MAP);
-  const discovered = [];
-  let exhausted = 0;
-  while (discovered.length < limit && exhausted < catNames.length) {
-    let progressed = false;
-    for (const cat of catNames) {
-      if (discovered.length >= limit) break;
-      const fresh = await discoverPids(env, cat, CATEGORY_MAP[cat], state, limit - discovered.length);
-      if (fresh.length) { discovered.push(...fresh); progressed = true; }
-      else exhausted++;
-    }
-    if (!progressed) break;
-  }
-  summary.discovered = discovered.length;
 
-  const items = [];
-  for (const pid of discovered) {
-    if (items.length >= limit) break;
-    try {
-      const d = await cjFetchMulti(env, `/product/query?pid=${pid}`);
-      if (!d || d.code !== 200 || !d.data) { state.fetchedPids[pid] = true; state.donePids[pid] = 'nodata'; summary.skipped++; continue; }
-      const built = buildBulkProduct(pid, d.data);
-      if (!built) { state.fetchedPids[pid] = true; state.donePids[pid] = 'novariants'; summary.skipped++; continue; }
-      items.push({ pid, ...built });
-      state.fetchedPids[pid] = true;
-      summary.fetched++;
-      await new Promise(r => setTimeout(r, 200));
-    } catch (e) {
-      summary.errors.push({ pid, error: String(e && e.message) });
-    }
-  }
-
-  if (items.length) {
-    const bulk = await bulkCreateProducts(env, items);
-    if (!bulk.ok) {
-      summary.errors.push({ phase: 'bulk', error: bulk.error });
-    } else {
-      for (const c of bulk.created) {
-        const it = items.find(x => x.pid === c.pid);
-        if (c.ok && c.productId && it) {
+  if (state.inFlightOp) {
+    const pr = await pollBulkResult(env, state.inFlightOp);
+    if (pr.done) {
+      for (const c of pr.created || []) {
+        if (c.ok && c.productId) {
           summary.bulkCreated++;
-          // Queue phase 2 instead of doing it inline (avoids timeout).
-          state.pendingVariants = (state.pendingVariants || []).concat([{ pid: c.pid, productId: c.productId, gqlVariants: it.gqlVariants, images: it.images }]);
+          state.pendingVariants = (state.pendingVariants || []).concat([{ pid: c.pid, productId: c.productId, gqlVariants: c.gqlVariants, images: c.images }]);
         } else {
           summary.errors.push({ pid: c.pid, error: 'bulk line: ' + c.error });
           if (c.pid) delete state.fetchedPids[c.pid];
         }
       }
-      // Persist immediately — products are created, variants queued.
-      summary.pending = state.pendingVariants.length;
-      await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
+      if (pr.failed) summary.errors.push({ phase: 'bulk', error: pr.error });
+      delete state.inFlightOp;
+      summary.finishedBulkOp = true;
+    } else {
+      summary.inFlight = true; // still running, try again next run
     }
-  } else {
+    summary.pending = state.pendingVariants.length;
+    await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
+  }
+
+  if (!state.inFlightOp) {
+    const discovered = [];
+    let exhausted = 0;
+    while (discovered.length < limit && exhausted < catNames.length) {
+      let progressed = false;
+      for (const cat of catNames) {
+        if (discovered.length >= limit) break;
+        const fresh = await discoverPids(env, cat, CATEGORY_MAP[cat], state, limit - discovered.length);
+        if (fresh.length) { discovered.push(...fresh); progressed = true; }
+        else exhausted++;
+      }
+      if (!progressed) break;
+    }
+    summary.discovered = discovered.length;
+
+    const items = [];
+    for (const pid of discovered) {
+      if (items.length >= limit) break;
+      try {
+        const d = await cjFetchMulti(env, `/product/query?pid=${pid}`);
+        if (!d || d.code !== 200 || !d.data) { state.fetchedPids[pid] = true; state.donePids[pid] = 'nodata'; summary.skipped++; continue; }
+        const built = buildBulkProduct(pid, d.data);
+        if (!built) { state.fetchedPids[pid] = true; state.donePids[pid] = 'novariants'; summary.skipped++; continue; }
+        items.push({ pid, ...built });
+        state.fetchedPids[pid] = true;
+        summary.fetched++;
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        summary.errors.push({ pid, error: String(e && e.message) });
+      }
+    }
+
+    if (items.length) {
+      const fired = await fireBulkCreate(env, items);
+      if (!fired.ok) {
+        summary.errors.push({ phase: 'bulk', error: fired.error });
+        // release these pids so they can be retried next run
+        for (const it of items) if (it.pid) delete state.fetchedPids[it.pid];
+      } else {
+        state.inFlightOp = { opId: fired.opId, items: fired.items };
+        summary.bulkOpFired = fired.opId;
+      }
+    }
     await saveState(env, state).catch(e => summary.errors.push({ phase: 'save', error: String(e && e.message) }));
   }
 
