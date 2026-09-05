@@ -88,6 +88,78 @@ function _setExhausted(apiKey) {
   if (_preferredKey === apiKey) _preferredKey = null; // step off the dead key
 }
 
+// ── DURABLE key-health persistence (survives isolate recycling) ───────────
+// Cloudflare Pages Functions recycle isolates per request, so in-memory state
+// (pointsInfo / preferred key) is lost between webhook events. To make "use one
+// key until exhausted, then the next" actually hold across requests, we persist
+// a small health map to a Shopify shop metafield (namespace cjkeys / key health).
+// Only MASKS (first 10 chars) + point counts are stored — never the key secret.
+const SHOP_GID = 'gid://shopify/Shop/73594044547';
+const KEYHEALTH_NS = 'cjkeys';
+const KEYHEALTH_KEY = 'health';
+function maskKey(apiKey) {
+  return typeof apiKey === 'string' ? apiKey.slice(0, 10) : '';
+}
+let _healthLoaded = false;         // have we read the metafield this isolate?
+let _healthDirty = false;          // pending write?
+let _healthLastSaved = 0;          // throttle metafield writes
+const HEALTH_TTL_MS = 20 * 1000;   // re-read persisted health at most every 20s
+
+// Read persisted key health from Shopify. Returns { preferred, keys: { mask: {remaining,usedToday,at} } }.
+async function _loadKeyHealth(env) {
+  try {
+    const q = `query { shop { metafields(first:1, keys: ["${KEYHEALTH_NS}.${KEYHEALTH_KEY}"]) { edges { node { value } } } } }`;
+    const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
+    const edges = body?.data?.shop?.metafields?.edges || [];
+    if (!edges.length) return { preferred: null, keys: {} };
+    const parsed = JSON.parse(edges[0].node.value || '{}');
+    return { preferred: parsed.preferred || null, keys: parsed.keys || {} };
+  } catch { return { preferred: null, keys: {} }; }
+}
+
+// Apply persisted health to the in-memory _keyTokens map (mask -> full key).
+function _applyHealthToMemory(env, health) {
+  const byMask = new Map();
+  for (const k of cjKeys(env)) byMask.set(maskKey(k), k);
+  // restore preferred
+  if (health.preferred && byMask.has(health.preferred)) _preferredKey = byMask.get(health.preferred);
+  for (const [mask, info] of Object.entries(health.keys || {})) {
+    const full = byMask.get(mask);
+    if (!full) continue;
+    const c = _keyTokens.get(full);
+    if (c && typeof info.remaining === 'number') {
+      c.remaining = info.remaining;
+      c.usedToday = info.usedToday;
+    }
+  }
+}
+
+// Build the health snapshot to persist (only masks, never secrets).
+function _healthSnapshot(env) {
+  const keys = {};
+  for (const k of cjKeys(env)) {
+    const c = _keyTokens.get(k);
+    if (c && typeof c.remaining === 'number') {
+      keys[maskKey(k)] = { remaining: c.remaining, usedToday: c.usedToday, at: Date.now() };
+    }
+  }
+  return { preferred: _preferredKey ? maskKey(_preferredKey) : null, keys };
+}
+
+async function _saveKeyHealth(env) {
+  if (!_healthDirty) return;
+  const snap = _healthSnapshot(env);
+  try {
+    const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
+    await shopifyFetch(env, '/graphql.json', {
+      method: 'POST',
+      body: JSON.stringify({ query: mq, variables: { m: [{ ownerId: SHOP_GID, namespace: KEYHEALTH_NS, key: KEYHEALTH_KEY, type: 'json', value: JSON.stringify(snap) }] } }),
+    });
+    _healthDirty = false;
+    _healthLastSaved = Date.now();
+  } catch { /* non-fatal: keep in-memory state for this isolate */ }
+}
+
 async function keyToken(apiKey) {
   const c = _keyTokens.get(apiKey);
   if (c && Date.now() < c.exp) return c.tok;
@@ -116,6 +188,7 @@ function recordKeyPoints(apiKey, code, pointsInfo) {
   // deprioritize this key until its per-minute replenishment / daily reset recovers it.
   // Also an explicit remaining === 0 from pointsInfo means it's empty.
   if (code === 16900500 || code === 429 || (pi && pi.remaining === 0)) { _setExhausted(apiKey); }
+  _healthDirty = true;
 }
 
 // Sort the configured keys so the healthiest (most remaining points) is tried first.
@@ -200,6 +273,12 @@ export function cjKeys(env) {
 }
 
 export async function cjFetchMulti(env, path, opts = {}) {
+  // Restore persisted key health (survives isolate recycling) once per isolate.
+  if (!_healthLoaded) {
+    _healthLoaded = true;
+    const h = await _loadKeyHealth(env);
+    _applyHealthToMemory(env, h);
+  }
   const keys = orderedCjKeys(env);
   let lastErr = null, lastBody = null;
   for (const apiKey of keys) {
@@ -227,9 +306,11 @@ export async function cjFetchMulti(env, path, opts = {}) {
         msg.toLowerCase().includes('insufficient api points');
       if (isAccountError) { lastBody = body; continue; }
       _preferredKey = apiKey; // sticky: keep using this key until it's exhausted
+      await _saveKeyHealth(env); // persist preferred + points (best-effort)
       return body;
     } catch (e) { lastErr = e; }
   }
+  await _saveKeyHealth(env); // persist whatever we learned (best-effort)
   if (lastBody) return lastBody; // all keys failed (not-found OR points) -> return last
   throw lastErr || new Error('all CJ keys failed');
 }
