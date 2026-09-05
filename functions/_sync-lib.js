@@ -89,8 +89,43 @@ async function keyToken(apiKey) {
   if (!tok) return null;
   // openId is the account's webhook signing secret (present in the same response).
   const openId = j?.data?.openId != null ? String(j.data.openId) : null;
-  _keyTokens.set(apiKey, { tok, openId, exp: Date.now() + 12 * 3600 * 1000 });
+  _keyTokens.set(apiKey, { tok, openId, exp: Date.now() + 12 * 3600 * 1000, remaining: null, usedToday: null });
   return tok;
+}
+
+// Record a key's observed points budget (every CJ response carries pointsInfo).
+// Used to prefer keys that still have headroom so one exhausted account can't
+// block the others. remaining=0 (or code 16900500 / 429) marks it exhausted.
+function recordKeyPoints(apiKey, code, pointsInfo) {
+  const c = _keyTokens.get(apiKey);
+  if (!c) return;
+  const pi = pointsInfo || null;
+  if (pi && typeof pi.remaining === 'number') { c.remaining = pi.remaining; c.usedToday = pi.usedToday; }
+  // Insufficient-points (16900500) / HTTP 429 => treat as exhausted so sibling calls
+  // deprioritize this key until its per-minute replenishment / daily reset recovers it.
+  if (code === 16900500 || code === 429) { c.remaining = 0; }
+}
+
+// Sort the configured keys so the healthiest (most remaining points) is tried first.
+// Keys known to be exhausted (remaining === 0) are moved to the END, and keys whose
+// budget is unknown sort in the middle. This yields the same key SET as cjKeys(),
+// only ordered, so single-key behavior is unchanged.
+export function sortedCjKeys(env) {
+  const keys = cjKeys(env);
+  return keys.slice().sort((a, b) => {
+    const ca = _keyTokens.get(a); const cb = _keyTokens.get(b);
+    const ra = ca && typeof ca.remaining === 'number' ? ca.remaining : null;
+    const rb = cb && typeof cb.remaining === 'number' ? cb.remaining : null;
+    // exhausted (0) -> last
+    if (ra === 0 && rb !== 0) return 1;
+    if (rb === 0 && ra !== 0) return -1;
+    // known vs unknown: known-with-headroom first
+    if (ra === null && rb !== null && rb > 0) return 1;
+    if (rb === null && ra !== null && ra > 0) return -1;
+    // both known -> higher remaining first
+    if (ra !== null && rb !== null && ra !== rb) return rb - ra;
+    return 0;
+  });
 }
 
 // Fetch (and cache) the openId for every configured CJ key. openId is the
@@ -124,7 +159,7 @@ export function cjKeys(env) {
 }
 
 export async function cjFetchMulti(env, path, opts = {}) {
-  const keys = cjKeys(env);
+  const keys = sortedCjKeys(env);
   let lastErr = null, lastBody = null;
   for (const apiKey of keys) {
     try {
@@ -135,6 +170,8 @@ export async function cjFetchMulti(env, path, opts = {}) {
         headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
       });
       const body = await r.json();
+      // Track this key's points budget so sibling calls prefer healthy keys.
+      recordKeyPoints(apiKey, body && body.code, body && body.pointsInfo);
       // Any account-level failure (product-not-found 1600014, insufficient points,
       // subscription/location errors like 1600200, HTTP 429, etc.) -> try the next
       // key, because each CJ account has its OWN points bucket and subscription.
