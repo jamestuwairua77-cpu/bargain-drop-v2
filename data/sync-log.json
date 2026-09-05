@@ -1,6 +1,28 @@
 [
   {
     "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
+    "messageId": "5d********bf",
+    "valid": true,
+    "paramKeys": [
+      "2511030734461647800"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2511030734461647800\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2508110905001619400\",\"storageNum\":6193,\"vid\":\"2511030734461647800\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2508110905001619400\",\"storageNum\":9818,\"vid\":\"2508180933401627200\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"2508110905001619400\",\"storageNum\":5986,",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T11:14:02.713Z",
+    "at": "2026-09-05T11:14:03.038Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "PRODUCT",
     "messageType": "UPDATE",
     "messageId": "40********19",
@@ -5503,44 +5525,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T21:19:16.958Z",
     "at": "2026-09-04T21:19:17.263Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "PRODUCT",
-    "messageType": "UPDATE",
-    "messageId": "8e********70",
-    "valid": true,
-    "paramKeys": [
-      "categoryId",
-      "categoryName",
-      "fields",
-      "pid",
-      "productDescription",
-      "productImage",
-      "productName",
-      "productNameEn",
-      "productProperty1",
-      "productProperty2",
-      "productProperty3",
-      "productPropertyEn",
-      "productSellPrice",
-      "productSku",
-      "productStatus",
-      "productType",
-      "saleStatus"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": null,
-    "imported": false,
-    "reason": "shopify create 422",
-    "pid": "1732222336071380992",
-    "receivedAt": "2026-09-04T21:18:15.256Z",
-    "at": "2026-09-04T21:18:15.472Z"
   }
 ]
