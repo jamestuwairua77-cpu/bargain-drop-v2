@@ -26,7 +26,7 @@ const LOCATION_ID = 'gid://shopify/Location/91452932227';
 const SHOPIFY_GQ = '/graphql.json';           // GraphQL endpoint (no REST throttle)
 const POLL_INTERVAL = 4000;      // 4s between bulk-op polls
 const POLL_TIMEOUT = 24000;      // 24s max poll per run (returns 'still running' if op not done)
-const VARIANTS_PER_RUN = 8;      // variant-attach calls per run (phase 2 chunk)
+const VARIANTS_PER_RUN = 20;     // variant-attach calls per run (matched to MAX_PER_RUN so drain keeps pace)
 
 // ── Category map (leaf subcategory UUIDs per top-level category) ─────────
 const CATEGORY_MAP = {
