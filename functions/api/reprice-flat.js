@@ -75,7 +75,7 @@ async function saveState(env, state) {
 // ─── Scan products (GraphQL cursor pagination, tag cj-import) ─────────────
 async function fetchProductsPage(env, cursor) {
   const q = `query($c: String, $n: Int) {
-    products(first: $n, after: $c, query: "tag:cj-import") {
+    products(first: $n, after: $c) {
       edges { cursor node { id title tags variants(first: 100) { edges { node { id sku price selectedOptions { name value } } } } options { name values } } }
       pageInfo { hasNextPage }
     }
@@ -97,6 +97,18 @@ function pidFromTags(tags) {
 }
 
 // ─── Fetch CJ base costs via deployed proxy (valid env keys live there) ───
+async function fetchCjCostsBySku(sku) {
+  const url = `https://bargain-drop.online/api/cj-product-query?variantSku=${encodeURIComponent(sku)}`;
+  try {
+    const r = await fetch(url, { headers: { 'X-Admin-Pin': '03091996', 'User-Agent': 'bargain-drop-reprice/1.0' } });
+    const j = await r.json();
+    if (!j || j.code !== 200 || !j.data) return null;
+    const map = {};
+    for (const v of (j.data.variants || [])) if (v.variantSku) map[v.variantSku] = parseFloat(v.variantSellPrice) || 0;
+    return map;
+  } catch { return null; }
+}
+
 async function fetchCjCosts(pid) {
   const url = `https://bargain-drop.online/api/cj-product-query?pid=${encodeURIComponent(pid)}`;
   try {
@@ -187,9 +199,15 @@ export async function onRequest(context) {
       const p = edge.node;
       const pid = pidFromTags(p.tags);
       const variants = (p.variants && p.variants.edges || []).map(e => e.node);
-      if (!pid) { skippedNoPid++; continue; }
 
-      const costMap = await fetchCjCosts(pid);
+      let costMap = null;
+      if (pid) {
+        costMap = await fetchCjCosts(pid);
+      } else {
+        // no cj-pid tag — resolve via first variant SKU (returns full variant list)
+        const firstSku = variants.find(v => v && v.sku)?.sku;
+        if (firstSku) costMap = await fetchCjCostsBySku(firstSku);
+      }
       if (!costMap) { skippedNoCost++; continue; }
 
       let allPriced = true;
