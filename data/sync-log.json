@@ -1,6 +1,43 @@
 [
   {
     "action": "cj-webhook",
+    "type": "VARIANT",
+    "messageType": "UPDATE",
+    "messageId": "fa********51",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantValue2",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJWJNHNT05068-Red-100cm",
+    "receivedAt": "2026-09-05T11:22:03.976Z",
+    "at": "2026-09-05T11:22:04.347Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "ea********f4",
@@ -5533,27 +5570,5 @@
     "changed": 0,
     "receivedAt": "2026-09-04T21:27:16.933Z",
     "at": "2026-09-04T21:27:17.211Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "c7********44",
-    "valid": true,
-    "paramKeys": [
-      "1952767422473928705"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1952767422473928705\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-04T21:26:16.406Z",
-    "at": "2026-09-04T21:26:16.603Z"
   }
 ]
