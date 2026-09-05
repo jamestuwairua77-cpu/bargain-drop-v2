@@ -1019,11 +1019,13 @@ export async function cjWebhookRegister(env, { subscribeAll = false, productIds 
 
     // per-pid: retry failures across keys until no key remains or all succeed.
     let remaining = [...productIds];
+    let _rawDebug = {};
     for (let k = 0; k < keys.length && remaining.length; k++) {
       const tok = await keyToken(keys[k]);
       if (!tok) continue;
       await cjThrottle();
       const { resp: j } = await cjWebhookCall('/webhook/product/subscribe', { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' }, { productIds: remaining, subscribeAll: false });
+      if (!Object.keys(_rawDebug).length) _rawDebug = j || {};
       if (j?.code === 200 || j?.success === true) {
         gotResponse = true;
         const d = j?.data || {};
@@ -1040,7 +1042,7 @@ export async function cjWebhookRegister(env, { subscribeAll = false, productIds 
       ok: gotResponse,
       code: gotResponse ? 200 : (last?.code || 'none'),
       message: gotResponse ? 'Success' : (last?.message || 'no key could subscribe'),
-      data: {},
+      data: _rawDebug || {},
       subscribedIds: [...successful],
       failedIds: [...allFailed],
       keyIndex: null,

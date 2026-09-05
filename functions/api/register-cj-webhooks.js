@@ -98,6 +98,7 @@ export async function onRequest(context) {
           if (ok) {
             const succ = (j?.subscribedIds || []).map(String);
             const fails = (j?.failedIds || []).map(String);
+            result.steps._lastData = j?.data;
             succ.forEach((p) => okSet.add(p));
             fails.forEach((p) => failSet.add(p));
             processed += chunk.length;
@@ -116,6 +117,7 @@ export async function onRequest(context) {
         result.steps.subscribe = {
           phase: prog.phase, total: prog.pids.length, done: prog.done, subscribed: prog.subscribed,
           failed: failSet.size, processedThisCall: processed, failedThisCall: failed, topicsOk,
+          lastData: result.steps._lastData,
           complete: doneAll,
           resumeHint: doneAll ? 'done' : ('call again ?subscribe=1&limit=' + limit),
         };
