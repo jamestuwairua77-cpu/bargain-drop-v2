@@ -7,20 +7,18 @@
 //   2. ~1,700 products with messy category names (mixed `>`/`/` separators, typos,
 //      stray unicode). Normalize every category to a canonical top-level + clean
 //      `> `-delimited sub-path aligned to the 14 storefront categories.
-// Then (separately, via ?rebuild=1) rebuild all-products.json / categories-data.json
-// / products-index.json and push to GitHub.
+// Then (separately, via the existing /api/rebuild-data?action=sync) rebuild
+// all-products.json / categories-data.json / products-index.json and push to GitHub.
 //
 // Resumable: progress persists in data/fix-categories-state.json (GitHub).
 // Auth: X-Admin-Pin (or ?pin=) matching ADMIN_PIN.
 //
 //   /api/fix-categories?limit=50           one bounded batch (recover + writeback)
 //   /api/fix-categories?status=1           show progress
-//   /api/fix-categories?rebuild=1          rebuild catalog JSON from Shopify + push
 //   /api/fix-categories?reset=1&limit=50   clear state and start fresh
 
-import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, ghRead, ghWrite, nextPageCursor } from '../_sync-lib.js';
+import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, nextPageCursor } from '../_sync-lib.js';
 
-const STATE_PATH = 'data/fix-categories-state.json';
 const MAX_PER_RUN = 50;
 
 // Canonical storefront top-level categories: slug -> [display name, prefixes].
@@ -115,16 +113,31 @@ async function recoverFromCj(env, product) {
   }
 }
 
+// State persists in a Shopify shop metafield (namespace fixcats / key state) — this
+// survives Cloudflare isolate recycling and avoids GitHub write-contention with the
+// "auto: rebuild" background jobs that commit catalog files every few seconds.
+const SHOP_GID = 'gid://shopify/Shop/73594044547';
+const FC_NS = 'fixcats';
+const FC_KEY = 'state';
+function emptyState() { return { done: {}, fixed: 0, recovered: 0, normalized: 0, errors: [], lastRun: null }; }
 async function loadState(env) {
   try {
-    const r = await ghRead(env, STATE_PATH);
-    if (r && r.content) return JSON.parse(Buffer.from(r.content, 'base64').toString('utf8'));
-  } catch {}
-  return { done: {}, fixed: 0, recovered: 0, normalized: 0, errors: [], lastRun: null };
+    const q = `query { shop { metafields(first:1, keys: ["${FC_NS}.${FC_KEY}"]) { edges { node { value } } } } }`;
+    const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
+    const edges = body?.data?.shop?.metafields?.edges || [];
+    if (!edges.length) return emptyState();
+    const parsed = JSON.parse(edges[0].node.value || '{}');
+    return { ...emptyState(), ...parsed, done: parsed.done || {} };
+  } catch { return emptyState(); }
 }
 async function saveState(env, state) {
-  try { const r = await ghRead(env, STATE_PATH); await ghWrite(env, STATE_PATH, JSON.stringify(state, null, 1), 'fix-categories progress', r && r.sha ? r.sha : undefined); }
-  catch {}
+  try {
+    const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
+    await shopifyFetch(env, '/graphql.json', {
+      method: 'POST',
+      body: JSON.stringify({ query: mq, variables: { m: [{ ownerId: SHOP_GID, namespace: FC_NS, key: FC_KEY, type: 'json', value: JSON.stringify(state) }] } }),
+    });
+  } catch { /* non-fatal: state is re-derived from Shopify each run anyway */ }
 }
 
 async function fetchAllActiveProducts(env) {
