@@ -145,8 +145,15 @@ export async function onRequest(context) {
       password: hashed, provider: 'email', credits: 0, createdAt: new Date().toISOString(),
     };
     users.push(user);
-    const existing = await ghRead(env, USERS_PATH);
-    await ghWrite(env, USERS_PATH, JSON.stringify(users, null, 2), 'auth: register user', existing && existing.sha);
+    try {
+      const existing = await ghRead(env, USERS_PATH);
+      await ghWrite(env, USERS_PATH, JSON.stringify(users, null, 2), 'auth: register user', existing && existing.sha);
+    } catch (we) {
+      // ghWrite throws on GitHub failures (rate limit 403, 422 conflicts). Fail cleanly
+      // instead of crashing the Worker with a Cloudflare 1101 so the user can retry.
+      console.error('register ghWrite fail:', we && we.message);
+      return json({ error: 'Account could not be saved right now. Please try again in a few minutes.' }, 503);
+    }
 
     let shopify_customer;
     try { shopify_customer = await syncCustomer(env, { email, first_name, last_name, phone, addresses }); }
@@ -177,8 +184,13 @@ export async function onRequest(context) {
     // Full name is deprecated; keep username updatable (read-only in the UI, but server field remains).
     if (username != null) user.username = username;
     if (picture != null) user.picture = picture;
-    const ex = await ghRead(env, USERS_PATH);
-    await ghWrite(env, USERS_PATH, JSON.stringify(users, null, 2), 'auth: update profile', ex && ex.sha);
+    try {
+      const ex = await ghRead(env, USERS_PATH);
+      await ghWrite(env, USERS_PATH, JSON.stringify(users, null, 2), 'auth: update profile', ex && ex.sha);
+    } catch (we) {
+      console.error('update_profile ghWrite fail:', we && we.message);
+      return json({ error: 'Could not save your profile right now. Please try again in a few minutes.' }, 503);
+    }
 
     let shopify_customer;
     try { shopify_customer = await syncCustomer(env, { email, first_name: user.first_name, last_name: user.last_name, phone: user.phone, addresses: user.addresses }); }
