@@ -67,12 +67,14 @@ async function repriceProduct(env, p) {
   const vs = p.variants || [];
   if (!vs.filter(v => v && v.id).length) return { ok: false, skip: 'no-variant-ids', id: p.id };
 
-  // IDEMPOTENCY GUARD: if the current price already equals the computed target,
-  // the product is already correctly repriced — skip it (prevents double-markup
-  // when a prior run already converted USD cost -> AUD). This is the key safety
-  // check that the earlier double-pricing bug was missing.
-  const cur = parseFloat((vs[0] && vs[0].price)) || 0;
-  if (Math.abs(cur - price) < 0.02) return { ok: false, skip: 'already-repriced', id: p.id };
+  // IDEMPOTENCY GUARD (robust): our reprice script is the ONLY thing that ever sets
+  // compare_at_price on these products. So any product with compare_at_price already set
+  // has ALREADY been repriced by us — skip it. This correctly prevents double-markup
+  // (the old price-equality check could miss a re-processed product whose current price
+  // is the already-converted AUD value). Unambiguous and race-safe.
+  if (vs.some(v => v && v.compare_at_price !== null && v.compare_at_price !== undefined)) {
+    return { ok: false, skip: 'already-repriced', id: p.id };
+  }
 
   // build variant list preserving existing options, setting new price + compare_at
   const variants = vs.map(v => {
@@ -126,12 +128,17 @@ export async function onRequest(context) {
     const reset = url.searchParams.get('reset') === '1';
     const limitRaw = parseInt(url.searchParams.get('limit') || '', 10);
     const limit = isNaN(limitRaw) ? 100 : Math.min(limitRaw, 250);
+    // STATELESS MODE: since_id can be supplied directly to walk the catalog without
+    // any GitHub progress file (which is prone to rate-limit failures). When provided,
+    // it overrides the persisted cursor and we do NOT persist progress on write.
+    const sinceOverride = url.searchParams.get('since_id');
+    const stateless = sinceOverride !== null;
 
     const progDoc = await ghRead(env, 'data/reprice-tier-progress.json');
     let prog = (progDoc && progDoc.content) ? JSON.parse(atob(progDoc.content.replace(/\n/g, ''))) : {};
     if (reset || typeof prog !== 'object' || !prog) prog = {};
     const done = prog.done || {};
-    const cursor = prog.cursor || 0;
+    const cursor = stateless ? parseInt(sinceOverride, 10) : (prog.cursor || 0);
 
     const res = await shopifyFetch(env, `/products.json?limit=250&fields=id,title,options,variants&since_id=${cursor}`);
     const batch = res.body?.products || [];
@@ -181,14 +188,16 @@ export async function onRequest(context) {
     if (pageFullyDone || eof) prog.cursor = newCursor;
     prog.done = done;
 
-    try {
-      const fresh = await ghRead(env, 'data/reprice-tier-progress.json');
-      let merged = prog;
-      if (fresh && fresh.content) {
-        try { const existing = JSON.parse(atob(fresh.content.replace(/\n/g, ''))); merged = { ...existing, ...prog, done: { ...(existing.done || {}), ...done } }; } catch {}
-      }
-      await ghWriteLarge(env, 'data/reprice-tier-progress.json', JSON.stringify(merged), 'auto: reprice-tier progress');
-    } catch (we) { void we; }
+    if (!stateless) {
+      try {
+        const fresh = await ghRead(env, 'data/reprice-tier-progress.json');
+        let merged = prog;
+        if (fresh && fresh.content) {
+          try { const existing = JSON.parse(atob(fresh.content.replace(/\n/g, ''))); merged = { ...existing, ...prog, done: { ...(existing.done || {}), ...done } }; } catch {}
+        }
+        try { await ghWriteLarge(env, 'data/reprice-tier-progress.json', JSON.stringify(merged), 'auto: reprice-tier progress'); } catch (we) { void we; }
+      } catch (we) { void we; }
+    }
 
     return new Response(JSON.stringify({ cursor: prog.cursor, newCursor, eof, scanned: batch.length, processed: ok + fail, ok, fail, results }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   } catch (err) {
