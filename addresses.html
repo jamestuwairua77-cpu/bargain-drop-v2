@@ -185,9 +185,37 @@ function toast(m){
   clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},2500);
 }
 
-// Address storage
+// Address storage — account-backed. Server (users-seed.json via /api/addresses)
+// is the source of truth for signed-in users; localStorage is a cache/offline
+// fallback. Identity is resolved server-side from the __session cookie.
 function getL(){try{return JSON.parse(localStorage.getItem("bd_addresses")||"[]")}catch(e){return[]}}
 function setL(l){localStorage.setItem("bd_addresses",JSON.stringify(l))}
+
+// Are we signed in? (client hint only — the server re-verifies the cookie)
+function signedIn(){try{var s=JSON.parse(localStorage.getItem("bd_session")||"null");return !!(s&&s.id)}catch(e){return false}}
+
+// Push the full address list to the server for this account.
+function persist(list){
+  setL(list);
+  if(!signedIn()){ return Promise.resolve(); }
+  return fetch("/api/addresses", {method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({addresses:list})})
+    .catch(function(){ /* offline — stays cached locally */ });
+}
+
+// Load addresses from the server on page load (server wins for signed-in users).
+function loadServer(){
+  if(!signedIn()){ return Promise.resolve(); }
+  return fetch("/api/addresses",{credentials:"same-origin"})
+    .then(function(r){ return r.ok ? r.json() : {addresses:getL()}; })
+    .then(function(d){
+      var serverList = Array.isArray(d.addresses) ? d.addresses : [];
+      // Merge: prefer server for signed-in; if server empty but local has data,
+      // push local up (first-time migration of any previously-local addresses).
+      if(serverList.length){ setL(serverList); }
+      else if(getL().length){ persist(getL()); }
+    })
+    .catch(function(){ /* offline — fall back to local */ });
+}
 
 var editIdx=-1;
 
@@ -236,7 +264,7 @@ function saveAddr(){
   if(a.isDefault)list.forEach(function(x){x.isDefault=false});
   if(editIdx>=0){list[editIdx]=Object.assign(list[editIdx],a)}
   else{if(list.length===0)a.isDefault=true;list.push(a)}
-  setL(list);closeModal();render();
+  persist(list).then(function(){closeModal();render();});
   toast(editIdx>=0?"✅ Address updated":"✅ Address added");
 }
 
@@ -244,7 +272,7 @@ function removeAddr(idx){
   if(!confirm("Delete this address?"))return;
   var list=getL();list.splice(idx,1);
   if(list.length&&!list.some(function(x){return x.isDefault}))list[0].isDefault=true;
-  setL(list);render();toast("🗑️ Address removed");
+  persist(list).then(function(){render();});toast("🗑️ Address removed");
 }
 
 function render(){
@@ -264,7 +292,7 @@ function render(){
 // Close modal on overlay click
 document.getElementById("addr-modal").addEventListener("click",function(e){if(e.target===this)closeModal()});
 
-render();
+loadServer().then(function(){ render(); });
 </script>
 <script>
 (function(){
