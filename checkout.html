@@ -294,6 +294,10 @@ function removePromo(){
 }
 
 recalcTotals();
+// Expose promo handlers globally so the inline onclick="applyPromo()" reaches them
+// (they are defined inside the initCurrency().then() callback scope).
+window.applyPromo = applyPromo;
+window.removePromo = removePromo;
 
 // --- Toast ---
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2500);}
