@@ -40,24 +40,19 @@ export async function onRequest(context) {
     }
 
     if (run || topicsOnly) {
-      const tok = await cjToken(env);
       const body = {};
       for (const t of TOPICS) body[t] = { type: 'ENABLE', callbackUrls: [callbackUrl] };
-      const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/set', {
-        method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      const j = await cjFetchMulti(env, '/webhook/set', {
+        method: 'POST', body: JSON.stringify(body),
       });
-      const j = await r.json();
       result.steps.topics = { ok: j?.code === 200 || j?.success === true, code: j?.code, message: j?.message };
     }
 
     if (subscribeOnly) {
       if (subscribeAll) {
-        const tok = await cjToken(env);
-        const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', {
-          method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscribeAll: true }),
+        const j = await cjFetchMulti(env, '/webhook/product/subscribe', {
+          method: 'POST', body: JSON.stringify({ subscribeAll: true }),
         });
-        const j = await r.json();
         result.steps.subscribe = { mode: 'subscribeAll', ok: j?.code === 200 || j?.success === true, code: j?.code, message: j?.message, data: j?.data };
         return new Response(JSON.stringify(result), { headers: H });
       }
@@ -78,8 +73,6 @@ export async function onRequest(context) {
 
       // Phase 2: subscribe pids in batches
       if (prog.phase === 'subscribe') {
-        const tok = await cjToken(env);
-
         // Pre-subscribe safety: CJ rejects per-product subscription (1606010) unless the
         // 'product' webhook TOPIC is enabled first. Ensure topics are enabled so the
         // subscription loop can actually succeed instead of silently failing.
@@ -87,10 +80,9 @@ export async function onRequest(context) {
         try {
           const tbody = {};
           for (const t of TOPICS) tbody[t] = { type: 'ENABLE', callbackUrls: [callbackUrl] };
-          const tr = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/set', {
-            method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' }, body: JSON.stringify(tbody),
+          const tj = await cjFetchMulti(env, '/webhook/set', {
+            method: 'POST', body: JSON.stringify(tbody),
           });
-          const tj = await tr.json();
           topicsOk = (tj?.code === 200 || tj?.success === true);
           if (!result.steps.topics) result.steps.topics = { ok: topicsOk, code: tj?.code, message: tj?.message };
         } catch {}
@@ -100,11 +92,9 @@ export async function onRequest(context) {
         let failed = 0;
         for (let i = prog.done; i < end; i += BATCH) {
           const chunk = prog.pids.slice(i, i + BATCH);
-          const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', {
-            method: 'POST', headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ productIds: chunk, subscribeAll: false }),
+          const j = await cjFetchMulti(env, '/webhook/product/subscribe', {
+            method: 'POST', body: JSON.stringify({ productIds: chunk, subscribeAll: false }),
           });
-          const j = await r.json();
           const ok = (j?.code === 200 || j?.success === true);
           if (ok) {
             const n = Array.isArray(j?.data?.successProductIds) ? j.data.successProductIds.length : chunk.length;
