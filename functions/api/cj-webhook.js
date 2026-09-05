@@ -21,6 +21,7 @@
 
 import { corsHeaders, appendSyncLog } from '../_sync-lib.js';
 import { handleCjWebhook } from '../_cj-import.js';
+import { cjOpenIds } from '../_sync-lib.js';
 
 const VALID_TYPES = new Set(['PRODUCT', 'VARIANT', 'STOCK', 'ORDER', 'LOGISTIC', 'LOGISTICS', 'MAKEUP', 'PRIVATE_ORDER', 'ORDERSPLIT', 'SOURCINGCREATE']);
 
@@ -80,29 +81,51 @@ export async function onRequest(context) {
   const raw = new Uint8Array(await request.arrayBuffer());
   const sign = request.headers.get('sign') || '';
 
-  // CJ webhook HMAC signing secret = the CJ account openId. This is the SAME
-  // value CJ returns as `openId` in the Get Access Token exchange. Prefer the
-  // env var when present; otherwise fall back to the baked-in openId so the
-  // receiver works even if the env var is missing / not yet deployed.
+  // CJ webhook HMAC signing secret = the CJ account openId. Each CJ account
+  // (we have up to 6 keys) signs with its OWN openId, so verification must try
+  // against ALL known openIds, not just one. Accept if ANY candidate matches.
   const FALLBACK_OPEN_ID = '38749';
-  const secret = env.CJ_OPEN_ID || FALLBACK_OPEN_ID;
-  if (!secret) {
-    return new Response(JSON.stringify({ ok: false, error: 'CJ_OPEN_ID not configured' }), { status: 500, headers });
-  }
+  let secrets = [FALLBACK_OPEN_ID];
+  if (env.CJ_OPEN_ID) secrets.push(String(env.CJ_OPEN_ID));
+  try {
+    const ids = await cjOpenIds(env);   // openId for every configured key
+    secrets = secrets.concat(ids);
+  } catch {}
+  secrets = [...new Set(secrets.filter(Boolean))];
+
+  // CJ sends a VALIDATION ping during webhook/set registration: it POSTs to the
+  // callback URL and expects a 200 to accept it. That probe has no usable `sign`
+  // header and an empty/trivial body. We must ack it 200, not 401 — otherwise
+  // CJ rejects the URL with error 1600300. Only escalate 401 when we have a
+  // real signed payload whose signature is genuinely wrong.
+  const bodyText = new TextDecoder().decode(raw);
+
   if (!sign) {
+    // No signature header at all.
+    if (raw.length === 0 || bodyText.trim() === '') {
+      // Empty-body validation probe → ack 200.
+      return new Response(null, { status: 200, headers: corsHeaders() });
+    }
+    // A real payload but missing sign — but this can still be CJ's validation
+    // ping with a minimal body. Be lenient ONLY if the body fails to parse as JSON.
+    try { JSON.parse(bodyText); } catch { return new Response(null, { status: 200, headers: corsHeaders() }); }
     return new Response(JSON.stringify({ ok: false, error: 'Missing sign header' }), { status: 401, headers });
   }
 
   let payload;
   try {
-    // ── 3. SECURITY: verify HMAC-SHA256 BEFORE touching the payload ──
-    const expected = await cjSignature(raw, secret);
-    if (expected === null || !timingSafeEqual(expected, sign)) {
+    // ── 3. SECURITY: verify HMAC-SHA256 against ALL candidate openIds ──
+    let matched = false;
+    for (const s of secrets) {
+      const expected = await cjSignature(raw, s);
+      if (expected !== null && timingSafeEqual(expected, sign)) { matched = true; break; }
+    }
+    if (!matched) {
       return new Response(JSON.stringify({ ok: false, error: 'Invalid signature' }), { status: 401, headers });
     }
 
     // ── 1. structural parse (raw bytes preserved above for HMAC) ──
-    payload = JSON.parse(new TextDecoder().decode(raw));
+    payload = JSON.parse(bodyText);
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: 'Bad request: ' + e.message }), { status: 400, headers });
   }

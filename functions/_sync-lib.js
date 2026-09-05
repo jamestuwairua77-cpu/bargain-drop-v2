@@ -87,8 +87,29 @@ async function keyToken(apiKey) {
   const j = await r.json();
   const tok = j?.data?.accessToken;
   if (!tok) return null;
-  _keyTokens.set(apiKey, { tok, exp: Date.now() + 12 * 3600 * 1000 });
+  // openId is the account's webhook signing secret (present in the same response).
+  const openId = j?.data?.openId != null ? String(j.data.openId) : null;
+  _keyTokens.set(apiKey, { tok, openId, exp: Date.now() + 12 * 3600 * 1000 });
   return tok;
+}
+
+// Fetch (and cache) the openId for every configured CJ key. openId is the
+// webhook HMAC signing secret — each account has its own, so verification
+// must try against ALL of them. populateCjOpenIds() ensures the cache is warm.
+export async function populateCjOpenIds(env) {
+  const keys = cjKeys(env);
+  for (const k of keys) { try { await keyToken(k); } catch {} }
+}
+
+// Return the list of openIds for all configured keys (strings, deduped).
+export async function cjOpenIds(env) {
+  await populateCjOpenIds(env);
+  const out = new Set();
+  for (const k of cjKeys(env)) {
+    const c = _keyTokens.get(k);
+    if (c && c.openId) out.add(c.openId);
+  }
+  return [...out];
 }
 
 export function cjKeys(env) {
