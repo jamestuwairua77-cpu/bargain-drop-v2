@@ -10,6 +10,10 @@
     .slide-menu.open .slide-backdrop{opacity:1}
     .slide-panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#fff;padding:82px 0 20px;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.1)}
     .slide-menu.open .slide-panel{transform:translateX(0)}
+    .slide-credit{display:flex;align-items:center;gap:10px;margin:8px 16px 4px;padding:13px 16px;border-radius:12px;background:linear-gradient(135deg,#B8A9E8,#4ECDC4);color:#fff;font-weight:800;font-size:.82rem;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+    .slide-credit .sc-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.9}
+    .slide-credit .sc-balance{font-size:1.05rem;line-height:1.1}
+    .slide-credit a{margin-left:auto;color:#fff;background:rgba(0,0,0,.18);padding:6px 12px;border-radius:9999px;font-size:.68rem;font-weight:700;text-decoration:none}
     .slide-item{display:flex;align-items:center;gap:12px;padding:13px 22px;font-size:.8rem;color:#222;text-decoration:none;font-weight:500}
     .slide-item:hover{background:#f6f4f0}
     .slide-ico{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:.62rem;font-weight:800}
@@ -55,6 +59,7 @@
     <div class="slide-menu" id="slide-menu">
       <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
       <div class="slide-panel">
+<div class="slide-credit" id="slide-credit" style="display:none"><div><div class="sc-label">Store credit</div><div class="sc-balance" id="slide-credit-balance">A$0.00</div></div><a href="wallet.html">Wallet</a></div>
 <div class="slide-heading">Shop</div>
 <a href="/" class="slide-item"><span class="slide-ico" style="background:#4ECDC4">H</span>Home</a>
 <a href="category.html" class="slide-item"><span class="slide-ico" style="background:#B8A9E8">C</span>All Categories</a>
@@ -70,7 +75,23 @@
 <a href="policy.html" class="slide-item"><span class="slide-ico" style="background:#9b978f">P</span>Privacy Policy</a>
     </div>
     </div>
-  <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div><div class="container"><a href="profile.html" class="back-link">← Back to Account</a><div class="page-header"><h1>💰 Wallet & Store Credit</h1><p style="font-size:.72rem;color:var(--muted);margin-bottom:16px">View your balance, gift cards, and loyalty points.</p></div><div class="card"><div class="balance-label">Store credit</div><div class="balance">A$0.00</div></div><div class="card" style="text-align:left;padding:0"><div style="padding:16px 20px;font-size:.82rem;font-weight:700">Redeem Gift Card</div><div style="padding:0 20px 16px"><input id="gc" type="text" placeholder="Enter gift card code" style="width:100%;padding:12px 14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.8rem;outline:none"><button class="btn btn-primary" onclick="document.getElementById('gm').textContent='Code submitted!';document.getElementById('gm').style.color='#10b981'" style="margin-top:10px">Redeem</button><p id="gm" style="font-size:.68rem;margin-top:6px;min-height:18px"></p></div></div></div><script>
+  <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div><div class="container"><a href="profile.html" class="back-link">← Back to Account</a><div class="page-header"><h1>💰 Wallet & Store Credit</h1><p style="font-size:.72rem;color:var(--muted);margin-bottom:16px">View your balance, gift cards, and loyalty points.</p></div><div class="card"><div class="balance-label">Store credit</div><div class="balance" id="credit-balance">A$0.00</div></div><div class="card" style="text-align:left;padding:0"><div style="padding:16px 20px;font-size:.82rem;font-weight:700">Redeem Gift Card</div><div style="padding:0 20px 16px"><input id="gc" type="text" placeholder="Enter gift card code" style="width:100%;padding:12px 14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.8rem;outline:none"><button class="btn btn-primary" onclick="document.getElementById('gm').textContent='Code submitted!';document.getElementById('gm').style.color='#10b981'" style="margin-top:10px">Redeem</button><p id="gm" style="font-size:.68rem;margin-top:6px;min-height:18px"></p></div></div></div><script>
+// Load live store credit balance
+(function(){
+  function fmt(n){ n = (typeof n === 'number' ? n : (parseFloat(n)||0)); return 'A$' + n.toFixed(2); }
+  var el = document.getElementById('credit-balance');
+  // immediate paint from session cache
+  try {
+    var s = JSON.parse(localStorage.getItem('bd_session') || 'null');
+    if (s && typeof s.credits === 'number' && el) el.textContent = fmt(s.credits);
+  } catch(e){}
+  fetch('/api/store-credit', { credentials: 'include' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d && typeof d.balance === 'number' && el) el.textContent = fmt(d.balance); })
+    .catch(function(){});
+})();
+</script>
+<script>
 (function(){try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("nav-cart-count");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}})();
 </script>
 
@@ -93,6 +114,20 @@
       ['wallet.html','Wallet','#4ECDC4','W'],
       ['gift-cards.html','Gift Cards','#B8A9E8','G']
     ];
+    if (signedIn) {
+      try {
+        var sc = document.getElementById('slide-credit');
+        if (sc) sc.style.display = '';
+        var bal = (sess && typeof sess.credits === 'number') ? sess.credits : 0;
+        function fmt(n){ return 'A$' + ((typeof n==='number'?n:(parseFloat(n)||0))).toFixed(2); }
+        var scb = document.getElementById('slide-credit-balance');
+        if (scb) scb.textContent = fmt(bal);
+        fetch('/api/store-credit', { credentials: 'include' })
+          .then(function(r){ return r.json(); })
+          .then(function(d){ if (d && typeof d.balance === 'number' && scb) scb.textContent = fmt(d.balance); })
+          .catch(function(){});
+      } catch(e){}
+    }
     if (signedIn && A && G) {
       A.innerHTML = owned.map(function(o){ return item(o[0],o[1],o[2],o[3]); }).join('') +
         '<a href="#" class="slide-item" onclick="event.preventDefault();if(window.signOut){signOut()}else{var ks=[];for(var i=0;i<localStorage.length;i++)ks.push(localStorage.key(i));ks.forEach(function(k){if(k.indexOf("bd_")===0&&k!=="bd_cart")localStorage.removeItem(k)});location.href="/"}"><span class="slide-ico" style="background:#9b978f">X</span>Sign Out</a>';

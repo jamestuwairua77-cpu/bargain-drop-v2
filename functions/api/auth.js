@@ -142,7 +142,7 @@ export async function onRequest(context) {
       id: 'u-' + Date.now(), email, name: null,
       username: cleanUsername, picture: picture || null,
       first_name: first_name || null, last_name: last_name || null, phone: phone || null, addresses: addresses || null,
-      password: hashed, provider: 'email', credits: 0, createdAt: new Date().toISOString(),
+      password: hashed, provider: 'email', credits: 10, createdAt: new Date().toISOString(),
     };
     users.push(user);
     try {
