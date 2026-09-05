@@ -208,7 +208,7 @@ export async function onRequest(context) {
       summary.errors.push({ pid, error: 'shopify create: ' + msg });
       if (pid) delete state.fetchedPids[pid];
     }
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 750)); // Shopify ~2 calls/sec limit
   }
   state.imported = (state.imported || 0) + summary.created;
   summary.totalImported = state.imported;
