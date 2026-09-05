@@ -3,6 +3,28 @@
     "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
+    "messageId": "b0********54",
+    "valid": true,
+    "paramKeys": [
+      "2046766463209955330"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": "{\"2046766463209955330\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1791411822801719296\",\"storageNum\":12434,\"vid\":\"2046766463209955330\"},{\"areaEn\":\"Spain Warehouse\",\"areaId\":\"31\",\"countryCode\":\"ES\",\"pid\":\"1791411822801719296\",\"storageNum\":5,\"vid\":\"2046766463209955330\"}]}",
+    "imported": false,
+    "changed": 0,
+    "receivedAt": "2026-09-05T23:26:17.225Z",
+    "at": "2026-09-05T23:26:17.447Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "STOCK",
+    "messageType": "INCREASE",
     "messageId": "0a********e9",
     "valid": true,
     "paramKeys": [
@@ -5631,27 +5653,5 @@
     "sku": "CJTZ310742288JQ",
     "receivedAt": "2026-09-05T01:57:42.045Z",
     "at": "2026-09-05T01:57:42.408Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "00********11",
-    "valid": true,
-    "paramKeys": [
-      "1438327098258362368"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1438327098258362368\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1438327098174476288\",\"storageNum\":40414,\"vid\":\"1438327098258362368\"}]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-05T01:25:14.590Z",
-    "at": "2026-09-05T01:25:14.866Z"
   }
 ]
