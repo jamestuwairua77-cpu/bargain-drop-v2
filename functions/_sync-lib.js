@@ -955,6 +955,27 @@ export async function getSessionUser(request, env) {
 // Iterates keys; for each, enables topics then subscribes, both on that key.
 // Returns { ok, code, message, data, keyIndex } for the first key that fully
 // succeeds (or the last error if none succeed).
+const cjThrottle = () => new Promise((res) => setTimeout(res, 1300)); // CJ QPS ~1/s
+
+async function cjWebhookCall(pathname, headers, payload, retries = 4) {
+  let lastResp = null;
+  for (let a = 0; a <= retries; a++) {
+    const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1' + pathname, {
+      method: 'POST', headers, body: JSON.stringify(payload),
+    });
+    let j = null;
+    try { j = await r.json(); } catch {}
+    // 1600200 = QPS throttled -> back off and retry, do NOT treat as fatal.
+    if (j && (j.code === 1600200)) {
+      lastResp = j;
+      if (a < retries) { await new Promise((s) => setTimeout(s, 1000 * (a + 1))); continue; }
+      return { throttled: true, resp: j };
+    }
+    return { throttled: false, resp: j };
+  }
+  return { throttled: true, resp: lastResp };
+}
+
 export async function cjWebhookRegister(env, { subscribeAll = false, productIds = null, topicNames = null, callbackUrls = null } = {}) {
   const keys = cjKeys(env);
   let last = null;
@@ -965,23 +986,25 @@ export async function cjWebhookRegister(env, { subscribeAll = false, productIds 
     const headers = { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' };
     // 1) enable topics (if provided)
     if (topicNames && topicNames.length) {
+      await cjThrottle();
       const body = {};
       for (const t of topicNames) body[t] = { type: 'ENABLE', callbackUrls: callbackUrls || [] };
-      const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/set', { method: 'POST', headers, body: JSON.stringify(body) });
-      const j = await r.json();
+      const { resp: j } = await cjWebhookCall('/webhook/set', headers, body);
       if (!(j?.code === 200 || j?.success === true)) { last = { ok: false, code: j?.code, message: j?.message, keyIndex: k, step: 'topics' }; continue; }
     }
     // 2) subscribe (if requested)
     if (subscribeAll || (productIds && productIds.length)) {
+      await cjThrottle();
       const payload = subscribeAll ? { subscribeAll: true } : { productIds, subscribeAll: false };
-      const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/webhook/product/subscribe', { method: 'POST', headers, body: JSON.stringify(payload) });
-      const j = await r.json();
+      const { resp: j } = await cjWebhookCall('/webhook/product/subscribe', headers, payload);
       if (j?.code === 200 || j?.success === true) {
-        return { ok: true, code: j?.code, message: j?.message || 'Success', data: j?.data, keyIndex: k };
+        // CJ returns subscribed ids variously as successProductIds / successPids / ids
+        const d = j?.data || {};
+        const ids = d.successProductIds || d.successPids || d.successPidList || d.subscribedProductIds || null;
+        return { ok: true, code: j?.code, message: j?.message || 'Success', data: d, subscribedIds: ids, keyIndex: k };
       }
       last = { ok: false, code: j?.code, message: j?.message, data: j?.data, keyIndex: k, step: 'subscribe' };
     } else {
-      // only topics requested and succeeded
       return { ok: true, code: 200, message: 'Success', keyIndex: k };
     }
   }

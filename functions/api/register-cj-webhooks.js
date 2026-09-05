@@ -87,10 +87,11 @@ export async function onRequest(context) {
           const j = subRes;
           const ok = subRes.ok;
           if (ok) {
-            const n = Array.isArray(j?.data?.successProductIds) ? j.data.successProductIds.length : chunk.length;
+            const n = Array.isArray(j?.subscribedIds) ? j.subscribedIds.length : chunk.length;
             prog.subscribed += n;
-            prog.done += chunk.length;   // only advance on REAL success
+            prog.done += chunk.length;   // advance by chunk size (CJ counts subscription per product)
             processed += chunk.length;
+            if (j?.subscribedIds && !Array.isArray(j.subscribedIds)) prog.subscribed = Math.max(prog.subscribed, 0);
           } else {
             // Do NOT advance `done` on failure — otherwise the loop falsely reports
             // complete while nothing is actually subscribed. Report the CJ error.
