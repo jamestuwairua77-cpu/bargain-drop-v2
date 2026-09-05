@@ -1,6 +1,37 @@
 [
   {
     "action": "cj-webhook",
+    "type": "MAKEUP",
+    "messageType": "INSERT",
+    "messageId": "f3********b3",
+    "valid": true,
+    "paramKeys": [
+      "orderId",
+      "relationOrderId",
+      "payOrderId",
+      "amount",
+      "reason",
+      "type",
+      "diffUseType",
+      "status",
+      "createDate"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "openId",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "note": "unsupported (log-only)",
+    "receivedAt": "2026-09-05T19:14:17.310Z",
+    "at": "2026-09-05T19:14:17.485Z"
+  },
+  {
+    "action": "cj-webhook",
     "type": "STOCK",
     "messageType": "INCREASE",
     "messageId": "12********90",
@@ -5651,27 +5682,5 @@
     "changed": 0,
     "receivedAt": "2026-09-05T01:14:05.271Z",
     "at": "2026-09-05T01:14:05.482Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "a4********d9",
-    "valid": true,
-    "paramKeys": [
-      "1955544494570233863"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1955544494570233863\":[]}",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-05T01:12:53.261Z",
-    "at": "2026-09-05T01:12:53.461Z"
   }
 ]
