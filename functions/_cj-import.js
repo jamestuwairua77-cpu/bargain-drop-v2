@@ -36,6 +36,19 @@
 import { ghRead, ghWrite, shopifyFetch, cjFetchMulti } from './_sync-lib.js';
 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
+
+// ── Reprice policy (must match reprice-flat.js EXACTLY) ────────────────────
+// Flat 40% markup on CJ base cost (USD), converted USD→AUD, rounded to whole
+// dollars, with compare-at-price CLEARED (honest price, no strikethrough).
+//   newPriceAUD = round( variantSellPrice(USD) × 1.4 × 1.5 )
+const USD_AUD = 1.5;
+const MARKUP = 1.4;
+function repriceAUD(usdCost) {
+  const c = parseFloat(usdCost);
+  if (!isFinite(c) || c <= 0) return null;
+  return Math.round(c * MARKUP * USD_AUD);
+}
+
 // Dedupe ring of recently-processed messageIds.
 const PROCESSED_PATH = 'data/cj-webhook-processed.json';
 const PROCESSED_MAX = 2000;
@@ -148,7 +161,7 @@ async function reconcileVariantsToShopify(env, shopifyId, cjData) {
       existing = existingByOpt.get(optKey) || null;
     }
 
-    const price = cv.variantSellPrice != null ? Number(cv.variantSellPrice) : null;
+    const price = cv.variantSellPrice != null ? repriceAUD(cv.variantSellPrice) : null;
     const weightGrams = cv.variantWeight != null ? Number(cv.variantWeight) : null;
     const image = cv.variantImage || null;
 
@@ -292,7 +305,7 @@ async function importProduct(env, payload) {
   const patches = {};
   if (p.productNameEn != null) patches.title = p.productNameEn;
   if (p.productDescription != null) patches.body_html = p.productDescription;
-  if (p.productSellPrice != null) patches.price = Number(p.productSellPrice);
+  if (p.productSellPrice != null) { const rp = repriceAUD(p.productSellPrice); if (rp != null) patches.price = rp; }
   if (Object.keys(patches).length) {
     await shopifyFetch(env, `/products/${shopifyId}.json`, {
       method: 'PUT',
@@ -347,7 +360,7 @@ async function createProductInShopify(env, pid, cjData, p) {
     const parts = String(v.variantKey || '').split('-');
     const ov = {};
     optionNames.forEach((_, i) => { ov['option' + (i + 1)] = parts[i] != null ? String(parts[i]) : (i === 0 ? 'Default Title' : ''); });
-    const price = v.variantSellPrice != null ? Number(v.variantSellPrice) : 0;
+    const price = v.variantSellPrice != null ? (repriceAUD(v.variantSellPrice) ?? 0) : 0;
     return {
       ...ov,
       price: String(price),
@@ -436,7 +449,7 @@ async function importVariant(env, payload) {
   }
 
   const patch = { id: target.id };
-  if (p.variantSellPrice != null) patch.price = String(Number(p.variantSellPrice));
+  if (p.variantSellPrice != null) { const rp = repriceAUD(p.variantSellPrice); if (rp != null) { patch.price = String(rp); patch.compare_at_price = null; } }
   if (p.variantWeight != null) patch.grams = Number(p.variantWeight);
   if (p.variantSku != null) patch.sku = p.variantSku;
   if (p.variantStatus != null) {
