@@ -864,16 +864,11 @@ function loadProductStatic(){
     renderProduct(product);
   };
   if(window.__staticProductCache){ render(window.__staticProductCache); return; }
-  var x=new XMLHttpRequest();x.open('GET','/all-products.json?v=1b22f26b7b',true);x.timeout=25000;
-  x.onload=function(){
-    if(x.status===200){
-      try{ window.__staticProductCache=JSON.parse(x.responseText); render(window.__staticProductCache); }
-      catch(e){ done('Failed to load product data'); }
-    }else{ done('Product not available'); }
-  };
-  x.onerror=function(){ done('Could not load catalog. Please refresh.'); };
-  x.ontimeout=function(){ done('Catalog load timed out.'); };
-  x.send();
+  loadCatalog(function(all){
+    if(!all || !all.length){ done('Product not available'); return; }
+    window.__staticProductCache = all;
+    render(all);
+  });
 }
 function showError(m){
   document.getElementById('loading-skel').classList.add('hidden');
@@ -931,6 +926,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
 })();
 </script>
 <script src="/js/notifications.js?v=cbf6dd568a"></script>
+<script src="/js/catalog-loader.js"></script>
 <script src="/js/icon-library.js?v=4adb1260b7"></script>
 <script src="/js/slide-icons.js?v=21c87ba29a"></script>
 <script src="/js/auto-iconify.js?v=49867b897b"></script>

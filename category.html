@@ -161,24 +161,10 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
 <script>
 window.__CAT_PRODS = null;
 (function() {
-  var xhr = new XMLHttpRequest();
-  xhr.open("GET", "/categories-data.json?v=7bd9edf15f", true);
-  xhr.timeout = 20000;
-  xhr.onload = function() {
-    if (xhr.status >= 200 && xhr.status < 400) {
-      try {
-        window.__CAT_PRODS = JSON.parse(xhr.responseText);
-        document.dispatchEvent(new CustomEvent("cat-prods-ready"));
-      } catch(e) {
-        showError();
-      }
-    } else {
-      showError();
-    }
-  };
-  xhr.onerror = function() { showError(); };
-  xhr.ontimeout = function() { showError(); };
-  xhr.send();
+  loadCategories(function(cats){
+    window.__CAT_PRODS = cats;
+    document.dispatchEvent(new CustomEvent("cat-prods-ready"));
+  });
 
   function showError() {
     var grid = document.getElementById("product-grid");
@@ -539,6 +525,7 @@ function collapseSearch(e){
 })();
 </script>
 <script src="/js/notifications.js?v=cbf6dd568a"></script>
+<script src="/js/catalog-loader.js"></script>
 <script src="/js/icon-library.js?v=4adb1260b7"></script>
 <script src="/js/slide-icons.js?v=21c87ba29a"></script>
 <script src="/js/auto-iconify.js?v=49867b897b"></script>

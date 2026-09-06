@@ -36,8 +36,21 @@ export async function onRequest(context) {
       idx[String(p.id)] = { idx: cats[key].products.length - 1, category: key };
     }
     async function putFile(path, content, cmsg) { let sha = null; const existing = await ghRead(env, path); if (existing) sha = existing.sha; return ghWrite(env, path, content, cmsg, sha); }
+    // Shard large catalogs under Cloudflare Pages' 25 MiB per-file limit.
+    const SHARD_SIZE = 1200;
+    function shardArray(arr) { const out = []; for (let i = 0; i < arr.length; i += SHARD_SIZE) out.push(arr.slice(i, i + SHARD_SIZE)); return out; }
     let errors=[], written=0;
-    for (const [path, data, name] of [['categories-data.json', JSON.stringify(cats), 'categories'], ['all-products.json', JSON.stringify(all), 'all-products'], ['products-index.json', JSON.stringify(idx), 'index']]) {
+    const writes = [];
+    // 1. category shards + manifest
+    const catObjs = Object.entries(cats).map(([k, v]) => ({ key: k, name: v.name, products: v.products }));
+    shardArray(catObjs).forEach((shard, i) => writes.push(['categories-data-' + i + '.json', JSON.stringify(shard), 'categories']));
+    writes.push(['categories-data.json', JSON.stringify({ shards: Math.ceil(catObjs.length / SHARD_SIZE), count: catObjs.length }), 'categories-index']);
+    // 2. product shards + manifest
+    shardArray(all).forEach((shard, i) => writes.push(['all-products-' + i + '.json', JSON.stringify(shard), 'all-products']));
+    writes.push(['all-products.json', JSON.stringify({ shards: Math.ceil(all.length / SHARD_SIZE), count: all.length }), 'all-products-index']);
+    // 3. products index (small)
+    writes.push(['products-index.json', JSON.stringify(idx), 'index']);
+    for (const [path, data, name] of writes) {
       try { await putFile(path, data, 'data: rebuild '+name+' from Shopify'); written++; } catch (e) { errors.push({ file: path, error: e.message }); }
     }
     const desc = all.filter(p => p.body_html && p.body_html.length > 20).length;

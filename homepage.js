@@ -70,15 +70,7 @@
 
   // Load all products for search
   (function(){
-    var x=new XMLHttpRequest();
-    x.open('GET','/all-products.json?v=11ed6fb19c',true);
-    x.timeout=15000;
-    x.onload=function(){
-      if(x.status>=200&&x.status<400){
-        try{ALL=JSON.parse(x.responseText);ALL=ALL.filter(function(p){return p.visible!==false});ALL=dedupeProducts(ALL)}catch(e){ALL=[]}
-      }
-    };
-    x.send();
+    loadCatalog(function(arr){ALL=arr;ALL=ALL.filter(function(p){return p.visible!==false});ALL=dedupeProducts(ALL)});
   })();
 
   // Search
