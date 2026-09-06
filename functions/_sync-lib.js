@@ -163,17 +163,29 @@ async function _saveKeyHealth(env) {
 async function keyToken(apiKey) {
   const c = _keyTokens.get(apiKey);
   if (c && Date.now() < c.exp) return c.tok;
-  const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey }),
-  });
-  const j = await r.json();
-  const tok = j?.data?.accessToken;
-  if (!tok) return null;
-  // openId is the account's webhook signing secret (present in the same response).
-  const openId = j?.data?.openId != null ? String(j.data.openId) : null;
-  _keyTokens.set(apiKey, { tok, openId, exp: Date.now() + 12 * 3600 * 1000, remaining: null, usedToday: null });
-  return tok;
+  // Auth endpoint can transiently fail (QPS/network). Retry a few times with backoff
+  // rather than returning null immediately — a null auth token caused cjFetchMulti to
+  // skip the fresh key and fall through to exhausted siblings, producing false retries.
+  let lastJ = null;
+  for (let a = 0; a <= 3; a++) {
+    try {
+      const r = await fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey }),
+      });
+      const j = await r.json();
+      const tok = j?.data?.accessToken;
+      if (tok) {
+        // openId is the account's webhook signing secret (present in the same response).
+        const openId = j?.data?.openId != null ? String(j.data.openId) : null;
+        _keyTokens.set(apiKey, { tok, openId, exp: Date.now() + 12 * 3600 * 1000, remaining: null, usedToday: null });
+        return tok;
+      }
+      lastJ = j;
+    } catch (e) { lastJ = { error: String(e && e.message) }; }
+    if (a < 3) await new Promise((s2) => setTimeout(s2, 1000 * (a + 1)));
+  }
+  return null;
 }
 
 // Record a key's observed points budget (every CJ response carries pointsInfo).
