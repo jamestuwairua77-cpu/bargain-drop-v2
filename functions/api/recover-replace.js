@@ -317,6 +317,23 @@ export async function onRequest(context) {
       return json({ ok: true, processed: batch.length, done: st.totalDone, flagged: st.totalFlagged, remaining, results: results.slice(0, 30) });
     }
 
+    if (action === 'verify') {
+      const ids = String(url.searchParams.get('ids') || '').split(',').filter(Boolean);
+      const out = [];
+      for (const id of ids) {
+        const r = await shopifyFetch(env, `/products/${id}.json?fields=id,title,product_type,variants`);
+        if (!r.ok) { out.push({ id, error: 'get ' + r.status }); continue; }
+        const prod = r.body?.product;
+        out.push({
+          id,
+          title: prod?.title,
+          product_type: prod?.product_type,
+          variants: (prod?.variants || []).map((v) => ({ sku: v.sku, price: v.price })),
+        });
+      }
+      return json({ ok: true, rows: out });
+    }
+
     return json({ ok: false, error: 'unknown action: ' + action }, 400);
   } catch (e) {
     return json({ ok: false, error: String(e?.message || e) }, 500);
