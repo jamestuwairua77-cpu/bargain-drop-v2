@@ -295,29 +295,48 @@ export async function cjFetchMulti(env, path, opts = {}) {
     const h = await _loadKeyHealth(env);
     _applyHealthToMemory(env, h);
   }
-  const keys = orderedCjKeys(env);
-  let lastErr = null, lastBody = null;
-  for (const apiKey of keys) {
-    try {
+  // QPS (1600200) is a PER-IP rate limit, NOT an account-level error — retrying a
+  // sibling key does not help (all keys share the same egress IP) and just wastes
+  // the healthy key's position. Retry the SAME key with backoff instead.
+  async function callOne(apiKey, attempts = 3) {
+    for (let a = 0; a < attempts; a++) {
       const tok = await keyToken(apiKey);
-      if (!tok) { lastErr = new Error('auth fail ' + apiKey.slice(0,10)); continue; }
+      if (!tok) return { authFail: true, body: null };
       const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1${path}`, {
         ...opts,
         headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
       });
-      const body = await r.json();
-      // Track this key's points budget so sibling calls prefer healthy keys.
+      let body = null;
+      try { body = await r.json(); } catch {}
       recordKeyPoints(apiKey, body && body.code, body && body.pointsInfo);
-      // Any account-level failure (product-not-found 1600014, insufficient points,
-      // subscription/location errors like 1600200, HTTP 429, etc.) -> try the next
-      // key, because each CJ account has its OWN points bucket and subscription.
-      // One failing/limited account must never block a sibling key that works.
+      const code = body && body.code;
+      // QPS throttled -> back off and retry the SAME key.
+      if (code === 1600200 && a < attempts - 1) {
+        await new Promise((s2) => setTimeout(s2, 1100 * (a + 1)));
+        lastQps = body;
+        continue;
+      }
+      return { authFail: false, body };
+    }
+    return { authFail: false, body: lastQps || null };
+  }
+
+  const keys = orderedCjKeys(env);
+  let lastErr = null, lastBody = null, lastQps = null;
+  for (const apiKey of keys) {
+    try {
+      const { authFail, body } = await callOne(apiKey);
+      if (authFail) { lastErr = new Error('auth fail ' + apiKey.slice(0,10)); continue; }
+      // Account-level failure (product-not-found 1600014, insufficient points 16900500,
+      // HTTP 429, any non-200) -> try the NEXT key, because each CJ account has its
+      // OWN points bucket and subscription. One failing/limited account must never
+      // block a sibling key that works. (QPS 1600200 was already retried above.)
       const code = body && body.code;
       const msg = String((body && body.message) || '');
       const isAccountError =
         code === 1600014 ||
-        code === 1600200 ||
         code === 429 ||
+        code === 16900500 ||
         (typeof code === 'number' && code !== 200) ||
         msg.toLowerCase().includes('insufficient api points');
       if (isAccountError) { lastBody = body; continue; }
