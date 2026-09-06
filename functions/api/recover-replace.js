@@ -16,7 +16,7 @@
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, mapCategory } from '../_sync-lib.js';
 
-const MAX_PER_RUN = 8;              // bounded (each product = 1 CJ query + up to 3 Shopify writes)
+const MAX_PER_RUN = 30;              // bounded (each product = 1 CJ query + up to 3 Shopify writes)
 
 function isBrokenType(pt) {
   const s = String(pt == null ? '' : pt).trim();
@@ -221,7 +221,7 @@ export async function onRequest(context) {
 
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'status';
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '4', 10) || 4, MAX_PER_RUN);
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '30', 10) || 30, MAX_PER_RUN);
 
   try {
     const st = await loadState(env);
@@ -279,7 +279,7 @@ export async function onRequest(context) {
       const results = [];
 
       for (const p of batch) {
-        await new Promise((r) => setTimeout(r, 1300)); // CJ QPS 1/sec
+        await new Promise((r) => setTimeout(r, 1000)); // CJ QPS ~1/sec (per-IP)
         const cj = await cjRecover(env, p.firstSku);
         if (cj && cj.retry) { results.push({ id: p.shopifyId, retry: cj.reason }); continue; }
         const cjData = cj && cj.ok ? cj.data : null;
