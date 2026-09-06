@@ -74,7 +74,7 @@ export async function onRequest(context) {
     const st = await loadState(env);
     return new Response(JSON.stringify({ ok: true, scanned: st.scanned, flagged: st.flagged, finished: !!st.finished, findings: st.findings }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   }
-  if (!isAdmin(request)) return adminDenied();
+  if (!isAdmin(request, env)) return adminDenied();
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
 
   if (url.searchParams.get('status') === '1') {
