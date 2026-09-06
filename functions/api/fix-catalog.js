@@ -62,10 +62,13 @@ mutation {
 }
 
 async function bulkStatus(env, opId) {
-  // Use currentBulkOperation (canonical poll) — node(id:) is unreliable for bulk ops.
-  const q = `query { currentBulkOperation { id status url errorCode partialData } }`;
-  const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
-  return body?.data?.currentBulkOperation || null;
+  // Canonical poll — variable-based node(id:) (same as cj-bulk-import.js).
+  const q = `query($id: ID!) { node(id: $id) { ... on BulkOperation { id status objectCount errorCode url } } }`;
+  const { body } = await shopifyFetch(env, '/graphql.json', {
+    method: 'POST',
+    body: JSON.stringify({ query: q, variables: { id: opId } }),
+  });
+  return body?.data?.node || null;
 }
 
 async function downloadBulk(url) {
