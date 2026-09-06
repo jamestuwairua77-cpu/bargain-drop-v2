@@ -220,6 +220,15 @@ export async function onRequest(context) {
       return json({ ok: true, unfailed: true, remaining: st.queue.length - (st.fixed || []).length });
     }
 
+    // Clear the persisted CJ key-health snapshot (namespace cjkeys / key health) so a
+    // stale sticky "preferred" key (an old exhausted account) stops leading the rotation
+    // ahead of the fresh account. Run once; subsequent runs re-learn health from live.
+    if (action === 'reset-health') {
+      const mq = `mutation { metafieldDelete(input: { ownerId: "gid://shopify/Shop/73594044547", namespace: "cjkeys", key: "health" }) { deletedId userErrors { field message } } }`;
+      await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: mq }) });
+      return json({ ok: true, resetHealth: true });
+    }
+
     if (action === 'status') {
       const done = new Set((st.fixed || []).map(String));
       const failed = new Set((st.failed || []).map(String));

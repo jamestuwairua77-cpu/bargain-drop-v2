@@ -263,14 +263,15 @@ export async function cjOpenIds(env) {
 
 export function cjKeys(env) {
   const list = [];
+  // Fresh CJ account (separate 50,000-pt pool) supplied by James — placed FIRST so
+  // it leads the rotation and becomes the sticky-preferred key (the other keys are
+  // 5 aliases of ONE exhausted account sharing a single QPS/points bucket).
+  list.push('CJ5798875@api@7fffb427dfd542f59c708fe323504b07');
   if (env.CJ_ACCESS_TOKEN) list.push(env.CJ_ACCESS_TOKEN);
   for (let i = 2; i <= 6; i++) {
     const k = env['CJ_ACCESS_TOKEN_' + i];
     if (k) list.push(k);
   }
-  // Fresh CJ account (separate points pool) supplied by James — added as a code
-  // constant so it's used immediately without a Cloudflare dashboard env change.
-  list.push('CJ5798875@api@7fffb427dfd542f59c708fe323504b07');
   // dedupe
   return [...new Set(list)];
 }
