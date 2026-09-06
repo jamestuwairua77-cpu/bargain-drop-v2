@@ -318,6 +318,11 @@ export async function onRequest(context) {
       return json({ ok: true, processed: batch.length, fixedNow, failedNow, totalFixed: st.totalFixed, totalFailed: st.totalFailed, remaining: { queue: remaining, needCategory: st.needCategory, needImage: st.needImage }, results: results.slice(0, 20) });
     }
 
+    if (action === 'debug-queue') {
+      const head = (st.queue || []).slice(0, 15);
+      return json({ ok: true, queued: st.queue.length, sample: head.map((p) => ({ id: p.shopifyId, type: p.type, hasImage: p.hasImage, sku: p.firstSku, title: (p.title||'').slice(0,40) })) });
+    }
+
     if (action === 'debug-row') {
       if (!st.opId) return json({ ok: false, error: 'no op' }, 400);
       const node = await bulkStatus(env, st.opId);
