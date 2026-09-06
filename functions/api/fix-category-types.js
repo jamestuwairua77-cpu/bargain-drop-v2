@@ -70,6 +70,7 @@ async function loadState(env) {
     other: raw.other || 0,
     counts: raw.counts || {},
     finished: !!raw.finished,
+    cursor: typeof raw.cursor === 'string' ? raw.cursor : null,
   };
 }
 
@@ -112,20 +113,25 @@ export async function onRequest(context) {
     return json({ ok: true, built: list.length, truncated });
   }
 
-  // run: self-driving scan + classify + PUT, bounded by time budget
+  // run: two-phase — (1) bounded scan for broken products, (2) classify + PUT within remaining budget
   if (hasRun) {
     const st = await loadState(env);
     const doneSet = new Set(st.done.map(String));
-    const BUDGET_MS = 42000;
+    const TOTAL_MS = 45000;
     const startedAt = Date.now();
     let fixed = 0, other = 0, scanned = 0;
     const counts = { ...(st.counts || {}) };
     const newDone = [];
-    const { list } = await scanBroken(env, BUDGET_MS, startedAt);
 
+    // Phase 1: scan for up to 15s, resuming from saved cursor
+    const SCAN_MS = 15000;
+    const res = await scanBroken(env, SCAN_MS, startedAt, st.cursor);
+    const list = res.list, truncated = res.truncated, exhausted = res.exhausted;
+
+    // Phase 2: classify + PUT the currently-known broken items (write budget = remaining)
     for (const q of list) {
       if (doneSet.has(String(q.id))) continue;
-      if (Date.now() - startedAt > BUDGET_MS) break;
+      if (Date.now() - startedAt > TOTAL_MS) break;
       const c = classify(q.title, q.body_html);
       scanned++;
       if (c === 'other') {
@@ -150,9 +156,10 @@ export async function onRequest(context) {
     }
 
     const mergedDone = Array.from(new Set([...st.done, ...newDone]));
-    const finished = !truncated && list.every(q => doneSet.has(String(q.id)) || newDone.includes(String(q.id)));
-    await saveState(env, { done: mergedDone, fixed: st.fixed + fixed, other: st.other + other, counts, finished });
-    return json({ ok: true, finished, scanned_this_run: scanned, fixed_this_run: fixed, other_this_run: other, total_fixed: st.fixed + fixed, total_other: st.other + other, done: mergedDone.length, counts });
+    // finished only when the scan reached the end of the catalog (exhausted) and this pass found nothing left to do
+    const finished = exhausted && list.length === 0;
+    await saveState(env, { done: mergedDone, fixed: st.fixed + fixed, other: st.other + other, counts, finished, cursor: res.cursor });
+    return json({ ok: true, finished, truncated, scanned_this_run: scanned, fixed_this_run: fixed, other_this_run: other, total_fixed: st.fixed + fixed, total_other: st.other + other, done: mergedDone.length, counts });
   }
 
   return json({ ok: true, hint: 'use ?build=1 ?run=1 ?status=1 ?reset=1' });
@@ -160,12 +167,12 @@ export async function onRequest(context) {
 
 // Live paginated scan of active products whose product_type is broken (numeric/empty/'other').
 // budgetMs: max scan time; startAt: epoch ms (optional). Returns { list, truncated }.
-async function scanBroken(env, budgetMs, startAt) {
+async function scanBroken(env, budgetMs, startAt, startCursor) {
   const t0 = startAt || Date.now();
   const list = [];
   const base = '/products.json?limit=250&fields=id,title,body_html,product_type,status';
-  let cursor = null, guard = 0;
-  let truncated = false;
+  let cursor = startCursor || null, guard = 0;
+  let truncated = false, exhausted = false;
   while (true) {
     if (Date.now() - t0 > budgetMs) { truncated = true; break; }
     const u = base + (cursor ? '&page_info=' + encodeURIComponent(cursor) : '');
@@ -178,10 +185,11 @@ async function scanBroken(env, budgetMs, startAt) {
         list.push({ id: String(p.id), title: p.title, body_html: (p.body_html || '').slice(0, 3000) });
       }
     }
-    cursor = nextPageCursor(headers);
-    if (!cursor) break;
+    const nc = nextPageCursor(headers);
+    if (!nc) { exhausted = true; cursor = null; break; }
+    cursor = nc;
     if (++guard > 500) { truncated = true; break; }
     await new Promise(r => setTimeout(r, 150));
   }
-  return { list, truncated };
+  return { list, truncated, exhausted, cursor };
 }
