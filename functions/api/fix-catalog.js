@@ -207,6 +207,14 @@ export async function onRequest(context) {
       return json({ ok: true, reset: true });
     }
 
+    // Clear only the failed set (preserve built queue + bulk op) so false-negatives
+    // from the earlier points-exhausted runs get re-attempted.
+    if (action === 'unfail') {
+      st.failed = []; st.totalFailed = 0;
+      await saveState(env, st);
+      return json({ ok: true, unfailed: true, remaining: st.queue.length - (st.fixed || []).length });
+    }
+
     if (action === 'status') {
       const done = new Set((st.fixed || []).map(String));
       const failed = new Set((st.failed || []).map(String));
