@@ -296,6 +296,17 @@ export async function onRequest(context) {
       return json({ ok: true, processed: batch.length, fixedNow, failedNow, totalFixed: st.totalFixed, totalFailed: st.totalFailed, remaining: { queue: remaining, needCategory: st.needCategory, needImage: st.needImage }, results: results.slice(0, 20) });
     }
 
+    if (action === 'debug-row') {
+      if (!st.opId) return json({ ok: false, error: 'no op' }, 400);
+      const node = await bulkStatus(env, st.opId);
+      if (!node || node.status !== 'COMPLETED' || !node.url) return json({ ok: false, error: 'bulk not completed', status: node ? node.status : null }, 400);
+      const txt = await (await fetch(node.url)).text();
+      const lines = txt.split('\n').filter((l) => l.trim());
+      const first = lines[0] ? JSON.parse(lines[0]) : null;
+      const sample = first && first.node ? first.node : first;
+      return json({ ok: true, totalLines: lines.length, sampleNode: sample });
+    }
+
     return json({ ok: false, error: 'unknown action: ' + action }, 400);
   } catch (e) {
     return json({ ok: false, error: String(e?.message || e) }, 500);
