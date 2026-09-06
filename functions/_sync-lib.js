@@ -279,6 +279,10 @@ export function cjKeys(env) {
   // it leads the rotation and becomes the sticky-preferred key (the other keys are
   // 5 aliases of ONE exhausted account sharing a single QPS/points bucket).
   list.push('CJ5798986@api@8e86ba7f88de4781812950784cbc2dc4');
+  // Second fresh CJ account (openId 49640, separate 50,000-pt pool) — acts as an
+  // overflow/backup pool so recovery keeps going when the primary key exhausts
+  // its daily points. Same shared egress IP, so no QPS gain, only points runway.
+  list.push('CJ5799030@api@c764039900e64e0bbdc3b9398a26bb2c');
   if (env.CJ_ACCESS_TOKEN) list.push(env.CJ_ACCESS_TOKEN);
   for (let i = 2; i <= 6; i++) {
     const k = env['CJ_ACCESS_TOKEN_' + i];
