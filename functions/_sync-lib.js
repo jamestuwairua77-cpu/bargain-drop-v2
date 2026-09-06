@@ -275,13 +275,12 @@ export async function cjOpenIds(env) {
 
 export function cjKeys(env) {
   const list = [];
-  // Fresh CJ account (separate 50,000-pt pool) supplied by James — placed FIRST so
-  // it leads the rotation and becomes the sticky-preferred key (the other keys are
-  // 5 aliases of ONE exhausted account sharing a single QPS/points bucket).
+  // FRESHEST CJ account (separate 50,000-pt pool) supplied by James 2026-09-06 —
+  // placed FIRST so it leads the rotation and becomes the sticky-preferred key.
+  list.push('CJ5800059@api@f063a5b2bae64d659849301491d753d8');
+  // Fresh CJ account (openId 49635, separate 50,000-pt pool).
   list.push('CJ5798986@api@8e86ba7f88de4781812950784cbc2dc4');
-  // Second fresh CJ account (openId 49640, separate 50,000-pt pool) — acts as an
-  // overflow/backup pool so recovery keeps going when the primary key exhausts
-  // its daily points. Same shared egress IP, so no QPS gain, only points runway.
+  // Second fresh CJ account (openId 49640, separate 50,000-pt pool) — overflow/backup.
   list.push('CJ5799030@api@c764039900e64e0bbdc3b9398a26bb2c');
   if (env.CJ_ACCESS_TOKEN) list.push(env.CJ_ACCESS_TOKEN);
   for (let i = 2; i <= 6; i++) {
