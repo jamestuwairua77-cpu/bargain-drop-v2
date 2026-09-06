@@ -176,10 +176,11 @@ async function scanBroken(env, budgetMs, startAt, startCursor) {
   while (true) {
     if (Date.now() - t0 > budgetMs) { truncated = true; break; }
     const u = base + (cursor ? '&page_info=' + encodeURIComponent(cursor) : '');
-    let body, headers;
+    let body, headers, ok, status;
     try {
-      ({ body, headers } = await shopifyFetch(env, u));
+      ({ body, headers, ok, status } = await shopifyFetch(env, u));
     } catch (e) { truncated = true; break; }
+    if (!ok || status >= 400) { truncated = true; break; }   // 429/5xx → do NOT treat as end-of-catalog
     for (const p of (body.products || [])) {
       if (p.status === 'active' && p.title && isBrokenType(p.product_type)) {
         list.push({ id: String(p.id), title: p.title, body_html: (p.body_html || '').slice(0, 3000) });
