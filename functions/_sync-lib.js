@@ -278,7 +278,7 @@ export function cjKeys(env) {
   // Fresh CJ account (separate 50,000-pt pool) supplied by James — placed FIRST so
   // it leads the rotation and becomes the sticky-preferred key (the other keys are
   // 5 aliases of ONE exhausted account sharing a single QPS/points bucket).
-  list.push('CJ5798875@api@7fffb427dfd542f59c708fe323504b07');
+  list.push('CJ5798986@api@8e86ba7f88de4781812950784cbc2dc4');
   if (env.CJ_ACCESS_TOKEN) list.push(env.CJ_ACCESS_TOKEN);
   for (let i = 2; i <= 6; i++) {
     const k = env['CJ_ACCESS_TOKEN_' + i];
