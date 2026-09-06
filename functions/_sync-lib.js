@@ -403,8 +403,10 @@ export async function shopifyFetch(env, path, opts = {}) {
 
   // 429 → rate limited. Honor Retry-After (fall back to exponential backoff),
   // retrying a bounded number of times so bursts during sync/import don't abort.
+  // Callers that must fail FAST on a 429 (e.g. recover-replace self-loop, which
+  // otherwise burns its whole time budget waiting here) pass skip429Retry:true.
   let attempts = 1;
-  const MAX_429_ATTEMPTS = 5;
+  const MAX_429_ATTEMPTS = opts.skip429Retry ? 0 : 5;
   while (r.status === 429 && attempts <= MAX_429_ATTEMPTS) {
     const ra = parseFloat(r.headers.get('retry-after'));
     const waitMs = Number.isFinite(ra) && ra > 0

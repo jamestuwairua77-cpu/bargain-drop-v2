@@ -272,23 +272,38 @@ export async function onRequest(context) {
 
     if (action === 'run') {
       if (!st.queue || !st.queue.length) return json({ ok: false, error: 'no queue; run build-queue + poll-bulk first' }, 400);
-      const doneSet = new Set(st.done.map(String));
-      const flaggedSet = new Set(st.flagged.map(String));
       // Time-budgeted self-loop: recover continuously until ~45s elapses (under the
-      // 50s Pages CPU budget) or the queue drains, instead of a fixed 30-item batch.
+      // 50s Pages CPU budget) or the queue drains. Crucially, when Shopify rate-limits
+      // (429), stop the run cleanly and save progress instead of burning the whole
+      // budget on retries (previously each create/delete could retry ~20s inside
+      // shopifyFetch, killing throughput ~10x).
       const BUDGET_MS = 45000;
       const startedAt = Date.now();
       const results = [];
       let processed = 0;
-      const skipped = new Set(); // items that returned "retry" this run -> defer to next run
+      let shopifyThrottled = false;
+      const skipped = new Set(); // items that returned "retry"/"throttled" this run -> defer
+
+      async function shopify429(p, reason) {
+        const ek = String(reason || '').toLowerCase();
+        if (ek.includes('429') || ek.includes('rate limit') || ek.includes('exceeded')) {
+          results.push({ id: p.shopifyId, throttled: true, reason });
+          skipped.add(String(p.shopifyId));
+          shopifyThrottled = true;
+          return true;
+        }
+        return false;
+      }
 
       while (true) {
+        if (shopifyThrottled) break;                    // Shopify is rate-limiting us -> stop cleanly
+        if (Date.now() - startedAt > BUDGET_MS) break;  // out of time budget
         const doneSet = new Set(st.done.map(String));
         const flaggedSet = new Set(st.flagged.map(String));
         const p = st.queue.find((x) => !doneSet.has(String(x.shopifyId)) && !flaggedSet.has(String(x.shopifyId)) && !skipped.has(String(x.shopifyId)));
         if (!p) break;                                  // queue drained (or all deferred)
-        if (Date.now() - startedAt > BUDGET_MS) break;  // out of time budget
-        await new Promise((r) => setTimeout(r, 900)); // CJ QPS ~1/sec (per-IP)
+
+        await new Promise((r) => setTimeout(r, 900));   // CJ QPS ~1/sec (per-IP)
         const cj = await cjRecover(env, p.firstSku);
         if (cj && cj.retry) { results.push({ id: p.shopifyId, retry: cj.reason }); skipped.add(String(p.shopifyId)); processed++; continue; }
         const cjData = cj && cj.ok ? cj.data : null;
@@ -303,29 +318,32 @@ export async function onRequest(context) {
         try {
           // 1. Re-import a FRESH product from the full CJ record (40% markup applied).
           const productBody = buildProductBody(cjData);
-          const create = await shopifyFetch(env, '/products.json', { method: 'POST', body: JSON.stringify({ product: productBody }) });
+          const create = await shopifyFetch(env, '/products.json', { method: 'POST', body: JSON.stringify({ product: productBody }), skip429Retry: true });
           if (!create.ok) { throw new Error('create ' + create.status); }
           const newId = create.body?.product?.id;
           if (!newId) { throw new Error('create no-id'); }
 
           // 2. Delete the ORIGINAL junk product (only after successful create).
-          const del = await shopifyFetch(env, `/products/${p.shopifyId}.json`, { method: 'DELETE' });
+          const del = await shopifyFetch(env, `/products/${p.shopifyId}.json`, { method: 'DELETE', skip429Retry: true });
           const deleted = del.ok || del.status === 404;
 
           st.done.push(String(p.shopifyId)); st.totalDone++;
           results.push({ id: p.shopifyId, replaced: true, newId, category: productBody.product_type, deleted });
           await new Promise((r) => setTimeout(r, 350));
         } catch (e) {
-          // Create or delete failed -> leave for next run (do NOT flag as done).
-          results.push({ id: p.shopifyId, error: String(e?.message || e) });
+          const msg = String(e?.message || e);
+          // If this was a Shopify rate-limit, stop the run cleanly (don't keep hammering).
+          if (await shopify429(p, msg)) { processed++; break; }
+          // Create/delete failed for a non-throttle reason -> leave for next run.
+          results.push({ id: p.shopifyId, error: msg });
         }
         processed++;
-        if (processed % 10 === 0) await saveState(env, st); // checkpoint progress
+        if (processed % 5 === 0) await saveState(env, st); // checkpoint progress more often
       }
 
       await saveState(env, st);
       const remaining = st.queue.filter((p) => !new Set(st.done.map(String)).has(String(p.shopifyId)) && !new Set(st.flagged.map(String)).has(String(p.shopifyId))).length;
-      return json({ ok: true, processed, done: st.totalDone, flagged: st.totalFlagged, remaining, results: results.slice(0, 50) });
+      return json({ ok: true, processed, done: st.totalDone, flagged: st.totalFlagged, remaining, shopifyThrottled, results: results.slice(0, 50) });
     }
 
     if (action === 'verify') {
