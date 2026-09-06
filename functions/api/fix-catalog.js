@@ -20,7 +20,7 @@
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, mapCategory } from '../_sync-lib.js';
 
-const MAX_PER_RUN = 20;         // bound CJ+write work per invocation
+const MAX_PER_RUN = 3;          // bound CJ+write work per invocation (points refill ~3/min)
 const BULK_POLL_MS = 1500;      // per-poll sleep inside a single Function call
 const BULK_MAX_POLLS = 12;      // ~18s of polling per call (safe within CPU budget)
 
@@ -280,7 +280,7 @@ export async function onRequest(context) {
       let fixedNow = 0, failedNow = 0;
       const results = [];
       for (const p of batch) {
-        await new Promise((res) => setTimeout(res, 1300)); // CJ QPS limit = 1/sec
+        await new Promise((res) => setTimeout(res, 20000)); // CJ points refill ~35/min → stay under refill (3 lookups/min = 10pt each)
         const cj = await cjRecover(env, p.firstSku);
         let categoryFixed = false, imageFixed = false;
         try {
