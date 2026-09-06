@@ -304,7 +304,11 @@ export async function onRequest(context) {
       const lines = txt.split('\n').filter((l) => l.trim());
       const first = lines[0] ? JSON.parse(lines[0]) : null;
       const sample = first && first.node ? first.node : first;
-      return json({ ok: true, totalLines: lines.length, sampleNode: sample });
+      // Also dump the raw __typename of first 6 lines to understand flattened structure
+      const kinds = lines.slice(0, 8).map((l) => { try { const o = JSON.parse(l); return o.__typename; } catch { return 'ERR'; } });
+      const second = lines[1] ? JSON.parse(lines[1]) : null;
+      const third = lines[2] ? JSON.parse(lines[2]) : null;
+      return json({ ok: true, totalLines: lines.length, sampleNode: sample, kindSeq: kinds, line1: first, line2: second, line3: third });
     }
 
     return json({ ok: false, error: 'unknown action: ' + action }, 400);
