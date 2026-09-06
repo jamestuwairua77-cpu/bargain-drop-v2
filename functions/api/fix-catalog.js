@@ -84,21 +84,43 @@ async function downloadBulk(url) {
   return rows;
 }
 
+// Bulk JSONL is FLATTENED: a product is a line WITHOUT __parentId; its images are
+// child lines ({src, __parentId}) and variants are child lines ({sku, __parentId}).
+// We group children back under their parent GID to reconstruct products.
 function parseRows(rows) {
-  const out = [];
+  const products = new Map();   // shopifyId -> { shopifyId, type, title }
   for (const r of rows) {
-    const node = r.node || r;
-    const gid = node.id || '';
-    const m = /(\d+)$/.exec(String(gid));
-    const shopifyId = m ? m[1] : null;
-    if (!shopifyId) continue;
-    const type = node.productType == null ? '' : String(node.productType);
-    const imgs = node.images?.edges || [];
-    const hasImage = imgs.length > 0 && !!(imgs[0]?.node?.src);
-    const variants = node.variants?.edges || [];
-    let firstSku = null;
-    for (const v of variants) { const sku = v?.node?.sku; if (sku) { firstSku = String(sku); break; } }
-    out.push({ shopifyId, type, hasImage, firstSku, title: node.title || '' });
+    if (r.__parentId) continue;
+    const m = /(\d+)$/.exec(String(r.id || ''));
+    if (!m) continue;
+    products.set(m[1], {
+      shopifyId: m[1],
+      type: r.productType == null ? '' : String(r.productType),
+      title: r.title || '',
+    });
+  }
+  // Group children by parent product id.
+  const images = new Map();     // shopifyId -> Set(src)
+  const skus = new Map();       // shopifyId -> first sku
+  const addImg = (id, src) => { if (!images.has(id)) images.set(id, []); images.get(id).push(src); };
+  const addSku = (id, sku) => { if (!skus.has(id)) skus.set(id, sku); };
+  for (const r of rows) {
+    if (!r.__parentId) continue;
+    const m = /(\d+)$/.exec(String(r.__parentId || ''));
+    if (!m) continue;
+    const id = m[1];
+    if (r.src != null && r.src !== '') addImg(id, String(r.src));
+    if (r.sku != null && r.sku !== '') addSku(id, String(r.sku));
+  }
+  const out = [];
+  for (const [id, prod] of products) {
+    out.push({
+      shopifyId: id,
+      type: prod.type,
+      hasImage: (images.get(id) || []).length > 0,
+      firstSku: skus.get(id) || null,
+      title: prod.title,
+    });
   }
   return out;
 }
