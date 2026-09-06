@@ -274,14 +274,23 @@ export async function onRequest(context) {
       if (!st.queue || !st.queue.length) return json({ ok: false, error: 'no queue; run build-queue + poll-bulk first' }, 400);
       const doneSet = new Set(st.done.map(String));
       const flaggedSet = new Set(st.flagged.map(String));
-      const candidates = st.queue.filter((p) => !doneSet.has(String(p.shopifyId)) && !flaggedSet.has(String(p.shopifyId)));
-      const batch = candidates.slice(0, limit);
+      // Time-budgeted self-loop: recover continuously until ~45s elapses (under the
+      // 50s Pages CPU budget) or the queue drains, instead of a fixed 30-item batch.
+      const BUDGET_MS = 45000;
+      const startedAt = Date.now();
       const results = [];
+      let processed = 0;
+      const skipped = new Set(); // items that returned "retry" this run -> defer to next run
 
-      for (const p of batch) {
-        await new Promise((r) => setTimeout(r, 1000)); // CJ QPS ~1/sec (per-IP)
+      while (true) {
+        const doneSet = new Set(st.done.map(String));
+        const flaggedSet = new Set(st.flagged.map(String));
+        const p = st.queue.find((x) => !doneSet.has(String(x.shopifyId)) && !flaggedSet.has(String(x.shopifyId)) && !skipped.has(String(x.shopifyId)));
+        if (!p) break;                                  // queue drained (or all deferred)
+        if (Date.now() - startedAt > BUDGET_MS) break;  // out of time budget
+        await new Promise((r) => setTimeout(r, 900)); // CJ QPS ~1/sec (per-IP)
         const cj = await cjRecover(env, p.firstSku);
-        if (cj && cj.retry) { results.push({ id: p.shopifyId, retry: cj.reason }); continue; }
+        if (cj && cj.retry) { results.push({ id: p.shopifyId, retry: cj.reason }); skipped.add(String(p.shopifyId)); processed++; continue; }
         const cjData = cj && cj.ok ? cj.data : null;
 
         if (!cjData || !cjData.categoryName) {
@@ -310,11 +319,13 @@ export async function onRequest(context) {
           // Create or delete failed -> leave for next run (do NOT flag as done).
           results.push({ id: p.shopifyId, error: String(e?.message || e) });
         }
+        processed++;
+        if (processed % 10 === 0) await saveState(env, st); // checkpoint progress
       }
 
       await saveState(env, st);
       const remaining = st.queue.filter((p) => !new Set(st.done.map(String)).has(String(p.shopifyId)) && !new Set(st.flagged.map(String)).has(String(p.shopifyId))).length;
-      return json({ ok: true, processed: batch.length, done: st.totalDone, flagged: st.totalFlagged, remaining, results: results.slice(0, 30) });
+      return json({ ok: true, processed, done: st.totalDone, flagged: st.totalFlagged, remaining, results: results.slice(0, 50) });
     }
 
     if (action === 'verify') {
