@@ -18,7 +18,7 @@
 //   GET /api/fix-catalog?action=status          → persisted progress
 //   GET /api/fix-catalog?action=reset           → clear progress
 
-import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
+import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, mapCategory } from '../_sync-lib.js';
 
 const MAX_PER_RUN = 40;         // bound CJ+write work per invocation
 const BULK_POLL_MS = 1500;      // per-poll sleep inside a single Function call
@@ -118,16 +118,46 @@ async function cjRecover(env, sku) {
   }
 }
 
-const STATE_KEY = 'fixcat-state';
-async function loadState(env) {
-  try {
-    const existing = await shopMetaGet(env, STATE_KEY);
-    if (existing && existing.value) return JSON.parse(existing.value);
-  } catch {}
+const SHOP_GID = 'gid://shopify/Shop/73594044547';
+const STATE_NS = 'fixcat';
+const STATE_KEY = 'state';
+
+function emptyState() {
   return { opId: null, queue: [], total: 0, needCategory: 0, needImage: 0, fixed: [], failed: [], totalFixed: 0, totalFailed: 0 };
 }
+async function loadState(env) {
+  let raw = {};
+  try {
+    const q = `query { shop { metafields(first:1, keys: ["${STATE_NS}.${STATE_KEY}"]) { edges { node { value } } } } }`;
+    const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
+    const edges = body?.data?.shop?.metafields?.edges || [];
+    if (edges.length) raw = JSON.parse(edges[0].node.value || '{}');
+  } catch {}
+  raw = raw && typeof raw === 'object' ? raw : {};
+  const base = emptyState();
+  const fixed = Array.isArray(raw.fixed) ? raw.fixed : [];
+  const failed = Array.isArray(raw.failed) ? raw.failed : [];
+  const queue = Array.isArray(raw.queue) ? raw.queue : [];
+  return {
+    opId: raw.opId || null,
+    queue,
+    total: Number(raw.total) || 0,
+    needCategory: Number(raw.needCategory) || 0,
+    needImage: Number(raw.needImage) || 0,
+    fixed,
+    failed,
+    totalFixed: Number(raw.totalFixed) || 0,
+    totalFailed: Number(raw.totalFailed) || 0,
+  };
+}
 async function saveState(env, st) {
-  try { await shopMetaSet(env, STATE_KEY, JSON.stringify(st)); } catch {}
+  try {
+    const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
+    await shopifyFetch(env, '/graphql.json', {
+      method: 'POST',
+      body: JSON.stringify({ query: mq, variables: { m: [{ ownerId: SHOP_GID, namespace: STATE_NS, key: STATE_KEY, type: 'json', value: JSON.stringify(st) }] } }),
+    });
+  } catch {}
 }
 
 function json(o, status = 200) {
