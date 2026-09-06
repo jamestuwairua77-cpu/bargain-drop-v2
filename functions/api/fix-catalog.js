@@ -20,7 +20,7 @@
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, mapCategory } from '../_sync-lib.js';
 
-const MAX_PER_RUN = 3;          // bound CJ+write work per invocation (points refill ~3/min)
+const MAX_PER_RUN = 20;         // fresh CJ account removed the points bottleneck; QPS 1/sec still applies
 const BULK_POLL_MS = 1500;      // per-poll sleep inside a single Function call
 const BULK_MAX_POLLS = 12;      // ~18s of polling per call (safe within CPU budget)
 
@@ -126,21 +126,26 @@ function parseRows(rows) {
 }
 
 // CJ lookup by variantSku → { categoryName, images[] }
+// Retryable statuses so intermittent CJ points/QPS failures do NOT permanently
+// mark a product as failed. Returns { ok:true, data }, { retry:true }, or { ok:false }.
 async function cjRecover(env, sku) {
-  if (!sku) return null;
+  if (!sku) return { ok: false, reason: 'no-sku' };
   try {
     const body = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(sku));
     const d = body?.data;
-    if (body?.code !== 200 || !d) return null;
+    const code = body?.code;
+    if (code === 16900500 || code === 429 || code === 1600200) return { retry: true, reason: 'points-or-qps', code };
+    if (code !== 200 || !d) return { ok: false, reason: 'not-found', code };
     let imgs = d.productImageSet;
     if (typeof imgs === 'string') { try { imgs = JSON.parse(imgs); } catch { imgs = []; } }
     if (!Array.isArray(imgs)) imgs = [];
+    // productImageSet is authoritative; also fold in any variant images.
     const variants = Array.isArray(d.variant) ? d.variant : (Array.isArray(d.variants) ? d.variants : []);
     const seen = new Set(imgs.filter(Boolean));
     for (const v of variants) { const u = v?.variantImage; if (u && !seen.has(u)) { seen.add(u); imgs.push(u); } }
-    return { categoryName: d.categoryName || null, images: imgs.filter(Boolean) };
+    return { ok: true, data: { categoryName: d.categoryName || null, images: imgs.filter(Boolean) } };
   } catch {
-    return null;
+    return { retry: true, reason: 'network-error' };
   }
 }
 
@@ -288,17 +293,23 @@ export async function onRequest(context) {
       let fixedNow = 0, failedNow = 0;
       const results = [];
       for (const p of batch) {
-        await new Promise((res) => setTimeout(res, 20000)); // CJ points refill ~35/min → stay under refill (3 lookups/min = 10pt each)
+        await new Promise((res) => setTimeout(res, 1300)); // CJ QPS limit = 1/sec
         const cj = await cjRecover(env, p.firstSku);
+        if (cj && cj.retry) {
+          // Transient points/QPS/network failure → leave for a future run, do NOT mark failed.
+          results.push({ id: p.shopifyId, retry: cj.reason });
+          continue;
+        }
+        const cjData = cj && cj.ok ? cj.data : null;
         let categoryFixed = false, imageFixed = false;
         try {
           const patch = {};
-          if (isBrokenType(p.type) && cj && cj.categoryName) {
-            const mt = mapCategory(cj.categoryName);
+          if (isBrokenType(p.type) && cjData && cjData.categoryName) {
+            const mt = mapCategory(cjData.categoryName);
             if (mt && mt !== 'other') { patch.product_type = mt; categoryFixed = true; }
           }
-          if (!p.hasImage && cj && cj.images.length) {
-            patch.images = cj.images.slice(0, 20).map((src) => ({ src }));
+          if (!p.hasImage && cjData && cjData.images.length) {
+            patch.images = cjData.images.slice(0, 20).map((src) => ({ src }));
             imageFixed = true;
           }
           if (Object.keys(patch).length) {
@@ -310,10 +321,10 @@ export async function onRequest(context) {
           }
           if (categoryFixed || imageFixed) {
             st.fixed.push(String(p.shopifyId)); st.totalFixed++; fixedNow++;
-            results.push({ id: p.shopifyId, category: categoryFixed, image: imageFixed, cjCategory: cj ? cj.categoryName : null });
+            results.push({ id: p.shopifyId, category: categoryFixed, image: imageFixed, cjCategory: cjData ? cjData.categoryName : null });
           } else {
             st.failed.push(String(p.shopifyId)); st.totalFailed++; failedNow++;
-            results.push({ id: p.shopifyId, reason: cj ? 'no-fix-applied' : 'no-cj-data' });
+            results.push({ id: p.shopifyId, reason: cjData ? 'no-fix-applied' : 'not-found' });
           }
         } catch (e) {
           st.failed.push(String(p.shopifyId)); st.totalFailed++; failedNow++;

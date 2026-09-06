@@ -268,6 +268,9 @@ export function cjKeys(env) {
     const k = env['CJ_ACCESS_TOKEN_' + i];
     if (k) list.push(k);
   }
+  // Fresh CJ account (separate points pool) supplied by James — added as a code
+  // constant so it's used immediately without a Cloudflare dashboard env change.
+  list.push('CJ5798875@api@7fffb427dfd542f59c708fe323504b07');
   // dedupe
   return [...new Set(list)];
 }
