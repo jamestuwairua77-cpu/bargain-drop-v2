@@ -62,9 +62,10 @@ mutation {
 }
 
 async function bulkStatus(env, opId) {
-  const q = `query { node(id: "${opId}") { ... on BulkOperation { status url errorCode partialData } } }`;
+  // Use currentBulkOperation (canonical poll) — node(id:) is unreliable for bulk ops.
+  const q = `query { currentBulkOperation { id status url errorCode partialData } }`;
   const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
-  return body?.data?.node || null;
+  return body?.data?.currentBulkOperation || null;
 }
 
 async function downloadBulk(url) {
