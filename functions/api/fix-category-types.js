@@ -20,6 +20,13 @@ const SHOP_GID = 'gid://shopify/Shop/73594044547';
 const NS = 'fixcattypes';
 const KEY = 'state';
 const NUMERIC_RE = /^\d+$/;
+function isBrokenType(pt) {
+  const s = String(pt == null ? '' : pt).trim();
+  if (!s) return true;
+  if (NUMERIC_RE.test(s)) return true;
+  if (s.toLowerCase() === 'other') return true;
+  return false;
+}
 
 function rx(...terms) {
   return new RegExp(terms.map(t => `(?:\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`).join('|'), 'i');
@@ -28,7 +35,7 @@ const RULES = [
   ['phones-accessories',     rx('phone case','iphone','samsung','phone cover','phone holder','airpods','earbuds case','charger cable','screen protector','mobile phone','xiaomi','huawei','bluetooth earphone','wireless earbuds','earphones','headset','power bank','phone stand','pop socket','cell phone','android')],
   ['computer-office',       rx('laptop','keyboard','mouse pad','monitor stand','desk','office chair','webcam','printer','usb hub','docking station','mouse','desktop','ergonomic')],
   ['consumer-electronics',  rx('bluetooth speaker','headphones','earphone','speaker','smart watch','smartwatch','gaming','camera','drone','projector','led light','led strip','tablet','audio','soundbar','wireless charger','smart home','alexa','echo dot','earbuds','stereo','amplifier','subwoofer','tws','digital camera','action camera','video recorder')],
-  ['womens-clothing',       rx('women','womens','woman','ladies','lady','girls','dress','blouse','skirt','leggings','crop top','bodysuit','swimsuit','bikini','cardigan','jumpsuit','romper','gown','corset','bralette','camisole','tunic')],
+  ['womens-clothing',       rx('women','womens','woman','ladies','lady','girls','dress','blouse','skirt','leggings','crop top','bodysuit','swimsuit','bikini','cardigan','jumpsuit','romper','gown','corset','bralette','camisole','tunic','hoodie','sweater','sweatshirt','t-shirt','tshirt','tee','shirt','top','blazer','jacket','coat','fur coat','jeans','denim','pants','trousers','shorts','lingerie','pajama','nightgown','bodysuit')],
   ['mens-clothing',         rx("men's",'mens','gentlemen','male','boys','polo','boxer','boxers','briefs','suspenders','suit','cufflink','bow tie','neckwear','men ')],
   ['bags-shoes',            rx('shoe','shoes','sneaker','boot','boots','bootie','sandal','slipper','heel','heels','loafer','moccasin','handbag','backpack','wallet','purse','tote','crossbody','luggage','clutch','duffel','messenger bag','satchel','shoulder bag')],
   ['jewelry-watches',       rx('ring','earring','necklace','bracelet','pendant','wristwatch','wrist watch','jewelry','jewellery','bangle','anklet','charm','brooch','gemstone','watch band','timepiece')],
@@ -101,7 +108,7 @@ export async function onRequest(context) {
       const u = base + (cursor ? '&page_info=' + encodeURIComponent(cursor) : '');
       const { body, headers } = await shopifyFetch(env, u);
       for (const p of (body.products || [])) {
-        if (p.status === 'active' && p.title && NUMERIC_RE.test(String(p.product_type || '').trim())) {
+        if (p.status === 'active' && p.title && isBrokenType(p.product_type)) {
           queue.push({ id: String(p.id), title: p.title, body_html: (p.body_html || '').slice(0, 3000) });
         }
       }
