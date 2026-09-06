@@ -2,6 +2,42 @@
   {
     "action": "cj-webhook",
     "type": "VARIANT",
+    "messageType": "INSERT",
+    "messageId": "44********25",
+    "valid": true,
+    "paramKeys": [
+      "fields",
+      "pid",
+      "variantHeight",
+      "variantImage",
+      "variantKey",
+      "variantLength",
+      "variantName",
+      "variantSellPrice",
+      "variantSku",
+      "variantStatus",
+      "variantValue1",
+      "variantWeight",
+      "variantWidth",
+      "vid"
+    ],
+    "topKeys": [
+      "messageId",
+      "messageType",
+      "params",
+      "type"
+    ],
+    "paramsKind": "object",
+    "stockSample": null,
+    "imported": false,
+    "reason": "product not found in Shopify",
+    "sku": "CJLX313007701AZ",
+    "receivedAt": "2026-09-06T00:24:02.776Z",
+    "at": "2026-09-06T00:24:03.019Z"
+  },
+  {
+    "action": "cj-webhook",
+    "type": "VARIANT",
     "messageType": "UPDATE",
     "messageId": "e3********66",
     "valid": true,
@@ -5598,27 +5634,5 @@
     "changed": 0,
     "receivedAt": "2026-09-05T04:10:19.267Z",
     "at": "2026-09-05T04:10:19.495Z"
-  },
-  {
-    "action": "cj-webhook",
-    "type": "STOCK",
-    "messageType": "INCREASE",
-    "messageId": "50********52",
-    "valid": true,
-    "paramKeys": [
-      "1995794559720202250"
-    ],
-    "topKeys": [
-      "messageId",
-      "messageType",
-      "params",
-      "type"
-    ],
-    "paramsKind": "object",
-    "stockSample": "{\"1995794559720202250\":[{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1995794559640510465\",\"storageNum\":13748,\"vid\":\"1995794559720202250\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1995794559640510465\",\"storageNum\":12082,\"vid\":\"1995794559720202272\"},{\"areaEn\":\"China Warehouse\",\"areaId\":\"1\",\"countryCode\":\"CN\",\"pid\":\"1995794559640510465\",\"storageNum\":132",
-    "imported": false,
-    "changed": 0,
-    "receivedAt": "2026-09-05T02:18:26.227Z",
-    "at": "2026-09-05T02:18:26.410Z"
   }
 ]
