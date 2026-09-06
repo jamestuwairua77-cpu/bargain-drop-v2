@@ -125,7 +125,10 @@ function parseRows(rows) {
   return out;
 }
 
-// CJ lookup by variantSku → { categoryName, images[] }
+// CJ lookup by variantSku → full webhook-grade payload. This mirrors the CJ webhook
+// product import ( _cj-import.js importProduct ): we retrieve the COMPLETE product
+// record — description, title, category, every variant (with its image/price/weight/sku)
+// and the full image set — so nothing is left behind.
 // Retryable statuses so intermittent CJ points/QPS failures do NOT permanently
 // mark a product as failed. Returns { ok:true, data }, { retry:true }, or { ok:false }.
 async function cjRecover(env, sku) {
@@ -136,17 +139,114 @@ async function cjRecover(env, sku) {
     const code = body?.code;
     if (code === 16900500 || code === 429 || code === 1600200) return { retry: true, reason: 'points-or-qps', code };
     if (code !== 200 || !d) return { ok: false, reason: 'not-found', code };
+    // Images: productImageSet is authoritative; fold in bigImage + variant images.
     let imgs = d.productImageSet;
     if (typeof imgs === 'string') { try { imgs = JSON.parse(imgs); } catch { imgs = []; } }
     if (!Array.isArray(imgs)) imgs = [];
-    // productImageSet is authoritative; also fold in any variant images.
-    const variants = Array.isArray(d.variant) ? d.variant : (Array.isArray(d.variants) ? d.variants : []);
+    const variants = Array.isArray(d.variants) ? d.variants : (Array.isArray(d.variant) ? d.variant : []);
     const seen = new Set(imgs.filter(Boolean));
+    if (d.bigImage) seen.add(d.bigImage);
     for (const v of variants) { const u = v?.variantImage; if (u && !seen.has(u)) { seen.add(u); imgs.push(u); } }
-    return { ok: true, data: { categoryName: d.categoryName || null, images: imgs.filter(Boolean) } };
+    return {
+      ok: true,
+      data: {
+        categoryName: d.categoryName || null,
+        description: d.description || null,
+        title: d.productNameEn || d.productName || null,
+        sellPrice: d.sellPrice != null ? Number(d.sellPrice) : null,
+        images: imgs.filter(Boolean).slice(0, 20),
+        variants,
+        variantImageSet: imgs.filter(Boolean),
+      },
+    };
   } catch {
     return { retry: true, reason: 'network-error' };
   }
+}
+
+// Flat 40% markup USD→AUD (mirrors _cj-import.js repriceAUD exactly).
+function repriceAUD(usdCost) {
+  const c = parseFloat(usdCost);
+  if (!isFinite(c) || c <= 0) return null;
+  return Math.round(c * 1.4 * 1.5);
+}
+
+// Reconcile the FULL CJ variant list into Shopify: create missing variants and
+// update existing ones' price/weight/sku/option values. Mirrors _cj-import.js
+// reconcileVariantsToShopify but scoped to what fix-catalog needs (no option-CJK
+// normalization dependency — CJ variantName/get option values are written as-is).
+function optVal(v, i) {
+  const n = ['variantValue1', 'variantValue2', 'variantValue3'][i];
+  if (v[n] != null) return v[n];
+  if (v.variantKey != null) return String(v.variantKey).split('-')[i];
+  if (i === 0) return v.variantNameEn || v.variantName || null;
+  return null;
+}
+async function reconcileVariants(env, shopifyId, cjVariants) {
+  const arr = Array.isArray(cjVariants) ? cjVariants : [];
+  if (!arr.length) return { createdV: 0, updatedV: 0, reason: 'no CJ variants' };
+  const sr = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,title,variants,options`);
+  if (!sr.ok) return { createdV: 0, updatedV: 0, reason: 'shopify get ' + sr.status };
+  const shop = sr.body.product;
+  const shopVariants = Array.isArray(shop.variants) ? shop.variants : [];
+  const shopOptions = Array.isArray(shop.options) ? shop.options : [];
+
+  const existingBySku = new Map();
+  const existingByOpt = new Map();
+  for (const sv of shopVariants) {
+    if (sv.sku) existingBySku.set(String(sv.sku), sv);
+    const key = [sv.option1, sv.option2, sv.option3].filter(Boolean).map(String).join('||');
+    existingByOpt.set(key, sv);
+  }
+
+  const toCreate = [];
+  const toUpdate = [];
+  for (const cv of arr) {
+    const sku = cv.variantSku != null ? String(cv.variantSku) : null;
+    const o1 = optVal(cv, 0), o2 = optVal(cv, 1), o3 = optVal(cv, 2);
+    let existing = null;
+    if (sku && existingBySku.has(sku)) existing = existingBySku.get(sku);
+    if (!existing) {
+      const optKey = [o1, o2, o3].filter(Boolean).map(String).join('||');
+      if (optKey) existing = existingByOpt.get(optKey) || null;
+    }
+    const price = cv.variantSellPrice != null ? repriceAUD(cv.variantSellPrice) : null;
+    const weightGrams = cv.variantWeight != null ? Number(cv.variantWeight) : null;
+    if (existing) {
+      const patch = {};
+      if (price != null && Math.abs(Number(existing.price || 0) - price) > 0.001) patch.price = String(price);
+      if (weightGrams != null && Number(existing.grams || 0) !== weightGrams) patch.grams = weightGrams;
+      if (sku && existing.sku !== sku) patch.sku = sku;
+      if (Object.keys(patch).length) { patch.id = existing.id; toUpdate.push(patch); }
+    } else {
+      const nv = { option1: o1 || '', option2: o2 || '' };
+      if (o3 != null) nv.option3 = o3;
+      if (price != null) nv.price = String(price);
+      if (sku) nv.sku = sku;
+      if (weightGrams != null) nv.grams = weightGrams;
+      toCreate.push(nv);
+    }
+  }
+
+  let createdV = 0, updatedV = 0;
+  if (!toCreate.length && !toUpdate.length) return { createdV: 0, updatedV: 0, reason: 'no change' };
+
+  const merged = shopVariants.map((sv) => {
+    const upd = toUpdate.find((u) => u.id === sv.id);
+    if (upd) { updatedV++; return { ...sv, ...upd }; }
+    return sv;
+  });
+  for (const nc of toCreate) { merged.push(nc); createdV++; }
+
+  const optionsDef = shopOptions.length ? shopOptions : null;
+  const putBody = { product: { id: Number(shopifyId), variants: merged } };
+  if (optionsDef && optionsDef.length) putBody.product.options = optionsDef;
+
+  const put = await shopifyFetch(env, `/products/${shopifyId}.json`, {
+    method: 'PUT', body: JSON.stringify(putBody),
+  });
+  if (!put.ok) return { createdV: 0, updatedV: 0, reason: 'shopify put ' + put.status };
+  return { createdV, updatedV };
 }
 
 const SHOP_GID = 'gid://shopify/Shop/73594044547';
@@ -310,17 +410,26 @@ export async function onRequest(context) {
           continue;
         }
         const cjData = cj && cj.ok ? cj.data : null;
-        let categoryFixed = false, imageFixed = false;
+        let categoryFixed = false, imageFixed = false, descFixed = false, titleFixed = false, variantsFixed = false;
         try {
           const patch = {};
           if (isBrokenType(p.type) && cjData && cjData.categoryName) {
             const mt = mapCategory(cjData.categoryName);
             if (mt && mt !== 'other') { patch.product_type = mt; categoryFixed = true; }
           }
-          if (!p.hasImage && cjData && cjData.images.length) {
-            patch.images = cjData.images.slice(0, 20).map((src) => ({ src }));
+          if (cjData && cjData.description) { patch.body_html = cjData.description; descFixed = true; }
+          if (cjData && cjData.title && (!p.title || p.title !== cjData.title)) { patch.title = cjData.title; titleFixed = true; }
+          if (!p.hasImage && cjData && cjData.variantImageSet.length) {
+            patch.images = cjData.variantImageSet.slice(0, 20).map((src) => ({ src }));
             imageFixed = true;
           }
+          // Reconcile the FULL variant list (create missing variants / update price, weight, image, sku).
+          let rec = { createdV: 0, updatedV: 0 };
+          if (cjData && cjData.variants.length) {
+            rec = await reconcileVariants(env, p.shopifyId, cjData.variants);
+            if (rec.createdV || rec.updatedV) variantsFixed = true;
+          }
+          // Apply product-level patch if anything, else if variants changed we still fixed.
           if (Object.keys(patch).length) {
             const r = await shopifyFetch(env, `/products/${p.shopifyId}.json`, {
               method: 'PUT',
@@ -328,9 +437,10 @@ export async function onRequest(context) {
             });
             if (!r.ok) throw new Error('shopify put ' + r.status);
           }
-          if (categoryFixed || imageFixed) {
+          const anything = categoryFixed || imageFixed || descFixed || titleFixed || variantsFixed;
+          if (anything) {
             st.fixed.push(String(p.shopifyId)); st.totalFixed++; fixedNow++;
-            results.push({ id: p.shopifyId, category: categoryFixed, image: imageFixed, cjCategory: cjData ? cjData.categoryName : null });
+            results.push({ id: p.shopifyId, category: categoryFixed, image: imageFixed, desc: descFixed, variants: variantsFixed, cjCategory: cjData ? cjData.categoryName : null });
           } else {
             st.failed.push(String(p.shopifyId)); st.totalFailed++; failedNow++;
             results.push({ id: p.shopifyId, reason: cjData ? 'no-fix-applied' : 'not-found' });
