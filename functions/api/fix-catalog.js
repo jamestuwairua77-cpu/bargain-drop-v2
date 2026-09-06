@@ -462,6 +462,17 @@ export async function onRequest(context) {
       return json({ ok: true, queued: st.queue.length, sample: head.map((p) => ({ id: p.shopifyId, type: p.type, hasImage: p.hasImage, sku: p.firstSku, title: (p.title||'').slice(0,40) })) });
     }
 
+    if (action === 'debug-sku') {
+      const ids = String(url.searchParams.get('ids') || '').split(',').filter(Boolean);
+      const q = st.queue || [];
+      const out = ids.map((id) => {
+        const p = q.find((x) => String(x.shopifyId) === id || String(x.id) === id);
+        return p ? { id: p.shopifyId, sku: p.firstSku, type: p.type, hasImage: p.hasImage } : { id, missing: true };
+      });
+      return json({ ok: true, rows: out });
+    }
+
+
     if (action === 'debug-row') {
       if (!st.opId) return json({ ok: false, error: 'no op' }, 400);
       const node = await bulkStatus(env, st.opId);
