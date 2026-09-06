@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: /api/product-data
 // GET ?id= — returns product data from categories-data.json
 
-import { corsHeaders } from '../_sync-lib.js';
+import { corsHeaders, loadAllCategories } from '../_sync-lib.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -12,10 +12,8 @@ export async function onRequest(context) {
   }
 
   try {
-    // Try reading categories-data.json from the repo / from static assets
-    const r = await fetch(new URL('/categories-data.json', request.url));
-    if (!r.ok) throw new Error('Data not available');
-    const data = await r.json();
+    // Read categories data (sharded) and return the reconstructed object.
+    const data = await loadAllCategories(request);
     return new Response(JSON.stringify(data), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300, s-maxage=600', ...corsHeaders() },
     });

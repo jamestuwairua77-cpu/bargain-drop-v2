@@ -1,15 +1,12 @@
-import { corsHeaders } from '../_sync-lib.js';
+import { corsHeaders, loadAllProducts } from '../_sync-lib.js';
 export async function onRequest(context) {
   const { request, env } = context; const url = new URL(request.url);
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
   const id = url.searchParams.get('id'); const sku = url.searchParams.get('sku');
   if (!id && !sku) return new Response(JSON.stringify({ error: 'id or sku required' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   try {
-    // Load full product catalogue
-    const rProducts = await fetch(new URL('/all-products.json', request.url));
-    if (!rProducts.ok) throw new Error('Products not available');
-    let allProducts = await rProducts.json();
-    if (Array.isArray(allProducts)) allProducts = allProducts.filter(p => p.visible !== false);
+    // Load full product catalogue (sharded)
+    const allProducts = await loadAllProducts(request);
     let product;
     if (id) product = allProducts.find(p => String(p.id) === String(id));
     else product = allProducts.find(p => (p.variants || []).some(v => v.sku === sku));

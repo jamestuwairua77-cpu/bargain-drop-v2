@@ -389,6 +389,120 @@ export function corsHeaders() {
   };
 }
 
+// ─── Sharded catalog loader (server-side) ─────────────────────────────
+// all-products.json is now a { shards, count } manifest; this merges the
+// all-products-N.json shards back into one array (or returns a legacy array
+// unchanged). Fetched from the app's own origin so it mirrors the live CDN.
+export async function loadAllProducts(request) {
+  const base = new URL('/all-products.json', request.url);
+  const r = await fetch(base);
+  if (!r.ok) throw new Error('Products not available');
+  let manifest;
+  try { manifest = await r.json(); } catch { throw new Error('Products not available'); }
+  if (Array.isArray(manifest)) return manifest.filter(p => p.visible !== false);
+  const n = manifest && manifest.shards ? manifest.shards : 0;
+  if (!n) return [];
+  const jobs = [];
+  for (let i = 0; i < n; i++) jobs.push(fetch(new URL('/all-products-' + i + '.json', request.url)).then(x => x.ok ? x.json() : []));
+  const shards = await Promise.all(jobs);
+  const out = [];
+  for (const shard of shards) if (Array.isArray(shard)) out.push(...shard);
+  return out.filter(p => p.visible !== false);
+}
+
+// Same as loadAllProducts, but for categories-data: reconstructs
+// { key: { name, products } } from the categories-data-N.json shards.
+export async function loadAllCategories(request) {
+  const r = await fetch(new URL('/categories-data.json', request.url));
+  if (!r.ok) throw new Error('Categories not available');
+  let manifest;
+  try { manifest = await r.json(); } catch { throw new Error('Categories not available'); }
+  if (!Array.isArray(manifest) && manifest && manifest.shards) {
+    const n = manifest.shards;
+    const jobs = [];
+    for (let i = 0; i < n; i++) jobs.push(fetch(new URL('/categories-data-' + i + '.json', request.url)).then(x => x.ok ? x.json() : []));
+    const shards = await Promise.all(jobs);
+    const obj = {};
+    for (const shard of shards) {
+      if (!Array.isArray(shard)) continue;
+      for (const e of shard) if (e && e.key) obj[e.key] = { name: e.name, products: e.products };
+    }
+    return obj;
+  }
+  return Array.isArray(manifest) ? {} : (manifest || {});
+}
+
+// ─── Sharded catalog writer ─────────────────────────────────────────────
+// Writes the products array + categories object to GitHub as shards (matching
+// what the deploy publishes), plus {shards,count} manifests. Produces the same
+// file set rebuild-data.js writes. Returns counts for the caller.
+const CATALOG_SHARD_SIZE = 1200;
+
+export function splitShards(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+export async function writeShardedCatalog(env, all, cats, idx, msg) {
+  // products
+  const pShards = splitShards(all, CATALOG_SHARD_SIZE);
+  const pPaths = [];
+  for (let i = 0; i < pShards.length; i++) {
+    await ghWrite(env, 'all-products-' + i + '.json', JSON.stringify(pShards[i]), msg + ' (shard ' + i + ')');
+    pPaths.push('all-products-' + i + '.json');
+  }
+  await ghWrite(env, 'all-products.json', JSON.stringify({ shards: pShards.length, count: all.length }), msg);
+
+  // categories
+  const catEntries = Object.entries(cats || {}).map(([k, v]) => ({ key: k, name: v.name, products: v.products }));
+  const cShards = splitShards(catEntries, CATALOG_SHARD_SIZE);
+  for (let i = 0; i < cShards.length; i++) {
+    await ghWrite(env, 'categories-data-' + i + '.json', JSON.stringify(cShards[i]), msg + ' (cats ' + i + ')');
+  }
+  await ghWrite(env, 'categories-data.json', JSON.stringify({ shards: cShards.length, count: catEntries.length }), msg);
+
+  // index
+  await ghWrite(env, 'products-index.json', JSON.stringify(idx || {}), msg);
+  return { productShards: pShards.length, categoryShards: cShards.length };
+}
+
+// ─── GitHub sharded-catalog read/write (for maintenance flows) ──────────
+// Some admin functions (delete-products, enrich-variants, cj-import) do a full
+// read-modify-write of the product catalog. Since all-products.json is now a
+// {shards,count} manifest, these helpers merge the all-products-N.json shards
+// into one array and write them back out as shards again.
+const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/';
+
+export async function readCatalogFromGithub(env) {
+  const raw = env && env.GITHUB_TOKEN
+    ? { headers: { 'Authorization': 'Bearer ' + env.GITHUB_TOKEN, 'User-Agent': 'bargain-drop-cloudflare' } }
+    : {};
+  const mr = await fetch(RAW + 'all-products.json', raw);
+  if (!mr.ok) return null;
+  const manifest = await mr.json();
+  if (Array.isArray(manifest)) return manifest;
+  const n = manifest && manifest.shards ? manifest.shards : 0;
+  if (!n) return [];
+  const jobs = [];
+  for (let i = 0; i < n; i++) {
+    jobs.push(fetch(RAW + 'all-products-' + i + '.json', raw).then(r => r.ok ? r.json() : []));
+  }
+  const shards = await Promise.all(jobs);
+  const out = [];
+  for (const shard of shards) if (Array.isArray(shard)) out.push(...shard);
+  return out;
+}
+
+export async function writeCatalogFromGithub(env, all, msg) {
+  const pShards = splitShards(all, CATALOG_SHARD_SIZE);
+  for (let i = 0; i < pShards.length; i++) {
+    await ghWrite(env, 'all-products-' + i + '.json', JSON.stringify(pShards[i]), msg + ' (shard ' + i + ')');
+  }
+  await ghWrite(env, 'all-products.json', JSON.stringify({ shards: pShards.length, count: all.length }), msg);
+  return { shards: pShards.length, count: all.length };
+}
+
 // ─── Admin authentication ───────────────────────────────────────────────
 // Server-side gate: requires the request to carry the admin PIN (header
 // X-Admin-Pin, Authorization: Bearer, or ?pin= query) matching env ADMIN_PIN.

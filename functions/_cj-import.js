@@ -33,7 +33,7 @@
 //   - Uses CJK variant normalization matching sync-full.js (do not regress).
 //   - Never logs openId / raw sign header — only masked messageId + type.
 
-import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet } from './_sync-lib.js';
+import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet, readCatalogFromGithub, writeCatalogFromGithub } from './_sync-lib.js';
 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 
@@ -451,11 +451,8 @@ async function resolveShopifyProduct(env, p) {
   // Query the catalog via product-lookup style: search all-products.json by sku.
   // (Catalog is Shopify-shaped and has sku on variants.)
   try {
-    const token = env.GITHUB_TOKEN || '';
-    const headers = token ? { Authorization: 'Bearer ' + token, 'User-Agent': 'bargain-drop-cloudflare' } : { 'User-Agent': 'bargain-drop-cloudflare' };
-    const r = await fetch('https://raw.githubusercontent.com/' + REPO + '/main/all-products.json', { headers });
-    if (r.ok) {
-      const products = await r.json();
+    const products = await readCatalogFromGithub(env);
+    if (Array.isArray(products)) {
       const prod = products.find(x => Array.isArray(x.variants) && x.variants.some(v => String(v.sku) === String(sku)));
       if (prod) return { shopifyId: prod.id, cjSku: sku };
     }
@@ -594,11 +591,7 @@ export async function setProductVisible(env, shopifyId, visible) {
 }
 
 async function patchCatalogVisible(env, shopifyId, visible) {
-  const token = env.GITHUB_TOKEN || '';
-  const headers = token ? { Authorization: 'Bearer ' + token, 'User-Agent': 'bargain-drop-cloudflare' } : { 'User-Agent': 'bargain-drop-cloudflare' };
-  const raw = await fetch('https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json', { headers });
-  if (!raw.ok) return;
-  const products = await raw.json();
+  const products = await readCatalogFromGithub(env);
   if (!Array.isArray(products)) return;
   let changed = false;
   for (const p of products) {
@@ -609,9 +602,7 @@ async function patchCatalogVisible(env, shopifyId, visible) {
     }
   }
   if (!changed) return;
-  // Persist via GitHub contents API using the statically-imported ghWrite helper.
-  await ghWrite(env, 'all-products.json', JSON.stringify(products, null, 2),
-    'cj-sync: set visible=' + visible + ' for ' + shopifyId);
+  await writeCatalogFromGithub(env, products, 'cj-sync: set visible=' + visible + ' for ' + shopifyId);
 }
 
 // ── ORDER / LOGISTIC (defer to existing flows) ───────────────────────────

@@ -10,7 +10,7 @@
 // /product/list does NOT include variants), this is a resumable batch job: call it
 // repeatedly until `done` is true. No sandbox timeout — runs on Cloudflare edge.
 
-import { corsHeaders, cjFetch, ghRead, ghWrite } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, ghRead, ghWrite, readCatalogFromGithub, writeCatalogFromGithub } from '../_sync-lib.js';
 
 const LETTER = new Set('XS S M L XL XXL XXXL 2XL 3XL 4XL 5XL 6XL 7XL 8XL 1X 2X 3X 4X 5X SM MED MEDIUM LARGE XLARGE FREE SIZE ONE SIZE'.split(' '));
 
@@ -108,12 +108,9 @@ export async function onRequest(context) {
   const limit = parseInt(url.searchParams.get('limit') || '3', 10);
   const mode = url.searchParams.get('mode') || 'apparel-first';
 
-  // all-products.json is >1MB, so /contents returns no content. Fetch via raw.
-  const rawRes = await fetch('https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json');
-  if (!rawRes.ok) return new Response(JSON.stringify({ error: 'cannot read catalog via raw: ' + rawRes.status }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
-  const catalog = await rawRes.json();
-  // all-products.json >1MB → ghRead(/contents) returns null; ghWrite routes large
-  // content to ghWriteLarge (Git Data API) which resolves sha itself, so pass none.
+  // Read the sharded catalog (merged back into one array) from GitHub.
+  const catalog = await readCatalogFromGithub(env);
+  if (!Array.isArray(catalog)) return new Response(JSON.stringify({ error: 'cannot read catalog' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
   const progDoc = await ghRead(env, 'data/enrich-progress.json');
   const prog = progDoc && progDoc.content ? JSON.parse(atob(progDoc.content.replace(/\n/g, ''))) : {};
   const saveProg = function() { return ghWrite(env, 'data/enrich-progress.json', JSON.stringify(prog), 'auto: enrich progress', progDoc ? progDoc.sha : undefined); };
@@ -153,7 +150,7 @@ export async function onRequest(context) {
     }
   }
 
-  await ghWrite(env, 'all-products.json', JSON.stringify(catalog, null, 1), 'auto: enrich variants (' + enriched + ' product(s))');
+  await writeCatalogFromGithub(env, catalog, 'auto: enrich variants (' + enriched + ' product(s))');
   await saveProg();
 
   const remaining = catalog.filter(needs).length;

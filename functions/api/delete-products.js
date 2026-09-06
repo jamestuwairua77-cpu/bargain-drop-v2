@@ -8,7 +8,7 @@
 //          catalog and commits to GitHub. Resumable: call repeatedly until done.
 // Returns { processed, deleted, remaining, done }.
 
-import { corsHeaders, shopifyFetch, ghRead, ghWrite, isAdmin, adminDenied } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, ghRead, ghWrite, isAdmin, adminDenied, readCatalogFromGithub, writeCatalogFromGithub } from '../_sync-lib.js';
 
 const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/all-products.json';
 
@@ -28,10 +28,8 @@ export async function onRequest(context) {
     const dryRun = url.searchParams.get('dryRun') === '1';
     const limit = parseInt(url.searchParams.get('limit') || '30', 10);
 
-    const rawRes = await fetch(RAW);
-    if (!rawRes.ok) return new Response(JSON.stringify({ error: 'cannot read catalog: ' + rawRes.status }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
-    const catalog = await rawRes.json();
-    const doc = await ghRead(env, 'all-products.json'); // for sha
+    const catalog = await readCatalogFromGithub(env);
+    if (!Array.isArray(catalog)) return new Response(JSON.stringify({ error: 'cannot read catalog' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
 
     const dead = catalog.map((p, i) => ({ p, i })).filter(x => isDead(x.p));
     const deadIds = dead.map(x => String(x.p.id));
@@ -65,7 +63,7 @@ export async function onRequest(context) {
     // Prune successfully-deleted products from the catalog.
     const deletedIdSet = new Set(toDelete.slice(0, deleted).map(x => String(x.p.id)));
     const pruned = catalog.filter(p => !deletedIdSet.has(String(p.id)));
-    await ghWrite(env, 'all-products.json', JSON.stringify(pruned, null, 1), `delete ${deleted} dead product(s)`, doc ? doc.sha : undefined);
+    await writeCatalogFromGithub(env, pruned, `delete ${deleted} dead product(s)`);
 
     const remaining = pruned.filter(isDead).length;
     return new Response(JSON.stringify({ processed: toDelete.length, deleted, remaining, done: remaining === 0 }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });

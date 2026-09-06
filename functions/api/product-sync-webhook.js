@@ -2,7 +2,7 @@
 // Handles Shopify webhooks for products/create, products/update, products/delete.
 // Rebuilds all-products.json, categories-data.json, categories-index.json.
 
-import { corsHeaders, shopifyFetch, ghRead, ghWrite, verifyHmac, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, ghRead, ghWrite, verifyHmac, shopMetaGet, shopMetaSet, writeShardedCatalog } from '../_sync-lib.js';
 
 function getImages(prod) {
   // Return [{id,src}] so we can resolve variant.image_id -> image index.
@@ -112,18 +112,10 @@ async function rebuildAllProducts(env) {
     idx[String(p.id)] = { idx: cats[key].products.length - 1, category: key };
   }
 
-  const files = [
-    { path: 'all-products.json', data: JSON.stringify(all, null, 2), msg: 'auto: rebuild from product webhook' },
-    { path: 'categories-data.json', data: JSON.stringify(cats, null, 2), msg: 'auto: rebuild from product webhook' },
-    { path: 'categories-index.json', data: JSON.stringify(idx, null, 2), msg: 'auto: rebuild from product webhook' },
-  ];
-
-  const results = [];
-  for (const f of files) {
-    // ghWrite routes >900KB to ghWriteLarge (atomic fresh-ref commit); no stale sha -> no 409.
-    const r = await ghWrite(env, f.path, f.data, f.msg);
-    results.push({ file: f.path, sha: r?.commit?.sha || r?.content?.sha || r?.sha });
-  }
+  // Write sharded output (all-products-N.json + categories-data-N.json + manifests)
+  // — keeps every file under Cloudflare Pages' 25 MiB per-file deploy limit.
+  const writeRes = await writeShardedCatalog(env, all, cats, idx, 'auto: rebuild from product webhook');
+  const results = writeRes;
 
   await rebuildMarkDone(env);
 

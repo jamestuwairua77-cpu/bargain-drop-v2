@@ -5,7 +5,7 @@
 // color, and we resolve every line to a valid Shopify variant gid using the catalog,
 // so Shop Pay never breaks due to missing/bad client cart data.
 
-import { corsHeaders } from '../_sync-lib.js';
+import { corsHeaders, loadAllProducts } from '../_sync-lib.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -19,9 +19,9 @@ export async function onRequest(context) {
   const body = await request.json().catch(() => ({}));
   const rawLines = Array.isArray(body.lines) ? body.lines : [];
 
-  // Load catalog for server-side variant resolution.
+  // Load catalog for server-side variant resolution (sharded).
   let catalog = [];
-  try { const rc = await fetch(new URL('/all-products.json', request.url)); if (rc.ok) catalog = await rc.json(); } catch {}
+  try { catalog = await loadAllProducts(request); } catch {}
 
   const bySku = new Map();
   const prodById = new Map();
