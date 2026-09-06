@@ -1,29 +1,29 @@
 // fix-catalog.js — bulk-recover broken categories + missing images.
 //
 // Correction strategy (per user direction):
-//   • Shopify info  → GraphQL bulkOperationRunQuery (single operation, no REST pagination)
-//   • CJ info       → the same lookup the CJ webhook handler uses (product/query by variantSku),
-//                     which returns the authoritative `categoryName` + `productImageSet`.
+//   • Shopify info  → GraphQL bulkOperationRunQuery (the bulk API — single async op).
+//   • CJ info       → the same lookup the CJ webhook handler uses
+//                     (product/query by variantSku) → categoryName + productImageSet.
 //
-// Fixes two catalog problems:
-//   1. Products whose `product_type` is a numeric ID (CJ leaked a numeric type id) or 'other'
-//      or empty → recover real category via CJ `categoryName` → mapCategory() → write back.
-//   2. Products with zero images → recover gallery images via CJ `productImageSet` → write back.
+// Because a Cloudflare Pages Function can't wait out a long bulk op or poll+download
+// 5,700 rows within its execution budget, this endpoint is MULTI-STEP and idempotent.
+// Progress (op id + candidate queue + done/failed sets) persists in a Shopify metafield
+// (zstate.fixcat-state), so each short call advances state and can be re-driven safely.
 //
 // Auth: X-Admin-Pin (or ?pin= or Bearer), matching ADMIN_PIN.
-//   GET /api/fix-catalog?action=scan        → run bulk query, report candidate counts
-//   GET /api/fix-catalog?action=fix&limit=N → recover+write up to N products (default 50)
-//   GET /api/fix-catalog?action=status      → persisted progress
-//   GET /api/fix-catalog?action=reset       → clear progress
-//
-// Progress persists in a Shopify metafield (namespace `fixcat` / key `state`) so it
-// survives Cloudflare isolate recycling and multiple auto-retries.
+//   GET /api/fix-catalog?action=start-bulk      → launch bulk op, store opId, return
+//   GET /api/fix-catalog?action=poll-bulk       → if COMPLETED, download+parse queue
+//   GET /api/fix-catalog?action=scan            → short: start-bulk THEN poll (status only)
+//   GET /api/fix-catalog?action=fix&limit=N     → recover+write up to N queued products
+//   GET /api/fix-catalog?action=status          → persisted progress
+//   GET /api/fix-catalog?action=reset           → clear progress
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
-const MAX_PER_RUN = 50; // bound writes per invocation (Cloudflare Function time budget)
+const MAX_PER_RUN = 40;         // bound CJ+write work per invocation
+const BULK_POLL_MS = 1500;      // per-poll sleep inside a single Function call
+const BULK_MAX_POLLS = 12;      // ~18s of polling per call (safe within CPU budget)
 
-// Numeric-only product types are CJ type IDs, not categories.
 function isBrokenType(pt) {
   const s = String(pt == null ? '' : pt).trim();
   if (!s) return true;
@@ -32,8 +32,8 @@ function isBrokenType(pt) {
   return false;
 }
 
-// ── Shopify GraphQL bulk query: enumerate every product once ──
-async function runBulkProducts(env) {
+// ── Shopify GraphQL bulk query ──
+async function startBulk(env) {
   const mutation = `
 mutation {
   bulkOperationRunQuery(query: """{
@@ -61,20 +61,13 @@ mutation {
   return String(op.id);
 }
 
-async function pollBulkResult(env, opId) {
-  // Poll status until COMPLETED, then fetch the JSONL result URL.
-  const statusQ = `query { node(id: "${opId}") { ... on BulkOperation { status url errorCode partialData } } }`;
-  let url = null, guard = 0;
-  while (guard++ < 240) {
-    const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: statusQ }) });
-    const b = body?.data?.node;
-    if (!b) break;
-    if (b.status === 'COMPLETED') { url = b.url; break; }
-    if (b.status === 'FAILED' || b.status === 'CANCELED') throw new Error('bulk op ' + b.status + ': ' + (b.errorCode || ''));
-    await new Promise((res) => setTimeout(res, 2000));
-  }
-  if (!url) throw new Error('bulk op timed out');
-  // Fetch the JSONL result (each line = the {node} object).
+async function bulkStatus(env, opId) {
+  const q = `query { node(id: "${opId}") { ... on BulkOperation { status url errorCode partialData } } }`;
+  const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
+  return body?.data?.node || null;
+}
+
+async function downloadBulk(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error('bulk download ' + r.status);
   const txt = await r.text();
@@ -87,7 +80,6 @@ async function pollBulkResult(env, opId) {
   return rows;
 }
 
-// Parse bulk rows into { shopifyId, type, hasImage, firstSku }
 function parseRows(rows) {
   const out = [];
   for (const r of rows) {
@@ -117,7 +109,6 @@ async function cjRecover(env, sku) {
     let imgs = d.productImageSet;
     if (typeof imgs === 'string') { try { imgs = JSON.parse(imgs); } catch { imgs = []; } }
     if (!Array.isArray(imgs)) imgs = [];
-    // Also harvest per-variant images as fallback.
     const variants = Array.isArray(d.variant) ? d.variant : (Array.isArray(d.variants) ? d.variants : []);
     const seen = new Set(imgs.filter(Boolean));
     for (const v of variants) { const u = v?.variantImage; if (u && !seen.has(u)) { seen.add(u); imgs.push(u); } }
@@ -127,114 +118,152 @@ async function cjRecover(env, sku) {
   }
 }
 
-const STATE_KEY = 'fixcat-state'; // full metafield key becomes zstate.fixcat-state
+const STATE_KEY = 'fixcat-state';
 async function loadState(env) {
   try {
     const existing = await shopMetaGet(env, STATE_KEY);
     if (existing && existing.value) return JSON.parse(existing.value);
   } catch {}
-  return { fixed: [], failed: [], totalFixed: 0, totalFailed: 0 };
+  return { opId: null, queue: [], total: 0, needCategory: 0, needImage: 0, fixed: [], failed: [], totalFixed: 0, totalFailed: 0 };
 }
 async function saveState(env, st) {
   try { await shopMetaSet(env, STATE_KEY, JSON.stringify(st)); } catch {}
 }
 
+function json(o, status = 200) {
+  return new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
-  const H = { 'Content-Type': 'application/json', ...corsHeaders() };
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
   if (!isAdmin(request, env)) return adminDenied();
 
   const url = new URL(request.url);
-  const action = url.searchParams.get('action') || 'scan';
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, MAX_PER_RUN);
+  const action = url.searchParams.get('action') || 'status';
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '40', 10) || 40, MAX_PER_RUN);
 
   try {
+    const st = await loadState(env);
+
     if (action === 'reset') {
-      await saveState(env, { fixed: [], failed: [], totalFixed: 0, totalFailed: 0 });
-      return new Response(JSON.stringify({ ok: true, reset: true }), { headers: H });
+      await saveState(env, { opId: null, queue: [], total: 0, needCategory: 0, needImage: 0, fixed: [], failed: [], totalFixed: 0, totalFailed: 0 });
+      return json({ ok: true, reset: true });
     }
+
     if (action === 'status') {
-      const st = await loadState(env);
-      return new Response(JSON.stringify({ ok: true, ...st }), { headers: H });
+      const done = new Set((st.fixed || []).map(String));
+      const failed = new Set((st.failed || []).map(String));
+      const remaining = (st.queue || []).filter((p) => !done.has(String(p.shopifyId)) && !failed.has(String(p.shopifyId)));
+      return json({ ok: true, opId: st.opId || null, total: st.total || 0, needCategory: st.needCategory || 0, needImage: st.needImage || 0, fixed: st.totalFixed || 0, failed: st.totalFailed || 0, remaining: remaining.length });
     }
 
-    // scan / fix: run bulk query
-    const opId = await runBulkProducts(env);
-    const rows = await pollBulkResult(env, opId);
-    const parsed = parseRows(rows);
+    if (action === 'start-bulk') {
+      const opId = await startBulk(env);
+      st.opId = opId;
+      st.queue = []; st.fixed = []; st.failed = []; st.totalFixed = 0; st.totalFailed = 0;
+      await saveState(env, st);
+      return json({ ok: true, opId, status: 'CREATED' });
+    }
 
-    const needCat = parsed.filter((p) => isBrokenType(p.type));
-    const needImg = parsed.filter((p) => !p.hasImage);
+    if (action === 'poll-bulk') {
+      if (!st.opId) return json({ ok: false, error: 'no active bulk op; call start-bulk first' }, 400);
+      let node = null;
+      for (let i = 0; i < BULK_MAX_POLLS; i++) {
+        node = await bulkStatus(env, st.opId);
+        if (node && node.status === 'COMPLETED') break;
+        if (node && (node.status === 'FAILED' || node.status === 'CANCELED')) throw new Error('bulk ' + node.status + ': ' + (node.errorCode || ''));
+        await new Promise((res) => setTimeout(res, BULK_POLL_MS));
+      }
+      if (!node || node.status !== 'COMPLETED') {
+        return json({ ok: true, opId: st.opId, status: node ? node.status : 'UNKNOWN', ready: false });
+      }
+      // Completed → download + parse + build queue
+      const rows = await downloadBulk(node.url);
+      const parsed = parseRows(rows);
+      st.total = parsed.length;
+      st.needCategory = parsed.filter((p) => isBrokenType(p.type)).length;
+      st.needImage = parsed.filter((p) => !p.hasImage).length;
+      // queue = union of category-broken and image-missing
+      const byId = {};
+      for (const p of parsed) {
+        if (isBrokenType(p.type) || !p.hasImage) byId[p.shopifyId] = p;
+      }
+      st.queue = Object.values(byId);
+      await saveState(env, st);
+      return json({ ok: true, opId: st.opId, status: 'COMPLETED', ready: true, total: st.total, needCategory: st.needCategory, needImage: st.needImage, queued: st.queue.length });
+    }
 
     if (action === 'scan') {
-      return new Response(JSON.stringify({
-        ok: true,
-        totalProducts: parsed.length,
-        needCategory: needCat.length,
-        needImage: needImg.length,
-      }), { headers: H });
-    }
-
-    // action === 'fix'
-    const st = await loadState(env);
-    const doneSet = new Set((st.fixed || []).map(String));
-    const failedSet = new Set((st.failed || []).map(String));
-
-    // Candidates: category-broken OR image-missing, not yet processed.
-    const targets = {};
-    for (const p of needCat) targets[p.shopifyId] = p;
-    for (const p of needImg) targets[p.shopifyId] = p;
-
-    const queue = Object.values(targets).filter((p) => !doneSet.has(String(p.shopifyId)) && !failedSet.has(String(p.shopifyId)));
-    const batch = queue.slice(0, limit);
-
-    let fixedNow = 0, failedNow = 0;
-    const results = [];
-    for (const p of batch) {
-      const cj = await cjRecover(env, p.firstSku);
-      let categoryFixed = false, imageFixed = false;
-      try {
-        const patch = {};
-        if (isBrokenType(p.type) && cj && cj.categoryName) {
-          const mt = mapCategory(cj.categoryName);
-          if (mt && mt !== 'other') { patch.product_type = mt; categoryFixed = true; }
-        }
-        if (!p.hasImage && cj && cj.images.length) {
-          patch.images = cj.images.slice(0, 20).map((src) => ({ src }));
-          imageFixed = true;
-        }
-        if (Object.keys(patch).length) {
-          await shopifyFetch(env, `/products/${p.shopifyId}.json`, {
-            method: 'PUT',
-            body: JSON.stringify({ product: { id: Number(p.shopifyId), ...patch } }),
-          });
-        }
-        if (categoryFixed || imageFixed) { st.fixed.push(String(p.shopifyId)); st.totalFixed++; fixedNow++; }
-        else { st.failed.push(String(p.shopifyId)); st.totalFailed++; failedNow++; }
-        results.push({ id: p.shopifyId, category: categoryFixed, image: imageFixed, sku: p.firstSku, cjCategory: cj?.categoryName || null });
-      } catch (e) {
-        st.failed.push(String(p.shopifyId)); st.totalFailed++; failedNow++;
-        results.push({ id: p.shopifyId, error: String(e?.message || e) });
+      // convenience: start bulk then poll once (may need a couple calls)
+      const opId = await startBulk(env);
+      st.opId = opId;
+      await saveState(env, st);
+      let node = null;
+      for (let i = 0; i < BULK_MAX_POLLS; i++) {
+        node = await bulkStatus(env, opId);
+        if (node && node.status === 'COMPLETED') break;
+        if (node && node.status !== 'CREATED' && node.status !== 'RUNNING') break;
+        await new Promise((res) => setTimeout(res, BULK_POLL_MS));
       }
+      if (node && node.status === 'COMPLETED') {
+        const rows = await downloadBulk(node.url);
+        const parsed = parseRows(rows);
+        return json({ ok: true, status: 'COMPLETED', totalProducts: parsed.length, needCategory: parsed.filter((p) => isBrokenType(p.type)).length, needImage: parsed.filter((p) => !p.hasImage).length });
+      }
+      return json({ ok: true, opId, status: node ? node.status : 'RUNNING', hint: 'call action=poll-bulk to continue checking' });
     }
 
-    await saveState(env, st);
+    if (action === 'fix') {
+      if (!st.queue || !st.queue.length) return json({ ok: false, error: 'no queue; run start-bulk + poll-bulk first' }, 400);
+      const doneSet = new Set((st.fixed || []).map(String));
+      const failedSet = new Set((st.failed || []).map(String));
+      const candidates = st.queue.filter((p) => !doneSet.has(String(p.shopifyId)) && !failedSet.has(String(p.shopifyId)));
+      const batch = candidates.slice(0, limit);
 
-    return new Response(JSON.stringify({
-      ok: true,
-      totalProducts: parsed.length,
-      needCategory: needCat.length,
-      needImage: needImg.length,
-      processed: batch.length,
-      fixedNow,
-      failedNow,
-      totalFixed: st.totalFixed,
-      totalFailed: st.totalFailed,
-      remaining: { category: needCat.length - st.totalFixed, image: needImg.length - st.totalFixed },
-      results: results.slice(0, 20),
-    }), { headers: H });
+      let fixedNow = 0, failedNow = 0;
+      const results = [];
+      for (const p of batch) {
+        const cj = await cjRecover(env, p.firstSku);
+        let categoryFixed = false, imageFixed = false;
+        try {
+          const patch = {};
+          if (isBrokenType(p.type) && cj && cj.categoryName) {
+            const mt = mapCategory(cj.categoryName);
+            if (mt && mt !== 'other') { patch.product_type = mt; categoryFixed = true; }
+          }
+          if (!p.hasImage && cj && cj.images.length) {
+            patch.images = cj.images.slice(0, 20).map((src) => ({ src }));
+            imageFixed = true;
+          }
+          if (Object.keys(patch).length) {
+            const r = await shopifyFetch(env, `/products/${p.shopifyId}.json`, {
+              method: 'PUT',
+              body: JSON.stringify({ product: { id: Number(p.shopifyId), ...patch } }),
+            });
+            if (!r.ok) throw new Error('shopify put ' + r.status);
+          }
+          if (categoryFixed || imageFixed) {
+            st.fixed.push(String(p.shopifyId)); st.totalFixed++; fixedNow++;
+            results.push({ id: p.shopifyId, category: categoryFixed, image: imageFixed, cjCategory: cj ? cj.categoryName : null });
+          } else {
+            st.failed.push(String(p.shopifyId)); st.totalFailed++; failedNow++;
+            results.push({ id: p.shopifyId, reason: cj ? 'no-fix-applied' : 'no-cj-data' });
+          }
+        } catch (e) {
+          st.failed.push(String(p.shopifyId)); st.totalFailed++; failedNow++;
+          results.push({ id: p.shopifyId, error: String(e?.message || e) });
+        }
+      }
+
+      await saveState(env, st);
+      const remaining = st.queue.filter((p) => !new Set((st.fixed || []).map(String)).has(String(p.shopifyId)) && !new Set((st.failed || []).map(String)).has(String(p.shopifyId))).length;
+
+      return json({ ok: true, processed: batch.length, fixedNow, failedNow, totalFixed: st.totalFixed, totalFailed: st.totalFailed, remaining: { queue: remaining, needCategory: st.needCategory, needImage: st.needImage }, results: results.slice(0, 20) });
+    }
+
+    return json({ ok: false, error: 'unknown action: ' + action }, 400);
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), { status: 500, headers: H });
+    return json({ ok: false, error: String(e?.message || e) }, 500);
   }
 }
