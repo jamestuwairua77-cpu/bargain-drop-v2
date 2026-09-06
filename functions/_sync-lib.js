@@ -333,8 +333,22 @@ export async function cjFetchMulti(env, path, opts = {}) {
       // block a sibling key that works. (QPS 1600200 was already retried above.)
       const code = body && body.code;
       const msg = String((body && body.message) || '');
+      // DEFINITIVE "product does not exist on this account's catalog" answers are
+      // authoritative and must NOT trigger key failover — trying a sibling key
+      // cannot un-delist a product, and failing over just ends up returning the
+      // LAST key's transient QPS/points error (1600200 / 16900500), which the
+      // caller then mis-reads as "retry" instead of "flag as unrecoverable".
+      //   1600014  = product not found
+      //   1602001  = product not found (query)
+      //   1602002  = product removed from shelves (delisted)
+      //   1602003  = variant removed from shelves
+      const isDefinitiveGone =
+        code === 1600014 || code === 1602001 || code === 1602002 || code === 1602003;
+      if (isDefinitiveGone) { return body; }
+      // TRANSIENT account-level errors (insufficient points / HTTP 429) -> fail over
+      // to a sibling key that may have its own points bucket. Any other non-200 is
+      // also treated as account-scoped so one bad account can't block the others.
       const isAccountError =
-        code === 1600014 ||
         code === 429 ||
         code === 16900500 ||
         (typeof code === 'number' && code !== 200) ||
