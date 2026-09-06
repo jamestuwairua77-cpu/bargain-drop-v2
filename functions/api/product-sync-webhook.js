@@ -2,7 +2,7 @@
 // Handles Shopify webhooks for products/create, products/update, products/delete.
 // Rebuilds all-products.json, categories-data.json, categories-index.json.
 
-import { corsHeaders, shopifyFetch, ghRead, ghWrite, verifyHmac } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch, ghRead, ghWrite, verifyHmac, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
 function getImages(prod) {
   // Return [{id,src}] so we can resolve variant.image_id -> image index.
@@ -30,8 +30,7 @@ function getImages(prod) {
 // timestamp survives isolate resets — the same pattern appendSyncLog already uses.
 // The FIRST webhook of a burst rebuilds immediately; the rest within the window
 // are skipped (the catalog is already up-to-date from that first rebuild).
-const REBUILD_STATE_PATH = 'data/rebuild-state.json';
-const REBUILD_MIN_INTERVAL_MS = 120 * 1000; // 120 seconds
+const REBUILD_MIN_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes (was 120s; batch jobs fire 1000s of updates)
 let _lastRebuildAt = 0; // per-isolate fast-path guard
 
 // Returns true if we should SKIP this rebuild (a rebuild happened too recently).
@@ -39,17 +38,16 @@ async function rebuildThrottledOut(env) {
   const now = Date.now();
   if (now - _lastRebuildAt < REBUILD_MIN_INTERVAL_MS) return true;
   try {
-    const existing = await ghRead(env, REBUILD_STATE_PATH);
-    if (existing && existing.content) {
-      const decoded = atob(existing.content);
-      const st = JSON.parse(decoded);
+    const existing = await shopMetaGet(env, 'rebuild-state');
+    if (existing && existing.value) {
+      const st = JSON.parse(existing.value);
       const lastAt = (st && st.lastRebuildAt) || 0;
       if (now - lastAt < REBUILD_MIN_INTERVAL_MS) {
         _lastRebuildAt = now; // still refresh local guard
         return true;
       }
     }
-  } catch { /* state file missing/corrupt -> rebuild (fail open) */ }
+  } catch { /* state missing/corrupt -> rebuild (fail open) */ }
   return false;
 }
 
@@ -57,9 +55,7 @@ async function rebuildMarkDone(env) {
   const now = Date.now();
   _lastRebuildAt = now;
   try {
-    await ghWrite(env, REBUILD_STATE_PATH,
-      JSON.stringify({ lastRebuildAt: now, at: new Date().toISOString() }, null, 2),
-      'auto: rebuild throttle state', undefined);
+    await shopMetaSet(env, 'rebuild-state', { lastRebuildAt: now, at: new Date().toISOString() });
   } catch { /* best-effort; the local guard still throttles within this isolate */ }
 }
 

@@ -33,7 +33,7 @@
 //   - Uses CJK variant normalization matching sync-full.js (do not regress).
 //   - Never logs openId / raw sign header — only masked messageId + type.
 
-import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory } from './_sync-lib.js';
+import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet } from './_sync-lib.js';
 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 
@@ -81,16 +81,20 @@ function normalizeVariantOption(raw, productId, title) {
   return pal[0];
 }
 
-// ── processed ids (dedupe ring) via GitHub (small file, /contents/ OK) ───
+// ── processed ids (dedupe ring) via Shopify metafield (NOT GitHub) ──────
+// This marker used to ghWrite on EVERY webhook push ("cj-webhook: processed"),
+// which was a major source of the GitHub rate-limit drain. Moved to metafield.
 async function readProcessed(env) {
-  const r = await ghRead(env, PROCESSED_PATH);
-  if (!r || !r.content) return { ids: [], sha: null };
-  try { return { ids: JSON.parse(atob(r.content.replace(/\n/g,''))), sha: r.sha }; }
-  catch { return { ids: [], sha: (r && r.sha) || null }; }
+  try {
+    const m = await shopMetaGet(env, 'cj-processed');
+    if (!m || !m.value) return { ids: [] };
+    const ids = JSON.parse(m.value);
+    return { ids: Array.isArray(ids) ? ids : [] };
+  } catch { return { ids: [] }; }
 }
-async function writeProcessed(env, ids, existingSha) {
+async function writeProcessed(env, ids) {
   const trimmed = ids.slice(-PROCESSED_MAX);
-  await ghWrite(env, PROCESSED_PATH, JSON.stringify(trimmed), 'cj-webhook: processed', existingSha || undefined);
+  await shopMetaSet(env, 'cj-processed', trimmed);
   return trimmed;
 }
 
@@ -253,7 +257,7 @@ export async function handleCjWebhook(env, payload) {
 
   if (messageId && result && result.imported) {
     proc.ids.push(messageId);
-    await writeProcessed(env, proc.ids, proc.sha).catch(() => {});
+    await writeProcessed(env, proc.ids).catch(() => {});
   }
 
   return { ...result, type, messageType };

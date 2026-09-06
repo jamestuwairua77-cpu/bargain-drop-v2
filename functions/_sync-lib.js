@@ -556,6 +556,31 @@ export async function ghWrite(env, path, content, msg, existingSha) {
 }
 
 // ─── Sync log via GitHub (no /tmp in Cloudflare) ─────────────────────────
+// ─── State via Shopify metafields (NOT GitHub) ─────────────────────────
+// High-frequency state (sync log, webhook processed ring) used to hit GitHub
+// contents/git-data API every push and drain the 5,000/hr core quota in ~30min.
+// Persisting to a Shopify shop metafield instead removes those round-trips.
+const STATE_NS = 'zstate';
+export async function shopMetaGet(env, key) {
+  try {
+    const q = `query { shop { metafields(first:1, keys: ["${STATE_NS}.${key}"]) { edges { node { value } } } } }`;
+    const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
+    const edges = body?.data?.shop?.metafields?.edges || [];
+    if (!edges.length) return null;
+    return { value: edges[0].node.value };
+  } catch { return null; }
+}
+export async function shopMetaSet(env, key, value) {
+  try {
+    const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
+    await shopifyFetch(env, '/graphql.json', {
+      method: 'POST',
+      body: JSON.stringify({ query: mq, variables: { m: [{ ownerId: SHOP_GID, namespace: STATE_NS, key, type: 'json', value: JSON.stringify(value) }] } }),
+    });
+    return true;
+  } catch { return false; }
+}
+
 const SYNC_LOG_PATH = 'data/sync-log.json';
 const ORDERS_PATH = 'data/orders.json';
 
@@ -574,13 +599,14 @@ export async function appendSyncLog(env, entry) {
     // Fast path: if this isolate already wrote within the window, skip immediately
     if (now - _lastSyncLogWrite < SYNC_LOG_MIN_INTERVAL_MS) return false;
 
-    const existing = await ghRead(env, SYNC_LOG_PATH);
+    // Persist to a Shopify metafield instead of GitHub — removes the ghRead+ghWrite
+    // round-trips that were draining the 5,000/hr core quota on every CJ push.
+    const existing = await shopMetaGet(env, 'sync-log');
     let log = [];
     let latestAt = 0;
-    if (existing && existing.content) {
-      const decoded = atob(existing.content);
+    if (existing && existing.value) {
       try {
-        log = JSON.parse(decoded);
+        log = JSON.parse(existing.value);
         if (Array.isArray(log) && log.length && log[0] && log[0].at) {
           latestAt = new Date(log[0].at).getTime() || 0;
         }
@@ -593,8 +619,7 @@ export async function appendSyncLog(env, entry) {
     }
 
     log.unshift({ ...entry, at: new Date().toISOString() });
-    await ghWrite(env, SYNC_LOG_PATH, JSON.stringify(log.slice(0, 200), null, 2),
-      'sync: append log entry', existing?.sha);
+    await shopMetaSet(env, 'sync-log', log.slice(0, 200));
     _lastSyncLogWrite = now;
     return true;
   } catch (e) {
