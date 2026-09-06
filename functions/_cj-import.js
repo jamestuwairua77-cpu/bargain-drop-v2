@@ -448,8 +448,17 @@ async function resolveShopifyProduct(env, p) {
   const sku = p.productSku || p.variantSku || null;
   if (!sku) return { shopifyId: null, cjSku: null };
 
-  // Query the catalog via product-lookup style: search all-products.json by sku.
-  // (Catalog is Shopify-shaped and has sku on variants.)
+  // PRIMARY: query Shopify DIRECTLY by variant SKU (authoritative, always current).
+  // The previous GitHub-catalog lookup was stale (and 401s), which made pushes fall
+  // through to a CREATE that Shopify rejects with 422 (duplicate SKU). Querying
+  // Shopify's own product index means every incoming category/product push resolves
+  // to the EXISTING product and writes product_type/description/etc. back in place.
+  try {
+    const id = await shopifyProductIdBySku(env, sku);
+    if (id) return { shopifyId: id, cjSku: sku };
+  } catch {}
+
+  // FALLBACK: search the GitHub catalog by sku (best-effort, may be stale).
   try {
     const products = await readCatalogFromGithub(env);
     if (Array.isArray(products)) {
@@ -458,6 +467,21 @@ async function resolveShopifyProduct(env, p) {
     }
   } catch {}
   return { shopifyId: null, cjSku: sku };
+}
+
+// Resolve a Shopify product id by a single variant SKU via Shopify's Product
+// GraphQL index (query:"variant:sku:..."). Returns the numeric product id or null.
+async function shopifyProductIdBySku(env, sku) {
+  const q = `query($q: String!) { products(first: 1, query: $q) { edges { node { id } } } }`;
+  const r = await shopifyFetch(env, '/graphql.json', {
+    method: 'POST',
+    body: JSON.stringify({ query: q, variables: { q: 'variant.sku:' + String(sku) } }),
+  });
+  const gid = r && r.body && r.body.data && r.body.data.products && r.body.data.products.edges && r.body.data.products.edges[0] && r.body.data.products.edges[0].node && r.body.data.products.edges[0].node.id;
+  if (!gid) return null;
+  // gid is like "gid://shopify/Product/123456" — extract numeric id for REST reuse.
+  const m = String(gid).match(/\/(\d+)$/);
+  return m ? m[1] : gid;
 }
 
 // ── VARIANT: incremental field update → reconcile single variant to Shopify ──
