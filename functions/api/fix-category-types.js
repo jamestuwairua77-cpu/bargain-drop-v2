@@ -69,6 +69,7 @@ async function loadState(env) {
     fixed: raw.fixed || 0,
     other: raw.other || 0,
     counts: raw.counts || {},
+    finished: !!raw.finished,
   };
 }
 
@@ -89,81 +90,98 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
   if (!isAdmin(request, env)) return adminDenied();
   const url = new URL(request.url);
-  const action = url.searchParams.get('action') || url.searchParams.get('build') || url.searchParams.get('status') || url.searchParams.get('reset') || 'status';
-  const isBuild = url.searchParams.has('build');
-  const isRun = url.searchParams.has('run');
+  const hasReset = url.searchParams.has('reset');
+  const hasStatus = url.searchParams.has('status');
+  const hasBuild = url.searchParams.has('build');
+  const hasRun = url.searchParams.has('run');
 
-  if (url.searchParams.has('reset')) {
-    await saveState(env, { queue: [], done: [], fixed: 0, other: 0, counts: {} });
+  if (hasReset) {
+    await saveState(env, { done: [], fixed: 0, other: 0, counts: {} });
     return json({ ok: true, reset: true });
   }
 
-  const st = await loadState(env);
-
-  if (isBuild) {
-    // Scan Shopify paging for numeric-type products; build queue.
-    const base = '/products.json?limit=250&fields=id,title,body_html,product_type,variants,status';
-    let queue = [], cursor = null, guard = 0;
-    while (true) {
-      const u = base + (cursor ? '&page_info=' + encodeURIComponent(cursor) : '');
-      const { body, headers } = await shopifyFetch(env, u);
-      for (const p of (body.products || [])) {
-        if (p.status === 'active' && p.title && isBrokenType(p.product_type)) {
-          queue.push({ id: String(p.id), title: p.title, body_html: (p.body_html || '').slice(0, 3000) });
-        }
-      }
-      cursor = nextPageCursor(headers);
-      if (!cursor) break;
-      if (++guard > 200) break;
-      await new Promise(r => setTimeout(r, 150));
-    }
-    await saveState(env, { queue, done: [], fixed: 0, other: 0, counts: {} });
-    return json({ ok: true, built: queue.length });
+  // status: read progress only (no queue stored)
+  if (hasStatus) {
+    const st = await loadState(env);
+    return json({ ok: true, done: st.done.length, fixed: st.fixed, other: st.other, counts: st.counts, finished: st.finished });
   }
 
-  if (isRun) {
-    const doneSet = new Set(st.done.map(String));
-    const pending = st.queue.filter(q => !doneSet.has(String(q.id)));
-    if (!pending.length) return json({ ok: true, finished: true, fixed: st.fixed, other: st.other, counts: st.counts });
+  // build: just report the live count of broken products (does NOT store a queue)
+  if (hasBuild) {
+    const { list, truncated } = await scanBroken(env, 40000);
+    return json({ ok: true, built: list.length, truncated });
+  }
 
+  // run: self-driving scan + classify + PUT, bounded by time budget
+  if (hasRun) {
+    const st = await loadState(env);
+    const doneSet = new Set(st.done.map(String));
     const BUDGET_MS = 42000;
     const startedAt = Date.now();
-    let fixed = 0, other = 0;
-    const counts = { ...st.counts };
-    const newlyDone = [];
-    const errors = [];
+    let fixed = 0, other = 0, scanned = 0;
+    const counts = { ...(st.counts || {}) };
+    const newDone = [];
+    const { list } = await scanBroken(env, BUDGET_MS, startedAt);
 
-    for (const q of pending) {
+    for (const q of list) {
+      if (doneSet.has(String(q.id))) continue;
       if (Date.now() - startedAt > BUDGET_MS) break;
       const c = classify(q.title, q.body_html);
-      if (c === 'other') { other++; counts['other'] = (counts['other'] || 0) + 1; newlyDone.push(String(q.id)); continue; }
+      scanned++;
+      if (c === 'other') {
+        other++;
+        counts['other'] = (counts['other'] || 0) + 1;
+        newDone.push(String(q.id));
+        continue;
+      }
       try {
         await shopifyFetch(env, '/products/' + q.id + '.json', {
           method: 'PUT',
           body: JSON.stringify({ product: { id: parseInt(q.id, 10), product_type: c } }),
           skip429Retry: true,
         });
-        fixed++; counts[c] = (counts[c] || 0) + 1; newlyDone.push(String(q.id));
+        fixed++;
+        counts[c] = (counts[c] || 0) + 1;
+        newDone.push(String(q.id));
         await new Promise(r => setTimeout(r, 120));
-      } catch (e) { errors.push({ id: q.id, error: String(e && e.message) }); }
+      } catch (e) {
+        // leave for next run
+      }
     }
 
-    const nextDone = [...st.done, ...newlyDone];
-    await saveState(env, { queue: st.queue, done: nextDone, fixed: st.fixed + fixed, other: st.other + other, counts });
-
-    const remaining = st.queue.length - nextDone.length;
-    return json({
-      ok: true,
-      finished: remaining <= 0,
-      fixed_this_run: fixed, other_this_run: other,
-      total_fixed: st.fixed + fixed, total_other: st.other + other,
-      remaining, done: nextDone.length, queued: st.queue.length,
-      errors: errors.length ? errors : undefined, counts,
-    });
+    const mergedDone = Array.from(new Set([...st.done, ...newDone]));
+    const finished = !truncated && list.every(q => doneSet.has(String(q.id)) || newDone.includes(String(q.id)));
+    await saveState(env, { done: mergedDone, fixed: st.fixed + fixed, other: st.other + other, counts, finished });
+    return json({ ok: true, finished, scanned_this_run: scanned, fixed_this_run: fixed, other_this_run: other, total_fixed: st.fixed + fixed, total_other: st.other + other, done: mergedDone.length, counts });
   }
 
-  // status (default)
-  const doneSet = new Set(st.done.map(String));
-  const remaining = st.queue.filter(q => !doneSet.has(String(q.id))).length;
-  return json({ ok: true, queued: st.queue.length, done: st.done.length, remaining, fixed: st.fixed, other: st.other, counts: st.counts, finished: remaining <= 0 });
+  return json({ ok: true, hint: 'use ?build=1 ?run=1 ?status=1 ?reset=1' });
+}
+
+// Live paginated scan of active products whose product_type is broken (numeric/empty/'other').
+// budgetMs: max scan time; startAt: epoch ms (optional). Returns { list, truncated }.
+async function scanBroken(env, budgetMs, startAt) {
+  const t0 = startAt || Date.now();
+  const list = [];
+  const base = '/products.json?limit=250&fields=id,title,body_html,product_type,status';
+  let cursor = null, guard = 0;
+  let truncated = false;
+  while (true) {
+    if (Date.now() - t0 > budgetMs) { truncated = true; break; }
+    const u = base + (cursor ? '&page_info=' + encodeURIComponent(cursor) : '');
+    let body, headers;
+    try {
+      ({ body, headers } = await shopifyFetch(env, u));
+    } catch (e) { truncated = true; break; }
+    for (const p of (body.products || [])) {
+      if (p.status === 'active' && p.title && isBrokenType(p.product_type)) {
+        list.push({ id: String(p.id), title: p.title, body_html: (p.body_html || '').slice(0, 3000) });
+      }
+    }
+    cursor = nextPageCursor(headers);
+    if (!cursor) break;
+    if (++guard > 500) { truncated = true; break; }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return { list, truncated };
 }
