@@ -39,7 +39,9 @@ async function loadState(env) {
 }
 async function saveState(env, st) {
   const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
-  await gqlRaw(env, mq, { m: [{ ownerId: 'gid://shopify/Shop/73594044547', namespace: NS, key: KEY, type: 'json', value: JSON.stringify(st) }] });
+  const res = await gqlRaw(env, mq, { m: [{ ownerId: 'gid://shopify/Shop/73594044547', namespace: NS, key: KEY, type: 'json', value: JSON.stringify(st) }] });
+  const ue = (res && res.data && res.data.metafieldsSet && res.data.metafieldsSet.userErrors) || [];
+  if (ue.length) throw new Error('meta save: ' + ue.map(x => x.message).join('; '));
 }
 
 async function startBulk(env) {
