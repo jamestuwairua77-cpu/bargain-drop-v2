@@ -24,13 +24,16 @@ async function gqlRaw(env, query, variables) {
   return r.body;
 }
 async function loadState(env) {
-  const q = `query { shop { metafields(first: 5, namespace: "${NS}") { edges { node { key value } } } } }`;
-  const res = await gqlRaw(env, q);
-  const edges = (res && res.data && res.data.shop && res.data.shop.metafields && res.data.shop.metafields.edges) || [];
-  for (const e of edges) {
-    if (e.node && e.node.key === KEY) {
-      try { const s = JSON.parse(e.node.value); if (s && typeof s === 'object') return s; } catch {}
+  const q = `query { shop { metafields(first: 3, keys: ["${NS}.${KEY}"]) { edges { node { namespace key value } } } } }`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await gqlRaw(env, q);
+    const edges = (res && res.data && res.data.shop && res.data.shop.metafields && res.data.shop.metafields.edges) || [];
+    for (const e of edges) {
+      if (e.node && e.node.key === KEY) {
+        try { const s = JSON.parse(e.node.value); if (s && typeof s === 'object') return s; } catch {}
+      }
     }
+    await new Promise(r => setTimeout(r, 400));
   }
   return { opId: null };
 }
