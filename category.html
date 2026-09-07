@@ -383,7 +383,15 @@ document.addEventListener("cat-prods-ready", function() {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-  function mn(n) { return 'A$' + Number(n || 0).toFixed(2); }
+  function mn(n) { try { if (window.BD && BD.formatMoneyCompact) return BD.formatMoneyCompact(n); } catch (e) {} return 'A$' + Number(n || 0).toFixed(2); }
+
+  /* Re-render prices after currency auto-detection resolves (geo-based) */
+  (function initCurrencyRefresh(){
+    if(!window.BD||!BD.initCurrency)return;
+    BD.initCurrency().then(function(){
+      try{ if(typeof rg==='function')rg(); }catch(e){}
+    });
+  })();
 
   function rg() {
     var ps = gp(), g = document.getElementById('product-grid');

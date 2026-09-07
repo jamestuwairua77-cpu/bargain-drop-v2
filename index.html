@@ -28,7 +28,7 @@
     .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
     .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
     .search-box input:focus{border-color:#B8A9E8}
-    </style><script src="/js/catalog-loader.js?v=9abc9e3443"></script></head><body>
+    </style><script src="/js/catalog-loader.js?v=9abc9e3443"></script><script src="/js/currency.js?v=767a37dc67"></script></head><body>
 <!-- PROMO STRIP -->
     <div class="promo-strip"><span>🎉 30% OFF SITEWIDE — USE CODE <b>BARGAIN26</b> AT CHECKOUT &nbsp;·&nbsp; Free Shipping A$29+ · SSL Encrypted · Verified Seller · 30-Day Returns</span></div>
     <nav class="navbar">
@@ -136,6 +136,16 @@ function dedupeProducts(list){if(!list||!list.length)return list;var seen={},out
   loadCatalog(function(arr){ALL=arr;ALL=ALL.filter(function(p){return p.visible!==false});ALL=dedupeProducts(ALL);renderHome();});
 })();
 
+/* Re-render prices after currency auto-detection resolves (geo-based) */
+(function initCurrencyRefresh(){
+  if(!window.BD||!BD.initCurrency)return;
+  BD.initCurrency().then(function(){
+    try{
+      if(ALL&&ALL.length&&typeof renderHome==='function')renderHome();
+    }catch(e){}
+  });
+})();
+
 /* === Dynamically render hero + trending from the live catalog ===
    This replaces the formerly hardcoded sections so product IDs can
    never go stale (404) again. Picks products from ALL (all-products.json). */
@@ -145,7 +155,7 @@ function pickHero(list, n){
   if(withImg.length<n)withImg=withImg.concat(list.filter(function(p){return !(p.image&&String(p.image).length>4);}));
   return withImg.slice(0,n);
 }
-function fmtAUD(v){return 'A$'+Number(v||0).toFixed(2);}
+function fmtAUD(v){try{if(window.BD&&BD.formatMoneyCompact)return BD.formatMoneyCompact(v);}catch(e){}return 'A$'+Number(v||0).toFixed(2);}
 function buildCard(p){
   var img=p.image||'', id=p.id||'';
   var cmp='';
@@ -240,9 +250,9 @@ function doSearch(){
     for(var i=0;i<results.length;i++){
       var p=results[i],a=document.createElement("a"),cmp="";
       a.className="product-card fade-in";a.href="product.html?id="+p.id;
-      if(p.compare_at_price&&p.compare_at_price>p.price)cmp='<span class="prod-compare">A$'+(p.compare_at_price||0).toFixed(2)+'</span>';
+      if(p.compare_at_price&&p.compare_at_price>p.price)cmp='<span class="prod-compare">'+fmtAUD(p.compare_at_price)+'</span>';
       var ih='<img src="'+p.image+'" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-placeholder>📦</div>\'">';
-      a.innerHTML='<div class="prod-img-wrap">'+ih+'<button class="wishlist-btn" onclick="event.preventDefault();toggleWish(\''+p.id+'\')" title="Save"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><button class="quick-add" onclick="event.preventDefault();quickAdd(\''+p.id+'\')" title="Quick Add">+</button></div><div class="product-info"><div class="product-stars">★★★★★</div><div class="product-title">'+p.title+'</div><div class="product-price">A$'+(p.price||0).toFixed(2)+cmp+'</div></div>';
+      a.innerHTML='<div class="prod-img-wrap">'+ih+'<button class="wishlist-btn" onclick="event.preventDefault();toggleWish(\''+p.id+'\')" title="Save"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><button class="quick-add" onclick="event.preventDefault();quickAdd(\''+p.id+'\')" title="Quick Add">+</button></div><div class="product-info"><div class="product-stars">★★★★★</div><div class="product-title">'+p.title+'</div><div class="product-price">'+fmtAUD(p.price)+cmp+'</div></div>';
       dynGrid.appendChild(a);
     }
   },300);

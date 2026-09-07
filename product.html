@@ -190,6 +190,7 @@ h1,h2,h3,h4{line-height:1.25}
 .search-box input{width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:10px;font-size:.85rem;font-family:inherit;outline:none;color:var(--fg);background:#fff}
 .search-box input:focus{border-color:var(--accent)}
 </style>
+<script src="/js/currency.js?v=767a37dc67"></script>
 </head>
 <body>
 <nav class="navbar">
@@ -350,7 +351,7 @@ var pid=(new URLSearchParams(location.search)).get('id');
 
 /* ============ HELPERS ============ */
 function esc(s){s=String(s==null?'':s);return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-function fm(n){return I18N.currency+Number(n||0).toFixed(2)}
+function fm(n){try{if(window.BD&&BD.formatMoneyCompact)return BD.formatMoneyCompact(n);}catch(e){}return I18N.currency+Number(n||0).toFixed(2)}
 function toast(m){var e=document.getElementById('toast');if(!e)return;e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove('show')},2200)}
 function seedFromId(s){var h=0;for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);h=((h<<5)-h)+c;h|=0}return Math.abs(h)}
 function starIcons(r){var out='';for(var i=1;i<=5;i++){var filled=i<=Math.round(r);out+='<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="'+(filled?'currentColor':'none')+'" stroke="'+(filled?'currentColor':'#d0d0d0')+'" stroke-width="1"/></svg>'}return out}
@@ -557,6 +558,14 @@ function updatePricing(){
   var se=document.getElementById('ship-eta');if(se)se.textContent='Estimated delivery: '+de.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+de2.toLocaleDateString('en-US',{month:'short',day:'numeric'});
   var mn=document.getElementById('merchant-name');if(mn)mn.textContent=I18N.soldByLabel;
 }
+
+/* Re-render price after currency auto-detection resolves (geo-based) */
+(function initCurrencyRefresh(){
+  if(!window.BD||!BD.initCurrency)return;
+  BD.initCurrency().then(function(){
+    try{ if(typeof updatePricing==='function')updatePricing(); }catch(e){}
+  });
+})();
 
 /* ============ SOCIAL PROOF (hardcoded 4.7 / 1,428) ============ */
 function renderSocial(){
