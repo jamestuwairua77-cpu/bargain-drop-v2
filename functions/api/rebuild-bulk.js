@@ -219,6 +219,10 @@ export async function onRequest(context) {
     }
 
     const st = await loadState(env);
+    if (url.searchParams.get('url') === '1' && st.opId) {
+      const node = await bulkStatus(env, st.opId);
+      return json({ ok: true, opId: st.opId, status: node ? node.status : null, resultUrl: node ? node.url || null : null, errorCode: node ? node.errorCode || null : null });
+    }
     return json({ ok: true, opId: st.opId || null, status: st.status || 'not-started', count: st.count || 0, written: st.ptr || 0 });
   } catch (err) {
     return json({ ok: false, error: String(err && err.message || err), stack: String(err && err.stack || '').slice(0, 500) }, 500);
