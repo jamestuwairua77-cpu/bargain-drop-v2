@@ -1,21 +1,17 @@
 // Cloudflare Pages Function: /api/rebuild-bulk
-// Rebuilds the storefront catalog (all-products / categories / index) using the
-// Shopify BULK OPERATION API instead of the throttled REST /products.json path.
+// Rebuilds the storefront catalog using the Shopify BULK OPERATION API (avoids
+// the throttled REST /products.json path). Writes are done INCREMENTALLY — one
+// file per ?step=1 invocation — to stay under Cloudflare CPU limits. Driven by
+// a scheduled task (or repeated manual ?step=1 calls).
 //
-//   GET ?build=1   -> fire bulk query (all active products + fields), store opId
-//   GET ?poll=1    -> when COMPLETED, download + transform + write catalog files
-//   GET ?status=1  -> { opId, status }
-//
-// Output files (identical shape to /api/rebuild-data):
-//   categories-data-<i>.json + categories-data.json (manifest)
-//   all-products-<i>.json    + all-products.json     (manifest)
-//   products-index.json
+//   GET ?build=1  -> fire bulk query, store opId + a full write-plan
+//   GET ?step=1   -> (a) if op not done, poll status; (b) write next file in plan
+//   GET ?status=1 -> { opId, status, count, written, total }
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
 
 const NS = 'rebuildbulk';
 const KEY = 'state';
-const SHARD_SIZE = 1200;
 
 function json(o, status = 200) {
   return new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
@@ -40,9 +36,7 @@ async function loadState(env) {
 }
 async function saveState(env, st) {
   const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
-  await gqlRaw(env, mq, {
-    m: [{ ownerId: 'gid://shopify/Shop/73594044547', namespace: NS, key: KEY, type: 'json', value: JSON.stringify(st) }],
-  });
+  await gqlRaw(env, mq, { m: [{ ownerId: 'gid://shopify/Shop/73594044547', namespace: NS, key: KEY, type: 'json', value: JSON.stringify(st) }] });
 }
 
 async function startBulk(env) {
@@ -82,7 +76,6 @@ async function bulkStatus(env, opId) {
   return body && body.data && body.data.node;
 }
 
-// Parse flattened JSONL rows back into product objects.
 function parseRows(rows) {
   const products = new Map();
   for (const r of rows) {
@@ -90,16 +83,11 @@ function parseRows(rows) {
     const m = /\d+$/.exec(String(r.id || ''));
     if (!m) continue;
     products.set(m[0], {
-      id: m[0],
-      title: r.title || '',
-      status: r.status || 'active',
-      vendor: r.vendor || '',
-      productType: r.productType || '',
-      tags: Array.isArray(r.tags) ? r.tags : [],
-      descriptionHtml: r.descriptionHtml || '',
+      id: m[0], title: r.title || '', status: r.status || 'active',
+      vendor: r.vendor || '', productType: r.productType || '',
+      tags: r.tags || [], descriptionHtml: r.descriptionHtml || '',
       featuredImage: r.featuredImage ? r.featuredImage.src : null,
-      images: [],
-      variants: [],
+      images: [], variants: [],
     });
   }
   for (const r of rows) {
@@ -108,18 +96,13 @@ function parseRows(rows) {
     if (!m) continue;
     const p = products.get(m[0]);
     if (!p) continue;
-    // images child rows have `src` (and no sku/price)
     if (r.src != null && r.sku == null && r.price == null && r.title == null && r.selectedOptions == null) {
       p.images.push(r.src);
     } else if (r.sku != null || r.price != null || r.title != null || r.selectedOptions != null) {
       const so = Array.isArray(r.selectedOptions) ? r.selectedOptions : [];
       p.variants.push({
-        sku: r.sku || '',
-        price: r.price,
-        compareAtPrice: r.compareAtPrice,
-        option1: (so[0] && so[0].value) || '',
-        option2: (so[1] && so[1].value) || '',
-        option3: (so[2] && so[2].value) || '',
+        sku: r.sku || '', price: r.price, compareAtPrice: r.compareAtPrice,
+        option1: (so[0] && so[0].value) || '', option2: (so[1] && so[1].value) || '', option3: (so[2] && so[2].value) || '',
         inventoryQuantity: r.inventoryQuantity == null ? 0 : r.inventoryQuantity,
       });
     }
@@ -153,7 +136,7 @@ async function putFile(env, path, content, cmsg) {
   if (existing) sha = existing.sha;
   return ghWrite(env, path, content, cmsg, sha);
 }
-function shardArray(arr) { const out = []; for (let i = 0; i < arr.length; i += SHARD_SIZE) out.push(arr.slice(i, i + SHARD_SIZE)); return out; }
+function shardArray(arr) { const out = []; for (let i = 0; i < arr.length; i += 1200) out.push(arr.slice(i, i + 1200)); return out; }
 
 export async function onRequest(context) {
   try {
@@ -163,62 +146,75 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     const build = url.searchParams.get('build') === '1';
     const poll = url.searchParams.get('poll') === '1';
+    const step = url.searchParams.get('step') === '1';
 
-    if (build) {
+    // Wait: keep both 'poll' and 'step' for compat; 'step' does incremental writes.
+    const op = build ? 'build' : (step || poll) ? 'step' : 'status';
+
+    if (op === 'build') {
       const opId = await startBulk(env);
       const st = await loadState(env);
-      st.opId = opId;
-      st.stage = 'built';
+      st.opId = opId; st.plan = []; st.ptr = 0; st.count = 0; st.status = 'built';
       await saveState(env, st);
       return json({ ok: true, opId, status: 'CREATED' });
     }
 
-    if (poll) {
+    if (op === 'step') {
       const st = await loadState(env);
       if (!st.opId) return json({ ok: false, error: 'no op; call ?build=1 first' }, 400);
-      const node = await bulkStatus(env, st.opId);
-      if (!node) return json({ ok: false, error: 'cannot read bulk status' }, 500);
-      if (node.status !== 'COMPLETED') {
-        return json({ ok: true, opId: st.opId, status: node.status, objectCount: node.objectCount, errorCode: node.errorCode || null });
-      }
-      if (!node.url) return json({ ok: false, error: 'completed but no url', status: node.status }, 500);
-      const r = await fetch(node.url);
-      if (!r.ok) return json({ ok: false, error: 'bulk download ' + r.status }, 500);
-      const txt = await r.text();
-      const rows = [];
-      for (const line of txt.split('\n')) { const s = line.trim(); if (s) { try { rows.push(JSON.parse(s)); } catch {} } }
-      if (url.searchParams.get('debug') === '1') {
-        const statusCounts = {};
-        let parentRows = 0;
-        for (const r of rows) { if (!r.__parentId && r.id) { parentRows++; const st = r.status || '(none)'; statusCounts[st] = (statusCounts[st] || 0) + 1; } }
-        return json({ ok: true, rawRowCount: rows.length, parentRows, statusCounts, firstRow: rows[0] || null });
-      }
-      const prods = parseRows(rows);
-      const { cats, all, idx } = buildCatalog(prods);
 
-      const writes = [];
-      const catObjs = Object.entries(cats).map(([k, v]) => ({ key: k, name: v.name, products: v.products }));
-      shardArray(catObjs).forEach((shard, i) => writes.push(['categories-data-' + i + '.json', JSON.stringify(shard), 'categories']));
-      writes.push(['categories-data.json', JSON.stringify({ shards: Math.ceil(catObjs.length / SHARD_SIZE), count: catObjs.length }), 'categories-index']);
-      shardArray(all).forEach((shard, i) => writes.push(['all-products-' + i + '.json', JSON.stringify(shard), 'all-products']));
-      writes.push(['all-products.json', JSON.stringify({ shards: Math.ceil(all.length / SHARD_SIZE), count: all.length }), 'all-products-index']);
-      writes.push(['products-index.json', JSON.stringify(idx), 'index']);
-
-      let written = 0; const errors = [];
-      for (const [path, data, name] of writes) {
-        try { await putFile(env, path, data, 'data: rebuild ' + name + ' from Shopify (bulk)'); written++; }
-        catch (e) { errors.push({ file: path, error: e.message }); }
+      // Wait for the bulk op to finish if not already done.
+      if (st.status !== 'COMPLETED') {
+        const node = await bulkStatus(env, st.opId);
+        if (!node) return json({ ok: false, error: 'cannot read bulk status' }, 500);
+        if (node.status !== 'COMPLETED') {
+          return json({ ok: true, opId: st.opId, status: node.status, objectCount: node.objectCount, errorCode: node.errorCode || null, progress: 'waiting for Shopify' });
+        }
+        // Just completed: download, parse, build the write PLAN.
+        if (!node.url) return json({ ok: false, error: 'completed but no url' }, 500);
+        const r = await fetch(node.url);
+        if (!r.ok) return json({ ok: false, error: 'bulk download ' + r.status }, 500);
+        const txt = await r.text();
+        const rows = [];
+        for (const line of txt.split('\n')) { const s = line.trim(); if (s) { try { rows.push(JSON.parse(s)); } catch {} } }
+        if (url.searchParams.get('debug') === '1') {
+          const statusCounts = {}; let parentRows = 0;
+          for (const rr of rows) if (!rr.__parentId && rr.id) { parentRows++; const s2 = rr.status || '(none)'; statusCounts[s2] = (statusCounts[s2] || 0) + 1; }
+          return json({ ok: true, rawRowCount: rows.length, parentRows, statusCounts });
+        }
+        const prods = parseRows(rows);
+        const { cats, all, idx } = buildCatalog(prods);
+        const plan = [];
+        Object.entries(cats).map(([k, v]) => ({ key: k, name: v.name, products: v.products })).forEach((e, i) => plan.push(['categories-data-' + i + '.json', JSON.stringify(e), 'categories']));
+        shardArray(all).forEach((shard, i) => plan.push(['all-products-' + i + '.json', JSON.stringify(shard), 'all-products']));
+        plan.push(['products-index.json', JSON.stringify(idx), 'index']);
+        // Manifests LAST (so loaders never see a partial catalog): categories-data.json, all-products.json
+        plan.push(['categories-data.json', JSON.stringify({ shards: Math.ceil(Object.keys(cats).length / 1200), count: Object.keys(cats).length }), 'categories-index']);
+        plan.push(['all-products.json', JSON.stringify({ shards: Math.ceil(all.length / 1200), count: all.length }), 'all-products-index']);
+        st.plan = plan;
+        st.ptr = 0;
+        st.count = all.length;
+        st.categories = Object.keys(cats).length;
+        st.status = 'PLANNED';
+        await saveState(env, st);
+        return json({ ok: true, opId: st.opId, status: 'PLANNED', products: all.length, categories: Object.keys(cats).length, totalFiles: plan.length });
       }
-      const desc = all.filter(p => p.body_html && p.body_html.length > 20).length;
-      st.status = 'COMPLETED';
-      st.count = all.length;
-      st.categories = Object.keys(cats).length;
+
+      // Write the next file in the plan (one per invocation).
+      if (!st.plan || st.ptr >= st.plan.length) {
+        return json({ ok: true, opId: st.opId, status: 'COMPLETED', count: st.count || 0, written: st.ptr, total: st.plan ? st.plan.length : 0, done: true });
+      }
+      const [path, data, name] = st.plan[st.ptr];
+      let err = null;
+      try { await putFile(env, path, data, 'data: rebuild ' + name + ' from Shopify (bulk)'); }
+      catch (e) { err = String(e && e.message || e); }
+      if (!err) st.ptr++;
       await saveState(env, st);
-      return json({ ok: true, status: 'COMPLETED', products: all.length, categories: Object.keys(cats).length, with_descriptions: desc, files_written: written, errors: errors.length ? errors : undefined });
+      return json({ ok: !err, file: path, name, ptr: st.ptr, total: st.plan.length, count: st.count, status: st.ptr >= st.plan.length ? 'COMPLETED' : 'IN_PROGRESS', error: err || undefined });
     }
 
     const st = await loadState(env);
-    return json({ ok: true, opId: st.opId || null, status: st.status || 'not-started', count: st.count || 0 });
+    return json({ ok: true, opId: st.opId || null, status: st.status || 'not-started', count: st.count || 0, written: st.ptr || 0 });
   } catch (err) {
     return json({ ok: false, error: String(err && err.message || err), stack: String(err && err.stack || '').slice(0, 500) }, 500);
   }
