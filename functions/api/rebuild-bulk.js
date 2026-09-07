@@ -60,7 +60,7 @@ async function startBulk(env) {
           descriptionHtml
           featuredImage { src }
           images(first: 50) { edges { node { src } } }
-          variants(first: 100) { edges { node { sku price compareAtPrice option1 option2 option3 inventoryQuantity } } }
+          variants(first: 100) { edges { node { sku price compareAtPrice title selectedOptions { name value } inventoryQuantity } } }
         }
       }
     }
@@ -109,16 +109,17 @@ function parseRows(rows) {
     const p = products.get(m[0]);
     if (!p) continue;
     // images child rows have `src` (and no sku/price)
-    if (r.src != null && r.sku == null && r.price == null && r.option1 == null) {
+    if (r.src != null && r.sku == null && r.price == null && r.title == null && r.selectedOptions == null) {
       p.images.push(r.src);
-    } else if (r.sku != null || r.price != null || r.option1 != null) {
+    } else if (r.sku != null || r.price != null || r.title != null || r.selectedOptions != null) {
+      const so = Array.isArray(r.selectedOptions) ? r.selectedOptions : [];
       p.variants.push({
         sku: r.sku || '',
         price: r.price,
         compareAtPrice: r.compareAtPrice,
-        option1: r.option1,
-        option2: r.option2,
-        option3: r.option3,
+        option1: (so[0] && so[0].value) || '',
+        option2: (so[1] && so[1].value) || '',
+        option3: (so[2] && so[2].value) || '',
         inventoryQuantity: r.inventoryQuantity == null ? 0 : r.inventoryQuantity,
       });
     }
