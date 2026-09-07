@@ -187,6 +187,9 @@ export async function onRequest(context) {
       const txt = await r.text();
       const rows = [];
       for (const line of txt.split('\n')) { const s = line.trim(); if (s) { try { rows.push(JSON.parse(s)); } catch {} } }
+      if (url.searchParams.get('debug') === '1') {
+        return json({ ok: true, rawRowCount: rows.length, firstRow: rows[0] || null, secondRow: rows[1] || null, thirdRow: rows[2] || null });
+      }
       const prods = parseRows(rows);
       const { cats, all, idx } = buildCatalog(prods);
 
