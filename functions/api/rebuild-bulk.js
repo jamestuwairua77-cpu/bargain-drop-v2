@@ -130,7 +130,7 @@ function parseRows(rows) {
 function buildCatalog(prods) {
   const cats = {}, all = [], idx = {};
   for (const p of prods) {
-    if (p.status !== 'active' || !p.title) continue;
+    if (!p.status || p.status.toUpperCase() !== 'ACTIVE' || !p.title) continue;
     const imgs = [];
     if (p.featuredImage) imgs.push(p.featuredImage);
     for (const s of p.images) if (s && !imgs.includes(s)) imgs.push(s);
