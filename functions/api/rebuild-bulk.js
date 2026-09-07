@@ -188,7 +188,10 @@ export async function onRequest(context) {
       const rows = [];
       for (const line of txt.split('\n')) { const s = line.trim(); if (s) { try { rows.push(JSON.parse(s)); } catch {} } }
       if (url.searchParams.get('debug') === '1') {
-        return json({ ok: true, rawRowCount: rows.length, firstRow: rows[0] || null, secondRow: rows[1] || null, thirdRow: rows[2] || null });
+        const statusCounts = {};
+        let parentRows = 0;
+        for (const r of rows) { if (!r.__parentId && r.id) { parentRows++; const st = r.status || '(none)'; statusCounts[st] = (statusCounts[st] || 0) + 1; } }
+        return json({ ok: true, rawRowCount: rows.length, parentRows, statusCounts, firstRow: rows[0] || null });
       }
       const prods = parseRows(rows);
       const { cats, all, idx } = buildCatalog(prods);
