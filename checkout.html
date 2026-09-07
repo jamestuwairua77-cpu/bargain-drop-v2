@@ -205,6 +205,7 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
 <div class="form-group"><label>Address</label><input type="text" id="address" placeholder="123 Main Street"></div>
 <div class="form-row"><div class="form-group"><label>City</label><input type="text" id="city" placeholder="New York"></div><div class="form-group"><label>State</label><input type="text" id="state" placeholder="NY"></div><div class="form-group"><label>ZIP</label><input type="text" id="zip" placeholder="10001"></div></div>
 <div class="form-group"><label>Phone</label><input type="tel" id="phone" placeholder="+1 (555) 000-0000"></div>
+<div class="form-group" style="grid-column:1/-1"><label>Country</label><select id="country" onchange="refreshShipping()"></select></div>
 </div>
 <div class="section-title">💳 Payment</div>
 <div class="summary-card" id="summary">
@@ -246,7 +247,14 @@ fetch(API_BASE+'/api/stripe-pk').then(function(r){return r.json()}).then(functio
 try { BD.initCurrency().then(function(){
 var cart=JSON.parse(localStorage.getItem('bd_cart')||'[]');
 var subtotal=cart.reduce(function(s,i){return s+(i.price||0)*(i.qty||1)},0);
-var shipping=subtotal>BD.convert(41)?0:BD.convert(8.44);
+// Shipping is computed LIVE from CJ (China warehouse -> destination country).
+// shippingUsd holds the raw CJ USD cost; shipping is its conversion to the
+// shopper's currency. Falls back to the old flat rule if the call fails.
+var shipping=0;               // displayed/converted shipping (in current currency)
+var shippingUsd=0;            // raw CJ freight cost in USD
+var shippingLabel='';         // e.g. "CJPacket Ordinary · 12-50 days"
+var freightLoaded=false;
+var freightInFlight=false;
 // Discount state. Valid code BARGAIN26 = 30% off. One use per customer enforced server-side.
 var discountPct=0;         // 0 = none, 30 = 30% off
 var discountAmount=0;      // dollars off
@@ -257,11 +265,97 @@ function recalcTotals(){
   discountAmount=Math.round(subtotal*(discountPct/100)*100)/100;
   total=Math.max(0,Math.round((subtotal+shipping-discountAmount)*100)/100);
   document.getElementById('summary-subtotal').textContent=BD.formatMoneyCompact(subtotal);
-  document.getElementById('summary-shipping').textContent=shipping===0?'FREE':BD.formatMoneyCompact(shipping);
+  document.getElementById('summary-shipping').textContent=shipping===0?'FREE':(BD.formatMoneyCompact(shipping)+(shippingLabel?(' ('+shippingLabel+')'):''));
   document.getElementById('summary-total').textContent=BD.formatMoneyCompact(total);
   var dr=document.getElementById('discount-row');
   if(discountPct>0){dr.style.display='flex';document.getElementById('summary-discount').textContent='-'+BD.formatMoneyCompact(discountAmount);}
   else{dr.style.display='none';}
+}
+
+// --- Country list (ISO code -> name) for the shipping destination select ---
+var COUNTRY_LIST = [
+  ['AU','Australia'],['US','United States'],['GB','United Kingdom'],['CA','Canada'],
+  ['NZ','New Zealand'],['DE','Germany'],['FR','France'],['IT','Italy'],['ES','Spain'],
+  ['NL','Netherlands'],['BE','Belgium'],['PT','Portugal'],['IE','Ireland'],['AT','Austria'],
+  ['FI','Finland'],['GR','Greece'],['SG','Singapore'],['JP','Japan'],['HK','Hong Kong'],
+  ['SE','Sweden'],['DK','Denmark'],['NO','Norway'],['CH','Switzerland'],['PL','Poland'],
+  ['CZ','Czech Republic'],['HU','Hungary'],['RO','Romania'],['BG','Bulgaria'],['HR','Croatia'],
+  ['MX','Mexico'],['BR','Brazil'],['AE','United Arab Emirates'],['SA','Saudi Arabia'],
+  ['IL','Israel'],['ZA','South Africa'],['IN','India'],['ID','Indonesia'],['MY','Malaysia'],
+  ['TH','Thailand'],['PH','Philippines'],['VN','Vietnam'],['KR','South Korea'],['CN','China'],
+  ['TW','Taiwan'],['RU','Russia'],['TR','Turkey'],['CL','Chile'],['AR','Argentina'],
+  ['CO','Colombia'],['PE','Peru']
+];
+function getCountryCode(){
+  var el=document.getElementById('country');
+  return (el && el.value) ? el.value.toUpperCase() : 'AU';
+}
+function getCountryName(){
+  var el=document.getElementById('country');
+  if(el && el.selectedOptions && el.selectedOptions.length) return el.selectedOptions[0].textContent;
+  return 'Australia';
+}
+// Populate the country dropdown and pre-select based on detected country.
+function initCountrySelect(){
+  var el=document.getElementById('country');
+  if(!el) return;
+  var html='';
+  COUNTRY_LIST.forEach(function(c){ html += '<option value="'+c[0]+'">'+c[1]+'</option>'; });
+  el.innerHTML=html;
+  // Pre-select from BD.detectCountry (stored/IP-detected), else AU.
+  if(typeof BD!=='undefined' && BD.detectCountry){
+    BD.detectCountry().then(function(cc){
+      var v=(cc||'AU').toUpperCase();
+      var match=COUNTRY_LIST.find(function(c){return c[0]===v;});
+      if(match){ el.value=v; refreshShipping(); }
+    }).catch(function(){});
+  }
+}
+// Compute live CJ freight from China -> selected country for the cart's skus.
+function refreshShipping(){
+  var code=getCountryCode();
+  if(freightInFlight) return;
+  var skus=[];
+  cart.forEach(function(it){
+    if(it.sku){ skus.push({ sku:it.sku, quantity:it.qty||1 }); }
+  });
+  if(!skus.length){
+    // No skus (legacy cart) -> fall back to old flat rule.
+    shipping = subtotal>BD.convert(41)?0:BD.convert(8.44);
+    shippingUsd = 0; shippingLabel='';
+    recalcTotals(); return;
+  }
+  freightInFlight=true;
+  var shipEl=document.getElementById('summary-shipping');
+  if(shipEl && !freightLoaded) shipEl.textContent='Calculating…';
+  fetch(API_BASE+'/api/freight',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ countryCode:code, products:skus, currency:(BD.getCurrency()||'AUD') })
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      freightInFlight=false;
+      if(d && d.success && typeof d.shippingUsd==='number'){
+        shippingUsd = d.shippingUsd;
+        // shippingConverted is already the CJ cost in the shopper's currency.
+        shipping = d.shippingConverted || 0;
+        if(d.selected && d.selected.logisticName){
+          shippingLabel = d.selected.logisticName + (d.selected.logisticAging?(' · '+d.selected.logisticAging+' days'):'');
+        } else { shippingLabel='Intl shipping'; }
+        freightLoaded=true;
+      } else {
+        // Freight failed -> fall back to old flat rule so we never strand the user.
+        shipping = subtotal>BD.convert(41)?0:BD.convert(8.44);
+        shippingUsd = 0; shippingLabel='';
+      }
+      recalcTotals();
+    })
+    .catch(function(){
+      freightInFlight=false;
+      shipping = subtotal>BD.convert(41)?0:BD.convert(8.44);
+      shippingUsd = 0; shippingLabel='';
+      recalcTotals();
+    });
 }
 
 // Promo code handling
@@ -294,6 +388,8 @@ function removePromo(){
 }
 
 recalcTotals();
+// Init the country dropdown + kick off the first live freight calculation.
+if(typeof initCountrySelect==='function'){ initCountrySelect(); refreshShipping(); }
 // Expose promo handlers globally so the inline onclick="applyPromo()" reaches them
 // (they are defined inside the initCurrency().then() callback scope).
 window.applyPromo = applyPromo;
@@ -319,7 +415,9 @@ function getShippingInfo(){
     city:document.getElementById('city').value.trim(),
     state:document.getElementById('state').value.trim(),
     zip:document.getElementById('zip').value.trim(),
-    phone:document.getElementById('phone').value.trim()
+    phone:document.getElementById('phone').value.trim(),
+    country:getCountryName(),
+    country_code:getCountryCode()
   };
 }
 
@@ -341,7 +439,7 @@ function saveOrder(oid,email,fname,lname,method,s){
     shipping:{
       first_name:fname,last_name:lname,email:email,
       address1:s.addr||'',city:s.city||'',province:s.state||'',
-      zip:s.zip||'',phone:s.phone||'',country:'Australia',country_code:'AU'
+      zip:s.zip||'',phone:s.phone||'',country:s.country||'Australia',country_code:s.country_code||'AU'
     }
   };
   var orders=JSON.parse(localStorage.getItem('bd_orders')||'[]');orders.push(order);
@@ -458,7 +556,7 @@ async function stripeCheckout(oid,s,pm){
       },
       createOrder:function(data,actions){
         return actions.order.create({
-          purchase_units:[{amount:{value:total.toFixed(2),currency_code:'AUD'},description:'Bargain Drop Order'}]
+          purchase_units:[{amount:{value:total.toFixed(2),currency_code:(BD.getCurrency()||'AUD')},description:'Bargain Drop Order'}]
         });
       },
       onApprove:function(data,actions){

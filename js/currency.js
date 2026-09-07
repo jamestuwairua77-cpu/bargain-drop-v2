@@ -42,6 +42,97 @@
     HKD: 5.54    // 1 AUD = 5.54 HKD
   };
 
+  // ---------------------------------------------------------------------------
+  // Country detection (IP geolocation + browser locale fallback).
+  // Used to auto-set currency on first visit so each country sees local prices.
+  // ---------------------------------------------------------------------------
+  BD.MANUAL_KEY = 'bd_currency_manual';
+  BD.COUNTRY_KEY = 'bd_detected_country';
+
+  // Map ISO country code -> default currency code (subset we support).
+  BD.countryToCurrency = {
+    AU: 'AUD', NZ: 'NZD', US: 'USD', CA: 'CAD', GB: 'GBP',
+    IE: 'EUR', DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR',
+    BE: 'EUR', AT: 'EUR', PT: 'EUR', FI: 'EUR', GR: 'EUR',
+    SG: 'SGD', JP: 'JPY', HK: 'HKD'
+  };
+
+  // Browser locale fallback when IP geolocation is unavailable/blocked.
+  BD.currencyFromLocale = function () {
+    try {
+      var lang = (navigator.language || navigator.userLanguage || 'en-AU').toLowerCase();
+      var region = (lang.split('-')[1] || '').toUpperCase();
+      var map = { US:'USD', CA:'CAD', GB:'GBP', IE:'EUR', NZ:'NZD', SG:'SGD', JP:'JPY', HK:'HKD', AU:'AUD' };
+      if (region === 'US') return 'USD';
+      if (region === 'CA') return 'CAD';
+      if (region === 'GB') return 'GBP';
+      if (region === 'NZ') return 'NZD';
+      if (region === 'SG') return 'SGD';
+      if (region === 'JP') return 'JPY';
+      if (region === 'HK') return 'HKD';
+      if (['DE','FR','IT','ES','NL','BE','AT','PT','FI','GR','IE'].indexOf(region) >= 0) return 'EUR';
+    } catch (e) {}
+    return null;
+  };
+
+  // Detect the visitor's country. Priority: stored country > IP geolocation > locale.
+  BD.detectCountry = function () {
+    return new Promise(function (resolve) {
+      // 1) Already stored (e.g. from a saved address or previous detection).
+      try {
+        var saved = localStorage.getItem(BD.COUNTRY_KEY);
+        if (saved) { resolve(saved); return; }
+      } catch (e) {}
+
+      var done = false;
+      function finish(code) {
+        if (done) return;
+        done = true;
+        if (code) { try { localStorage.setItem(BD.COUNTRY_KEY, code); } catch (e) {} }
+        resolve(code || 'AU');
+      }
+
+      // 2) IP geolocation (free, no key). ip-api.com allows HTTP for non-SSL pages;
+      //    use https + fields=status,countryCode for a compact response.
+      var ipk = 'ipKey';
+      try {
+        ipk = BD.COUNTRY_KEY + '_ip';
+      } catch (e) {}
+      try { if (localStorage.getItem(ipk)) { finish(JSON.parse(localStorage.getItem(ipk)).countryCode || 'AU'); return; } } catch (e) {}
+
+      fetch('https://ipapi.co/json/')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var cc = (d && d.country_code) ? String(d.country_code).toUpperCase() : null;
+          if (cc) {
+            try { localStorage.setItem(ipk, JSON.stringify({ countryCode: cc, ts: Date.now() })); } catch (e) {}
+            finish(cc);
+          } else {
+            finish(null);
+          }
+        })
+        .catch(function () {
+          // fall back to browser locale-based country guess
+          finish(null);
+        });
+    });
+  };
+
+  // Auto-set currency from detected country, but only if the user hasn't
+  // manually chosen a currency before (respect an explicit pick).
+  BD.autoDetectCurrency = function () {
+    // If the user has ever manually selected a currency, do not override.
+    try {
+      if (localStorage.getItem(BD.MANUAL_KEY) === '1') return Promise.resolve();
+    } catch (e) {}
+    return BD.detectCountry().then(function (cc) {
+      var code = BD.countryToCurrency[cc] || BD.currencyFromLocale() || 'AUD';
+      if (code && code !== BD.getCurrency()) {
+        BD.setCurrency(code, true); // silent auto-set (no manual flag)
+      }
+    }).catch(function () {});
+  };
+
   // Initialize — returns a Promise
   BD.initCurrency = function () {
     return new Promise(function (resolve) {
@@ -68,6 +159,10 @@
 
       // 2. Resolve NOW — don't block page rendering
       resolve();
+
+      // 3a. Auto-detect the visitor's country and set their currency on first
+      //     visit (site-wide). Runs in background so it never blocks render.
+      BD.autoDetectCurrency();
 
       // 3. Fetch fresh rates in background
       fetch('https://open.er-api.com/v6/latest/AUD')
@@ -100,8 +195,9 @@
     return localStorage.getItem('bd_currency_guest') || 'AUD';
   };
 
-  // Set user's selected currency
-  BD.setCurrency = function (code) {
+  // Set user's selected currency. Pass silent=true for an automatic
+  // (geo-detected) set that should NOT be treated as a manual user choice.
+  BD.setCurrency = function (code, silent) {
     if (!BD.currencyDefs[code]) return false;
     // Write to both session key AND guest key for cross-page consistency
     var s = (typeof BD.getSession === 'function') ? BD.getSession() : null;
@@ -109,6 +205,9 @@
       localStorage.setItem('bd_currency_' + s.email.toLowerCase(), code);
     }
     localStorage.setItem('bd_currency_guest', code);
+    if (!silent) {
+      try { localStorage.setItem(BD.MANUAL_KEY, '1'); } catch (e) {}
+    }
     return true;
   };
 

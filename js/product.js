@@ -15,7 +15,24 @@ function addToCart(){
   if(!product)return;
   var c=JSON.parse(localStorage.getItem('bd_cart')||'[]'),e=c.findIndex(function(x){return x.id===product.id});
   var sv=Object.keys(selectedVariants).length>0?Object.values(selectedVariants).filter(Boolean).join(' / '):null;
-  if(e>=0)c[e].qty+=qty;else c.push({id:product.id,title:product.title,price:product.price,image:product.image||(Array.isArray(product.images)?product.images[0]:'')||'',qty:qty,variant:sv});
+  // Resolve the matched variant so we can carry its CJ sku (needed for live freight).
+  var sku=product.sku||null;
+  var vars=product.variants||[];
+  var opts=product.options||[];
+  if(vars.length){
+    var match=vars.find(function(v){
+      if(!opts.length)return false;
+      for(var k=0;k<opts.length;k++){
+        var key=opts[k].name||('option'+(k+1));
+        var val=selectedVariants[key];
+        if(val && v['option'+(k+1)] && v['option'+(k+1)]!==val) return false;
+      }
+      return true;
+    });
+    if(match&&match.sku)sku=match.sku;
+    else if(vars[0]&&vars[0].sku)sku=vars[0].sku;
+  }
+  if(e>=0)c[e].qty+=qty;else c.push({id:product.id,title:product.title,price:product.price,image:product.image||(Array.isArray(product.images)?product.images[0]:'')||'',qty:qty,variant:sv,sku:sku,product_id:product.id});
   localStorage.setItem('bd_cart',JSON.stringify(c));updateCartCount();showToast('Added '+qty+' to cart!')
 }
 function buyNow(){addToCart();location.href='checkout.html'}
