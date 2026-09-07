@@ -24,7 +24,7 @@ async function gqlRaw(env, query, variables) {
   return r.body;
 }
 async function loadState(env) {
-  const q = `query { shop { metafields(first: 3, keys: ["${NS}.${KEY}"]) { edges { node { namespace key value } } } } }`;
+  const q = `query { shop { metafields(first: 10, namespace: "${NS}") { edges { node { key value } } } } }`;
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await gqlRaw(env, q);
     const edges = (res && res.data && res.data.shop && res.data.shop.metafields && res.data.shop.metafields.edges) || [];
