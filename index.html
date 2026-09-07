@@ -98,6 +98,7 @@
 <a class="cat-card" href="category.html?cat=pet-supplies&name=Pet Supplies"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/fe931516-6b3e-4b5c-8b11-28a9a8e64d61_trans.jpg?v=1787034502" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>🐾</div>'" /></div><div class="cat-card-label">Pet Supplies</div><span class="cat-card-shop">Shop →</span></a>
 <a class="cat-card" href="category.html?cat=computer-office&name=Computer &amp; Office"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/259e3e57-6bee-4de4-aa5f-89ee20b2879c.jpg?v=1787044131" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>💻</div>'" /></div><div class="cat-card-label">Computer &amp; Office</div><span class="cat-card-shop">Shop →</span></a></div></section>
 <section class="section-wrap" id="trending-section"><div class="section-title"><h3>✨ Trending Now</h3><a href="products.html">View All →</a></div><div class="product-grid" id="product-grid"></div><div class="product-grid" id="dynamic-grid" style="display:none"></div><div id="search-results-header" style="display:none"><div class="section-title"><h3>🔍 Search Results</h3><span id="search-count" style="font-size:.7rem;color:var(--meta)"></span></div></div></section>
+<section class="section-wrap" id="all-products-section"><div class="section-title"><h3>🛍️ More Products</h3><a href="products.html">View All →</a></div><div class="product-grid" id="available-grid"></div></section>
 </main>
 <footer class="site-footer"><div class="footer-newsletter"><h4>📬 Join the Drop</h4><p>Get exclusive deals and new arrivals first.</p><form class="newsletter-form" onsubmit="event.preventDefault();alert('Thanks for subscribing!')"><input type="email" placeholder="Enter your email" required><button type="submit">Join</button></form></div><div class="footer-links"><div class="footer-col"><h5>Shop</h5><a href="products.html">All Products</a><a href="category.html?cat=womens-clothing&name=Women%27s%20Clothing">Women's Clothing</a><a href="category.html?cat=mens-clothing&name=Men%27s%20Clothing">Men's Clothing</a><a href="category.html?cat=consumer-electronics&name=Consumer%20Electronics">Electronics</a><a href="categories.html">All Categories</a></div><div class="footer-col"><h5>Help</h5><a href="customer-service.html">Contact Us</a><a href="order-tracking.html">Track Order</a><a href="returns.html">Returns</a><a href="policy.html">Privacy Policy</a><a href="customer-service.html">FAQs</a></div><div class="footer-col"><h5>Account</h5><a href="profile.html">My Account</a><a href="orders.html">Orders</a><a href="wishlist.html">Wishlist</a><a href="cart.html">Cart</a></div><div class="footer-col"><h5>About</h5><a href="/">Home</a><a href="products.html">New Arrivals</a><a href="products.html">Best Sellers</a> <a href="#" onclick="openAdminGate();return false" style="font-size:.7rem;color:rgba(255,255,255,.5);text-decoration:none" title="Admin">🔒</a></div></div><div class="footer-bottom"><div class="footer-payments">💳 Visa · Mastercard · PayPal</div><div class="footer-legal">&copy; 2026 Bargain Drop. All rights reserved.</div></div></footer>
 <script>
@@ -155,6 +156,14 @@ function buildCard(p){
     '<button class="quick-add" onclick="event.preventDefault();quickAdd(\''+id+'\')" title="Quick Add">+</button></div>'+
     '<div class="product-info"><div class="product-stars">★★★★★</div><div class="product-title">'+p.title+'</div><div class="product-price">'+fmtAUD(p.price)+cmp+'</div></div></a>';
 }
+function shuffle(arr){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var t=a[i];a[i]=a[j];a[j]=t;
+  }
+  return a;
+}
 function renderHome(){
   if(!ALL||!ALL.length){document.getElementById('hero').style.display='none';return;}
   var heroes=pickHero(ALL,6), trending=ALL.slice(0,8);
@@ -177,6 +186,11 @@ function renderHome(){
   }
   var grid=document.getElementById('product-grid');
   if(grid&&trending.length){grid.innerHTML=trending.map(buildCard).join('');}
+  var availGrid=document.getElementById('available-grid');
+  if(availGrid){
+    var more=shuffle(ALL).slice(0,200);
+    availGrid.innerHTML=more.map(buildCard).join('');
+  }
 }
 
 var searchTimeout;
@@ -184,11 +198,11 @@ function doSearch(){
   var q=document.getElementById("search-input").value.toLowerCase().trim();
   clearTimeout(searchTimeout);
   searchTimeout=setTimeout(function(){
-    var catSection=document.getElementById("cat-section"),trendingSection=document.getElementById("trending-section"),
+    var catSection=document.getElementById("cat-section"),trendingSection=document.getElementById("trending-section"),allProductsSection=document.getElementById("all-products-section"),
     staticGrid=document.getElementById("product-grid"),dynGrid=document.getElementById("dynamic-grid"),
     sh=document.getElementById("search-results-header");
-    if(!q){catSection.style.display="";trendingSection.style.display="";staticGrid.style.display="";dynGrid.style.display="none";sh.style.display="none";return}
-    catSection.style.display="none";trendingSection.style.display="none";staticGrid.style.display="none";
+    if(!q){catSection.style.display="";trendingSection.style.display="";allProductsSection.style.display="";staticGrid.style.display="";dynGrid.style.display="none";sh.style.display="none";return}
+    catSection.style.display="none";trendingSection.style.display="none";allProductsSection.style.display="none";staticGrid.style.display="none";
     sh.style.display="block";dynGrid.style.display="";dynGrid.innerHTML="";
     var results;
     if(q){
