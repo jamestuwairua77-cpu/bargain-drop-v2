@@ -33,6 +33,21 @@ export async function onRequest(context) {
       return json({ action: 'status', query: id, ...r });
     }
 
+    if (action === 'cancel') {
+      // Resolve the numeric CJ orderId from cjOrderCode (cjOrderId) or a bare numeric id.
+      let cjOrderId = url.searchParams.get('orderId') || '';
+      const cjOrderCode = url.searchParams.get('cjOrderCode') || '';
+      if (!cjOrderId && cjOrderCode) {
+        const det = await cjFetch(env, '/shopping/order/getOrderDetail?orderId=' + encodeURIComponent(cjOrderCode));
+        const d = det && det.data;
+        cjOrderId = (d && (d.orderId || d.cjOrderId)) || '';
+      }
+      if (!cjOrderId) return json({ error: 'Could not resolve CJ orderId' }, 400);
+      const out = {};
+      out.cancel = await cjFetch(env, '/shopping/order/cancelOrder', { method: 'POST', body: JSON.stringify({ orderId: cjOrderId }) });
+      return json({ action: 'cancel', cjOrderId, ...out });
+    }
+
     if (action === 'confirm' || action === 'pay' || action === 'confirmpay') {
       // Resolve the CJ orderId (numeric) from either cjOrderCode or a bare numeric id.
       let cjOrderId = url.searchParams.get('orderId') || '';
@@ -57,7 +72,7 @@ export async function onRequest(context) {
       return json({ action, cjOrderId, ...out });
     }
 
-    return json({ error: 'Unknown action. Use balance|status|confirm|pay|confirmpay' }, 400);
+    return json({ error: 'Unknown action. Use balance|status|confirm|pay|confirmpay|cancel' }, 400);
   } catch (e) {
     return json({ error: e.message }, 500);
   }
