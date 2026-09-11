@@ -33,7 +33,7 @@
 //   - Uses CJK variant normalization matching sync-full.js (do not regress).
 //   - Never logs openId / raw sign header — only masked messageId + type.
 
-import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet, readCatalogFromGithub, writeCatalogFromGithub } from './_sync-lib.js';
+import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet, readCatalogFromGithub, writeCatalogFromGithub, listOrders, updateOrderStatus, appendSyncLog } from './_sync-lib.js';
 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 
@@ -636,5 +636,94 @@ async function importOrder(env, payload) {
 }
 async function importLogistic(env, payload) {
   const p = payload.params || {};
-  return { imported: false, note: 'logistic (tracking) received', orderId: p.orderId, trackingNumber: p.trackingNumber };
+  const trackingNumber = p.trackNumber || p.trackingNumber || p.track_number || p.tracking_number || '';
+  const carrier = p.logisticName || p.express || p.company || 'CJ Packet';
+  const cjOrderId = p.orderId || p.cjOrderId || '';
+  const bdOrderId = p.clientOrderId || p.order_id || '';
+  const trackingUrl = p.trackUrl || p.trackingUrl || (trackingNumber ? `https://track123.com/tracking?nums=${encodeURIComponent(trackingNumber)}` : '');
+
+  if (!trackingNumber) {
+    return { imported: false, reason: 'no tracking number in payload', params: p };
+  }
+
+  // 1. Locate the Shopify Order
+  let shopifyOrder = null;
+  try {
+    const { body } = await shopifyFetch(env, '/orders.json?status=any&limit=50');
+    const orders = body?.orders || [];
+    if (bdOrderId) {
+      shopifyOrder = orders.find(o => (o.note_attributes || []).some(a => a.name === 'bd_order_id' && String(a.value) === String(bdOrderId)));
+    }
+    if (!shopifyOrder && cjOrderId) {
+      shopifyOrder = orders.find(o => (o.note_attributes || []).some(a => String(a.value).includes(cjOrderId)) || String(o.note || '').includes(cjOrderId));
+    }
+  } catch (e) {
+    console.error('Error finding Shopify order:', e.message);
+  }
+
+  let fulfillmentResult = null;
+  if (shopifyOrder) {
+    try {
+      const foRes = await shopifyFetch(env, `/orders/${shopifyOrder.id}/fulfillment_orders.json`);
+      const foList = foRes.body?.fulfillment_orders || [];
+      const openFo = foList.find(fo => fo.status === 'open' || fo.status === 'in_progress');
+      if (openFo) {
+        const createFulfillmentPayload = {
+          fulfillment: {
+            line_items_by_fulfillment_order: [
+              {
+                fulfillment_order_id: openFo.id
+              }
+            ],
+            tracking_info: {
+              number: trackingNumber,
+              company: carrier,
+              url: trackingUrl
+            },
+            notify_customer: true
+          }
+        };
+        const fRes = await shopifyFetch(env, '/fulfillments.json', {
+          method: 'POST',
+          body: JSON.stringify(createFulfillmentPayload)
+        });
+        fulfillmentResult = fRes.body;
+      } else {
+        fulfillmentResult = { note: 'no open fulfillment order found (already fulfilled or cancelled)' };
+      }
+    } catch (e) {
+      fulfillmentResult = { error: e.message };
+    }
+  }
+
+  // 2. Update local BD order status ledger
+  if (bdOrderId) {
+    await updateOrderStatus(env, bdOrderId, 'fulfilled', {
+      tracking: {
+        tracking_number: trackingNumber,
+        tracking_company: carrier,
+        tracking_url: trackingUrl,
+        synced_at: new Date().toISOString()
+      }
+    }).catch(() => {});
+  }
+
+  await appendSyncLog(env, {
+    action: 'cj-logistic-webhook',
+    bdOrderId,
+    cjOrderId,
+    trackingNumber,
+    carrier,
+    shopifyOrderId: shopifyOrder ? shopifyOrder.id : null,
+    fulfillmentResult
+  }).catch(() => {});
+
+  return {
+    imported: true,
+    bdOrderId,
+    cjOrderId,
+    trackingNumber,
+    carrier,
+    shopifyFulfilled: !!(shopifyOrder && fulfillmentResult && !fulfillmentResult.error)
+  };
 }
