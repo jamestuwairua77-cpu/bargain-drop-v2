@@ -10,7 +10,7 @@
 // /product/list does NOT include variants), this is a resumable batch job: call it
 // repeatedly until `done` is true. No sandbox timeout — runs on Cloudflare edge.
 
-import { corsHeaders, cjFetch, ghRead, ghWrite, readCatalogFromGithub, writeCatalogFromGithub } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, ghRead, ghWrite, readCatalogFromGithub, writeCatalogFromGithub, isAdmin, adminDenied } from '../_sync-lib.js';
 
 const LETTER = new Set('XS S M L XL XXL XXXL 2XL 3XL 4XL 5XL 6XL 7XL 8XL 1X 2X 3X 4X 5X SM MED MEDIUM LARGE XLARGE FREE SIZE ONE SIZE'.split(' '));
 
@@ -103,6 +103,7 @@ export async function onRequest(context) {
   try {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (!isAdmin(request, env)) return adminDenied();
   const url = new URL(request.url);
   const run = url.searchParams.get('run') === '1';
   const limit = parseInt(url.searchParams.get('limit') || '3', 10);

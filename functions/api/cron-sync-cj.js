@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: /api/cron-sync-cj
 // Cron endpoint — syncs CJ prices + stock back to Shopify for cj-import tagged products.
 
-import { corsHeaders, cjFetch, shopifyFetch, appendSyncLog } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, shopifyFetch, appendSyncLog, isAdmin, adminDenied } from '../_sync-lib.js';
 
 const LOCATION_ID = '91452932227';
 
@@ -12,6 +12,8 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders() });
   }
+
+  if (!isAdmin(request, env)) return adminDenied();
 
   const summary = {
     startedAt: new Date().toISOString(),

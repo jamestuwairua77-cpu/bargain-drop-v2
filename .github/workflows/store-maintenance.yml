@@ -4,14 +4,14 @@ name: Store Maintenance (Non-Zaro Scheduler)
 # All work is done by calling the store's own Cloudflare endpoints with the
 # admin PIN. Every endpoint is idempotent + resumable.
 #
-# IMPORTANT (2026-09-09): the high-frequency re-import and category-import crons
-# were REMOVED. They re-imported the already-imported catalog every 5-10 minutes,
-# burning through the entire 50,000 daily CJ API point quota (usedToday > 84,000)
-# and hammering CJ's 1-req/sec QPS limit. Only the DAILY sweep remains.
+# IMPORTANT (2026-09-09 & 2026-09-12):
+# - Removed re-import and category-import crons (burned 50k points).
+# - Removed cron-sync-cj daily 200-item sweep (prevented 400 CJ API point drain daily).
+# - Only inventory count verification remains.
 
 on:
   schedule:
-    # Daily sweep: sync CJ price/stock to Shopify + inventory + dedup safety net.
+    # Daily inventory count verification
     - cron: '15 4 * * *'
   workflow_dispatch: {}
 
@@ -24,11 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Sync CJ price + stock to Shopify
-        run: |
-          curl -fsS "https://bargain-drop.online/api/cron-sync-cj?limit=200" \
-            -H "X-Admin-Pin: ${{ secrets.ADMIN_PIN }}" || true
-
       - name: Sync CJ inventory
         run: |
           curl -fsS "https://bargain-drop.online/api/sync-inventory" \

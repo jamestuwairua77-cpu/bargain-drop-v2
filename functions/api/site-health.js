@@ -24,16 +24,11 @@ export async function onRequest(context) {
     issues.push({ level: 'error', source: 'shopify', message: 'Shopify API error: ' + e.message, at: new Date().toISOString() });
   }
 
-  // ── 2. CJ Dropshipping ──
-  try {
-    const r = await cjFetch(env, '/product/list?pageNum=1&pageSize=1');
-    checks.push({ name: 'CJ Dropshipping', ok: r?.code === 200 || r?.result === true || r?.success === true, detail: 'connected' });
-    if (!(r?.code === 200 || r?.result === true || r?.success === true)) {
-      issues.push({ level: 'error', source: 'cj', message: 'CJ API error: ' + (r?.code || r?.message || 'unknown'), at: new Date().toISOString() });
-    }
-  } catch (e) {
-    checks.push({ name: 'CJ Dropshipping', ok: false, detail: e.message });
-    issues.push({ level: 'error', source: 'cj', message: 'CJ API error: ' + e.message, at: new Date().toISOString() });
+  // ── 2. CJ Dropshipping (credential status — avoids burning live API points on 60s poll) ──
+  const hasCj = !!(env.CJ_API_KEY || env.CJ_ACCESS_TOKEN || env.CJ_API_KEY_1);
+  checks.push({ name: 'CJ Dropshipping', ok: hasCj, detail: hasCj ? 'configured' : 'missing key' });
+  if (!hasCj) {
+    issues.push({ level: 'error', source: 'cj', message: 'CJ API key not configured', at: new Date().toISOString() });
   }
 
   // ── 3. GitHub (catalog) ──

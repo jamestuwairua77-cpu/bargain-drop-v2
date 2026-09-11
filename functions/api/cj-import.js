@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: /api/cj-import
 // Streaming SSE import endpoint. Body: { pids: string[], markup?: number, defaultStock?: number }
 
-import { corsHeaders, cjFetch, shopifyFetch, appendSyncLog } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, shopifyFetch, appendSyncLog, isAdmin, adminDenied } from '../_sync-lib.js';
 
 function stripHtml(html = '') {
   return String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -67,6 +67,7 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders() });
   }
+  if (!isAdmin(request, env)) return adminDenied();
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'POST required' }), {
       status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders() },

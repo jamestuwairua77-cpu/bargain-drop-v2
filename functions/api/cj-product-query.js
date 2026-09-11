@@ -1,8 +1,9 @@
-import { corsHeaders, cjFetchMulti } from '../_sync-lib.js';
+import { corsHeaders, cjFetchMulti, isAdmin, adminDenied } from '../_sync-lib.js';
 // Cross-check proxy: query a CJ product by variantSku to compare against our catalog.
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (!isAdmin(request, env)) return adminDenied();
   const url = new URL(request.url);
   const sku = url.searchParams.get('sku') || url.searchParams.get('variantSku');
   const pid = url.searchParams.get('pid');

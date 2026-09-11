@@ -1,7 +1,8 @@
-import { corsHeaders, cjFetch } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, isAdmin, adminDenied } from '../_sync-lib.js';
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (!isAdmin(request, env)) return adminDenied();
   const body = await request.json().catch(() => ({}));
   const { keyword, pageNum = 1, pageSize = 20 } = body;
   if (!keyword) return new Response(JSON.stringify({ error: 'keyword required' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });

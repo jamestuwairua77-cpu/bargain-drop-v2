@@ -1,7 +1,8 @@
-import { corsHeaders, cjFetch } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, isAdmin, adminDenied } from '../_sync-lib.js';
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (!isAdmin(request, env)) return adminDenied();
   try {
     const result = await cjFetch(env, '/product/categoryList');
     return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400', ...corsHeaders() } });
