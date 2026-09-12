@@ -123,8 +123,8 @@ export async function onRequest(context) {
     const counts = { ...(st.counts || {}) };
     const newDone = [];
 
-    // Phase 1: scan for up to 15s, resuming from saved cursor
-    const SCAN_MS = 15000;
+    // Phase 1: scan for up to 30s, resuming from saved cursor
+    const SCAN_MS = 30000;
     const res = await scanBroken(env, SCAN_MS, startedAt, st.cursor);
     const list = res.list, truncated = res.truncated, exhausted = res.exhausted;
 
@@ -156,7 +156,7 @@ export async function onRequest(context) {
     }
 
     const mergedDone = Array.from(new Set([...st.done, ...newDone]));
-    // finished only when the scan reached the end of the catalog (exhausted) and this pass found nothing left to do
+    // finished when the scan reached the end of the catalog (exhausted) and this pass found nothing left to do
     const finished = exhausted && list.length === 0;
     await saveState(env, { done: mergedDone, fixed: st.fixed + fixed, other: st.other + other, counts, finished, cursor: res.cursor });
     return json({ ok: true, finished, truncated, scanned_this_run: scanned, fixed_this_run: fixed, other_this_run: other, total_fixed: st.fixed + fixed, total_other: st.other + other, done: mergedDone.length, counts });
@@ -166,11 +166,14 @@ export async function onRequest(context) {
 }
 
 // Live paginated scan of active products whose product_type is broken (numeric/empty/'other').
-// budgetMs: max scan time; startAt: epoch ms (optional). Returns { list, truncated }.
+// budgetMs: max scan time; startAt: epoch ms (optional). Returns { list, truncated, exhausted, cursor }.
+// NOTE: `body_html` is deprecated in the 2025-10 Shopify REST API and requesting it in
+// `fields=` causes the whole /products.json call to return non-200. Classification now
+// relies on the title only (body_html is no longer fetched).
 async function scanBroken(env, budgetMs, startAt, startCursor) {
   const t0 = startAt || Date.now();
   const list = [];
-  const base = '/products.json?limit=250&fields=id,title,body_html,product_type,status';
+  const base = '/products.json?limit=250&fields=id,title,product_type,status';
   let cursor = startCursor || null, guard = 0;
   let truncated = false, exhausted = false;
   while (true) {
@@ -183,7 +186,7 @@ async function scanBroken(env, budgetMs, startAt, startCursor) {
     if (!ok || status >= 400) { truncated = true; break; }   // 429/5xx → do NOT treat as end-of-catalog
     for (const p of (body.products || [])) {
       if (p.status === 'active' && p.title && isBrokenType(p.product_type)) {
-        list.push({ id: String(p.id), title: p.title, body_html: (p.body_html || '').slice(0, 3000) });
+        list.push({ id: String(p.id), title: p.title, body_html: '' });
       }
     }
     const nc = nextPageCursor(headers);
