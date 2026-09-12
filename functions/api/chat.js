@@ -12,14 +12,23 @@ const SUPPORT_EMAIL = 'Support@bargain-drop.online';
 
 function norm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
 
-// ── store context ────────────────────────────────────────────────────────────────
+// —————————— store context ——————————
 const STORE_POLICY = `Bargain Drop is an Australian e-commerce store selling bargain-priced fashion,
 home, beauty, electronics, jewellery, and more. Prices are in Australian dollars (A$).
 Returns: 45-day free returns on most items.
 Shipping: free on orders over A$29, otherwise A$8.44; typically 7–15 business days to Australia.
 Payment: secure card and Stripe checkout. Orders are fulfilled by our dropship supplier.`;
 
-// ── dynamic tool results (order + product) injected as live facts ────────────────
+// A short list of common stopwords to ignore when extracting keywords from a query.
+const STOPWORDS = new Set([
+  'a','an','the','is','are','was','were','do','does','did','have','has','had','can','could','would','should',
+  'i','you','me','my','we','our','your','it','its','they','them','that','this','these','those','for','and','or',
+  'of','in','on','at','to','with','about','how','what','where','when','why','which','much','many','price','prices',
+  'cost','costs','buy','order','ship','shipping','size','sizes','stock','available','suggest','suggestion','link',
+  'url','tell','show','find','get','give','looking','look','want','need','please','there','any','some','one','box',
+]);
+
+// —————————— dynamic tool results (order + product) injected as live facts ——————————
 async function resolveTools(env, msg, requestUrl, context) {
   const facts = [];
   const base = (() => { try { return new URL(requestUrl).origin; } catch { return ''; } })();
@@ -34,17 +43,18 @@ async function resolveTools(env, msg, requestUrl, context) {
       const statusMap = { unpaid:'payment still processing', paid:'payment confirmed, preparing dispatch',
         fulfilling:'being prepared by our supplier', shipped:'shipped and on its way' };
       facts.push(`ORDER ${o.id}: status "${o.status}" (${statusMap[o.status] || o.status}).`
-        + (o.fulfillment?.cj?.orderNumber ? ` Fulfilment ref ${o.fulfillment.cj.orderNumber}.` : '')
+        + (o.fulfillment?.cj?.orderNumber ? ` Fulfillment ref ${o.fulfillment.cj.orderNumber}.` : '')
         + (o.eta ? ` ETA ${o.eta}.` : ''));
     } else {
       facts.push(`Order "${orderNumber}" was NOT found in our records. Ask the customer to double-check.`);
     }
   }
 
-  // 2. product lookup (best-effort fuzzy match) — pulls real title/price and a direct page link
+  // 2. product lookup (keyword-based fuzzy match) — pulls real title/price and a direct page link
   if (msg && base) {
-    const q = norm(msg).replace(/\b(price|cost|how much|buy|order|ship|size|stock|available|suggest|link|url)\b/g,' ').trim();
-    if (q.length >= 3) {
+    // Extract meaningful keyword tokens from the query (strip stopwords + short tokens).
+    const tokens = norm(msg).split(' ').filter(w => w.length >= 3 && !STOPWORDS.has(w));
+    if (tokens.length >= 1) {
       try {
         const r = await fetch(base + '/slim-products.json');
         if (r.ok) {
@@ -54,13 +64,17 @@ async function resolveTools(env, msg, requestUrl, context) {
           for (const e of entries) {
             const t = norm(e.title || e.name || '');
             if (!t) continue;
+            const titleTokens = t.split(' ');
             let score = 0;
-            if (t === q) score = 100;
-            else if (t.includes(q)) score = 60 + q.length;
-            else if (q.includes(t)) score = 40;
+            for (const tok of tokens) {
+              if (t.includes(tok)) score += (titleTokens.includes(tok) ? 5 : 2);
+            }
+            // bonus if the full multi-word phrase appears
+            const phrase = tokens.join(' ');
+            if (tokens.length >= 2 && t.includes(phrase)) score += 10;
             if (score > bestScore) { bestScore = score; best = e; }
           }
-          if (best && bestScore >= 40 && best.id) {
+          if (best && bestScore >= 4 && best.id) {
             const link = `${base}/product.html?id=${encodeURIComponent(best.id)}`;
             facts.push(`PRODUCT "${best.title}" — price A$${best.price ?? '?'}. Direct page: ${link}`);
           }
@@ -72,7 +86,7 @@ async function resolveTools(env, msg, requestUrl, context) {
   return facts;
 }
 
-// ── Gemini call ─────────────────────────────────────────────────────────────────
+// ————————— Gemini call ——————————
 async function callGemini(env, messages, facts) {
   const key = env.GEMINI_API_KEY;
   if (!key) throw new Error('no gemini key');
@@ -137,7 +151,7 @@ Guidelines:
   throw lastErr || new Error('gemini unreachable');
 }
 
-// ── deterministic fallback ───────────────────────────────────────────────────────
+// —————————— deterministic fallback ——————————
 function fallback(msg) {
   const m = norm(msg);
   if (/^(hi|hello|hey|yo|hiya|good (morning|afternoon|evening))\b/.test(m))
