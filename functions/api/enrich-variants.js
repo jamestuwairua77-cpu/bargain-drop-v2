@@ -10,7 +10,7 @@
 // /product/list does NOT include variants), this is a resumable batch job: call it
 // repeatedly until `done` is true. No sandbox timeout — runs on Cloudflare edge.
 
-import { corsHeaders, cjFetch, ghRead, ghWrite, readCatalogFromGithub, writeCatalogFromGithub, isAdmin, adminDenied } from '../_sync-lib.js';
+import { corsHeaders, cjFetchMulti, ghRead, ghWrite, readCatalogFromGithub, writeCatalogFromGithub, isAdmin, adminDenied } from '../_sync-lib.js';
 
 const LETTER = new Set('XS S M L XL XXL XXXL 2XL 3XL 4XL 5XL 6XL 7XL 8XL 1X 2X 3X 4X 5X SM MED MEDIUM LARGE XLARGE FREE SIZE ONE SIZE'.split(' '));
 
@@ -43,7 +43,7 @@ function parseVariantKey(key, nameEn = '') {
 async function resolvePid(env, skus) {
   if (!skus.length) return null;
   const sku = skus[0];
-  const r = await cjFetch(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
+  const r = await cjFetchMulti(env, `/product/list?productSku=${encodeURIComponent(sku)}&pageNum=1&pageSize=10`);
   const list = (r && r.data && r.data.list) || [];
   return list.length ? list[0].pid : null;
 }
@@ -53,7 +53,7 @@ async function enrichProduct(env, p) {
   if (!skus.length) return null;
   const pid = await resolvePid(env, skus);
   if (!pid) return null;
-  const detail = await cjFetch(env, `/product/query?pid=${encodeURIComponent(pid)}`);
+  const detail = await cjFetchMulti(env, `/product/query?pid=${encodeURIComponent(pid)}`);
   const cjv = (detail && detail.data && detail.data.variants) || [];
   if (!cjv.length) return null;
 
