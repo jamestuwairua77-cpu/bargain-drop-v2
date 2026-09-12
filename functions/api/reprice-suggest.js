@@ -75,11 +75,24 @@ mutation {
     userErrors { field message }
   }
 }`;
-  const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: mutation }) });
-  const j = r.body;
-  const op = j?.data?.bulkOperationRunQuery?.bulkOperation;
-  const errs = j?.data?.bulkOperationRunQuery?.userErrors || [];
-  if (!op || !op.id) throw new Error('bulk op failed: ' + (errs.map(e => e.message).join('; ') || JSON.stringify(j)));
+  // Retry on GraphQL body-level THROTTLED (shared API saturation) up to several times.
+  let op = null, errs = [], lastThrottled = false;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: mutation }) });
+    const j = r.body;
+    const errArr = j?.errors || [];
+    if (errArr.length && errArr.some(e => (e?.extensions?.code) === 'THROTTLED')) {
+      lastThrottled = true;
+      await new Promise(r2 => setTimeout(r2, 1500 * (attempt + 1)));
+      continue;
+    }
+    lastThrottled = false;
+    op = j?.data?.bulkOperationRunQuery?.bulkOperation;
+    errs = j?.data?.bulkOperationRunQuery?.userErrors || [];
+    if (op && op.id) break;
+    await new Promise(r2 => setTimeout(r2, 1000 * (attempt + 1)));
+  }
+  if (!op || !op.id) throw new Error('bulk op failed' + (lastThrottled ? ' (THROTTLED)' : '') + ': ' + (errs.map(e => e.message).join('; ') || 'no id'));
   return String(op.id);
 }
 
