@@ -156,8 +156,11 @@ export async function onRequest(context) {
     }
 
     const mergedDone = Array.from(new Set([...st.done, ...newDone]));
-    // finished when the scan reached the end of the catalog (exhausted) and this pass found nothing left to do
-    const finished = exhausted && list.length === 0;
+    // finished when the scan reached the end of the catalog (exhausted) AND this pass
+    // added nothing new to `done` (every found item was already processed). This is
+    // required because 'other' items are counted (not written), so their broken
+    // product_type persists and the scan keeps re-finding them.
+    const finished = exhausted && newDone.length === 0;
     await saveState(env, { done: mergedDone, fixed: st.fixed + fixed, other: st.other + other, counts, finished, cursor: res.cursor });
     return json({ ok: true, finished, truncated, scanned_this_run: scanned, fixed_this_run: fixed, other_this_run: other, total_fixed: st.fixed + fixed, total_other: st.other + other, done: mergedDone.length, counts });
   }
