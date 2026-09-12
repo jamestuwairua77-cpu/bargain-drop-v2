@@ -282,6 +282,12 @@ export function cjKeys(env) {
   list.push('CJ5798986@api@8e86ba7f88de4781812950784cbc2dc4');
   // Second fresh CJ account (openId 49640, separate 50,000-pt pool) — overflow/backup.
   list.push('CJ5799030@api@c764039900e64e0bbdc3b9398a26bb2c');
+  // NEWEST CJ account (openId 50575) supplied by James 2026-09-12. Brand-new
+  // account with 0 points today — placed LAST so it never leads the rotation while
+  // empty (avoids backing up pulls), but is available as an extra pool once it
+  // accrues points from CJ purchase volume. Its openId 50575 also joins the webhook
+  // signature verification set automatically via keyToken().
+  list.push('CJ5820279@api@e3b050af15cc44b590ac9b0d1f8133ef');
   if (env.CJ_ACCESS_TOKEN) list.push(env.CJ_ACCESS_TOKEN);
   for (let i = 2; i <= 6; i++) {
     const k = env['CJ_ACCESS_TOKEN_' + i];
