@@ -109,22 +109,24 @@ export async function onRequest(context) {
 
   // build: just report the live count of broken products (does NOT store a queue)
   if (hasBuild) {
-    const { list, truncated } = await scanBroken(env, 40000);
+    const { list, truncated } = await scanBroken(env, 15000);
     return json({ ok: true, built: list.length, truncated });
   }
 
-  // run: two-phase — (1) bounded scan for broken products, (2) classify + PUT within remaining budget
+  // run: two-phase — (1) bounded scan for broken products, (2) classify + PUT within remaining budget.
+  // Budgets are capped so the whole handler (including saveState) finishes within the ~30s
+  // Cloudflare Pages Function / gateway timeout, so progress reliably persists each fire.
   if (hasRun) {
     const st = await loadState(env);
     const doneSet = new Set(st.done.map(String));
-    const TOTAL_MS = 45000;
+    const TOTAL_MS = 22000;
     const startedAt = Date.now();
     let fixed = 0, other = 0, scanned = 0;
     const counts = { ...(st.counts || {}) };
     const newDone = [];
 
-    // Phase 1: scan for up to 30s, resuming from saved cursor
-    const SCAN_MS = 30000;
+    // Phase 1: scan for up to ~15s, resuming from saved cursor
+    const SCAN_MS = 15000;
     const res = await scanBroken(env, SCAN_MS, startedAt, st.cursor);
     const list = res.list, truncated = res.truncated, exhausted = res.exhausted;
 
@@ -149,7 +151,7 @@ export async function onRequest(context) {
         fixed++;
         counts[c] = (counts[c] || 0) + 1;
         newDone.push(String(q.id));
-        await new Promise(r => setTimeout(r, 120));
+        await new Promise(r => setTimeout(r, 80));
       } catch (e) {
         // leave for next run
       }
@@ -157,9 +159,7 @@ export async function onRequest(context) {
 
     const mergedDone = Array.from(new Set([...st.done, ...newDone]));
     // finished when the scan reached the end of the catalog (exhausted) AND this pass
-    // added nothing new to `done` (every found item was already processed). This is
-    // required because 'other' items are counted (not written), so their broken
-    // product_type persists and the scan keeps re-finding them.
+    // added nothing new to `done` (every found item was already processed).
     const finished = exhausted && newDone.length === 0;
     await saveState(env, { done: mergedDone, fixed: st.fixed + fixed, other: st.other + other, counts, finished, cursor: res.cursor });
     return json({ ok: true, finished, truncated, scanned_this_run: scanned, fixed_this_run: fixed, other_this_run: other, total_fixed: st.fixed + fixed, total_other: st.other + other, done: mergedDone.length, counts });
@@ -196,7 +196,7 @@ async function scanBroken(env, budgetMs, startAt, startCursor) {
     if (!nc) { exhausted = true; cursor = null; break; }
     cursor = nc;
     if (++guard > 500) { truncated = true; break; }
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, 40));
   }
   return { list, truncated, exhausted, cursor };
 }
