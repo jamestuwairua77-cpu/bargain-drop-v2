@@ -849,6 +849,7 @@ export function shopifyToCjOrder(shopOrder) {
     email: shopOrder.email || shopOrder.contact_email || '',
     remark: `Shopify order ${shopOrder.name}`,
     platform: 'shopify',
+    payType: 1,
     fromCountryCode: 'CN',
     logisticName: 'CJPacket Ordinary',
     products: (shopOrder.line_items || []).map((li, i) => ({
@@ -883,6 +884,7 @@ export function buildCjOrderFromBody(body) {
     email: body.customer_email || body.email || sa.email || '',
     remark: body.remark || ('BD order ' + orderNumber),
     platform: 'shopify',
+    payType: 1,
     fromCountryCode: 'CN',
     logisticName: 'CJPacket Ordinary',
     products,
