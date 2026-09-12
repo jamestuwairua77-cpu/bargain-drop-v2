@@ -2,9 +2,9 @@ name = "cj-sync-worker"
 main = "index.js"
 compatibility_date = "2025-10-01"
 
-# Self-running: reconcile hourly (hidden background job, no Zaro).
-[triggers]
-crons = ["0 * * * *"]
+# CRON DISABLED (2026-09-12): the hourly reconcile was making ~200 CJ API calls
+# per hour (~4,800/day), silently draining CJ points. Re-enable only if a
+# lightweight stock-sync is explicitly wanted AND CJ_SYNC_MAX is lowered.
 
 # Secrets are bound at deploy time (not stored in the repo):
 #  CJ_ACCESS_TOKEN, CJ_ACCESS_TOKEN_2..6, SHOPIFY_ACCESS_TOKEN, SHOPIFY_DOMAIN, GITHUB_TOKEN
