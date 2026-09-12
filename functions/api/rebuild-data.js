@@ -21,7 +21,7 @@ export async function onRequest(context) {
       cursor = nextPageCursor(headers);
       if (!cursor) break;                                   // no next page
       if (++guard > 1000) throw new Error('pagination runaway: >1000 pages');
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 100));
     }
     const cats={}, all=[], idx={};
     for (const p of prods) {

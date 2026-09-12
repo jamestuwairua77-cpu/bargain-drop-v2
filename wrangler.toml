@@ -3,5 +3,5 @@ compatibility_date = "2025-10-01"
 compatibility_flags = ["nodejs_compat"]
 
 [limits]
-subrequests = 500
-cpu_ms = 50000
+subrequests = 1000
+cpu_ms = 300000
