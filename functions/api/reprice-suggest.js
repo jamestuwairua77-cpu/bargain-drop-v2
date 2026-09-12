@@ -5,22 +5,26 @@
 // Auth: X-Admin-Pin (or ?pin= / Bearer), matching env ADMIN_PIN.
 // Endpoints:
 //   GET /api/reprice-suggest?action=start-bulk    -> launch Shopify GraphQL bulk query
-//   GET /api/reprice-suggest?action=poll-bulk     -> poll; on COMPLETED download+parse queue
-//   GET /api/reprice-suggest?action=scan          -> start-bulk THEN poll-bulk (status only)
-//   GET /api/reprice-suggest?action=run&limit=N   -> process N queued products (throttled)
+//   GET /api/reprice-suggest?action=poll-bulk     -> poll; on COMPLETED download+parse+persist queue
+//   GET /api/reprice-suggest?action=run&limit=N   -> process N queued variants (throttled)
 //   GET /api/reprice-suggest?action=status        -> persisted progress
-//   GET /api/reprice-suggest?action=reset         -> clear progress
+//   GET /api/reprice-suggest?action=reset         -> clear progress + queue
 //
 // Pricing: usdSug = CJ suggestSellPrice (product-level) OR variants[0].variantSugSellPrice
 //          aud    = ceil(usdSug * 1.5)
-// Resumable via Shopify metafield namespace `zstate` key `reprice-suggest`.
+// Queue is sharded to GitHub (reprice-queue-{0..N}.json + manifest reprice-queue.json)
+// exactly like the catalog shards, because the full ~65k-row queue exceeds both Shopify
+// metafield value limits and GitHub's 1MB contents-API read cap. Only an integer cursor
+// ({total, done, ...}) lives in the Shopify metafield (zstate.reprice-suggest).
 
-import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
+import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet, ghWriteLarge } from '../_sync-lib.js';
 
 const STATE_KEY = 'reprice-suggest';
-const SHOPIFY_PAUSE_MS = 1600;   // respect 2/sec Shopify limit
-const CJ_PAUSE_MS = 1200;        // respect 1/sec CJ QPS
-const MAX_PER_RUN = 40;          // safe within Cloudflare CPU budget
+const QUEUE_SHARD_SIZE = 2000;   // ~240KB/shard — safe under GitHub 1MB contents read cap
+const RAW = 'https://raw.githubusercontent.com/jamestuwairua77-cpu/bargain-drop-v2/main/';
+const SHOPIFY_PAUSE_MS = 1600;
+const CJ_PAUSE_MS = 1200;
+const MAX_PER_RUN = 40;
 
 function usdToAudWhole(usd) {
   const n = parseFloat(usd);
@@ -29,7 +33,7 @@ function usdToAudWhole(usd) {
 }
 
 function emptyState() {
-  return { queue: [], total: 0, done: 0, aud0: 0, skipNoSku: 0, skipNoSug: 0, failed: 0, updated: 0, opId: null, errors: [] };
+  return { total: 0, done: 0, aud0: 0, skipNoSku: 0, skipNoSug: 0, failed: 0, updated: 0, opId: null, shards: 0, errors: [] };
 }
 
 async function loadState(env) {
@@ -38,7 +42,6 @@ async function loadState(env) {
   if (e && e.value) { try { raw = JSON.parse(e.value); } catch {} }
   raw = raw && typeof raw === 'object' ? raw : {};
   return {
-    queue: Array.isArray(raw.queue) ? raw.queue : [],
     total: Number(raw.total) || 0,
     done: Number(raw.done) || 0,
     aud0: Number(raw.aud0) || 0,
@@ -47,7 +50,8 @@ async function loadState(env) {
     failed: Number(raw.failed) || 0,
     updated: Number(raw.updated) || 0,
     opId: raw.opId || null,
-    errors: Array.isArray(raw.errors) ? raw.errors.slice(0, 20) : [],
+    shards: Number(raw.shards) || 0,
+    errors: Array.isArray(raw.errors) ? raw.errors.slice(0, 30) : [],
   };
 }
 
@@ -55,7 +59,6 @@ function json(o, status = 200) {
   return new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
 }
 
-// ── Shopify GraphQL bulk query (single async op, avoids REST 2/sec limits) ──
 async function startBulk(env) {
   const mutation = `
 mutation {
@@ -122,6 +125,29 @@ function parseRows(txt) {
   return queue;
 }
 
+function splitShards(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Write queued variant rows as GitHub shards (mirrors catalog shard pattern).
+async function persistQueue(env, queue) {
+  const shards = splitShards(queue, QUEUE_SHARD_SIZE);
+  for (let i = 0; i < shards.length; i++) {
+    await ghWriteLarge(env, 'reprice-queue-' + i + '.json', JSON.stringify(shards[i]), 'reprice scan queue (shard ' + i + ')');
+  }
+  await ghWriteLarge(env, 'reprice-queue.json', JSON.stringify({ shards: shards.length, count: queue.length }), 'reprice scan queue manifest');
+  return shards.length;
+}
+
+// Read one shard (list of variant rows) via raw GitHub.
+async function loadShard(idx) {
+  const r = await fetch(RAW + 'reprice-queue-' + idx + '.json', { cf: { cacheTtl: 0 } });
+  if (!r.ok) return null;
+  try { return await r.json(); } catch { return null; }
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
@@ -162,11 +188,13 @@ export async function onRequest(context) {
       const r = await fetch(op.url);
       if (!r.ok) return json({ ok: false, error: 'bulk download ' + r.status }, 500);
       const txt = await r.text();
-      st.queue = parseRows(txt);
-      st.total = st.queue.length;
+      const queue = parseRows(txt);
+      const shards = await persistQueue(env, queue);
+      st.total = queue.length;
+      st.shards = shards;
       st.done = 0; st.failed = 0; st.updated = 0; st.skipNoSku = 0; st.skipNoSug = 0; st.aud0 = 0; st.errors = [];
       await shopMetaSet(env, STATE_KEY, st);
-      return json({ ok: true, phase: 'COMPLETED', total: st.total, withSku: st.queue.filter(i => i.sku).length });
+      return json({ ok: true, phase: 'COMPLETED', total: st.total, withSku: queue.filter(i => i.sku).length, shards });
     }
 
     if (action === 'scan') {
@@ -181,15 +209,28 @@ export async function onRequest(context) {
     }
 
     if (action === 'run') {
-      if (!st.queue || !st.queue.length) return json({ ok: false, error: 'no queue; run start-bulk then poll-bulk' }, 400);
-      const batch = st.queue.slice(st.done, st.done + limit);
-      let processed = 0;
+      if (!st.total) return json({ ok: false, error: 'no queue; run start-bulk then poll-bulk' }, 400);
 
-      for (const item of batch) {
+      const start = st.done;
+      const end = Math.min(st.total, start + limit);
+      const firstShard = Math.floor(start / QUEUE_SHARD_SIZE);
+      const lastShard = Math.floor((end - 1) / QUEUE_SHARD_SIZE);
+      const shardMap = new Map();
+      for (let si = firstShard; si <= lastShard; si++) {
+        const s = await loadShard(si);
+        if (!s || !Array.isArray(s)) return json({ ok: false, error: 'shard ' + si + ' unreadable', total: st.total, done: st.done }, 500);
+        shardMap.set(si, s);
+      }
+
+      let processed = 0;
+      let updatedNow = 0, failedNow = 0, skipNoSkuNow = 0, skipNoSugNow = 0, aud0Now = 0;
+
+      for (let idx = start; idx < end; idx++) {
+        const si = Math.floor(idx / QUEUE_SHARD_SIZE);
+        const off = idx % QUEUE_SHARD_SIZE;
+        const item = shardMap.get(si)[off];
         try {
-          if (!item.sku) {
-            st.skipNoSku++; processed++; continue;
-          }
+          if (!item.sku) { skipNoSkuNow++; processed++; continue; }
           const cj = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(item.sku));
           await new Promise(r => setTimeout(r, CJ_PAUSE_MS));
 
@@ -206,17 +247,11 @@ export async function onRequest(context) {
                        : Number.isFinite(sugVariant) && sugVariant > 0 ? sugVariant
                        : null;
 
-          if (usdSug == null) {
-            st.skipNoSug++; processed++; continue;
-          }
+          if (usdSug == null) { skipNoSugNow++; processed++; continue; }
           const aud = usdToAudWhole(usdSug);
-          if (aud == null || aud <= 0) {
-            st.aud0++; processed++; continue;
-          }
+          if (aud == null || aud <= 0) { aud0Now++; processed++; continue; }
           const audStr = String(aud);
-          if (audStr === String(item.oldPrice)) {
-            processed++; continue;
-          }
+          if (audStr === String(item.oldPrice)) { processed++; continue; }
 
           const put = await shopifyFetch(env, `/variants/${item.variantId}.json`, {
             method: 'PUT',
@@ -224,21 +259,27 @@ export async function onRequest(context) {
           });
           await new Promise(r => setTimeout(r, SHOPIFY_PAUSE_MS));
           if (put && put.ok) {
-            st.updated++;
+            updatedNow++;
           } else {
-            st.failed++;
+            failedNow++;
             st.errors.unshift({ variantId: item.variantId, sku: item.sku, err: put ? put.status : 'no-response' });
-            st.errors = st.errors.slice(0, 20);
+            st.errors = st.errors.slice(0, 30);
           }
           processed++;
         } catch (e) {
-          st.failed++;
+          failedNow++;
           st.errors.unshift({ sku: item.sku, err: String(e?.message || e) });
-          st.errors = st.errors.slice(0, 20);
+          st.errors = st.errors.slice(0, 30);
+          processed++;
         }
       }
 
       st.done += processed;
+      st.updated += updatedNow;
+      st.failed += failedNow;
+      st.skipNoSku += skipNoSkuNow;
+      st.skipNoSug += skipNoSugNow;
+      st.aud0 += aud0Now;
       await shopMetaSet(env, STATE_KEY, st);
       const remaining = Math.max(0, st.total - st.done - st.failed);
       return json({ ok: true, processed, done: st.done, total: st.total, updated: st.updated, failed: st.failed, skipNoSku: st.skipNoSku, skipNoSug: st.skipNoSug, remaining, errors: st.errors.slice(0, 5) });
