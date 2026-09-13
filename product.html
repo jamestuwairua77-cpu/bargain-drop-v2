@@ -680,12 +680,17 @@ function submitReview(){
 
 /* ============ WISHLIST ============ */
 function toggleWishlist(){
-  var wl=[];try{wl=JSON.parse(localStorage.getItem('bd_wishlist')||'[]')}catch(e){}if(!product)return;
-  var idx=wl.findIndex(function(w){return String(w.id)===String(product.id)});
+  if(!product)return;
+  var W=(window.BDWishlist||{});
+  var has=W.has?W.has(product.id):false;
   var btn=document.getElementById('wish-btn');
-  if(idx>=0){wl.splice(idx,1);toast('Removed from wishlist');if(btn)btn.classList.remove('liked')}
-  else{wl.push({id:product.id,title:product.title,price:product.price,image:images.length?images[0]:'',category:categorySlug});toast('❤️ Saved to wishlist');if(btn)btn.classList.add('liked')}
-  localStorage.setItem('bd_wishlist',JSON.stringify(wl));
+  if(has){
+    if(W.remove)W.remove(product.id);
+    toast('Removed from wishlist');if(btn)btn.classList.remove('liked');
+  }else{
+    if(W.add)W.add({id:product.id,title:product.title,price:product.price,image:images.length?images[0]:'',category:categorySlug});
+    toast('❤️ Saved to wishlist');if(btn)btn.classList.add('liked');
+  }
 }
 
 /* ============ ADD TO CART ============ */
@@ -847,8 +852,9 @@ function renderProduct(raw){
   renderSocial();
   renderReviews();
   renderDescription();
-  var wl=[];try{wl=JSON.parse(localStorage.getItem('bd_wishlist')||'[]')}catch(e){}
-  if(wl.some(function(w){return String(w.id)===String(p.id)}))document.getElementById('wish-btn').classList.add('liked');
+  var W=(window.BDWishlist||{});
+  if(W.has&&W.has(p.id))document.getElementById('wish-btn').classList.add('liked');
+  if(W.pull)W.pull();
   // reveal content
   document.getElementById('loading-skel').classList.add('hidden');
   document.getElementById('pdp-content').classList.remove('hidden');
@@ -951,6 +957,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
   }catch(e){}
 })();
 </script>
+<script src="/js/wishlist.js?v=1"></script>
 <script src="/js/notifications.js?v=8b77895e92"></script>
 <script src="/js/catalog-loader.js?v=9abc9e3443"></script>
 <script src="/js/icon-library.js?v=4adb1260b7"></script>
