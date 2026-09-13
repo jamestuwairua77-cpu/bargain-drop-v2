@@ -458,18 +458,27 @@ function renderColors(){
   if(!currentColor||vals.indexOf(currentColor)<0)currentColor=vals[0];
   // Build per-color image map ONLY from genuine variant image linkage.
   // CJ/Shopify data rarely links images to variants, so most products have
-  // none — in that case we show a TRUE colored dot (never a mismatched photo).
+  // none. Build the best-effort colour→image map: (1) any real variant.image_id
+  // or variant.image, else (2) POSITIONAL pairing — CJ lists the first N gallery
+  // images one-per-colour in option order, so image[i] ↔ colour[i].
   var imgByColor={};
   (product?product.variants||[]:[]).forEach(function(v){
     if(v.option1&&!imgByColor[v.option1]){
-      // resolve real image: variant.image_id index into images[], or a direct image url
       var im=null;
       if(v.image_id!=null&&images[v.image_id])im=images[v.image_id];
       else if(v.image&&String(v.image).length>4)im=v.image;
       if(im)imgByColor[v.option1]=im;
     }
   });
+  // Positional fallback for any colours still unmapped: pair image[i] <-> colour[i].
+  vals.forEach(function(name,i){
+    if(!imgByColor[name]&&images[i])imgByColor[name]=images[i];
+  });
+  // Remember the image index for each colour so we can swap the main image on click.
+  var imgIdxByColor={};
+  vals.forEach(function(name){var u=imgByColor[name];if(u){var j=images.indexOf(u);if(j>=0)imgIdxByColor[name]=j;}});
   var hasAnyImg=Object.keys(imgByColor).length>0;
+  window.__colorImg=imgByColor;
   box.innerHTML='';
   var wrap=document.createElement('div');wrap.className='swatch-grid';
   vals.forEach(function(name){
@@ -484,7 +493,8 @@ function renderColors(){
     sw.onclick=function(){
       currentColor=name;selectedOpts[getNameOfColorOpt()]=name;
       renderColors();updatePricing();
-      var idx=images.indexOf(imgByColor[name]);
+      var idx=imgIdxByColor[name];
+      if(idx==null)idx=images.indexOf(imgByColor[name]);
       if(idx>=0)setImage(idx);
     };
     wrap.appendChild(sw);
@@ -696,7 +706,7 @@ function addToCart(){
   var key=(variant?variant.id:product.id)+'|'+(selsz||'')+'|'+(selcol||'');
   var idx=cart.findIndex(function(c){return c._key===key});
   if(idx>=0)cart[idx].qty+=1;
-  else cart.push({_key:key,variant_id:variant?variant.id:null,product_id:product.id,title:product.title,price:price,qty:1,image:images.length?images[0]:'',size:selsz||'',color:selcol||'',sku:(variant?variant.sku:'')||''});
+  else cart.push({_key:key,variant_id:variant?variant.id:null,product_id:product.id,title:product.title,price:price,qty:1,image:(selcol&&window.__colorImg&&window.__colorImg[selcol])||(images.length?images[0]:''),size:selsz||'',color:selcol||'',sku:(variant?variant.sku:'')||''});
   localStorage.setItem('bd_cart',JSON.stringify(cart));updateCartCount();
   toast('✅ Added to cart');
 }
