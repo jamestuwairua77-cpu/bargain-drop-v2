@@ -8,6 +8,7 @@ Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, GITHUB_TOKEN, REPO,
            CJ_KEYS (comma-separated CJ apiKeys),
            CJ_ACCESS_TOKEN (optional single key)
 Batch: processes at most MAX_PER_RUN products per invocation (resumable across dispatches).
+Write-back uses GraphQL productUpdate mutations (roomy 2000-point bucket) instead of REST's 2/sec.
 """
 import os, sys, json, time, re, urllib.request, urllib.error
 
@@ -15,10 +16,10 @@ DOMAIN  = os.environ['SHOPIFY_STORE_DOMAIN']
 TOKEN   = os.environ['SHOPIFY_ACCESS_TOKEN']
 API     = f"https://{DOMAIN}/admin/api/2025-10"
 CJ_BASE = 'https://developers.cjdropshipping.com/api2.0/v1'
-MAX_PER_RUN = int(os.environ.get('MAX_PER_RUN', '400'))
+MAX_PER_RUN = int(os.environ.get('MAX_PER_RUN', '5000'))
 
 # CJ api keys (comma separated in CJ_KEYS, plus optional CJ_ACCESS_TOKEN)
-CJ_KEYS = [k.strip() for k in os.environ.get('CJ_KEYS','').split(',') if k.strip()]
+CJ_KEYS = [k.strip() for k in os.environ.get('CJ_KEYS', '').split(',') if k.strip()]
 if os.environ.get('CJ_ACCESS_TOKEN'):
     CJ_KEYS.append(os.environ['CJ_ACCESS_TOKEN'])
 CJ_KEYS = list(dict.fromkeys(CJ_KEYS))
@@ -42,12 +43,12 @@ TOP_LEVELS = [
     ('jewelry-watches',   "Jewelry & Watches"),
     ('home-garden-furniture', "Home, Garden & Furniture"),
     ('home-improvement',  "Home Improvement"),
-    ('health-beauty-hair',"Health, Beauty & Hair"),
+    ('health-beauty-hair', "Health, Beauty & Hair"),
     ('sports-outdoors',   "Sports & Outdoors"),
     ('toys-kids-babies',  "Toys, Kids & Babies"),
-    ('phones-accessories',"Phones & Accessories"),
-    ('consumer-electronics',"Consumer Electronics"),
-    ('automobiles-motorcycles',"Automobiles & Motorcycles"),
+    ('phones-accessories', "Phones & Accessories"),
+    ('consumer-electronics', "Consumer Electronics"),
+    ('automobiles-motorcycles', "Automobiles & Motorcycles"),
     ('pet-supplies',      "Pet Supplies"),
     ('computer-office',   "Computer & Office"),
 ]
@@ -60,7 +61,7 @@ KEYWORDS = {
  'jewelry-watches': ['ring','earring','necklace','bracelet','pendant','watch','jewelry','jewellery','bangle','anklet','charm','brooch','gemstone','timepiece'],
  'home-garden-furniture': ['furniture','chair','sofa','couch','table','cabinet','shelf','shelves','wardrobe','mattress','rug','carpet','curtain','lamp','cushion','pillow','blanket','bedding','duvet','towel','kitchen','storage','organizer','garden','planter','vase','mirror','artificial plant','candle','decor','bathroom','shower','clothes rack','hanger','laundry','bookcase','tapestry','wall art','doormat','coaster','tablecloth','cookware','dinnerware','cutlery','glassware','cutting board','air fryer','coffee maker','christmas','festive'],
  'home-improvement': ['tool','drill','screwdriver','wrench','pliers','hardware','plumb','ladder','wallpaper','socket','faucet','door handle','lighting','light bulb','extension cord','flashlight','work light','tape measure'],
- 'health-beauty-hair': ['makeup','mascara','lipstick','eyeshadow','foundation','nail','serum','moisturiz','skincare','skin care','wig','shampoo','conditioner','perfume','cologne','beauty','cosmetic','hair dryer','razor','epilator','massage','lash','body lotion','sunscreen','makeup brush','eyebrow','lip gloss','highlighter','concealer','cleanser','toothbrush'],
+ 'health-beauty-hair': ['makeup','mascara','lipstick','eyeshadow','foundation','nail','serum','moistur','skincare','skin care','wig','shampoo','conditioner','perfume','cologne','beauty','cosmetic','hair dryer','razor','epilator','massage','lash','body lotion','sunscreen','makeup brush','eyebrow','lip gloss','highlighter','concealer','cleanser','toothbrush'],
  'sports-outdoors': ['sport','gym','fitness','yoga','workout','camping','hiking','outdoor','fishing','cycling','football','soccer','basketball','tennis','goggles','skateboard','tent','sleeping bag','dumbbell','kettlebell','exercise','ski','snowboard','surf','skate','jump rope','hammock','bicycle'],
  'toys-kids-babies': ['toy','toys','kids','child','toddler','plush','doll','lego','building block','puzzle','action figure','stuffed','stroller','cradle','baby','infant','educational','puppet','rc car','remote control','fidget','slime','board game','card game','romper','onesie'],
  'phones-accessories': ['phone case','iphone','samsung','phone cover','phone holder','airpods','charger cable','screen protector','mobile phone','xiaomi','huawei','phone stand','power bank','pop socket','cell phone','android'],
@@ -93,22 +94,20 @@ def title_slug(title):
 def pt_slug(pt):
     if not pt: return None
     if norm(pt) in alias2slug: return alias2slug[norm(pt)]
-    first = re.split(r'[>/\->]', pt)[0]
+    first = re.split(r'>|/|->', pt)[0]
     return alias2slug.get(norm(first))
 
 def cj_category_name(sku):
     """Return CJ categoryName (string) for a variant SKU, or None. Free + authoritative."""
     if not sku: return None
-    # token cache
     cache = {}
     for apikey in CJ_KEYS:
-        # get access token (cached in-memory)
         tok = cache.get(apikey)
         if not tok:
             try:
                 req = urllib.request.Request(CJ_BASE + '/authentication/getAccessToken',
-                    data=json.dumps({'apiKey': apikey}).encode(),
-                    headers={'Content-Type': 'application/json'}, method='POST')
+                        data=json.dumps({'apiKey': apikey}).encode(),
+                        headers={'Content-Type': 'application/json'}, method='POST')
                 j = json.load(urllib.request.urlopen(req, timeout=30))
                 tok = (j.get('data') or {}).get('accessToken')
                 if tok: cache[apikey] = tok
@@ -116,24 +115,22 @@ def cj_category_name(sku):
                 tok = None
         if not tok: continue
         try:
-            path = '/product/query?variantSku=' + urllib.parse.quote(sku)
+            import urllib.parse as _up
+            path = '/product/query?variantSku=' + _up.quote(sku)
             req = urllib.request.Request(CJ_BASE + path, headers={'CJ-Access-Token': tok})
             j = json.load(urllib.request.urlopen(req, timeout=30))
             d = j.get('data')
             if j.get('code') == 200 and d:
                 name = d.get('categoryName') or d.get('category')
                 if name: return name
-            # 1600014 = product not visible under this account; try next key
         except Exception:
             pass
         time.sleep(1.0)  # 1 req/sec
     return None
 
 def cj_top_slug(catname):
-    """Map a CJ categoryName (like "Women's Clothing > Tops") to canonical top-level slug."""
     if not catname: return None
-    # CJ categoryName often starts with the top-level; try exact then prefix on first segment
-    first = re.split(r'[>/\->]', catname)[0]
+    first = re.split(r'>|/|->', catname)[0]
     s = alias2slug.get(norm(first)) or alias2slug.get(norm(catname))
     return s
 
@@ -162,18 +159,42 @@ def load_state():
             raw = json.loads(edges[0]['node']['value'] or '{}')
             raw.setdefault('done', []); raw.setdefault('fixed', 0)
             return raw
-    except Exception: pass
+    except Exception:
+        pass
     return {'done': [], 'fixed': 0}
 
 def save_state(state):
     try:
         mq = 'mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }'
         gql(mq, {'m': [{'ownerId': SHOP_GID, 'namespace': NS, 'key': KEY, 'type': 'json', 'value': json.dumps(state)}]})
-    except Exception: pass
+    except Exception:
+        pass
+
+# ---- productUpdate via GraphQL mutation ----
+UPDATE_MUT = 'mutation update($input: ProductInput!) { productUpdate(product: $input) { product { id } userErrors { field message } } }'
+
+def write_product_type(pid, new_name):
+    """Write product_type via GraphQL. Returns True on success, False on failure.
+    Retries on THROTTLED with backoff."""
+    for attempt in range(5):
+        try:
+            r = gql(UPDATE_MUT, {'input': {'id': f'gid://shopify/Product/{pid}', 'productType': new_name}})
+            if is_throttled(r):
+                time.sleep(min(2 * (attempt+1), 15))
+                continue
+            ue = (r.get('data',{}).get('productUpdate',{}) or {}).get('userErrors')
+            if ue:
+                return False
+            if r.get('data',{}).get('productUpdate',{}).get('product'):
+                return True
+            return False
+        except Exception:
+            time.sleep(min(2 * (attempt+1), 15))
+    return False
 
 # ---- 1) bulk pull ----
 BULK = '{ products { edges { node { id title status productType variants(first:1){edges{node{sku}}} } } } }'
-mq = 'mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n',' ') + '") { bulkOperation { id status } userErrors { field message } } }'
+mq = 'mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n', ' ') + '") { bulkOperation { id status } userErrors { field message } } }'
 opId = None
 for attempt in range(20):
     r = gql(mq)
@@ -208,7 +229,6 @@ for line in jsonl.splitlines():
     o = json.loads(s)
     pid = o.get('__parentId')
     if pid:
-        # variant SKU line
         p = pid.split('/')[-1]
         if products and products[-1]['id'] == p and o.get('sku'):
             products[-1]['sku'] = o.get('sku')
@@ -226,25 +246,21 @@ done = set(state['done'])
 
 # ---- 2) categorize this batch ----
 changed = 0
-ci_fixed = 0
+cj_fixed = 0
 title_fixed = 0
 kept = 0
 processed = 0
-errors = []
+failed = []
 
 for p in products:
     if processed >= MAX_PER_RUN: break
     pid = p['id']
     if pid in done: continue
-    done.add(pid)
     processed += 1
 
-    # (a) existing canonical top-level? keep (but re-judge if title strongly disagrees)
     cur_slug = pt_slug(p['product_type'])
-    # (b) CJ authoritative
-    cj = cj_category_name(p['sku']) if not cur_slug else None
+    cj = cj_category_name(p['sku']) if not cur_slug else None   # CJ only when no canonical top-level
     cj_slug = cj_top_slug(cj) if cj else None
-    # (c) title fallback
     t_slug = title_slug(p['title'])
 
     new_slug = cj_slug or cur_slug or t_slug
@@ -256,32 +272,29 @@ for p in products:
     else:
         new_name = 'Other'
 
-    # decide counters
-    if cj_slug: ci_fixed += 1
+    if cj_slug: cj_fixed += 1
     elif cur_slug: kept += 1
     elif t_slug: title_fixed += 1
 
-    # write back if the RAW product_type is not already the canonical display name
     raw_pt = p['product_type'] or ''
     if raw_pt == new_name:
-        continue  # already clean
+        done.add(pid)   # already clean -> mark done (nothing to write)
+        continue
 
-    try:
-        req = urllib.request.Request(f"{API}/products/{pid}.json", method='PUT',
-            data=json.dumps({'product': {'id': int(pid), 'product_type': new_name}}).encode(),
-            headers={'Content-Type':'application/json','X-Shopify-Access-Token':TOKEN})
-        urllib.request.urlopen(req, timeout=60)
+    # write back via GraphQL, only mark done on success
+    if write_product_type(pid, new_name):
         changed += 1
-    except Exception as e:
-        errors.append({'id': pid, 'error': str(e)})
-    if changed % 25 == 0:
+        done.add(pid)
+    else:
+        failed.append(pid)
+
+    if changed % 50 == 0:
         print(f'  wrote {changed}...', flush=True)
-    time.sleep(0.35)
 
 state['done'] = sorted(done)
 state['fixed'] = state.get('fixed', 0) + changed
 save_state(state)
 
-print(json.dumps({'processed': processed, 'changed': changed, 'cj_fixed': ci_fixed,
-                  'kept': kept, 'title_fixed': title_fixed, 'errors': len(errors),
+print(json.dumps({'processed': processed, 'changed': changed, 'cj_fixed': cj_fixed,
+                  'kept': kept, 'title_fixed': title_fixed, 'errors': len(failed),
                   'total_done': len(done), 'total_products': len(products)}))
