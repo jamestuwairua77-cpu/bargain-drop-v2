@@ -11,7 +11,7 @@ permissions:
 jobs:
   categorize:
     runs-on: ubuntu-latest
-    timeout-minutes: 200
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,7 +24,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           CJ_KEYS: ${{ secrets.CJ_KEYS }}
-          MAX_PER_RUN: '5000'
+          MAX_PER_RUN: '20000'
         run: python3 scripts/categorize_products.py
       - name: Trigger catalog rebuild
         env:
