@@ -12,6 +12,10 @@
 #bdchat-msgs .m{max-width:82%;padding:9px 12px;border-radius:12px;font-size:.8rem;line-height:1.45}
 #bdchat-msgs .m.bot{background:#f2f2f7;color:#222;align-self:flex-start;border-bottom-left-radius:4px}
 #bdchat-msgs .m.user{background:#e60023;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+#bdchat-msgs .m a{color:#0a66c2;text-decoration:underline;word-break:break-all;cursor:pointer}
+#bdchat-msgs .m a:hover{color:#084c94;text-decoration:underline}
+#bdchat-msgs .m.user a{color:#fff;text-decoration:underline}
+#bdchat-msgs .m.user a:hover{color:#ffe6ea}
 #bdchat-msgs .m.typing{color:#999;font-style:italic}
 #bdchat-sugs{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}
 #bdchat-sugs button{background:#fff;border:1px solid #ddd;border-radius:999px;padding:5px 10px;font-size:.68rem;color:#333;cursor:pointer}

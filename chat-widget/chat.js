@@ -42,7 +42,16 @@
 
   function fmt(t){
     var s = String(t||'');
+    // Escape HTML first so any raw markup/brackets are safe.
     s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // Markdown links: [text](url)
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    // Bare URLs -> clickable links (http/https and www.)
+    s = s.replace(/(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    s = s.replace(/(^|[^\w"\/])(www\.[^\s<]+)/g,
+      '$1<a href="http://$2" target="_blank" rel="noopener noreferrer">$2</a>');
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/\n/g, '<br>');
     return s;
