@@ -1,59 +1,31 @@
-import { corsHeaders, shopifyFetch, nextPageCursor, ghRead, ghWrite } from '../_sync-lib.js';
+import { corsHeaders, shopifyFetch } from '../_sync-lib.js';
+
+// NOTE: catalog rebuild has been MOVED to GitHub Actions (scripts/rebuild_catalog.py +
+// .github/workflows/rebuild-catalog.yml). This Cloudflare Function previously rebuilt the
+// catalog by writing root manifests per-file, which clobbered the correct GitHub-Actions-built
+// catalog (producing {shards:0,count:0} and stale shards). The `sync` action is now a no-op
+// so that legacy scheduled tasks that still call ?action=sync cannot corrupt the catalog again.
 export async function onRequest(context) {
-  const { request, env } = context; const url = new URL(request.url); const action = url.searchParams.get('action') || 'status';
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const action = url.searchParams.get('action') || 'status';
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
-  const TK = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || ''; const GHTOKEN = env.GITHUB_TOKEN || '';
-  if (!TK || !GHTOKEN) return new Response(JSON.stringify({ ok: false, error: 'Missing env variables' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+
   if (action === 'status') {
-    try { const { body } = await shopifyFetch(env, '/products/count.json'); return new Response(JSON.stringify({ ok: true, count: body.count }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } }); }
-    catch (e) { return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }); }
+    const TK = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
+    if (!TK) return new Response(JSON.stringify({ ok: false, error: 'Missing env variables' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+    try {
+      const { body } = await shopifyFetch(env, '/products/count.json');
+      return new Response(JSON.stringify({ ok: true, count: body.count }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+    }
   }
-  if (action !== 'sync') return new Response(JSON.stringify({ error: 'Use ?action=status|sync' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
-  const start = Date.now();
-  try {
-    const base = '/products.json?limit=250&fields=id,title,body_html,vendor,product_type,tags,variants,images,image,status';
-    let prods = [], cursor = null, guard = 0;
-    while (true) {
-      const url = base + (cursor ? '&page_info=' + encodeURIComponent(cursor) : '');
-      const { body: d, headers } = await shopifyFetch(env, url);
-      const batch = (d.products || []).filter(p => p.status === 'active' && p.title);
-      prods.push(...batch);
-      cursor = nextPageCursor(headers);
-      if (!cursor) break;                                   // no next page
-      if (++guard > 1000) throw new Error('pagination runaway: >1000 pages');
-      await new Promise(r => setTimeout(r, 100));
-    }
-    const cats={}, all=[], idx={};
-    for (const p of prods) {
-      const imgs=[]; if (p.image?.src) imgs.push(p.image.src);
-      if (Array.isArray(p.images)) for (const i of p.images) if (i.src && !imgs.includes(i.src)) imgs.push(i.src);
-      const price = Number(p.variants?.[0]?.price || 0); const comp = Number(p.variants?.[0]?.compare_at_price || 0);
-      const vars = (p.variants || []).map(v => ({ option1: v.option1, option2: v.option2, option3: v.option3, price: Number(v.price || 0), sku: v.sku, available: (v.inventory_quantity || 0) > 0 }));
-      all.push({ id: String(p.id), title: p.title, price, compare_at_price: comp > price ? comp : undefined, image: imgs[0] || null, images: imgs, body_html: p.body_html || '', vendor: p.vendor, product_type: p.product_type, tags: p.tags, variants: vars });
-      const ptype = p.product_type || 'other'; const key = ptype.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-').replace(/["',]/g, '');
-      if (!cats[key]) cats[key] = { name: ptype, products: [] };
-      cats[key].products.push({ id: String(p.id), title: p.title, price, image: imgs[0] || null, body_html: p.body_html || '', vendor: p.vendor, product_type: p.product_type, variants: vars.length, images: imgs.length });
-      idx[String(p.id)] = { idx: cats[key].products.length - 1, category: key };
-    }
-    async function putFile(path, content, cmsg) { let sha = null; const existing = await ghRead(env, path); if (existing) sha = existing.sha; return ghWrite(env, path, content, cmsg, sha); }
-    // Shard large catalogs under Cloudflare Pages' 25 MiB per-file limit.
-    const SHARD_SIZE = 1200;
-    function shardArray(arr) { const out = []; for (let i = 0; i < arr.length; i += SHARD_SIZE) out.push(arr.slice(i, i + SHARD_SIZE)); return out; }
-    let errors=[], written=0;
-    const writes = [];
-    // 1. category shards + manifest
-    const catObjs = Object.entries(cats).map(([k, v]) => ({ key: k, name: v.name, products: v.products }));
-    shardArray(catObjs).forEach((shard, i) => writes.push(['categories-data-' + i + '.json', JSON.stringify(shard), 'categories']));
-    writes.push(['categories-data.json', JSON.stringify({ shards: Math.ceil(catObjs.length / SHARD_SIZE), count: catObjs.length }), 'categories-index']);
-    // 2. product shards + manifest
-    shardArray(all).forEach((shard, i) => writes.push(['all-products-' + i + '.json', JSON.stringify(shard), 'all-products']));
-    writes.push(['all-products.json', JSON.stringify({ shards: Math.ceil(all.length / SHARD_SIZE), count: all.length }), 'all-products-index']);
-    // 3. products index (small)
-    writes.push(['products-index.json', JSON.stringify(idx), 'index']);
-    for (const [path, data, name] of writes) {
-      try { await putFile(path, data, 'data: rebuild '+name+' from Shopify'); written++; } catch (e) { errors.push({ file: path, error: e.message }); }
-    }
-    const desc = all.filter(p => p.body_html && p.body_html.length > 20).length;
-    return new Response(JSON.stringify({ ok: true, products: all.length, categories: Object.keys(cats).length, with_descriptions: desc, files_written: written, errors: errors.length ? errors : undefined, elapsed_sec: ((Date.now() - start) / 1000).toFixed(1) }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
-  } catch (e) { return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }); }
+
+  // `syn` (and any other action) is now intentionally a no-op.
+  return new Response(JSON.stringify({
+    ok: true,
+    disabled: true,
+    message: 'Catalog rebuild has moved to GitHub Actions (rebuild-catalog.yml). This endpoint no longer writes catalog files; trigger the workflow or wait for the 6-hourly cron instead.'
+  }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
 }
