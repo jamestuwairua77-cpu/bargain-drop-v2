@@ -264,7 +264,7 @@ function renderCkItems(){
   el.innerHTML=cart.map(function(it){
     var img=it.image||'';
     var parts=[];if(it.color)parts.push('Colour: '+it.color);if(it.size)parts.push('Size: '+it.size);
-    var varlbl=parts.length?('<div class="ck-var">'+esc(parts.join(' · '))+'</div>'):'';
+    var varlbl=parts.length?('<div class="ck-var">'+esc(' · '.join(parts))+'</div>'):'';
     return '<div class="ck-item">'+(img?'<img class="ck-thumb" src="'+esc(img)+'" onerror="this.remove()" alt="">':'<span class="ck-thumb" style="display:inline-block"></span>')+'<div class="ck-info"><div class="ck-name">'+esc(it.title||'Item')+'</div>'+varlbl+'</div><div class="ck-qty">×'+(it.qty||1)+'</div></div>';
   }).join('');
 }
@@ -683,4 +683,5 @@ function collapseSearch(e){
 <script src="/js/icon-library.js?v=4adb1260b7"></script>
 <script src="/js/slide-icons.js?v=21c87ba29a"></script>
 <script src="/js/auto-iconify.js?v=49867b897b"></script>
-</body></html>
+</body>
+</html>
