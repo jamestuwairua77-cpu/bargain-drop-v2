@@ -261,9 +261,10 @@ for p in products:
     elif cur_slug: kept += 1
     elif t_slug: title_fixed += 1
 
-    cur_name = DISPLAY[cur_slug] if cur_slug in DISPLAY else None
-    if cur_name == new_name:
-        continue  # unchanged
+    # write back if the RAW product_type is not already the canonical display name
+    raw_pt = p['product_type'] or ''
+    if raw_pt == new_name:
+        continue  # already clean
 
     try:
         req = urllib.request.Request(f"{API}/products/{pid}.json", method='PUT',
