@@ -144,14 +144,13 @@ def gql(q, variables=None):
     if variables: body['variables'] = variables
     req = urllib.request.Request(API + '/graphql.json', data=json.dumps(body).encode(),
         headers={'Content-Type':'application/json','X-Shopify-Access-Token':TOKEN})
-    return json.load(urllib.request.urlopen(req, timeout=120)
+    return json.load(urllib.request.urlopen(req, timeout=120))
 
 def is_throttled(r):
     if 'data' in r and r['data'] is not None: return False
     for e in (r.get('errors') or []):
         ext = e.get('extensions') or {}
-        if ext.get('code') == 'THROTTLED' or 'throttl' in str(e.get('message','')).lower():
-            return True
+        if ext.get('code') == 'THROTTLED' or 'throttl' in str(e.get('message','')).lower(): return True
     return False
 
 def load_state():
@@ -174,7 +173,7 @@ def save_state(state):
 
 # ---- 1) bulk pull ----
 BULK = '{ products { edges { node { id title status productType variants(first:1){edges{node{sku}}} } } } }'
-mq = 'mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n', ' ') + '") { bulkOperation { id status } userErrors { field message } } }'
+mq = 'mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n',' ') + '") { bulkOperation { id status } userErrors { field message } } }'
 opId = None
 for attempt in range(20):
     r = gql(mq)
