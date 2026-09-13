@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""GitHub Actions: re-categorize ALL active Shopify products to a canonical top-level
-category. Two-phase classifier:
-  Phase 1 (local, instant): resolve top-level from product_type string (split on > / ->)
-                            or title keywords. NO API calls.
-  Phase 2 (only for genuine unknowns): CJ categoryName via SKU, prefetched CONCURRENTLY
-                            across the available apiKeys (thread pool).
-Writes canonical display name back to product_type via GraphQL productUpdate
-(then the 6h cron rebuild picks it up). Resumable via a Shopify metafield.
+"""Bargain Drop: re-categorize ALL active Shopify products to canonical top-level.
 
-Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, CJ_KEYS (comma-separated),
-           MAX_PER_RUN (default 20000).
+FAST path (this version):
+  1. bulk READ (bulkOperationRunQuery) all products once.
+  2. Resolve top-level locally (product_type string split + title keywords), CJ only
+     for genuine unknowns (concurrent).
+  3. Write back EVERYTHING in ONE bulkOperationRunMutation with productUpdate —
+     Shopify processes the whole JSONL server-side, NOT subject to rate limits.
+     This replaces ~3,800 serial productUpdate HTTP calls.
+
+Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, CJ_KEYS, MAX_PER_RUN.
 """
-import os, sys, json, time, re, urllib.request, urllib.error
+import os, sys, json, time, re, urllib.request, urllib.error, urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import urllib.parse
 
 DOMAIN  = os.environ['SHOPIFY_STORE_DOMAIN']
 TOKEN   = os.environ['SHOPIFY_ACCESS_TOKEN']
@@ -97,7 +96,7 @@ def pt_slug(pt):
     first = re.split(r'>|/|->', pt)[0]
     return alias2slug.get(norm(first))
 
-# ---- CJ (concurrent) ----
+# ---- CJ concurrent ----
 def _cj_token(apikey):
     try:
         req = urllib.request.Request(CJ_BASE + '/authentication/getAccessToken',
@@ -125,10 +124,8 @@ def _cj_one(args):
     return sku, None
 
 def cj_prefetch(skus):
-    """Concurrently resolve CJ categoryName for a set of SKUs, round-robining keys."""
     if not skus: return {}
     result = {}
-    # round-robin assign each sku to a worker (key), so 4 keys = 4-way concurrency
     args = [(CJ_KEYS[i % len(CJ_KEYS)], sku) for i, sku in enumerate(skus)]
     workers = min(8, len(args))
     try:
@@ -140,7 +137,7 @@ def cj_prefetch(skus):
         pass
     return result
 
-# ---- Shopify GraphQL helpers ----
+# ---- Shopify GraphQL ----
 def gql(q, variables=None):
     body = {'query': q}
     if variables: body['variables'] = variables
@@ -155,73 +152,34 @@ def is_throttled(r):
         if ext.get('code') == 'THROTTLED' or 'throttl' in str(e.get('message','')).lower(): return True
     return False
 
-def load_state():
-    try:
-        q = 'query { shop { metafields(first:1, keys:["%s.%s"]) { edges { node { value } } } } }' % (NS, KEY)
-        body = gql(q)
-        edges = body.get('data',{}).get('shop',{}).get('metafields',{}).get('edges') or []
-        if edges:
-            raw = json.loads(edges[0]['node']['value'] or '{}')
-            raw.setdefault('done', []); raw.setdefault('fixed', 0)
-            return raw
-    except Exception:
-        pass
-    return {'done': [], 'fixed': 0}
-
-def save_state(state):
-    try:
-        mq = 'mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }'
-        gql(mq, {'m': [{'ownerId': SHOP_GID, 'namespace': NS, 'key': KEY, 'type': 'json', 'value': json.dumps(state)}]})
-    except Exception:
-        pass
-
-UPDATE_MUT = 'mutation update($input: ProductInput!) { productUpdate(product: $input) { product { id } userErrors { field message } } }'
-
-def write_product_type(pid, new_name):
-    for attempt in range(5):
-        try:
-            r = gql(UPDATE_MUT, {'input': {'id': f'gid://shopify/Product/{pid}', 'productType': new_name}})
-            if is_throttled(r):
-                time.sleep(min(2 * (attempt+1), 15))
-                continue
-            ue = (r.get('data',{}).get('productUpdate',{}) or {}).get('userErrors')
-            if ue:
-                return False
-            if r.get('data',{}).get('productUpdate',{}).get('product'):
-                return True
-            return False
-        except Exception:
-            time.sleep(min(2 * (attempt+1), 15))
-    return False
-
-# ---- 1) bulk pull ----
+# ---- 1) bulk READ ----
 BULK = '{ products { edges { node { id title status productType variants(first:1){edges{node{sku}}} } } } }'
-mq = 'mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n', ' ') + '") { bulkOperation { id status } userErrors { field message } } }'
-opId = None
-for attempt in range(20):
-    r = gql(mq)
-    if is_throttled(r): time.sleep(min(10*(attempt+1),120)); continue
-    ue = (r.get('data',{}).get('bulkOperationRunQuery',{}) or {}).get('userErrors')
-    if ue: print('BULK USER ERRORS', ue, file=sys.stderr); sys.exit(1)
-    d = (r.get('data',{}).get('bulkOperationRunQuery',{}) or {}).get('bulkOperation')
-    if d and d.get('id'): opId = d['id']; break
-if not opId: print('FAILED bulk create', file=sys.stderr); sys.exit(1)
-print('bulk op', opId, flush=True)
+def gql_retry(q, variables=None, tries=20):
+    for attempt in range(tries):
+        try:
+            r = gql(q, variables)
+            if is_throttled(r): time.sleep(min(5*(attempt+1), 30)); continue
+            return r
+        except Exception:
+            time.sleep(min(5*(attempt+1), 30))
+    return None
+
+r = gql_retry('mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n', ' ') + '") { bulkOperation { id status } userErrors { field message } } }')
+if not r or (r.get('data',{}).get('bulkOperationRunQuery',{}) or {}).get('userErrors'):
+    print('BULK READ CREATE FAIL', r, file=sys.stderr); sys.exit(1)
+opId = r['data']['bulkOperationRunQuery']['bulkOperation']['id']
+print('bulk read op', opId, flush=True)
 
 PQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status url errorCode } } }'
 url = None
 for _ in range(240):
-    n = None
-    for a2 in range(10):
-        r = gql(PQ, {'id': opId})
-        if is_throttled(r): time.sleep(min(10*(a2+1),120)); continue
-        n = r['data']['node']; break
-    if n is None: continue
+    rr = gql_retry(PQ, {'id': opId}, tries=5)
+    if not rr: continue
+    n = rr['data']['node']
     if n['status'] == 'COMPLETED': url = n['url']; break
-    if n['status'] == 'FAILED': print('BULK FAILED', n.get('errorCode'), file=sys.stderr); sys.exit(1)
+    if n['status'] == 'FAILED': print('BULK READ FAIL', n.get('errorCode'), file=sys.stderr); sys.exit(1)
     time.sleep(3)
-else:
-    print('bulk timeout', file=sys.stderr); sys.exit(1)
+if not url: print('bulk read timeout', file=sys.stderr); sys.exit(1)
 
 jsonl = urllib.request.urlopen(url, timeout=300).read().decode()
 products = []
@@ -236,37 +194,28 @@ for line in jsonl.splitlines():
             products[-1]['sku'] = o.get('sku')
         continue
     oid = o.get('id') or ''
-    if 'gid://shopify/Product/' not in oid:
-        continue
+    if 'gid://shopify/Product/' not in oid: continue
     if o.get('status') != 'ACTIVE': continue
     products.append({'id': oid.split('/')[-1], 'title': o.get('title') or '', 'product_type': o.get('productType'), 'sku': None})
 
 print('active products:', len(products), flush=True)
 
-state = load_state()
-done = set(state['done'])
-
-# ---- 2) Phase 1: local resolution (no API) ----
-# Determine which products need CJ (genuine unknowns).
-need_cj = []  # list of (product_dict)
-plan = {}     # pid -> new_name
-
+# ---- 2) local + CJ resolve ----
+need_cj = []
+plan = {}   # pid -> new_name
 for p in products:
     pid = p['id']
-    if pid in done: continue
-    cur_slug = pt_slug(p['product_type'])       # local string match
-    t_slug = title_slug(p['title'])              # local keyword match
+    cur_slug = pt_slug(p['product_type')
+    t_slug = title_slug(p['title'])
     new_slug = cur_slug or t_slug
-    if new_slug and new_slug in DISPLAY:
+    if new_slug and new_slug in DISPLAYY:
         plan[pid] = DISPLAY[new_slug]
     else:
-        # genuine unknown -> may need CJ (only if we have a SKU)
         need_cj.append(p)
 
-# ---- 3) Phase 2: concurrent CJ prefetch for genuine unknowns ----
 cj_skus = [p['sku'] for p in need_cj if p.get('sku')]
 print('need CJ lookups:', len(cj_skus), flush=True)
-cj_map = cj_prefetch(cj_skus)
+cj_map = cj_prefetch(cj_skus) if cj_skus else {}
 print('CJ resolved:', len(cj_map), flush=True)
 
 for p in need_cj:
@@ -279,50 +228,105 @@ for p in need_cj:
     if slug and slug in DISPLAY:
         plan[pid] = DISPLAY[slug]
 
-# ---- 4) write back ----
-changed = 0
-cj_fixed = 0
-kept = 0
-title_fixed = 0
-failed = []
-
-prod_by_id = {p['id']: p for p in products}
-for pid, new_name in plan.items():
-    p = prod_by_id.get(pid)
-    if p is None: continue
-    raw_pt = p['product_type'] or ''
-    if raw_pt == new_name:
-        done.add(pid)
-        kept += 1
-        continue
-    if write_product_type(pid, new_name):
-        changed += 1
-        done.add(pid)
-        # classify source for reporting
-        cur_slug = pt_slug(p['product_type'])
-        t_slug = title_slug(p['title'])
-        cat = cj_map.get(p.get('sku')) if p.get('sku') else None
-        if not cur_slug:
-            if cat: cj_fixed += 1
-            else: title_fixed += 1
-    else:
-        failed.append(pid)
-
-    if changed % 100 == 0:
-        print(f'  wrote {changed}...', flush=True)
-
-# any products which resolved clean already (not in plan) but not yet done -> mark done
+# ---- 3) filter to only products that actually need a write ----
+# (raw product_type != canonical display name)
+to_write = []
 for p in products:
     pid = p['id']
-    if pid in done: continue
-    if pid not in plan:
-        # already canonical (kept) — mark done
-        done.add(pid)
+    new_name = plan.get(pid)
+    if not new_name: continu
+    raw_pt = p['product_type'] or ''
+    if raw_pt != new_name:
+        to_write.append((pid, new_name))
 
-state['done'] = sorted(done)
-state['fixed'] = state.get('fixed', 0) + changed
-save_state(state)
+print('products to write:', len(to_write), flush=True)
 
-print(json.dumps({'processed': len(plan), 'changed': changed, 'cj_fixed': cj_fixed,
-                  'kept': kept, 'title_fixed': title_fixed, 'errors': len(failed),
-                  'total_done': len(done), 'total_products': len(products)}))
+if not to_write:
+    print(json.dumps({'changed': 0, 'errors': 0, 'total_products': len(products), 'to_write': 0}))
+    sys.exit(0)
+
+# ---- 4) BULK MUTATION write-back ----
+# 4a. stagedUploadsCreate
+r = gql_retry('''mutation { stagedUploadsCreate(input:[{ resource: BULK_MUTATION_VARIABLES, filename: "cat_vars", mimeType: "text/jsonl", httpMethod: POST }]) { userErrors { field message } stagedTargets { url parameters { name value } } }''')
+if not r:
+    print('STAGED UPLOAD FAIL', file=sys.stderr); sys.exit(1)
+sd = r['data']['stagedUploadsCreate']
+if sd['userErrors']:
+    print('STAGED USER ERRORS', sd['userErrors'], file=sys.stderr); sys.exit(1)
+target = sd['stagedTargets'][0]
+upload_url = target['url']
+params = {p['name']: p['value'] for p in target['parameters']}
+staged_path = params.get('key')
+
+# 4b. build JSONL variables
+lines = []
+for pid, name in to_write:
+    lines.append(json.dumps({'input': {'id': f'gid://shopify/Product/{pid}', 'productType': name}}))
+jsonl_body = '\n'.join(lines) + '\n'
+
+# 4c. multipart upload to Google Storage
+boundary = '----bargaindrop' + str(int(time.time()))
+import uuid
+boundary = '----bargaindrop' + uuid.uuid4().hex
+parts = []
+for k, v in params.items():
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n')
+parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="cat_vars"\r\nContent-Type: text/jsonl\r\n\r\n{jsonl_body}\r\n')
+parts.append(f'--{boundary}--\r\n')
+body_bytes = ''.join(parts).encode('utf-8')
+
+req = urllib.request.Request(upload_url, data=body_bytes, method='POST')
+req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+try:
+    upload_resp = urllib.request.urlopen(req, timeout=120)
+    upload_status = upload_resp.status
+except urllib.error.HTTPError as e:
+    upload_status = e.code
+    print('UPLOAD HTTP', e.code, e.read().decode()[:500], file=sys.stderr)
+print('upload status:', upload_status, flush=True)
+
+# 4d. bulkOperationRunMutation with productUpdate
+MUT = 'mutation call($input: ProductUpdateInput!) { productUpdate(product: $input) { product { id } userErrors { field message } } }'
+qm = 'mutation { bulkOperationRunMutation(mutation: ' + json.dumps(MUT) + ', stagedUploadPath: ' + json.dumps(staged_path) + ') { bulkOperation { id status } userErrors { field message } } }'
+r = gql_retry(qm)
+if not r:
+    print('BULK MUT CREATE FAIL', file=sys.stderr); sys.exit(1)
+bm = r['data']['bulkOperationRunMutation']
+if bm['userErrors']:
+    print('BULK MUT USER ERRORS', bm['userErrors'], file=sys.stderr); sys.exit(1)
+mutOpId = bm['bulkOperation']['id']
+print('bulk mutation op', mutOpId, flush=True)
+
+# 4e. poll
+BQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status objectCount errorCode url } } }'
+final = None
+for _ in range(240):
+    rr = gql_retry(BQ, {'id': mutOpId}, tries=5)
+    if not rr: time.sleep(3); continue
+    n = rr['data']['node']
+    if n['status'] == 'COMPLETED':
+        final = n; break
+    if n['status'] == 'FAILED':
+        print('BULK MUT FAIL', n.get('errorCode'), file=sys.stderr); sys.exit(1)
+    time.sleep(3)
+
+if not final:
+    print('bulk mut timeout', file=sys.stderr); sys.exit(1)
+
+print('bulk mutation COMPLETED, objectCount:', final.get('objectCount'), flush=True)
+
+# optional: read result file to count errors
+err_count = 0
+if final.get('url'):
+    try:
+        rj = urllib.request.urlopen(final['url'], timeout=300).read().decode()
+        for ln in rj.splitlines():
+            d = json.loads(ln)
+            if 'errors' in d or (d.get('data',{}).get('productUpdate',{}) or {}).get('userErrors'):
+                err_count += 1
+    except Exception:
+        err_count = 0
+
+changed = len(to_write) - err_count
+print(json.dumps({'processed': len(plan), 'changed': changed, 'errors': err_count,
+                  'to_write': len(to_write), 'total_products': len(products)}))
