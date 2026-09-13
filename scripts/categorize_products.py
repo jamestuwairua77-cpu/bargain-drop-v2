@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 """GitHub Actions: re-categorize ALL active Shopify products to a canonical top-level
-category by judging each product via CJ's own categoryName (SKU lookup, FREE + authoritative)
-with a title-keyword fallback. Writes canonical display name back to Shopify product_type,
-resumably (progress persists in a Shopify metafield), then the 6h cron rebuild picks it up.
+category. Two-phase classifier:
+  Phase 1 (local, instant): resolve top-level from product_type string (split on > / ->)
+                            or title keywords. NO API calls.
+  Phase 2 (only for genuine unknowns): CJ categoryName via SKU, prefetched CONCURRENTLY
+                            across the available apiKeys (thread pool).
+Writes canonical display name back to product_type via GraphQL productUpdate
+(then the 6h cron rebuild picks it up). Resumable via a Shopify metafield.
 
-Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, GITHUB_TOKEN, REPO,
-           CJ_KEYS (comma-separated CJ apiKeys),
-           CJ_ACCESS_TOKEN (optional single key)
-Batch: processes at most MAX_PER_RUN products per invocation (resumable across dispatches).
-Write-back uses GraphQL productUpdate mutations (roomy 2000-point bucket) instead of REST's 2/sec.
+Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, CJ_KEYS (comma-separated),
+           MAX_PER_RUN (default 20000).
 """
 import os, sys, json, time, re, urllib.request, urllib.error
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import urllib.parse
 
 DOMAIN  = os.environ['SHOPIFY_STORE_DOMAIN']
 TOKEN   = os.environ['SHOPIFY_ACCESS_TOKEN']
 API     = f"https://{DOMAIN}/admin/api/2025-10"
 CJ_BASE = 'https://developers.cjdropshipping.com/api2.0/v1'
-MAX_PER_RUN = int(os.environ.get('MAX_PER_RUN', '5000'))
+MAX_PER_RUN = int(os.environ.get('MAX_PER_RUN', '20000'))
 
-# CJ api keys (comma separated in CJ_KEYS, plus optional CJ_ACCESS_TOKEN)
 CJ_KEYS = [k.strip() for k in os.environ.get('CJ_KEYS', '').split(',') if k.strip()]
-if os.environ.get('CJ_ACCESS_TOKEN'):
-    CJ_KEYS.append(os.environ['CJ_ACCESS_TOKEN'])
 CJ_KEYS = list(dict.fromkeys(CJ_KEYS))
 if not CJ_KEYS:
     CJ_KEYS = [
@@ -35,7 +35,6 @@ SHOP_GID = 'gid://shopify/Shop/73594044547'
 NS = 'categorize'
 KEY = 'state'
 
-# ---- canonical top-levels ----
 TOP_LEVELS = [
     ('womens-clothing',   "Women's Clothing"),
     ('mens-clothing',     "Men's Clothing"),
@@ -93,49 +92,55 @@ def title_slug(title):
 
 def pt_slug(pt):
     if not pt: return None
-    if norm(pt) in alias2slug: return alias2slug[norm(pt)]
+    n = norm(pt)
+    if n in alias2slug: return alias2slug[n]
     first = re.split(r'>|/|->', pt)[0]
     return alias2slug.get(norm(first))
 
-def cj_category_name(sku):
-    """Return CJ categoryName (string) for a variant SKU, or None. Free + authoritative."""
-    if not sku: return None
-    cache = {}
-    for apikey in CJ_KEYS:
-        tok = cache.get(apikey)
-        if not tok:
-            try:
-                req = urllib.request.Request(CJ_BASE + '/authentication/getAccessToken',
-                        data=json.dumps({'apiKey': apikey}).encode(),
-                        headers={'Content-Type': 'application/json'}, method='POST')
-                j = json.load(urllib.request.urlopen(req, timeout=30))
-                tok = (j.get('data') or {}).get('accessToken')
-                if tok: cache[apikey] = tok
-            except Exception:
-                tok = None
-        if not tok: continue
-        try:
-            import urllib.parse as _up
-            path = '/product/query?variantSku=' + _up.quote(sku)
-            req = urllib.request.Request(CJ_BASE + path, headers={'CJ-Access-Token': tok})
-            j = json.load(urllib.request.urlopen(req, timeout=30))
-            d = j.get('data')
-            if j.get('code') == 200 and d:
-                name = d.get('categoryName') or d.get('category')
-                if name: return name
-        except Exception:
-            pass
-        time.sleep(1.0)  # 1 req/sec
-    return None
+# ---- CJ (concurrent) ----
+def _cj_token(apikey):
+    try:
+        req = urllib.request.Request(CJ_BASE + '/authentication/getAccessToken',
+                data=json.dumps({'apiKey': apikey}).encode(),
+                headers={'Content-Type': 'application/json'}, method='POST')
+        j = json.load(urllib.request.urlopen(req, timeout=30))
+        return (j.get('data') or {}).get('accessToken')
+    except Exception:
+        return None
 
-def cj_top_slug(catname):
-    if not catname: return None
-    first = re.split(r'>|/|->', catname)[0]
-    s = alias2slug.get(norm(first)) or alias2slug.get(norm(catname))
-    return s
+def _cj_one(args):
+    apikey, sku = args
+    tok = _cj_token(apikey)
+    if not tok: return sku, None
+    try:
+        path = '/product/query?variantSku=' + urllib.parse.quote(sku)
+        req = urllib.request.Request(CJ_BASE + path, headers={'CJ-Access-Token': tok})
+        j = json.load(urllib.request.urlopen(req, timeout=30))
+        d = j.get('data')
+        if j.get('code') == 200 and d:
+            name = d.get('categoryName') or d.get('category')
+            if name: return sku, name
+    except Exception:
+        pass
+    return sku, None
+
+def cj_prefetch(skus):
+    """Concurrently resolve CJ categoryName for a set of SKUs, round-robining keys."""
+    if not skus: return {}
+    result = {}
+    # round-robin assign each sku to a worker (key), so 4 keys = 4-way concurrency
+    args = [(CJ_KEYS[i % len(CJ_KEYS)], sku) for i, sku in enumerate(skus)]
+    workers = min(8, len(args))
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for fut in as_completed([ex.submit(_cj_one, a) for a in args]):
+                sku, name = fut.result()
+                if name: result[sku] = name
+    except Exception:
+        pass
+    return result
 
 # ---- Shopify GraphQL helpers ----
-import urllib.parse
 def gql(q, variables=None):
     body = {'query': q}
     if variables: body['variables'] = variables
@@ -170,12 +175,9 @@ def save_state(state):
     except Exception:
         pass
 
-# ---- productUpdate via GraphQL mutation ----
 UPDATE_MUT = 'mutation update($input: ProductInput!) { productUpdate(product: $input) { product { id } userErrors { field message } } }'
 
 def write_product_type(pid, new_name):
-    """Write product_type via GraphQL. Returns True on success, False on failure.
-    Retries on THROTTLED with backoff."""
     for attempt in range(5):
         try:
             r = gql(UPDATE_MUT, {'input': {'id': f'gid://shopify/Product/{pid}', 'productType': new_name}})
@@ -204,7 +206,7 @@ for attempt in range(20):
     d = (r.get('data',{}).get('bulkOperationRunQuery',{}) or {}).get('bulkOperation')
     if d and d.get('id'): opId = d['id']; break
 if not opId: print('FAILED bulk create', file=sys.stderr); sys.exit(1)
-print('bulk op', opId)
+print('bulk op', opId, flush=True)
 
 PQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status url errorCode } } }'
 url = None
@@ -239,62 +241,88 @@ for line in jsonl.splitlines():
     if o.get('status') != 'ACTIVE': continue
     products.append({'id': oid.split('/')[-1], 'title': o.get('title') or '', 'product_type': o.get('productType'), 'sku': None})
 
-print('active products:', len(products))
+print('active products:', len(products), flush=True)
 
 state = load_state()
 done = set(state['done'])
 
-# ---- 2) categorize this batch ----
-changed = 0
-cj_fixed = 0
-title_fixed = 0
-kept = 0
-processed = 0
-failed = []
+# ---- 2) Phase 1: local resolution (no API) ----
+# Determine which products need CJ (genuine unknowns).
+need_cj = []  # list of (product_dict)
+plan = {}     # pid -> new_name
 
 for p in products:
-    if processed >= MAX_PER_RUN: break
     pid = p['id']
     if pid in done: continue
-    processed += 1
-
-    cur_slug = pt_slug(p['product_type'])
-    cj = cj_category_name(p['sku']) if not cur_slug else None   # CJ only when no canonical top-level
-    cj_slug = cj_top_slug(cj) if cj else None
-    t_slug = title_slug(p['title'])
-
-    new_slug = cj_slug or cur_slug or t_slug
-    if not new_slug:
-        new_slug = 'other'
-
-    if new_slug in DISPLAY:
-        new_name = DISPLAY[new_slug]
+    cur_slug = pt_slug(p['product_type'])       # local string match
+    t_slug = title_slug(p['title'])              # local keyword match
+    new_slug = cur_slug or t_slug
+    if new_slug and new_slug in DISPLAY:
+        plan[pid] = DISPLAY[new_slug]
     else:
-        new_name = 'Other'
+        # genuine unknown -> may need CJ (only if we have a SKU)
+        need_cj.append(p)
 
-    if cj_slug: cj_fixed += 1
-    elif cur_slug: kept += 1
-    elif t_slug: title_fixed += 1
+# ---- 3) Phase 2: concurrent CJ prefetch for genuine unknowns ----
+cj_skus = [p['sku'] for p in need_cj if p.get('sku')]
+print('need CJ lookups:', len(cj_skus), flush=True)
+cj_map = cj_prefetch(cj_skus)
+print('CJ resolved:', len(cj_map), flush=True)
 
+for p in need_cj:
+    pid = p['id']
+    cat = cj_map.get(p.get('sku')) if p.get('sku') else None
+    slug = None
+    if cat:
+        first = re.split(r'>|/|->', cat)[0]
+        slug = alias2slug.get(norm(first)) or alias2slug.get(norm(cat))
+    if slug and slug in DISPLAY:
+        plan[pid] = DISPLAY[slug]
+
+# ---- 4) write back ----
+changed = 0
+cj_fixed = 0
+kept = 0
+title_fixed = 0
+failed = []
+
+prod_by_id = {p['id']: p for p in products}
+for pid, new_name in plan.items():
+    p = prod_by_id.get(pid)
+    if p is None: continue
     raw_pt = p['product_type'] or ''
     if raw_pt == new_name:
-        done.add(pid)   # already clean -> mark done (nothing to write)
+        done.add(pid)
+        kept += 1
         continue
-
-    # write back via GraphQL, only mark done on success
     if write_product_type(pid, new_name):
         changed += 1
         done.add(pid)
+        # classify source for reporting
+        cur_slug = pt_slug(p['product_type'])
+        t_slug = title_slug(p['title'])
+        cat = cj_map.get(p.get('sku')) if p.get('sku') else None
+        if not cur_slug:
+            if cat: cj_fixed += 1
+            else: title_fixed += 1
     else:
         failed.append(pid)
 
-    if changed % 50 == 0:
+    if changed % 100 == 0:
         print(f'  wrote {changed}...', flush=True)
+
+# any products which resolved clean already (not in plan) but not yet done -> mark done
+for p in products:
+    pid = p['id']
+    if pid in done: continue
+    if pid not in plan:
+        # already canonical (kept) — mark done
+        done.add(pid)
 
 state['done'] = sorted(done)
 state['fixed'] = state.get('fixed', 0) + changed
 save_state(state)
 
-print(json.dumps({'processed': processed, 'changed': changed, 'cj_fixed': cj_fixed,
+print(json.dumps({'processed': len(plan), 'changed': changed, 'cj_fixed': cj_fixed,
                   'kept': kept, 'title_fixed': title_fixed, 'errors': len(failed),
                   'total_done': len(done), 'total_products': len(products)}))
