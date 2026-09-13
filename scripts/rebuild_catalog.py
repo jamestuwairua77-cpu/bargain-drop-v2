@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """GitHub Actions catalog rebuild: fetch all active Shopify products via Bulk API,
 build catalog shards (identical to functions/api/rebuild-data.js), and commit atomically.
-Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, GITHUB_TOKEN, REPO."""
-import os, sys, json, time, urllib.request
+Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, GITHUB_TOKEN, REPO.
+"""
+import os, sys, json, time, urllib.request, urllib.error
 
 DOMAIN = os.environ['SHOPIFY_STORE_DOMAIN']
 TOKEN  = os.environ['SHOPIFY_ACCESS_TOKEN']
@@ -18,22 +19,57 @@ def gql(query, variables=None):
         headers={'Content-Type': 'application/json', 'X-Shopify-Access-Token': TOKEN})
     return json.load(urllib.request.urlopen(req, timeout=120))
 
+def is_throttled(r):
+    """Detect GraphQL body-level THROTTLED (missing 'data', error code THROTTLED)."""
+    if 'data' in r and r['data'] is not None:
+        return False
+    errs = r.get('errors') or []
+    for e in errs:
+        ext = e.get('extensions') or {}
+        if ext.get('code') == 'THROTTLED' or 'throttl' in str(e.get('message','')).lower():
+            return True
+    return False
+
 BULK_QUERY = """{ products { edges { node {
   id __typename title status bodyHtml vendor productType tags
   images(first:250){edges{node{id src}}}
   variants(first:250){edges{node{id price sku inventoryQuantity selectedOptions{name value} image{id}}}}
 } } } }"""
-mq = 'mutation { bulkOperationRunQuery(query: "' + BULK_QUERY.replace('\n',' ') + '") { bulkOperation { id status } userErrors { field message } } }'
-r = gql(mq)
-ue = r.get('data',{}).get('bulkOperationRunQuery',{}).get('userErrors')
-if ue:
-    print('BULK USER ERRORS:', ue, file=sys.stderr); sys.exit(1)
-opId = r['data']['bulkOperationRunQuery']['bulkOperation']['id']
+mq = 'mutation { bulkOperationRunQuery(query: "' + BULK_QUERY.replace('\n', ' ') + '") { bulkOperation { id status } userErrors { field message } } }'
+
+# --- Run bulk operation, retry on THROTTLED with exponential backoff ---
+opId = None
+for attempt in range(20):
+    r = gql(mq)
+    if is_throttled(r):
+        wait = min(10 * (attempt + 1), 120)
+        print(f'bulkOperationRunQuery THROTTLED (attempt {attempt+1}); sleeping {wait}s', file=sys.stderr)
+        time.sleep(wait)
+        continue
+    ue = r.get('data',{}).get('bulkOperationRunQuery',{}).get('userErrors')
+    if ue:
+        print('BULK USER ERRORS:', ue, file=sys.stderr); sys.exit(1)
+    d = r.get('data',{}).get('bulkOperationRunQuery',{}).get('bulkOperation')
+    if d and d.get('id'):
+        opId = d['id']
+        break
+if not opId:
+    print('FAILED: could not create bulk operation after retries', file=sys.stderr); sys.exit(1)
 print('bulk op', opId)
 
+# --- Poll for completion, retry on THROTTLED ---
 PQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status objectCount url errorCode } } }'
-for _ in range(120):
-    n = gql(PQ, {'id': opId})['data']['node']
+url = None
+for _ in range(240):
+    n = None
+    for a2 in range(10):
+        r = gql(PQ, {'id': opId})
+        if is_throttled(r):
+            time.sleep(min(10 * (a2 + 1), 120)); continue
+        n = r['data']['node']
+        break
+    if n is None:
+        continue
     if n['status'] == 'COMPLETED':
         url = n['url']; break
     if n['status'] == 'FAILED':
@@ -128,8 +164,7 @@ def gh(url, method='GET', data=None):
     if method != 'GET': hdr['Content-Type'] = 'application/json'
     req = urllib.request.Request(url, method=method, headers=hdr)
     body = json.dumps(data).encode() if data is not None else None
-    resp = urllib.request.urlopen(req, data=body, timeout=120)
-    return json.load(resp)
+    return json.load(urllib.request.urlopen(req, data=body, timeout=120))
 
 ref = gh(f'{GHAPI}/git/ref/heads/{BRANCH}')
 base_sha = ref['object']['sha']
@@ -140,6 +175,19 @@ entries = []
 for path, content in files.items():
     b = gh(f'{GHAPI}/git/blobs', 'POST', {'content': content, 'encoding': 'utf-8'})
     entries.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': b['sha']})
+
+# Remove any stale shards (higher indices than we now produce)
+try:
+    tree_root = gh(f'{GHAPI}/git/trees/{base_tree}?recursive=1')
+    keep_prefixes = list(files.keys())
+    for node in tree_root.get('tree', []):
+        path = node.get('path','')
+        if path.startswith('all-products-') and path.endswith('.json') and path not in files:
+            entries.append({'path': path, 'mode': node.get('mode','100644'), 'type': 'blob', 'sha': None})
+        elif path.startswith('categories-data-') and path.endswith('.json') and path not in files:
+            entries.append({'path': path, 'mode': node.get('mode','100644'), 'type': 'blob', 'sha': None})
+except Exception as e:
+    print('warning: could not detect stale shards:', e, file=sys.stderr)
 
 tree = gh(f'{GHAPI}/git/trees', 'POST', {'base_tree': base_tree, 'tree': entries})
 new_commit = gh(f'{GHAPI}/git/commits', 'POST', {
