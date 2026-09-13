@@ -96,7 +96,10 @@ function handleSignIn(){
     .then(function(r){return r.json()})
     .then(function(d){
       btn.disabled=false; btn.textContent='Sign In';
-      if(d.success){ window.location.href = redirectTarget() || '/profile.html'; }
+      if(d.success){
+        if(d.user){ try{localStorage.setItem('bd_session',JSON.stringify(d.user));if(d.user.email)localStorage.setItem('bd_user_email',d.user.email);if(d.user.name)localStorage.setItem('bd_user_name',d.user.name);if(d.user.username)localStorage.setItem('bd_user_username',d.user.username);if(d.user.picture)localStorage.setItem('bd_user_pic',d.user.picture);}catch(e){} }
+        window.location.href = redirectTarget() || '/profile.html';
+      }
       else { err.textContent = d.error || 'Sign in failed'; }
     })
     .catch(function(){btn.disabled=false;btn.textContent='Sign In';err.textContent='Network error — please try again'});
