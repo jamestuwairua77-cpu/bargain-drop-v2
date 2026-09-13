@@ -206,13 +206,18 @@ for line in jsonl.splitlines():
     s = line.strip()
     if not s: continue
     o = json.loads(s)
-    if o.get('__typename') != 'Product':
-        if '__parentId' in o and o.get('sku'):
-            pid = o['__parentId'].split('/')[-1]
-            if products and products[-1]['id'] == pid: products[-1]['sku'] = o.get('sku')
+    pid = o.get('__parentId')
+    if pid:
+        # variant SKU line
+        p = pid.split('/')[-1]
+        if products and products[-1]['id'] == p and o.get('sku'):
+            products[-1]['sku'] = o.get('sku')
+        continue
+    oid = o.get('id') or ''
+    if 'gid://shopify/Product/' not in oid:
         continue
     if o.get('status') != 'ACTIVE': continue
-    products.append({'id': o['id'].split('/')[-1], 'title': o.get('title') or '', 'product_type': o.get('productType'), 'sku': None})
+    products.append({'id': oid.split('/')[-1], 'title': o.get('title') or '', 'product_type': o.get('productType'), 'sku': None})
 
 print('active products:', len(products))
 
