@@ -1,0 +1,33 @@
+name: AI Categorize Products
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 9 * * *'   # daily 9:30 AM Perth (after CJ points reset ~8:10)
+
+permissions:
+  contents: write
+
+jobs:
+  categorize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run categorizer
+        env:
+          SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CJ_KEYS: ${{ secrets.CJ_KEYS }}
+          MAX_PER_RUN: '400'
+        run: python3 scripts/categorize_products.py
+      - name: Trigger catalog rebuild
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run rebuild-catalog.yml --repo "${{ github.repository }}" || echo "rebuild dispatch skipped"
