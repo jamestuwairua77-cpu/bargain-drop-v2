@@ -69,6 +69,12 @@ alias2slug = {}
 for slug, name in TOP_LEVELS:
     for a in (slug, name, norm(name), name.lower()):
         alias2slug[a] = slug
+# Singular/plural and apostrophe variants (e.g. "Toys, Kids & Baby" -> toys-kids-babies)
+for slug, name in TOP_LEVELS:
+    _n = norm(name)
+    for a in (_n.replace('&','and'), _n.replace('ies','y'), _n.replace('ies','ie')):
+        alias2slug.setdefault(a, slug)
+alias2slug.setdefault('toys, kids & baby', 'toys-kids-babies')
 
 def title_slug(title):
     t = norm(title)
@@ -89,7 +95,7 @@ def pt_slug(pt):
     n = norm(pt)
     if n in alias2slug:
         return alias2slug[n]
-    first = re.split(r'>|/|->', pt)[0]
+    first = re.split(r'>|/|->|\uff0c', pt)[0]
     return alias2slug.get(norm(first))
 
 def gql(q, variables=None):
@@ -102,7 +108,8 @@ def gql(q, variables=None):
 
 def is_throttled(r):
     if 'data' in r and r['data'] is not None:
-        return False
+        print('first', rest)
+    return False
     for e in (r.get('errors') or []):
         ext = e.get('extensions') or {}
         if ext.get('code') == 'THROTTLED' or 'throttl' in str(e.get('message', '')).lower():
@@ -154,11 +161,11 @@ def cj_prefetch(skus):
     if not skus:
         return {}
     result = {}
-    args = [(CJ_KEYS[i % len(CJ_KEYS)], sku) for i, sku in enumerate(skus)]
+    args = [(CJ_KEYS[i % len(CJ_KEY)], sku) for i, sku in enumerate(skus)]
     workers = min(8, len(args))
     try:
         with ThreadPoolExecutor(max_workers=workers) as ex:
-            for fut in as_completed([ex.submit(_cj_one, a) for a in args]):
+            for fut in as_completed([ex.submit(_cj_one, a) for a in args)]:
                 sku, name = fut.result()
                 if name:
                     result[sku] = name
@@ -168,181 +175,4 @@ def cj_prefetch(skus):
 
 # ---- 1) bulk READ ----
 BULK = '{ products { edges { node { id title status productType variants(first:1){edges{node{sku}}} } } } }'
-r = gql_retry('mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n', ' ') + '") { bulkOperation { id status } userErrors { field message } } }')
-if not r or (r.get('data', {}).get('bulkOperationRunQuery', {}) or {}).get('userErrors'):
-    print('BULK READ CREATE FAIL', r, file=sys.stderr)
-    sys.exit(1)
-opId = r['data']['bulkOperationRunQuery']['bulkOperation']['id']
-print('bulk read op', opId, flush=True)
-
-PQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status url errorCode } } }'
-url = None
-for _ in range(240):
-    rr = gql_retry(PQ, {'id': opId}, tries=5)
-    if not rr:
-        continue
-    n = rr['data']['node']
-    if n['status'] == 'COMPLETED':
-        url = n['url']
-        break
-    if n['status'] == 'FAILED':
-        print('BULK READ FAIL', n.get('errorCode'), file=sys.stderr)
-        sys.exit(1)
-    time.sleep(3)
-if not url:
-    print('bulk read timeout', file=sys.stderr)
-    sys.exit(1)
-
-jsonl = urllib.request.urlopen(url, timeout=300).read().decode()
-products = []
-for line in jsonl.splitlines():
-    s = line.strip()
-    if not s:
-        continue
-    o = json.loads(s)
-    pid = o.get('__parentId')
-    if pid:
-        p = pid.split('/')[-1]
-        if products and products[-1]['id'] == p and o.get('sku'):
-            products[-1]['sku'] = o.get('sku')
-        continue
-    oid = o.get('id') or ''
-    if 'gid://shopify/Product/' not in oid:
-        continue
-    if o.get('status') != 'ACTIVE':
-        continue
-    products.append({'id': oid.split('/')[-1], 'title': o.get('title') or '', 'product_type': o.get('productType'), 'sku': None})
-
-print('active products:', len(products), flush=True)
-
-# ---- 2) local + CJ resolve ----
-need_cj = []
-plan = {}
-for p in products:
-    pid = p['id']
-    cur_slug = pt_slug(p['product_type'])
-    t_slug = title_slug(p['title'])
-    new_slug = cur_slug or t_slug
-    if new_slug and new_slug in DISPLAY:
-        plan[pid] = DISPLAY[new_slug]
-    else:
-        need_cj.append(p)
-
-cj_skus = [p['sku'] for p in need_cj if p.get('sku')]
-print('need CJ lookups:', len(cj_skus), flush=True)
-cj_map = cj_prefetch(cj_skus) if cj_skus else {}
-print('CJ resolved:', len(cj_map), flush=True)
-
-for p in need_cj:
-    pid = p['id']
-    cat = cj_map.get(p.get('sku')) if p.get('sku') else None
-    slug = None
-    if cat:
-        first = re.split(r'>|/|->', cat)[0]
-        slug = alias2slug.get(norm(first)) or alias2slug.get(norm(cat))
-    if slug and slug in DISPLAY:
-        plan[pid] = DISPLAY[slug]
-
-# ---- 3) filter to products that actually need a write ----
-to_write = []
-for p in products:
-    pid = p['id']
-    new_name = plan.get(pid)
-    if not new_name:
-        continue
-    raw_pt = p['product_type'] or ''
-    if raw_pt != new_name:
-        to_write.append((pid, new_name))
-
-print('products to write:', len(to_write), flush=True)
-
-if not to_write:
-    print(json.dumps({'changed': 0, 'errors': 0, 'total_products': len(products), 'to_write': 0}))
-    sys.exit(0)
-
-# ---- 4) BULK MUTATION write-back ----
-r = gql_retry('mutation { stagedUploadsCreate(input:[{ resource: BULK_MUTATION_VARIABLES, filename: "cat_vars", mimeType: "text/jsonl", httpMethod: POST }]) { userErrors { field message } stagedTargets { url parameters { name value } } } }')
-if not r:
-    print('STAGED UPLOAD FAIL', file=sys.stderr)
-    sys.exit(1)
-sd = r['data']['stagedUploadsCreate']
-if sd['userErrors']:
-    print('STAGED USER ERRORS', sd['userErrors'], file=sys.stderr)
-    sys.exit(1)
-target = sd['stagedTargets'][0]
-upload_url = target['url']
-params = {p['name']: p['value'] for p in target['parameters']}
-staged_path = params.get('key')
-
-lines = []
-for pid, name in to_write:
-    lines.append(json.dumps({'input': {'id': 'gid://shopify/Product/' + pid, 'productType': name}}))
-jsonl_body = '\n'.join(lines) + '\n'
-
-boundary = '----bd' + uuid.uuid4().hex
-parts = []
-for k, v in params.items():
-    parts.append('--' + boundary + '\r\nContent-Disposition: form-data; name="' + k + '"\r\n\r\n' + v + '\r\n')
-parts.append('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="cat_vars"\r\nContent-Type: text/jsonl\r\n\r\n' + jsonl_body + '\r\n')
-parts.append('--' + boundary + '--\r\n')
-body_bytes = ''.join(parts).encode('utf-8')
-
-req = urllib.request.Request(upload_url, data=body_bytes, method='POST')
-req.add_header('Content-Type', 'multipart/form-data; boundary=' + boundary)
-try:
-    upload_resp = urllib.request.urlopen(req, timeout=120)
-    upload_status = upload_resp.status
-except urllib.error.HTTPError as e:
-    upload_status = e.code
-    print('UPLOAD HTTP', e.code, e.read().decode()[:500], file=sys.stderr)
-print('upload status:', upload_status, flush=True)
-
-MUT = 'mutation call($input: ProductUpdateInput!) { productUpdate(product: $input) { product { id } userErrors { field message } } }'
-qm = 'mutation { bulkOperationRunMutation(mutation: ' + json.dumps(MUT) + ', stagedUploadPath: ' + json.dumps(staged_path) + ') { bulkOperation { id status } userErrors { field message } } }'
-r = gql_retry(qm)
-if not r:
-    print('BULK MUT CREATE FAIL', file=sys.stderr)
-    sys.exit(1)
-bm = r['data']['bulkOperationRunMutation']
-if bm['userErrors']:
-    print('BULK MUT USER ERRORS', bm['userErrors'], file=sys.stderr)
-    sys.exit(1)
-mutOpId = bm['bulkOperation']['id']
-print('bulk mutation op', mutOpId, flush=True)
-
-BQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status objectCount errorCode url } } }'
-final = None
-for _ in range(240):
-    rr = gql_retry(BQ, {'id': mutOpId}, tries=5)
-    if not rr:
-        time.sleep(3)
-        continue
-    n = rr['data']['node']
-    if n['status'] == 'COMPLETED':
-        final = n
-        break
-    if n['status'] == 'FAILED':
-        print('BULK MUT FAIL', n.get('errorCode'), file=sys.stderr)
-        sys.exit(1)
-    time.sleep(3)
-
-if not final:
-    print('bulk mut timeout', file=sys.stderr)
-    sys.exit(1)
-
-print('bulk mutation COMPLETED, objectCount:', final.get('objectCount'), flush=True)
-
-err_count = 0
-if final.get('url'):
-    try:
-        rj = urllib.request.urlopen(final['url'], timeout=300).read().decode()
-        for ln in rj.splitlines():
-            d = json.loads(ln)
-            if 'errors' in d or (d.get('data', {}).get('productUpdate', {}) or {}).get('userErrors'):
-                err_count += 1
-    except Exception:
-        err_count = 0
-
-changed = len(to_write) - err_count
-print(json.dumps({'processed': len(plan), 'changed': changed, 'errors': err_count,
-                  'to_write': len(to_write), 'total_products': len(products)}))
+r = gql_retry('mutation { bulkOperationRunQuery(query: "' + BULK.
