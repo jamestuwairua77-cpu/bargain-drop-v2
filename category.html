@@ -265,13 +265,8 @@ document.addEventListener("cat-prods-ready", function() {
 
   // Resolve the selected subcategory: exact key match first, then prefix match on first segment,
   // then (if uc matches a top-level category like "womens-clothing") union of all keys starting with it.
-  // Alias legacy/renamed category slugs to their canonical key so cards like
-  // "Furniture" / "Home & Garden" resolve to the real merged category instead
-  // of falling through to the all-products view (which was surfacing automobiles).
-  var CAT_ALIAS = { 'furniture': 'home-garden-furniture', 'home-garden': 'home-garden-furniture' };
   function resolve(uc) {
     if (!uc) return null;
-    if (CAT_ALIAS[uc]) uc = CAT_ALIAS[uc];
     if (d[uc]) return { key: uc, prods: d[uc] };
     // prefix match on key start
     var matches = subs.filter(function(s) {
