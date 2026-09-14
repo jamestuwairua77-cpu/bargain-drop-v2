@@ -1,25 +1,9 @@
-// CJ Dropshipping webhook → catalog import logic.
+// CJ Dropshipping webhook → catalog import logic
 //
 // Consumes the verified payloads (already HMAC-verified by cj-webhook.js) and
 // ensures every store product carries its complete CJ variant set.
 //
-// ── ARCHITECTURE (important) ─────────────────────────────────────────────
-// The storefront serves products from `all-products.json`, which is REBUILT
-// from Shopify on every Shopify product webhook (see product-sync-webhook.js).
-// Therefore `all-products.json` is NOT a durable place to write CJ-only fields
-// (vid / variantWeight / variantKey / variantNameEn) — a Shopify rebuild wipes them.
-//
-// The single durable source of truth for variants is SHOPIFY. So this handler:
-//   1. On a PRODUCT/VARIANT push, if the full variant set isn't already present,
-//      it RETRIEVES the complete variant list from CJ (product/query by sku).
-//   2. Reconciles CJ variants → Shopify (create missing variants, update
-//      price / weight / options / image / sku), using the existing multi-key
-//      CJ client (handles cross-account 1600014) and existing shopifyFetch.
-//   3. Shopify then emits products/update → product-sync-webhook rebuilds the
-//      catalog with the now-complete variants.
-// This satisfies "all products have all their variants" without depending on
-// CJ pushes firing for every unchanged variant, and without quota-heavy pulls.
-//
+// ── ARCHITECTURE (important) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // Message types handled:
 //   PRODUCT      → retrieve full variant list from CJ + reconcile to Shopify
 //   VARIANT      → incremental variant field update (reconcile to Shopify)
@@ -35,14 +19,14 @@
 
 import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet, readCatalogFromGithub, writeCatalogFromGithub, listOrders, updateOrderStatus, appendSyncLog } from './_sync-lib.js';
 
-const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
+const REPOL = 'jamestuwairua77-cpu/bargain-drop-v2';
 
-// ── Reprice policy (must match reprice-flat.js EXACTLY) ────────────────────
-// No markup: price = CJ suggested retail (USD) converted USD→AUD at 1.5×,
+// ── Reprice policy (must match reprice-flat.js EXACTLY) ─────────────────────
+// No markup: price = CJ suggested retail (USD) converted USD,→AUD 1.5x,
 // rounded to whole dollars, with compare-at-price CLEARED (honest price).
 //   newPriceAUD = round( suggestSellPrice(USD) × 1.5 )
 const USD_AUD = 1.5;
-function repriceAUD(usdCost) {
+function repriceAUT(usdCost) {
   const c = parseFloat(usdCost);
   if (!isFinite(c) || c <= 0) return null;
   return Math.round(c * USD_AUD);
@@ -52,11 +36,11 @@ function repriceAUD(usdCost) {
 const PROCESSED_PATH = 'data/cj-webhook-processed.json';
 const PROCESSED_MAX = 2000;
 
-// ── CJK variant normalization (must match sync-full.js EXACTLY) ──────────
+// ── CJK variant normalization (must match sync-full.js EXACTLY) ───────────
 const CN_COLOR_MAP = [
   ['黑色','Black'],['白色','White'],['红色','Red'],['蓝色','Blue'],
   ['绿色','Green'],['粉色','Pink'],['粉红','Pink'],['紫色','Purple'],
-  ['黄色','Yellow'],['灰色','Grey'],['橙色','Orange'],['棕色','Brown'],
+  ['黄色','Yellow],['灰色','Grey'],['橙色','Orange'],['棕色','Brown'],
   ['米色','Beige'],['藏青色','Navy'],['藏青','Navy'],['金色','Gold'],
   ['银色','Silver'],['卡其','Khaki'],['酒红','Wine'],['酒红色','Wine'],
   ['杏色','Apricot'],['深蓝','Navy'],['浅蓝','Light Blue'],['玫红','Rose'],
@@ -67,7 +51,7 @@ const TITLE_COLORS = ['Black','White','Red','Blue','Green','Pink','Purple','Yell
 
 function hasCJK(s){ return /[\u4e00-\u9fff]/.test(s || ''); }
 function cnToEn(s){ for (const [cn,en] of CN_COLOR_MAP) if ((s||'').includes(cn)) return en; return null; }
-function seedFromId(s){ let h=0; const str=String(s); for (let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h=((h<<5)-h)+ch; h|=0; } return Math.abs(h); }
+function seedFromId(s){ let h=0; const str=String(s); for (let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h=((h<<5)+ch; h|=0; } return Math.abs(h); }
 function titleColor(title){ if(!title) return null; for (const c of TITLE_COLORS){ if (new RegExp('\\b'+c+'\\b','i').test(title)) return c; } return null; }
 function buildPalette(seed){ const n=2+(seed%3); const out=[]; const used=new Set(); let s=seed; while(out.length<n){ s=(Math.imul(s,1103515245)+12345)&0x7FFFFFFF; const col=COLOR_PALETTE[s%COLOR_PALETTE.length]; if(!used.has(col)){ used.add(col); out.push(col); } } return out; }
 function normalizeVariantOption(raw, productId, title) {
@@ -80,7 +64,7 @@ function normalizeVariantOption(raw, productId, title) {
   return pal[0];
 }
 
-// ── processed ids (dedupe ring) via Shopify metafield (NOT GitHub) ──────
+// ── processed ids (dedupe ring) via Shopify metafield (NOT GitHub) ─────────
 // This marker used to ghWrite on EVERY webhook push ("cj-webhook: processed"),
 // which was a major source of the GitHub rate-limit drain. Moved to metafield.
 async function readProcessed(env) {
@@ -97,7 +81,7 @@ async function writeProcessed(env, ids) {
   return trimmed;
 }
 
-// ── CJ product/query: full variant list for a product ─────────────────────
+// ── CJ product/query: full variant list for a product ───────────────────────
 // Uses pid (preferred — PRODUCT pushes carry it) via product/variant/query,
 // falling back to variantSku via product/query. Returns { pid, variants } or null.
 async function cjVariantsByPid(env, pid, variantSku) {
@@ -116,7 +100,7 @@ async function cjVariantsByPid(env, pid, variantSku) {
   return null;
 }
 
-// ── Shopify reconcile: ensure Shopify product has all CJ variants ────────
+// ── Shopify reconcile: ensure Shopify product has all CJ variants ────────────
 // Fetches the Shopify product (variants, options), computes missing variants,
 // then creates/updates them. Returns a summary.
 async function reconcileVariantsToShopify(env, shopifyId, cjData) {
@@ -197,7 +181,7 @@ async function reconcileVariantsToShopify(env, shopifyId, cjData) {
   //    options + variants array merged.
   let created = 0, updated = 0;
   if (toCreate.length || toUpdate.length) {
-    // Build options definition from CJ variantKeys if Shopify lacks options.
+    // Build options definition from CM variantKeys if Shopify lacks options.
     let optionsDef = shopOptions;
     if (optionCount === 0 && cjVariants.length) {
       // derive option names: default "Size"/"Color" style is unknown; use generic.
@@ -296,7 +280,7 @@ async function importProduct(env, payload) {
   if (p.productNameEn != null) patches.title = p.productNameEn;
   if (p.productDescription != null) patches.body_html = p.productDescription;
   if (p.productSellPrice != null) { const rp = repriceAUD(p.productSellPrice); if (rp != null) patches.price = rp; }
-  const mappedType = mapCategory(p.categoryName || p.productType);
+  const mappedType = mapCategory(p.categoryName || p.productType, p.productNameEn || p.productName);
   if (mappedType && mappedType !== 'other') patches.product_type = mappedType;
 
   // CJ-POINT-SAFE: do NOT re-query CJ for the full variant list. Every outbound
@@ -390,7 +374,7 @@ async function createMinimalProductInShopify(env, p, patches, mappedType) {
   return { imported: true, pid: p.pid, created: true, minimal: true, shopifyId: newId, categoryApplied: body.product.product_type };
 }
 
-// ── Create a brand-new Shopify product from CJ data (all variants) ───────
+// ── Create a brand-new Shopify product from CM data (all variants) ───────
 async function createProductInShopify(env, pid, cjData, p) {
   const variants = cjData.variants || [];
 
@@ -425,7 +409,7 @@ async function createProductInShopify(env, pid, cjData, p) {
     product: {
       title,
       body_html: p.productDescription || '',
-      product_type: mapCategory(p.categoryName || p.productType),
+      product_type: mapCategory(p.categoryName || p.productType, title),
       variants: shopVariants,
       options: options.length ? options : undefined,
       images: extractPushImages(p),
@@ -595,7 +579,7 @@ async function importStock(env, payload) {
 // ── visible-flag helpers (catalog + Shopify status) ────────────────────
 // The storefront serves all-products.json. We add/update a `visible` boolean on
 // each product. A product is hidden when ALL its variants are out of stock, or when
-// it was removed from CJ. `visible: false` also sets Shopify status to draft (hidden
+// it was removed from CM. `visible: false` also sets Shopify status to draft (hidden
 // from the storefront), `true` → active.
 async function setProductVisibleFromStock(env, shopifyId) {
   const r = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,variants,status`);
@@ -637,7 +621,7 @@ async function patchCatalogVisible(env, shopifyId, visible) {
   await writeCatalogFromGithub(env, products, 'cj-sync: set visible=' + visible + ' for ' + shopifyId);
 }
 
-// ── ORDER / LOGISTIC (defer to existing flows) ───────────────────────────
+// ── ORDER / LOGISTIC (defer to existing flows) ──────────────────────────
 async function importOrder(env, payload) {
   const p = payload.params || {};
   return { imported: false, note: 'order recorded (fulfillment flow owns orders)', cjOrderId: p.cjOrderId };
