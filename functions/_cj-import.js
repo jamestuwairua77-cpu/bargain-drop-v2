@@ -299,10 +299,12 @@ async function importProduct(env, payload) {
   const mappedType = mapCategory(p.categoryName || p.productType);
   if (mappedType && mappedType !== 'other') patches.product_type = mappedType;
 
-  // Retrieve the FULL variant list from CJ via pid (CJ pushes only changed fields).
-  // This is best-effort: if it fails we still apply the category patch above, so a
-  // CJ quota/rate hiccup never blocks the category fix.
-  const cjData = await cjVariantsByPid(env, pid, productSku || p.variantSku).catch(() => null);
+  // CJ-POINT-SAFE: do NOT re-query CJ for the full variant list. Every outbound
+  // CJ lookup burns points, and CJ webhooks were driving an unbounded re-query loop.
+  // We build/update Shopify purely from the PUSH data (category/title/price/images),
+  // which CJ already delivered for free. Missing products fall through to
+  // createMinimalProductInShopify (push-only); variants reconcile on later pushes.
+  const cjData = null; // was: cjVariantsByPid(env, pid, productSku || p.variantSku)
 
   if (!shopifyId) {
     // Product not yet in Shopify → CREATE it (full import w/ all variants if we have them).
@@ -503,13 +505,20 @@ async function importVariant(env, payload) {
   if (!target && vid) target = shopVariants.find(v => String(v.sku) === String(vid));
 
   if (!target) {
-    // Variant not in Shopify yet → do a full reconcile via CJ variant list.
-    const cjData = await cjVariantsByPid(env, p.pid, sku || vid);
-    if (cjData) {
-      const rec = await reconcileVariantsToShopify(env, shopifyId, cjData);
-      return { imported: rec.created > 0 || rec.updated > 0, sku, ...rec };
+    // CJ-POINT-SAFE: do NOT re-query CJ for the variant (was cjVariantsByPid).
+    // If the variant is not yet in Shopify, apply the push's own price directly
+    // by creating the single variant from push data (zero outbound CJ cost).
+    if (p.variantSellPrice != null) {
+      const rp = repriceAUD(p.variantSellPrice);
+      const nv = { price: rp != null ? String(rp) : undefined, sku: p.variantSku || sku || vid };
+      if (p.variantWeight != null) nv.grams = Number(p.variantWeight);
+      const post = await shopifyFetch(env, `/products/${shopifyId}/variants.json`, {
+        method: 'POST',
+        body: JSON.stringify({ variant: nv }),
+      }).catch(() => ({ ok: false, status: 0 }));
+      return { imported: post.ok, reason: post.ok ? 'variant created from push' : 'variant create ' + post.status, sku };
     }
-    return { imported: false, reason: 'variant not found', sku };
+    return { imported: false, reason: 'variant not found (no push price)', sku };
   }
 
   const patch = { id: target.id };
