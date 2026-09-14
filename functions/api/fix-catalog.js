@@ -164,7 +164,7 @@ async function cjRecover(env, sku) {
   }
 }
 
-// No markup: CJ suggested retail USD,→AUD 1.5x currency only (mirrors _cj-import.js repriceAUD).
+// No markup: CJ suggested retail USD→AUD 1.5x currency only (mirrors _cj-import.js repriceAUD).
 function repriceAUD(usdCost) {
   const c = parseFloat(usdCost);
   if (!isFinite(c) || c <= 0) return null;
@@ -414,7 +414,7 @@ export async function onRequest(context) {
         try {
           const patch = {};
           if (isBrokenType(p.type) && cjData && cjData.categoryName) {
-            const mt = mapCategory(cjData.categoryName);
+            const mt = mapCategory(cjData.categoryName, (cjData && (cjData.productNameEn || cjData.productName)) || '');
             if (mt && mt !== 'other') { patch.product_type = mt; categoryFixed = true; }
           }
           if (cjData && cjData.description) { patch.body_html = cjData.description; descFixed = true; }
