@@ -105,7 +105,7 @@ function buildProductBody(cjData) {
     values: [...new Set(shopVariants.map((sv) => sv['option' + (i + 1)]).filter(Boolean))],
   }));
 
-  const mappedType = mapCategory(cjData.categoryName || '');
+  const mappedType = mapCategory(cjData.categoryName || '', (cjData && (cjData.productNameEn || cjData.productName)) || '');
   const product = {
     title: cjData.title || 'Recovered Product',
     body_html: cjData.description || '',
