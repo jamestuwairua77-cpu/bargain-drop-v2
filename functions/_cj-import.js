@@ -38,15 +38,14 @@ import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 
 // ── Reprice policy (must match reprice-flat.js EXACTLY) ────────────────────
-// Flat 40% markup on CJ base cost (USD), converted USD→AUD, rounded to whole
-// dollars, with compare-at-price CLEARED (honest price, no strikethrough).
-//   newPriceAUD = round( variantSellPrice(USD) × 1.4 × 1.5 )
+// No markup: price = CJ suggested retail (USD) converted USD→AUD at 1.5×,
+// rounded to whole dollars, with compare-at-price CLEARED (honest price).
+//   newPriceAUD = round( suggestSellPrice(USD) × 1.5 )
 const USD_AUD = 1.5;
-const MARKUP = 1.4;
 function repriceAUD(usdCost) {
   const c = parseFloat(usdCost);
   if (!isFinite(c) || c <= 0) return null;
-  return Math.round(c * MARKUP * USD_AUD);
+  return Math.round(c * USD_AUD);
 }
 
 // Dedupe ring of recently-processed messageIds.
