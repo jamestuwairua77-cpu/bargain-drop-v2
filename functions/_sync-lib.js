@@ -36,6 +36,15 @@ export function mcpTokens(env) {
   return _mcpToks;
 }
 
+// ─── CJ KILL SWITCH ─────────────────────────────────────────────────────
+// Set true to STOP ALL outbound CJ API calls (point-burning). When true,
+// cjFetch/cjFetchMulti return a synthetic blocked response immediately and
+// NEVER touch developers.cjdropshipping.com. Flip to false (or set env
+// CJ_KILL_SWITCH != 'on') to re-enable CJ lookups.
+const CJ_KILLED = env => {
+  return env.CJ_KILL_SWITCH !== 'off';
+};
+
 export async function cjToken(env) {
   if (_cjToken && Date.now() < _cjExp) return _cjToken;
   // Prefer MCP tokens (higher rate limit) — rotate through them to avoid any single-token throttle.
@@ -62,6 +71,9 @@ export async function cjToken(env) {
 }
 
 export async function cjFetch(env, path, opts = {}) {
+  if (CJ_KILLED(env)) {
+    return { code: 16900500, success: false, message: 'CJ kill switch active', data: null, pointsInfo: { total: 0, usedToday: 0, remaining: 0 } };
+  }
   const tok = await cjToken(env);
   const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1${path}`, {
     ...opts,
@@ -298,6 +310,9 @@ export function cjKeys(env) {
 }
 
 export async function cjFetchMulti(env, path, opts = {}) {
+  if (CJ_KILLED(env)) {
+    return { code: 16900500, success: false, message: 'CJ kill switch active', data: null, pointsInfo: { total: 0, usedToday: 0, remaining: 0 } };
+  }
   // Restore persisted key health (survives isolate recycling) once per isolate.
   if (!_healthLoaded) {
     _healthLoaded = true;
