@@ -3,7 +3,7 @@
 build catalog shards (identical to functions/api/rebuild-data.js), and commit atomically.
 Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, GITHUB_TOKEN, REPO.
 """
-import os, sys, json, time, urllib.request, urllib.error
+import os, sys, json, time, urllib.request, urllib.error, re
 
 DOMAIN = os.environ['SHOPIFY_STORE_DOMAIN']
 TOKEN  = os.environ['SHOPIFY_ACCESS_TOKEN']
@@ -112,6 +112,41 @@ for line in jsonl.splitlines():
 prods = [products[pid] for pid in order if products[pid]['status'] == 'ACTIVE' and (products[pid]['title'] or '').strip()]
 print('active+titled products:', len(prods))
 
+# ── is_furniture(title) — true-furniture detector to split CJ's combined ──
+# "Home, Garden & Furniture" product_type into "Furniture" vs "Home & Garden".
+# Word-boundary keyword match with negative guards so we don't misfile
+# cleaners / repair / care / decor / bedding accessories. Mirrors the JS
+# isFurnitureProduct() in functions/_sync-lib.js and functions/api/sync-full.js.
+def is_furniture(title):
+    if not title:
+        return False
+    t = str(title).lower()
+    def has(kw):
+        return re.search(r'(^|[^a-z0-9])' + re.escape(kw) + r'($|[^a-z0-9])', t) is not None
+    if has('furniture') and not re.search(r'(repair|paste|gel|oil|polish|care|maintenance|wax|spray|hinge|cleaner|cleaning|remover|compound|treatment|paint)', t):
+        return True
+    NEG = re.compile(r'(cleaner|cleaning|clean|remover|removing|repair|paste|gel|spray|stain|polish|wax|oil|protector|cover|mat|runner|cloth|tablecloth|skirt|centerpiece|hanger|rack|play table|craft|message board|cushion|tissue box|tissue holder|decoration|decor|ornament|figurine|calendar|hinge|screwdriver|wrench|lamp|night light|replacement part|sheet|fitted sheet|quilt|comforter|duvet|blanket|pillow|laundry|clothes|clothing|costume|case|cases|organizer for|storage box|storage basket|basket)')
+    KW = ['sofa','couch','loveseat','recliner','armchair','arm chair','futon','chaise lounge','chaise','bed frame','bedframe','headboard','box spring','bunk bed','bunk beds','beds frame','wardrobe','armoire','chest of drawers','drawer chest','dresser','bookcase','bookshelf','book shelf','shelf unit','shelving unit','coffee table','dining table','nightstand','night stand','bedside table','side table','end table','console table','tv stand','tv cabinet','media console','entertainment center','desk','office chair','writing desk','study desk','standing desk','computer desk','stool','barstool','bar stool','bench','ottoman','rocking chair','dining chair','chair','chairs','cabinet','cupboard','sideboard','buffet table','vanity','shoe cabinet','shoe rack','storage cabinet','filing cabinet','drawer','drawers','table','bed','frame','mattress','nightstand','headboard','shelf','shelves','shelving','night stand']
+    for kw in KW:
+        if has(kw):
+            if kw in ('table','mattress','bed','drawer','drawers'):
+                if re.search(r'(cleaner|clean|tablet|cover|protector|sheet|mat|runner|cloth|pad|spray|stain)', t):
+                    continue
+            if NEG.search(t):
+                continue
+            return True
+    return False
+
+def map_category(ptype, title):
+    """Map a Shopify product_type + title to a canonical storefront category slug.
+    Splits CJ's combined "Home, Garden & Furniture" into 'furniture' vs 'home-garden'."""
+    if not ptype:
+        return 'other'
+    key = ptype.lower().replace(' & ', '-').replace(' ', '-').replace('"','').replace("'",'').replace(',','')
+    if key == 'home-garden-furniture':
+        return 'furniture' if is_furniture(title) else 'home-garden'
+    return key
+
 cats, all_, idx = {}, [], {}
 for p in prods:
     imgs = []
@@ -124,11 +159,12 @@ for p in prods:
                  'body_html': p['body_html'], 'vendor': p['vendor'],
                  'product_type': p['product_type'], 'tags': p['tags'], 'variants': vars_list})
     ptype = p['product_type'] or 'other'
-    key = ptype.lower().replace(' & ', '-').replace(' ', '-').replace('"','').replace("'",'').replace(',','')
-    if key not in cats: cats[key] = {'name': ptype, 'products': []}
+    key = map_category(ptype, p['title'])
+    name = 'Furniture' if key == 'furniture' else ('Home & Garden' if key == 'home-garden' else ptype)
+    if key not in cats: cats[key] = {'name': name, 'products': []}
     cats[key]['products'].append({'id': p['id'], 'title': p['title'], 'price': price,
         'image': imgs[0] if imgs else None, 'body_html': p['body_html'], 'vendor': p['vendor'],
-        'product_type': p['product_type'], 'variants': len(vars_list), 'images': len(imgs)})
+        'product_type': name, 'variants': len(vars_list), 'images': len(imgs)})
     idx[p['id']] = {'idx': len(cats[key]['products'])-1, 'category': key}
 
 def shard(arr, size):
