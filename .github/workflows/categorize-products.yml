@@ -2,8 +2,6 @@ name: AI Categorize Products
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '30 9 * * *'   # daily 9:30 AM Perth (after CJ points reset ~8:10)
 
 permissions:
   contents: write
