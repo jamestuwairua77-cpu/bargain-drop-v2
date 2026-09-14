@@ -1,10 +1,10 @@
 // Cloudflare Pages Function: /api/reprice-flat
 //
-// Reprices ALL CJ-imported products (tag `cj-import` + `cj-pid-{pid}`) to a
-// flat 40% markup on the CJ base cost, converted USD→AUD, rounded to whole
+// Reprices ALL CJ-imported products (tag `cj-import` + `cj-pid-{pid}`) to the
+// CJ SUGGESTED RETAIL PRICE, converted USD→AUD (no markup), rounded to whole
 // dollars, with compare-at-price CLEARED (honest price, no strikethrough).
 //
-//   newPriceAUD = round( variantSellPrice(USD) × 1.4 × 1.5 )
+//   newPriceAUD = round( suggestSellPrice(USD) × 1.5 )
 //
 // Writes via Shopify Bulk Operations API (bulkOperationRunMutation running
 // `productSet`) — the ONLY single-arg bulk-runnable mutation for updating
@@ -21,17 +21,16 @@
 import { corsHeaders, shopifyFetch, isAdmin, adminDenied } from '../_sync-lib.js';
 
 const USD_AUD = 1.5;
-const MARKUP = 1.4;
 const STATE_NAMESPACE = 'cjreprice';
 const STATE_KEY = 'state';
 const SHOP_GID = 'gid://shopify/Shop/73594044547';
 const SHOPIFY_GQ = '/graphql.json';
 const PAGE_SIZE = 20;
 
-function computePriceAUD(usdCost) {
-  const c = parseFloat(usdCost) || 0;
+function computePriceAUD(usdPrice) {
+  const c = parseFloat(usdPrice) || 0;
   if (c <= 0) return 0;
-  return Math.round(c * MARKUP * USD_AUD);
+  return Math.round(c * USD_AUD);
 }
 
 async function gqlRaw(env, query, variables) {
@@ -118,7 +117,7 @@ async function fetchCjCostsBySku(sku) {
   const j = await cjFetch(`https://bargain-drop.online/api/cj-product-query?variantSku=${encodeURIComponent(sku)}`);
   if (!j || j.code !== 200 || !j.data) return null;
   const map = {};
-  for (const v of (j.data.variants || [])) if (v.variantSku) map[v.variantSku] = parseFloat(v.variantSellPrice) || 0;
+  for (const v of (j.data.variants || [])) if (v.variantSku) map[v.variantSku] = (v.variantSugSellPrice != null ? parseFloat(v.variantSugSellPrice) : parseFloat(v.variantSellPrice)) || 0;
   return map;
 }
 
@@ -126,7 +125,7 @@ async function fetchCjCosts(pid) {
   const j = await cjFetch(`https://bargain-drop.online/api/cj-product-query?pid=${encodeURIComponent(pid)}`);
   if (!j || j.code !== 200 || !Array.isArray(j.data)) return null;
   const map = {};
-  for (const v of j.data) if (v.variantSku) map[v.variantSku] = parseFloat(v.variantSellPrice) || 0;
+  for (const v of j.data) if (v.variantSku) map[v.variantSku] = (v.variantSugSellPrice != null ? parseFloat(v.variantSugSellPrice) : parseFloat(v.variantSellPrice)) || 0;
   return map;
 }
 
