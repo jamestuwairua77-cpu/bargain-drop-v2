@@ -140,7 +140,7 @@ function slugifyCategory(s) {
     .replace(/^-+|-+$/g, '');
 }
 
-function mapCategory(productType) {
+function mapCategory(productType, title) {
   const raw = String(productType || '').trim();
   if (!raw) return 'other';
   // Normalize separators (">", "/", "-") into a single hyphenated, keyword-searchable string,
@@ -150,7 +150,14 @@ function mapCategory(productType) {
   // If it already IS a canonical slug (or starts with one), return it directly.
   if (CANONICAL_CATEGORIES.includes(norm)) return norm;
   for (const slug of CANONICAL_CATEGORIES) {
-    if (norm === slug || norm.startsWith(slug + '-') || norm.startsWith(slug + '--')) return slug;
+    if (norm === slug || norm.startsWith(slug + '-') || norm.startsWith(slug + '--')) {
+      // Split CJ's combined "Home, Garden & Furniture" (slug home-garden-furniture*)
+      // into a real "Furniture" vs "Home & Garden" using the product title.
+      if (slug === 'home-garden' && /(^|-)furniture(-|$)/.test(norm)) {
+        return isFurnitureProduct(title) ? 'furniture' : 'home-garden';
+      }
+      return slug;
+    }
   }
   // ── GENDER PRECHECK (fixes "men's clothes landing in women's clothes") ──
   // CJ category paths carry a top-level gender segment ("Men's Clothing", "Women's
@@ -178,6 +185,40 @@ function mapCategory(productType) {
     if (norm.includes(kw)) return slug;
   }
   return 'other';
+}
+
+// isFurnitureProduct(title) — true-furniture detector used to split CJ's combined
+// "Home, Garden & Furniture" category. Word-boundary keyword match with negative
+// guards so we don't misfile cleaners/repair/care/decor/bedding accessories.
+function isFurnitureProduct(title) {
+  const t = String(title || '').toLowerCase();
+  if (!t) return false;
+  const has = (kw) => new RegExp('(^|[^a-z0-9])' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z0-9])').test(t);
+  if (has('furniture') && !/(repair|paste|gel|oil|polish|care|maintenance|wax|spray|hinge|cleaner|cleaning|remover|compound|treatment|paint)/.test(t)) {
+    return true;
+  }
+  const NEG = /(cleaner|cleaning|clean|remover|removing|repair|paste|gel|spray|stain|polish|wax|oil|protector|cover|mat|runner|cloth|tablecloth|skirt|centerpiece|hanger|rack|play table|craft|message board|cushion|tissue box|tissue holder|decoration|decor|ornament|figurine|calendar|hinge|screwdriver|wrench|lamp|night light|replacement part|sheet|fitted sheet|quilt|comforter|duvet|blanket|pillow|laundry|clothes|clothing|costume|case|cases|organizer for|storage box|storage basket|basket)/;
+  const KW = ['sofa','couch','loveseat','recliner','armchair','arm chair','futon','chaise lounge','chaise',
+    'bed frame','bedframe','headboard','box spring','bunk bed','bunk beds','beds frame',
+    'wardrobe','armoire','chest of drawers','drawer chest','dresser',
+    'bookcase','bookshelf','book shelf','shelf unit','shelving unit',
+    'coffee table','dining table','nightstand','night stand','bedside table','side table','end table',
+    'console table','tv stand','tv cabinet','media console','entertainment center',
+    'desk','office chair','writing desk','study desk','standing desk','computer desk',
+    'stool','barstool','bar stool','bench','ottoman','rocking chair','dining chair','chair','chairs',
+    'cabinet','cupboard','sideboard','buffet table','vanity','shoe cabinet','shoe rack',
+    'storage cabinet','filing cabinet','drawer','drawers','table','bed','frame',
+    'mattress','nightstand','headboard','shelf','shelves','shelving','night stand'];
+  for (const kw of KW) {
+    if (has(kw)) {
+      if (kw === 'table' || kw === 'mattress' || kw === 'bed' || kw === 'drawer' || kw === 'drawers') {
+        if (/(cleaner|clean|tablet|cover|protector|sheet|mat|runner|cloth|pad|spray|stain)/.test(t)) continue;
+      }
+      if (NEG.test(t)) continue;
+      return true;
+    }
+  }
+  return false;
 }
 
 // Gender-word probe helper: lowercase + normalize punctuation so word boundaries work
@@ -290,14 +331,18 @@ export async function onRequest(context) {
         variants: vars,
       });
       const ptype = p.product_type || 'other';
-      const key = mapCategory(p.product_type);
-      if (!cats[key]) cats[key] = { name: ptype.split(/[>\/]/)[0].trim(), products: [] };
+      const key = mapCategory(p.product_type, p.title);
+      // Human-readable label for the split furniture/home-garden categories.
+      const typename = (key === 'furniture') ? 'Furniture'
+        : (key === 'home-garden') ? 'Home & Garden'
+        : ptype.split(/[>\/]/)[0].trim();
+      if (!cats[key]) cats[key] = { name: typename, products: [] };
       cats[key].products.push({
         id: String(p.id), title: p.title, price,
         image: srcs[0] || null,
         body_html: p.body_html || '',
         vendor: p.vendor,
-        product_type: p.product_type,
+        product_type: typename,
         variants: vars.length, images: imgs.length,
       });
       idx[String(p.id)] = { idx: cats[key].products.length - 1, category: key };
