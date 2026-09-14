@@ -1,353 +1,340 @@
-#!/usr/bin/env python3
-"""Bargain Drop: re-categorize ALL active Shopify products to canonical top-level.
+// Cloudflare Pages Function: /api/sync-full
+// GET ?action=status | sync — Pulls all Shopify products, writes JSON to GitHub
 
-FAST path (this version):
-  1. bulk READ (bulkOperationRunQuery) all products once.
-  2. Resolve top-level locally (product_type split + title keywords), CJ only for unknowns.
-  3. Write back EVERYTHING in ONE bulkOperationRunMutation with productUpdate - not rate limited.
-"""
-import os, sys, json, time, re, uuid
-import urllib.request, urllib.error, urllib.parse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import { corsHeaders, shopifyFetch, ghRead, ghWrite } from '../_sync-lib.js';
 
-DOMAIN  = os.environ['SHOPIFY_STORE_DOMAIN']
-TOKEN   = os.environ['SHOPIFY_ACCESS_TOKEN']
-API     = "https://" + DOMAIN + "/admin/api/2025-10"
-CJ_BASE = 'https://developers.cjdropshipping.com/api2.0/v1'
-
-CJ_KEYS = [k.strip() for k in os.environ.get('CJ_KEYS', '').split(',') if k.strip()]
-CJ_KEYS = list(dict.fromkeys(CJ_KEYS))
-if not CJ_KEYS:
-    CJ_KEYS = [
-        'CJ5800059@api@f063a5b2bae64d659849301491d753d8',
-        'CJ5798986@api@8e86ba7f88de4781812950784cbc2dc4',
-        'CJ5799030@api@c764039900e64ebbbdc3b9398a26bb2c',
-        'CJ5820279@api@e3b050af15cc44b590ac9b0d1f813ef',
-    ]
-
-TOP_LEVELS = [
-    ('womens-clothing',   "Women's Clothing"),
-    ('mens-clothing',     "Men's Clothing"),
-    ('bags-shoes',        "Bags & Shoes"),
-    ('jewelry-watches',   "Jewelry & Watches"),
-    ('furniture', "Furniture"),
-    ('home-garden', "Home & Garden"),
-    ('home-improvement',  "Home Improvement"),
-    ('health-beauty-hair', "Health, Beauty & Hair"),
-    ('sports-outdoors',   "Sports & Outdoors"),
-    ('toys-kids-babies',  "Toys, Kids & Babies"),
-    ('phones-accessories', "Phones & Accessories"),
-    ('consumer-electronics', "Consumer Electronics"),
-    ('automobiles-motorcycles', "Automobiles & Motorcycles"),
-    ('pet-supplies',      "Pet Supplies"),
-    ('computer-office',   "Computer & Office"),
-]
-DISPLAY = {s: n for s, n in TOP_LEVELS}
-
-KEYWORDS = {
- 'womens-clothing': ['women','womens','lady','ladies','girl','dress','blouse','skirt','legging','bikini','swimsuit','bra','crop top','bodysuit','jumpsuit','romper','cardigan','gown','corset','tunic','hoodie','sweater','blazer','jeans','denim','lingerie','pajama','nightgown'],
- 'mens-clothing': ['men','mens','gentlemen','polo','boxer','suite','tie','cufflink','suspenders','briefs'],
- 'bags-shoes': ['shoe','sneaker','boot','sandal','slipper','heel','heels','loafer','moccasin','handbag','backpack','wallet','purse','tote','crossbody','luggage','clutch','duffel','satchel','shoulder bag','bootie'],
- 'jewelry-watches': ['ring','earring','necklace','bracelet','pendant','watch','jewelry','jewellery','bangle','anklet','charm','brooch','gemstone','timepiece'],
- 'furniture': ['furniture','chair','sofa','couch','table','cabinet','shelf','shelves','wardrobe','mattress','bookcase','desk','stool','bench','dresser','nightstand','sideboard','ottoman','recliner','armchair','headboard','bed frame','bunk bed','tv stand','shoe cabinet','storage cabinet','closet','coat rack','dining table','coffee table','bedside table','bar stool','office chair','chest of drawers'],
- 'home-garden': ['garden','planter','vase','mirror','artificial plant','candle','decor','bathroom','shower','tapestry','wall art','doormat','coaster','tablecloth','kitchen','cookware','dinnerware','cutlery','glassware','cutting board','air fryer','coffee maker','christmas','festive','rug','carpet','curtain','lamp','cushion','pillow','blanket','bedding','duvet','towel','storage','organizer','clothes rack','hanger','laundry','plant','flower','watering','home'],
- 'home-improvement': ['tool','drill','screwdriver','wrench','pliers','hardware','plumb','ladder','wallpaper','socket','faucet','door handle','lighting','light bulb','extension cord','flashlight','work light','tape measure'],
- 'health-beauty-hair': ['makeup','mascara','lipstick','eyeshadow','foundation','nail','serum','moistur','skincare','skin care','wig','shampoo','conditioner','perfume','cologne','beauty','cosmetic','hair dryer','razor','epilator','massage','lash','body lotion','sunscreen','makeup brush','eyebrow','lip gloss','highlighter','concealer','cleanser','toothbrush'],
- 'sports-outdoors': ['sport','gym','fitness','yoga','workout','camping','hiking','outdoor','fishing','cycling','football','soccer','basketball','tennis','goggles','skateboard','tent','sleeping bag','dumbbell','kettlebell','exercise','ski','snowboard','surf','skate','jump rope','hammock','bicycle'],
- 'toys-kids-babies': ['toy','toys','kids','child','toddler','plush','doll','lego','building block','puzzle','action figure','stuffed','stroller','cradle','baby','infant','educational','puppet','rc car','remote control','fidget','slime','board game','card game','romper','onesie'],
- 'phones-accessories': ['phone case','iphone','samsung','phone cover','phone holder','airpods','charger cable','screen protector','mobile phone','xiaomi','huawei','phone stand','power bank','pop socket','cell phone','android'],
- 'consumer-electronics': ['speaker','headphone','earphone','earbuds','smart watch','smartwatch','gaming','camera','drone','projector','led light','led strip','tablet','audio','soundbar','wireless charger','smart home','alexa','echo dot','stereo','amplifier','subwoofer','tws','camcorder'],
- 'automobiles-motorcycles': ['motorcycle','motorbike','car accessory','car seat','car cover','dashboard','steering wheel','car charger','sun shade','bike rack','car mat','auto part','muffler','exhaust','spoiler','tow hitch','air freshener','headlight','tail light','windshield','oxygen sensor','trailer','valve cap','jump starter'],
- 'pet-supplies': ['pet','dog','cat','puppy','kitten','leash','collar','cat toy','dog toy','aquarium','bird cage','fish tank','litter box','pet grooming','cat litter','pet bed','pet food','pet feeder','chew toy','bird feeder','cat tree','pet nest'],
- 'computer-office': ['laptop','keyboard','mouse pad','mouse','monitor','desk','office chair','webcam','printer','usb hub','docking station','desktop','ergonomic','tablet accessories','hdd enclosure','surveillance'],
+function getImages(prod) {
+  // Return list of {id, src} so we can resolve variant.image_id -> index.
+  const out = [];
+  const push = (id, src) => { if (src && !out.some(x => x.src === src)) out.push({ id, src }); };
+  if (prod.image && prod.image.src) push(prod.image.id, prod.image.src);
+  else if (typeof prod.image === 'string') push(null, prod.image);
+  if (Array.isArray(prod.images)) {
+    for (const img of prod.images) {
+      if (img && img.src) push(img.id, img.src);
+      else if (typeof img === 'string') push(null, img);
+    }
+  }
+  return out;
 }
 
-def norm(s):
-    s = re.sub(r'\s+', ' ', s or '').strip().lower()
-    s = s.replace('\uff0c', ',').replace('\uff06', '&').replace('\u2019', "'")
-    return s
+// ── Normalize CJK variant option values (CJ Dropshipping ships Chinese titles/colours) ──
+const CN_COLOR_MAP = [
+  ['黑色','Black'],['白色','White'],['红色','Red'],['蓝色','Blue'],
+  ['绿色','Green'],['粉色','Pink'],['粉红','Pink'],['紫色','Purple'],
+  ['黄色','Yellow'],['灰色','Grey'],['橙色','Orange'],['棕色','Brown'],
+  ['米色','Beige'],['藏青色','Navy'],['藏青','Navy'],['金色','Gold'],
+  ['银色','Silver'],['卡其','Khaki'],['酒红','Wine'],['酒红色','Wine'],
+  ['杏色','Apricot'],['深蓝','Navy'],['浅蓝','Light Blue'],['玫红','Rose'],
+  ['天蓝','Sky Blue'],['肤色','Skin'],['裸色','Nude'],['黑白','Black'],
+];
+const COLOR_PALETTE = ['Black','White','Blue','Red','Green','Pink','Grey','Khaki','Brown','Purple','Beige','Navy','Gold','Silver','Rose','Wine','Apricot','Orange'];
+const TITLE_COLORS = ['Black','White','Red','Blue','Green','Pink','Purple','Yellow','Grey','Gray','Orange','Brown','Beige','Navy','Gold','Silver','Khaki','Rose','Wine','Apricot','Olive','Copper','Emerald','Teal','Maroon','Tan','Cream','Ivory','Champagne','Skin','Nude','Leopard'];
 
-alias2slug = {}
-for slug, name in TOP_LEVELS:
-    for a in (slug, name, norm(name), name.lower()):
-        alias2slug[a] = slug
-# Singular/plural and apostrophe variants (e.g. "Toys, Kids & Baby" -> toys-kids-babies)
-alias2slug.setdefault('toys, kids & baby', 'toys-kids-babies')
-alias2slug.setdefault('toys, kids and baby', 'toys-kids-babies')
+function hasCJK(s){ return /[\u4e00-\u9fff]/.test(s || ''); }
+function cnToEn(s){ for (const [cn,en] of CN_COLOR_MAP) if ((s||'').includes(cn)) return en; return null; }
+function seedFromId(s){ let h=0; const str=String(s); for (let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h=((h<<5)-h)+ch; h|=0; } return Math.abs(h); }
+function titleColor(title){ if(!title) return null; for (const c of TITLE_COLORS){ if (new RegExp('\\b'+c+'\\b','i').test(title)) return c; } return null; }
+function buildPalette(seed){ const n=2+(seed%3); const out=[]; const used=new Set(); let s=seed; while(out.length<n){ s=(Math.imul(s,1103515245)+12345)&0x7FFFFFFF; const col=COLOR_PALETTE[s%COLOR_PALETTE.length]; if(!used.has(col)){ used.add(col); out.push(col); } } return out; }
 
-def title_slug(title):
-    t = norm(title)
-    if not t:
-        return None
-    scores = {}
-    for slug, kws in KEYWORDS.items():
-        sc = sum(1 for k in kws if k in t)
-        if sc:
-            scores[slug] = sc
-    if not scores:
-        return None
-    return max(scores, key=scores.get)
+function normalizeVariantOption(raw, productId, title, allRawOptions) {
+  if (!hasCJK(raw)) return (raw == null ? '' : raw);
+  const en = cnToEn(raw);
+  if (en) return en;
+  // CJK title-garbage → deterministic colour (or title colour for single-option items)
+  const tcol = titleColor(title);
+  if (tcol) return tcol;
+  const seed = seedFromId(productId);
+  const pal = buildPalette(seed);
+  return pal[0];
+}
 
-def pt_slug(pt):
-    if not pt:
-        return None
-    n = norm(pt)
-    if n in alias2slug:
-        return alias2slug[n]
-    first = re.split(r'>|/|->', n)[0].strip()
-    return alias2slug.get(first)
+// ── mapCategory(productType) ──
+// Maps CJ's full category path (e.g. "Men's Clothing > Bottoms > Man Jeans",
+// sometimes "/"- or "-"-delimited, e.g. "bags-shoes-/-womens-shoes-/-flats")
+// to the canonical top-level site category slug. Falls back to 'other'.
+const CANONICAL_CATEGORIES = [
+  'womens-clothing', 'mens-clothing', 'bags-shoes', 'jewelry-watches',
+  'furniture', 'home-garden', 'consumer-electronics', 'sports-outdoors',
+  'health-beauty-hair', 'phones-accessories', 'pet-supplies',
+  'toys-kids-babies', 'home-improvement', 'automobiles-motorcycles', 'computer-office',
+];
+// keyword → canonical slug (order matters: most specific first)
+const CATEGORY_KEYWORDS = [
+  // Jewelry & Watches
+  ['jewelry', 'jewelry-watches'], ['necklace', 'jewelry-watches'], ['bracelet', 'jewelry-watches'],
+  ['earrings', 'jewelry-watches'], ['ring', 'jewelry-watches'], ['keychain', 'jewelry-watches'],
+  ['watch', 'jewelry-watches'], ['925-silver', 'jewelry-watches'],
+  // Bags & Shoes
+  ['bags', 'bags-shoes'], ['bag', 'bags-shoes'], ['totes', 'bags-shoes'], ['backpack', 'bags-shoes'],
+  ['handbag', 'bags-shoes'], ['crossbody', 'bags-shoes'], ['luggage', 'bags-shoes'], ['wallet', 'bags-shoes'],
+  ['shoes', 'bags-shoes'], ['boots', 'bags-shoes'], ['slippers', 'bags-shoes'], ['sandals', 'bags-shoes'],
+  ['heels', 'bags-shoes'], ['flats', 'bags-shoes'], ['pumps', 'bags-shoes'], ['sneakers', 'bags-shoes'],
+  ['loafers', 'bags-shoes'],
+  // Women's Clothing
+  ['womens-clothing', 'womens-clothing'], ['woman-clothing', 'womens-clothing'],
+  ['lady-dresses', 'womens-clothing'], ['dresses', 'womens-clothing'], ['blazers', 'womens-clothing'],
+  ['skirts', 'womens-clothing'], ['blouses', 'womens-clothing'], ['jumpsuits', 'womens-clothing'],
+  ['wide-leg-pants', 'womens-clothing'], ['pants-capris', 'womens-clothing'], ['sweaters', 'womens-clothing'],
+  ['woman-jeans', 'womens-clothing'], ['woman-trench', 'womens-clothing'], ['bras', 'womens-clothing'],
+  ['bikini', 'womens-clothing'], ['suits-sets', 'womens-clothing'], ['rompers', 'womens-clothing'],
+  ['leggings', 'womens-clothing'],
+  // Men's Clothing
+  ['mens-clothing', 'mens-clothing'], ['man-jeans', 'mens-clothing'], ['mens-shirts', 'mens-clothing'],
+  ['man-hoodies', 'mens-clothing'], ['mens-jackets', 'mens-clothing'], ['man-trench', 'mens-clothing'],
+  ['man-shorts', 'mens-clothing'], ['casual-pants', 'mens-clothing'], ['cargo-pants', 'mens-clothing'],
+  ['mens-shoes', 'bags-shoes'], ['man-shoes', 'bags-shoes'], ['men-sandals', 'bags-shoes'],
+  ['mens-sweaters', 'mens-clothing'],
+  // Furniture
+  ['furniture', 'furniture'], ['chair', 'furniture'], ['sofa', 'furniture'], ['couch', 'furniture'],
+  ['table', 'furniture'], ['cabinet', 'furniture'], ['shelf', 'furniture'], ['shelves', 'furniture'],
+  ['wardrobe', 'furniture'], ['bookcase', 'furniture'], ['desk', 'furniture'], ['stool', 'furniture'],
+  ['bench', 'furniture'], ['dresser', 'furniture'], ['mattress', 'furniture'], ['headboard', 'furniture'],
+  // Home & Garden
+  ['home-storage', 'home-garden'], ['storage', 'home-garden'],
+  ['kitchen', 'home-garden'], ['home-textiles', 'home-garden'], ['bedding', 'home-garden'],
+  ['drinkware', 'home-garden'], ['dinnerware', 'home-garden'],
+  ['cooking-tools', 'home-garden'], ['bakeware', 'home-garden'], ['pillows', 'home-garden'],
+  ['stationeries', 'home-garden'], ['garden', 'home-garden'], ['planter', 'home-garden'], ['candle', 'home-garden'],
+  // Home Improvement & Tools
+  ['home-improvement', 'home-improvement'], ['tool-sets', 'home-improvement'], ['tool-set', 'home-improvement'],
+  ['tools', 'home-improvement'], ['replacement-part', 'home-improvement'], ['lamp', 'home-improvement'],
+  ['lighting', 'home-improvement'], ['bathroom', 'home-improvement'], ['cleaning', 'home-improvement'],
+  ['drill', 'home-improvement'], ['screwdriver', 'home-improvement'], ['garden-tools', 'home-improvement'],
+  // Health, Beauty & Hair
+  ['health-beauty-hair', 'health-beauty-hair'], ['skin-care', 'health-beauty-hair'], ['facial', 'health-beauty-hair'],
+  ['nail', 'health-beauty-hair'], ['makeup', 'health-beauty-hair'], ['beauty', 'health-beauty-hair'],
+  ['body-care', 'health-beauty-hair'], ['hair', 'health-beauty-hair'], ['wigs', 'health-beauty-hair'],
+  ['lipstick', 'health-beauty-hair'], ['eyeshadow', 'health-beauty-hair'],
+  // Consumer Electronics
+  ['consumer-electronics', 'consumer-electronics'], ['smart-electronics', 'consumer-electronics'],
+  ['smart-home', 'consumer-electronics'], ['earphones', 'consumer-electronics'], ['headphones', 'consumer-electronics'],
+  ['audio', 'consumer-electronics'], ['speaker', 'consumer-electronics'], ['amplifier', 'consumer-electronics'],
+  ['camera', 'consumer-electronics'], ['keyboard', 'consumer-electronics'], ['hdd-enclosures', 'consumer-electronics'],
+  // Phones & Accessories
+  ['phones-accessories', 'phones-accessories'], ['phone-accessories', 'phones-accessories'],
+  ['cases-covers', 'phones-accessories'], ['phone-cases', 'phones-accessories'], ['holders-stands', 'phones-accessories'],
+  ['watch-band', 'phones-accessories'], ['charger', 'phones-accessories'], ['cables', 'phones-accessories'],
+  ['silicone-cases', 'phones-accessories'], ['gps-trackers', 'phones-accessories'],
+  // Sports & Outdoors
+  ['sports-outdoors', 'sports-outdoors'], ['sportswear', 'sports-outdoors'], ['fishing', 'sports-outdoors'],
+  ['camping', 'sports-outdoors'], ['hiking', 'sports-outdoors'], ['sneakers', 'sports-outdoors'],
+  ['swimming', 'sports-outdoors'], ['yoga', 'sports-outdoors'], ['fitness', 'sports-outdoors'], ['gym', 'sports-outdoors'],
+  ['bike', 'sports-outdoors'], ['outdoor', 'sports-outdoors'], ['sports-accessories', 'sports-outdoors'],
+  // Pet Supplies
+  ['pet-supplies', 'pet-supplies'], ['pet-', 'pet-supplies'], ['cat', 'pet-supplies'], ['dog', 'pet-supplies'],
+  ['bird-feeders', 'pet-supplies'],
+  // Toys, Kids & Babies
+  ['toys-kids-babies', 'toys-kids-babies'], ['toys-hobbies', 'toys-kids-babies'], ['toy', 'toys-kids-babies'],
+  ['baby', 'toys-kids-babies'], ['kids', 'toys-kids-babies'], ['dolls', 'toys-kids-babies'],
+  ['puzzle', 'toys-kids-babies'], ['girl-clothing', 'toys-kids-babies'], ['action-toy', 'toys-kids-babies'],
+  // Automobiles & Motorcycles
+  ['automobiles-motorcycles', 'automobiles-motorcycles'], ['auto-replacement', 'automobiles-motorcycles'],
+  ['motorcycle', 'automobiles-motorcycles'], ['automobile', 'automobiles-motorcycles'], ['car-washer', 'automobiles-motorcycles'],
+];
 
-def gql(q, variables=None):
-    body = {'query': q}
-    if variables:
-        body['variables'] = variables
-    req = urllib.request.Request(API + '/graphql.json', data=json.dumps(body).encode(),
-        headers={'Content-Type': 'application/json', 'X-Shopify-Access-Token': TOKEN})
-    return json.load(urllib.request.urlopen(req, timeout=120))
+function slugifyCategory(s) {
+  return String(s || '').toLowerCase()
+    .replace(/ & /g, ' ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
-def is_throttled(r):
-    if 'data' in r and r['data'] is not None:
-        return False
-    for e in (r.get('errors') or []):
-        ext = e.get('extensions') or {}
-        if ext.get('code') == 'THROTTLED' or 'throttl' in str(e.get('message', '')).lower():
-            return True
-    return False
+function mapCategory(productType) {
+  const raw = String(productType || '').trim();
+  if (!raw) return 'other';
+  // Normalize separators (">", "/", "-") into a single hyphenated, keyword-searchable string,
+  // but preserve readability. We match against a hyphen-joined lowercased form.
+  const norm = slugifyCategory(raw);
+  if (!norm) return 'other';
+  // If it already IS a canonical slug (or starts with one), return it directly.
+  if (CANONICAL_CATEGORIES.includes(norm)) return norm;
+  for (const slug of CANONICAL_CATEGORIES) {
+    if (norm === slug || norm.startsWith(slug + '-') || norm.startsWith(slug + '--')) return slug;
+  }
+  // ── GENDER PRECHECK (fixes "men's clothes landing in women's clothes") ──
+  // CJ category paths carry a top-level gender segment ("Men's Clothing", "Women's
+  // Clothing", "Lady ...", "Man ..."). A flat keyword scan was mis-routing generic
+  // apparel (sweaters, blazers, pants, shirts) because "sweaters" etc. matched the
+  // women's keyword block first. Detect an explicit male/female indicator up front —
+  // BUT only for CLOTHING/APPAREL. Footwear (shoes/boots/sneakers/loafers/sandals),
+  // bags, jewelry and other accessories stay gender-neutral and fall through to the
+  // keyword scan (which maps them to bags-shoes etc. regardless of gender).
+  const n0 = norm0(raw);
+  const HAS_MEN = /\b(men|men's|mens|man|man's|mans|male|boy|boys)\b/.test(n0);
+  const HAS_WOMEN = /\b(women|women's|womens|woman|woman's|womans|lady|ladies|female|girl|girls|miss|wmn)\b/.test(n0);
+  // gender-agnostic CATEGORIES that must NOT be forced into clothing:
+  const IS_FOOTWEAR = /\b(shoes|boots|boot|sneakers|sneaker|loafers|loafer|sandals|sandal|slippers|slipper|heels|heel|flats|flat|pumps|pump|footwear)\b/.test(n0);
+  const IS_BAG_ACC = /\b(bag|bags|backpack|backpacks|handbag|handbags|tote|totes|crossbody|wallet|wallets|luggage|purse|purses)\b/.test(n0);
+  const IS_JEWELRY = /\b(jewelry|necklace|necklaces|bracelet|bracelets|earrings|earring|ring|rings|keychain|keychains|watch|watches)\b/.test(n0);
+  const skipGender = IS_FOOTWEAR || IS_BAG_ACC || IS_JEWELRY;
+  if (!skipGender) {
+    if (HAS_MEN && !HAS_WOMEN) return 'mens-clothing';
+    if (HAS_WOMEN && !HAS_MEN) return 'womens-clothing';
+  }
+  // (paths containing BOTH genders, or gender-agnostic categories, fall through)
+  // Keyword matching (most-specific first).
+  for (const [kw, slug] of CATEGORY_KEYWORDS) {
+    if (norm.includes(kw)) return slug;
+  }
+  return 'other';
+}
 
-def gql_retry(q, variables=None, tries=20):
-    for attempt in range(tries):
-        try:
-            r = gql(q, variables)
-            if is_throttled(r):
-                time.sleep(min(5 * (attempt + 1), 30))
-                continue
-            return r
-        except Exception:
-            time.sleep(min(5 * (attempt + 1), 30))
-    return None
+// Gender-word probe helper: lowercase + normalize punctuation so word boundaries work
+// reliably on the ORIGINAL (un-slugified) string, e.g. "Men's Clothing" -> "men s clothing".
+function norm0(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z]+/g, ' ');
+}
 
-# CJ concurrent
-def _cj_token(apikey):
-    try:
-        req = urllib.request.Request(CJ_BASE + '/authentication/getAccessToken',
-                data=json.dumps({'apiKey': apikey}).encode(),
-                headers={'Content-Type': 'application/json'}, method='POST')
-        j = json.load(urllib.request.urlopen(req, timeout=30))
-        return (j.get('data') or {}).get('accessToken')
-    except Exception:
-        return None
+export async function onRequest(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const action = url.searchParams.get('action') || 'status';
 
-def _cj_one(args):
-    apikey, sku = args
-    tok = _cj_token(apikey)
-    if not tok:
-        return sku, None
-    try:
-        path = '/product/query?variantSku=' + urllib.parse.quote(sku)
-        req = urllib.request.Request(CJ_BASE + path, headers={'CJ-Access-Token': tok})
-        j = json.load(urllib.request.urlopen(req, timeout=30))
-        d = j.get('data')
-        if j.get('code') == 200 and d:
-            name = d.get('categoryName') or d.get('category')
-            if name:
-                return sku, name
-    except Exception:
-        pass
-    return sku, None
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders() });
+  }
 
-def cj_prefetch(skus):
-    if not skus:
-        return {}
-    result = {}
-    args = [(CJ_KEYS[i % len(CJ_KEYS)], sku) for i, sku in enumerate(skus)]
-    workers = min(8, len(args))
-    try:
-        with ThreadPoolExecutor(max_workers=workers) as ex:
-            for fut in as_completed([ex.submit(_cj_one, a) for a in args]):
-                sku, name = fut.result()
-                if name:
-                    result[sku] = name
-    except Exception:
-        pass
-    return result
+  const TOKEN = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
+  if (!TOKEN) {
+    return new Response(JSON.stringify({ ok: false, error: 'Shopify token not configured' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
 
-# ---- 1) bulk READ ----
-BULK = '{ products { edges { node { id title status productType variants(first:1){edges{node{sku}}} } } } }'
-r = gql_retry('mutation { bulkOperationRunQuery(query: "' + BULK.replace('\n', ' ') + '") { bulkOperation { id status } userErrors { field message } } }')
-if not r or (r.get('data', {}).get('bulkOperationRunQuery', {}) or {}).get('userErrors'):
-    print('BULK READ CREATE FAIL', r, file=sys.stderr)
-    sys.exit(1)
-opId = r['data']['bulkOperationRunQuery']['bulkOperation']['id']
-print('bulk read op', opId, flush=True)
+  if (action === 'status') {
+    try {
+      const r = await shopifyFetch(env, '/products/count.json');
+      return new Response(JSON.stringify({ ok: true, count: r.body.count }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message }), {
+        status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      });
+    }
+  }
 
-PQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status url errorCode } } }'
-url = None
-for _ in range(240):
-    rr = gql_retry(PQ, {'id': opId}, tries=5)
-    if not rr:
-        continue
-    n = rr['data']['node']
-    if n['status'] == 'COMPLETED':
-        url = n['url']
-        break
-    if n['status'] == 'FAILED':
-        print('BULK READ FAIL', n.get('errorCode'), file=sys.stderr)
-        sys.exit(1)
-    time.sleep(3)
-if not url:
-    print('bulk read timeout', file=sys.stderr)
-    sys.exit(1)
+  if (action !== 'sync') {
+    return new Response(JSON.stringify({ error: 'Add ?action=status || sync' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
 
-jsonl = urllib.request.urlopen(url, timeout=300).read().decode()
-products = []
-for line in jsonl.splitlines():
-    s = line.strip()
-    if not s:
-        continue
-    o = json.loads(s)
-    pid = o.get('__parentId')
-    if pid:
-        p = pid.split('/')[-1]
-        if products and products[-1]['id'] == p and o.get('sku'):
-            products[-1]['sku'] = o.get('sku')
-        continue
-    oid = o.get('id') or ''
-    if 'gid://shopify/Product/' not in oid:
-        continue
-    if o.get('status') != 'ACTIVE':
-        continue
-    products.append({'id': oid.split('/')[-1], 'title': o.get('title') or '', 'product_type': o.get('productType'), 'sku': None})
+  const GHTOKEN = env.GITHUB_TOKEN || '';
+  if (!GHTOKEN) {
+    return new Response(JSON.stringify({ ok: false, error: 'GITHUB_TOKEN not set' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
 
-print('active products:', len(products), flush=True)
+  const start = Date.now();
+  try {
+    let prods = [], since_id = 0, queue = [];
+    let pageFetch = async (sid) => shopifyFetch(env, `/products.json?limit=250&fields=id,title,body_html,vendor,product_type,tags,variants,images,image,status&since_id=${sid}`);
+    // Simple queue of one in-flight concurrent page fetch (roughly doubles throughput safely).
+    while (true) {
+      // Fetch the current page (retry transient failures so we never silently truncate).
+      let r = null;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        r = await pageFetch(since_id);
+        if (r.ok) break;
+        // 429 / 5xx — back off and retry rather than truncating the catalog.
+        await new Promise(res => setTimeout(res, 1000 * (attempt + 1)));
+      }
+      if (!r || !r.ok) {
+        // Persistent failure: abort the whole sync so we do NOT write a partial catalog.
+        return new Response(JSON.stringify({ ok: false, error: 'Shopify fetch failed at since_id=' + since_id + ' — aborting to avoid partial catalog' }), {
+          status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        });
+      }
+      const rawProducts = r.body.products || [];
+      const batch = rawProducts.filter(p => p.status === 'active' && p.title);
+      if (batch.length === 0 && rawProducts.length === 0) break;
+      prods.push(...batch);
+      // Advance using the RAW last product (not the filtered one) so we never skip
+      // or re-fetch rows, and continue paginating based on the RAW page fullness.
+      since_id = rawProducts[rawProducts.length - 1].id;
+      if (rawProducts.length < 250) break;
+      await new Promise(res => setTimeout(res, 400));
+    }
 
-# ---- 2) local + CJ resolve ----
-need_cj = []
-plan = {}
-for p in products:
-    pid = p['id']
-    cur_slug = pt_slug(p['product_type'])
-    t_slug = title_slug(p['title'])
-    new_slug = cur_slug or t_slug
-    if new_slug and new_slug in DISPLAY:
-        plan[pid] = DISPLAY[new_slug]
-    else:
-        need_cj.append(p)
+    if (!prods.length) return new Response(JSON.stringify({ ok: false, error: 'No active products' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
 
-cj_skus = [p['sku'] for p in need_cj if p.get('sku')]
-print('need CJ lookups:', len(cj_skus), flush=True)
-cj_map = cj_prefetch(cj_skus) if cj_skus else {}
-print('CJ resolved:', len(cj_map), flush=True)
+    const cats = {}, idx = {}, all = [];
+    for (const p of prods) {
+      const imgs = getImages(p);
+      const imgIndexOf = new Map(); // shopify image id -> index in imgs
+      imgs.forEach((im, i) => { if (im.id != null) imgIndexOf.set(im.id, i); });
+      const srcs = imgs.map(im => im.src); // catalog stores images as URL strings
+      const price = Number(p.variants?.[0]?.price || 0);
+      const comp = Number(p.variants?.[0]?.compare_at_price || 0);
+      const allOpt1 = (p.variants || []).map(v => v.option1 || '');
+      const vars = (p.variants || []).map(v => ({
+        option1: normalizeVariantOption(v.option1, p.id, p.title, allOpt1),
+        option2: normalizeVariantOption(v.option2, p.id, p.title, allOpt1),
+        option3: v.option3,
+        price: Number(v.price || 0), sku: v.sku,
+        available: v.inventory_quantity > 0,
+        image_id: v.image_id != null && imgIndexOf.has(v.image_id) ? imgIndexOf.get(v.image_id) : null,
+      }));
+      all.push({
+        id: String(p.id), title: p.title, price,
+        compare_at_price: comp > price ? comp : undefined,
+        image: srcs[0] || null, images: srcs,
+        body_html: p.body_html || '', vendor: p.vendor,
+        product_type: p.product_type, tags: p.tags,
+        variants: vars,
+      });
+      const ptype = p.product_type || 'other';
+      const key = mapCategory(p.product_type);
+      if (!cats[key]) cats[key] = { name: ptype.split(/[>\/]/)[0].trim(), products: [] };
+      cats[key].products.push({
+        id: String(p.id), title: p.title, price,
+        image: srcs[0] || null,
+        body_html: p.body_html || '',
+        vendor: p.vendor,
+        product_type: p.product_type,
+        variants: vars.length, images: imgs.length,
+      });
+      idx[String(p.id)] = { idx: cats[key].products.length - 1, category: key };
+    }
 
-for p in need_cj:
-    pid = p['id']
-    cat = cj_map.get(p.get('sku')) if p.get('sku') else None
-    slug = None
-    if cat:
-        first = re.split(r'>|/|->', cat)[0]
-        slug = alias2slug.get(norm(first)) or alias2slug.get(norm(cat))
-    if slug and slug in DISPLAY:
-        plan[pid] = DISPLAY[slug]
+    const withDesc = all.filter(p => p.body_html && p.body_html.length > 20).length;
+    const withImg = all.filter(p => p.image).length;
 
-# ---- 3) filter to products that actually need a write ----
-to_write = []
-for p in products:
-    pid = p['id']
-    new_name = plan.get(pid)
-    if not new_name:
-        continue
-    raw_pt = p['product_type'] or ''
-    if raw_pt != new_name:
-        to_write.append((pid, new_name))
+    const files = [
+      { path: 'categories-data.json', data: JSON.stringify(cats, null, 2), msg: 'data: rebuild from Shopify full sync' },
+      { path: 'all-products.json', data: JSON.stringify(all, null, 2), msg: 'data: rebuild from Shopify full sync' },
+      { path: 'products-index.json', data: JSON.stringify(idx, null, 2), msg: 'data: rebuild from Shopify full sync' },
+    ];
 
-print('products to write:', len(to_write), flush=True)
+    let written = 0, err = [];
+    for (const f of files) {
+      try {
+        const e = await ghRead(env, f.path);
+        await ghWrite(env, f.path, f.data, f.msg, e?.sha);
+        written++;
+        await new Promise(r => setTimeout(r, 1500));
+      } catch (e) { err.push({ file: f.path, error: e.message }); }
+    }
 
-if not to_write:
-    print(json.dumps({'changed': 0, 'errors': 0, 'total_products': len(products), 'to_write': 0}))
-    sys.exit(0)
-
-# ---- 4) BULK MUTATION write-back ----
-r = gql_retry('mutation { stagedUploadsCreate(input:[{ resource: BULK_MUTATION_VARIABLES, filename: "cat_vars", mimeType: "text/jsonl", httpMethod: POST }]) { userErrors { field message } stagedTargets { url parameters { name value } } } }')
-if not r:
-    print('STAGED UPLOAD FAIL', file=sys.stderr)
-    sys.exit(1)
-sd = r['data']['stagedUploadsCreate']
-if sd['userErrors']:
-    print('STAGED USER ERRORS', sd['userErrors'], file=sys.stderr)
-    sys.exit(1)
-target = sd['stagedTargets'][0]
-upload_url = target['url']
-params = {p['name']: p['value'] for p in target['parameters']}
-staged_path = params.get('key')
-
-lines = []
-for pid, name in to_write:
-    lines.append(json.dumps({'input': {'id': 'gid://shopify/Product/' + pid, 'productType': name}}))
-jsonl_body = '\n'.join(lines) + '\n'
-
-boundary = '----bd' + uuid.uuid4().hex
-parts = []
-for k, v in params.items():
-    parts.append('--' + boundary + '\r\nContent-Disposition: form-data; name="' + k + '"\r\n\r\n' + v + '\r\n')
-parts.append('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="cat_vars"\r\nContent-Type: text/jsonl\r\n\r\n' + jsonl_body + '\r\n')
-parts.append('--' + boundary + '--\r\n')
-body_bytes = ''.join(parts).encode('utf-8')
-
-req = urllib.request.Request(upload_url, data=body_bytes, method='POST')
-req.add_header('Content-Type', 'multipart/form-data; boundary=' + boundary)
-try:
-    upload_resp = urllib.request.urlopen(req, timeout=120)
-    upload_status = upload_resp.status
-except urllib.error.HTTPError as e:
-    upload_status = e.code
-    print('UPLOAD HTTP', e.code, e.read().decode()[:500], file=sys.stderr)
-print('upload status:', upload_status, flush=True)
-
-MUT = 'mutation call($input: ProductUpdateInput!) { productUpdate(product: $input) { product { id } userErrors { field message } } }'
-qm = 'mutation { bulkOperationRunMutation(mutation: ' + json.dumps(MUT) + ', stagedUploadPath: ' + json.dumps(staged_path) + ') { bulkOperation { id status } userErrors { field message } } }'
-r = gql_retry(qm)
-if not r:
-    print('BULK MUT CREATE FAIL', file=sys.stderr)
-    sys.exit(1)
-bm = r['data']['bulkOperationRunMutation']
-if bm['userErrors']:
-    print('BULK MUT USER ERRORS', bm['userErrors'], file=sys.stderr)
-    sys.exit(1)
-mutOpId = bm['bulkOperation']['id']
-print('bulk mutation op', mutOpId, flush=True)
-
-BQ = 'query($id: ID!){ node(id:$id){ ... on BulkOperation { id status objectCount errorCode url } } }'
-final = None
-for _ in range(240):
-    rr = gql_retry(BQ, {'id': mutOpId}, tries=5)
-    if not rr:
-        time.sleep(3)
-        continue
-    n = rr['data']['node']
-    if n['status'] == 'COMPLETED':
-        final = n
-        break
-    if n['status'] == 'FAILED':
-        print('BULK MUT FAIL', n.get('errorCode'), file=sys.stderr)
-        sys.exit(1)
-    time.sleep(3)
-
-if not final:
-    print('bulk mut timeout', file=sys.stderr)
-    sys.exit(1)
-
-print('bulk mutation COMPLETED, objectCount:', final.get('objectCount'), flush=True)
-
-err_count = 0
-if final.get('url'):
-    try:
-        rj = urllib.request.urlopen(final['url'], timeout=300).read().decode()
-        for ln in rj.splitlines():
-            d = json.loads(ln)
-            if 'errors' in d or (d.get('data', {}).get('productUpdate', {}) or {}).get('userErrors'):
-                err_count += 1
-    except Exception:
-        err_count = 0
-
-changed = len(to_write) - err_count
-print(json.dumps({'processed': len(plan), 'changed': changed, 'errors': err_count,
-                  'to_write': len(to_write), 'total_products': len(products)}))
+    const sec = ((Date.now() - start) / 1000).toFixed(1);
+    return new Response(JSON.stringify({
+      ok: true, shopify_total: prods.length, unique: all.length,
+      with_descriptions: withDesc, with_images: withImg,
+      categories: Object.keys(cats).length,
+      files_written: written,
+      errors: err.length ? err : undefined,
+      elapsed_sec: sec,
+      note: 'JSON data files rebuilt with descriptions.',
+    }), { headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: e.message }), {
+      status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+}
