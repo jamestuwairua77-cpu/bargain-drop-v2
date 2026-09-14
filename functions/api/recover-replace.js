@@ -26,11 +26,11 @@ function isBrokenType(pt) {
   return false;
 }
 
-// Flat 40% markup USD->AUD (1.5). Matches _cj-import.js repriceAUD.
-function repriceAUD(usdCost) {
-  const c = parseFloat(usdCost);
+// CJ suggested retail USD->AUD (no markup). Matches _cj-import.js repriceAUD.
+function repriceAUD(usdPrice) {
+  const c = parseFloat(usdPrice);
   if (!isFinite(c) || c <= 0) return null;
-  return Math.round(c * 1.4 * 1.5);
+  return Math.round(c * 1.5);
 }
 
 // CJ lookup by variantSku -> full product record (category/desc/title/images/variants).
@@ -87,7 +87,7 @@ function buildProductBody(cjData) {
   if (!optionNames.length) optionNames.push('Title');
 
   const shopVariants = variants.map((v) => {
-    const price = v.variantSellPrice != null ? repriceAUD(v.variantSellPrice) : null;
+    const price = (v.variantSugSellPrice != null ? repriceAUD(v.variantSugSellPrice) : (v.variantSellPrice != null ? repriceAUD(v.variantSellPrice) : null));
     const obj = {
       option1: optVal(v, 0) || 'Default Title',
       option2: optVal(v, 1) || null,
