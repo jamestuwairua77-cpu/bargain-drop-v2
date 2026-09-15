@@ -1,13 +1,14 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ `suggestSellPrice` × 1.5 → ceil whole dollar (AUD).
 //
-// v6 (2026-09-15): PER-PRODUCT CJ LOOKUPS + throttle-resilient write phase + timing cap.
+// v7 (2026-09-15): PER-PRODUCT CJ LOOKUPS + throttle/busy-resilient write phase + timing cap.
 // Instead of one CJ call per variant (?variantSku=SKU), we group variants by Shopify
 // product and issue ONE CJ lookup per product (first variant's SKU). CJ's product/query
 // response already contains the full sibling-variant list (variantSku + variantSugSellPrice),
 // so a single call resolves the suggested price for every variant in that product.
 // This collapses ~76,788 lookups to ~16,307 (the product count). Shopify writes are
-// batched per-product via productVariantsBulkUpdate, with THROTTLED retry + pacing.
+// batched per-product via productVariantsBulkUpdate, with THROTTLED + "currently being
+// modified" (concurrency-lock) retry + pacing.
 //
 // PRICING: CJ returns prices in USD (`suggestSellPrice` / `variantSugSellPrice`).
 // We convert to AUD via `ceil(usd * 1.5)` (whole Australian dollars).
@@ -194,7 +195,9 @@ async function applyBatch(env, changes) {
     `;
 
     // Retry on GraphQL THROTTLED (HTTP 200 with extensions.code=THROTTLED) — the
-    // admin API cost bucket overflows when we hammer one bulk update per product.
+    // admin API cost bucket overflows when we hammer one bulk update per product —
+    // AND on "currently being modified" (a concurrency lock when two workers write
+    // the same product simultaneously).
     let payload = null, rawErrors = null;
     for (let attempt = 0; attempt < 6; attempt++) {
       const r = await shopifyFetch(env, '/graphql.json', {
@@ -204,7 +207,8 @@ async function applyBatch(env, changes) {
       const b = r.body;
       if (b?.errors?.length) {
         const throttled = b.errors.some(e => (e?.extensions?.code) === 'THROTTLED' || /throttl/i.test(e?.message || ''));
-        if (throttled && attempt < 5) {
+        const busy = b.errors.some(e => /being modified|currently being modified|try again later/i.test(e?.message || ''));
+        if ((throttled || busy) && attempt < 5) {
           await sleep(2000 * (attempt + 1));
           continue;
         }
@@ -244,7 +248,7 @@ async function applyBatch(env, changes) {
 
 export async function onRequest(context) {
   const { request, env } = context;
-  if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders() });
   if (!isAdmin(request, env)) return adminDenied();
 
   const url = new URL(request.url);
