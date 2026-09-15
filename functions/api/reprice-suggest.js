@@ -1,17 +1,16 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ `suggestSellPrice` × 1.5 → ceil whole dollar (AUD).
 //
-// v2 (2026-09-15): BULK WRITE PATH. CJ lookups are the only per-item cost (1 req/sec QPS);
-// Shopify writes are now batched via N aliased productVariantUpdate mutations per GraphQL call,
-// eliminating the per-variant REST PUT pause + 429 storm. CJ lookups decoupled from writes.
+// v3 (2026-09-15): BULK WRITE via productVariantsBulkUpdate (grouped by product). CJ lookups
+// are the only per-item cost (1 req/sec QPS); Shopify writes are batched per-product, so a
+// product with N variants is one GraphQL call instead of N REST PUTs. CJ decoupled from writes.
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
 const STATE_KEY = 'reprice-suggest';
 const CJ_PAUSE_MS = 1000;      // CJ free tier = 1 req/sec per IP
-const MAX_PER_RUN = 120;       // lookups per run (QPS-bound; ~2min of lookups)
-const RUN_BUDGET_MS = 55000;   // Cloudflare Function hard limit ~50s budget; keep margin
-const BATCH_SIZE = 50;         // aliased productVariantUpdate mutations per GraphQL call (cost-safe)
+const MAX_PER_RUN = 120;       // lookups per run (QPS-bound)
+const RUN_BUDGET_MS = 55000;   // keep margin under CF ~50s hard limit
 const MAX_RETRY = 20000;
 
 function usdToAudWhole(usd) {
@@ -127,7 +126,7 @@ function parseRows(txt) {
   return queue;
 }
 
-// CJ lookup only — returns { done, aud?, err? }, no Shopify write.
+// CJ lookup only — returns { done, aud?, shopProductId?, variantId? }, no Shopify write.
 async function lookUpCj(env, item) {
   if (!item.sku) return { done: 'skipNoSku' };
   const cj = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(item.sku));
@@ -151,36 +150,63 @@ async function lookUpCj(env, item) {
   if (aud == null || aud <= 0) return { done: 'aud0' };
   const audStr = String(aud);
   if (audStr === String(item.oldPrice)) return { done: 'same' };
-  return { done: 'price', aud: audStr };
+  return { done: 'price', aud: audStr, shopProductId: item.shopProductId, variantId: item.variantId };
 }
 
-// Batch-apply price changes via aliased productVariantUpdate mutations (cross-product safe).
+const gidVariant = (id) => /^gid:/.test(id) ? id : `gid://shopify/ProductVariant/${id}`;
+const gidProduct = (id) => /^gid:/.test(id) ? id : `gid://shopify/Product/${id}`;
+
+// Batch-apply price changes grouped by product via productVariantsBulkUpdate.
 async function applyBatch(env, changes) {
   if (!changes.length) return { updated: 0, failed: 0, errors: [] };
   let updatedN = 0, failedN = 0;
   const errors = [];
 
-  for (let i = 0; i < changes.length; i += BATCH_SIZE) {
-    const chunk = changes.slice(i, i + BATCH_SIZE);
-    const mutations = chunk.map((c, j) => {
-      const gid = /^gid:/.test(c.variantId) ? c.variantId : `gid://shopify/ProductVariant/${c.variantId}`;
-      return `m${j}: productVariantUpdate(input: { id: "${gid}", price: "${c.aud}" }) { productVariant { id price } userErrors { field message } }`;
-    }).join('\n');
-    const q = `mutation { ${mutations} }`;
-    const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
+  // Group by product
+  const byProduct = new Map();
+  for (const c of changes) {
+    const pid = c.shopProductId || 'unknown';
+    if (!byProduct.has(pid)) byProduct.set(pid, []);
+    byProduct.get(pid).push(c);
+  }
+
+  for (const [pid, items] of byProduct) {
+    const variants = items.map(c => ({ id: gidVariant(c.variantId), price: c.aud }));
+    const q = `
+      mutation($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+        productVariantsBulkUpdate(productId: $productId, variants: $variants, allowPartialUpdates: true) {
+          product { id }
+          productVariants { id price }
+          userErrors { field message }
+        }
+      }
+    `;
+    const r = await shopifyFetch(env, '/graphql.json', {
+      method: 'POST',
+      body: JSON.stringify({ query: q, variables: { productId: gidProduct(pid), variants } }),
+    });
     const b = r.body;
     if (b?.errors?.length) {
-      errors.push('graphql: ' + (b.errors[0]?.message || 'unknown'));
+      failedN += items.length;
+      if (errors.length < 30) errors.push('graphql: ' + (b.errors[0]?.message || 'unknown'));
+      continue;
     }
-    for (let j = 0; j < chunk.length; j++) {
-      const res = b?.data?.['m' + j];
-      if (!res) { failedN++; continue; }
-      if (res.userErrors && res.userErrors.length) {
-        failedN++;
-        if (errors.length < 30) errors.push(res.userErrors[0].message || 'userError');
-      } else {
-        updatedN++;
-      }
+    const payload = b?.data?.productVariantsBulkUpdate;
+    if (!payload) {
+      failedN += items.length;
+      if (errors.length < 30) errors.push('no payload for product ' + pid);
+      continue;
+    }
+    const ue = payload.userErrors || [];
+    if (ue.length) {
+      const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : 0;
+      updatedN += okCount;
+      failedN += Math.max(0, items.length - okCount);
+      for (const e of ue) { if (errors.length < 30 && e?.message) errors.push(e.message); }
+    } else {
+      const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : items.length;
+      updatedN += okCount;
+      if (okCount !== items.length) failedN += (items.length - okCount);
     }
   }
   return { updated: updatedN, failed: failedN, errors };
@@ -271,7 +297,7 @@ export async function onRequest(context) {
         const item = st.retry.shift();
         const res = await lookUpCj(env, item);
         processedNow++;
-        if (res.done === 'price') { changes.push({ variantId: item.variantId, aud: res.aud }); retriedNow++; }
+        if (res.done === 'price') { changes.push(res); retriedNow++; }
         else if (res.done === 'skipNoSku') { skipNoSkuNow++; retriedNow++; }
         else if (res.done === 'skipNoSug') { skipNoSugNow++; retriedNow++; }
         else if (res.done === 'aud0') { aud0Now++; retriedNow++; }
@@ -296,7 +322,7 @@ export async function onRequest(context) {
           const item = queue[idx];
           const res = await lookUpCj(env, item);
           processedNow++;
-          if (res.done === 'price') { changes.push({ variantId: item.variantId, aud: res.aud }); }
+          if (res.done === 'price') { changes.push(res); }
           else if (res.done === 'skipNoSku') { skipNoSkuNow++; }
           else if (res.done === 'skipNoSug') { skipNoSugNow++; }
           else if (res.done === 'aud0') { aud0Now++; }
@@ -312,7 +338,7 @@ export async function onRequest(context) {
         st.done = idx;
       }
 
-      // Phase 3: bulk-apply all collected price changes to Shopify
+      // Phase 3: bulk-apply all collected price changes to Shopify (grouped by product)
       const applied = await applyBatch(env, changes);
       updatedNow += applied.updated;
       failedNow += applied.failed;
