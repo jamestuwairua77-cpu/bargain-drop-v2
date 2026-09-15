@@ -114,7 +114,11 @@ function parseRows(txt) {
     if (!m) continue;
     const p = products.get(m[1]);
     if (!p) continue;
-    p.variants.push({ variantId: String(r.id || ''), sku: r.sku != null ? String(r.sku) : '', oldPrice: r.price != null ? String(r.price) : '' });
+    // Shopify REST needs the NUMERIC id, not the full GID. The product id is already
+    // stripped above via /(\d+)$/; do the same for the variant so the PUT path
+    // (/variants/{id}.json) and body (variant.id) don't carry "gid://..." (→ HTTP 406).
+    const vm = /(\d+)$/.exec(String(r.id || ''));
+    p.variants.push({ variantId: vm ? vm[1] : String(r.id || ''), sku: r.sku != null ? String(r.sku) : '', oldPrice: r.price != null ? String(r.price) : '' });
   }
   const queue = [];
   for (const [sid, p] of products) {
