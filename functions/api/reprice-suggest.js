@@ -1,25 +1,27 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ per-variant `variantSugSellPrice` → AUD at live FX.
 //
-// v10 (2026-09-15): v9 semantics + CONCURRENCY (speed boost).
-//  - CJ lookups resolved in parallel (bounded pool of CJ_CONCURRENCY=3, under the MCP
-//    ~4 req/sec per-IP ceiling) instead of sequential + 250ms sleep, and Shopify product
-//    variant writes run with WRITE_CONCURRENCY=3 and 80ms pacing instead of 200ms.
+// v10.1 (2026-09-15): v9 semantics + CONCURRENCY + total-budget safety.
+//  - CJ lookups resolved in parallel (CJ_CONCURRENCY=3) and Shopify writes in parallel
+//    (WRITE_CONCURRENCY=3, 80ms pacing), with a HARD_DEADLINE_MS total-run guard that
+//    defers + re-queues unresolved items instead of getting killed mid-run by Cloudflare's
+//    ~50s wall-clock limit (MAX_PER_RUN capped at 80 to keep lookup+write within budget).
 //  - Same per-variant `variantSugSellPrice` → live USD→AUD → whole-dollar ceil,
-//    compareAtPrice cleared (null). State cursor logic preserved (idempotent re-queue).
+//    compareAtPrice cleared (null). Idempotent re-queue preserves cursor correctness.
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
 const STATE_KEY = 'reprice-suggest';
 const FX_KEY = 'reprice-fx';         // cached live AUD rate in shop metafield
-const MAX_PER_RUN = 200;
-const RUN_BUDGET_MS = 28000;
+const MAX_PER_RUN = 80;
+const RUN_BUDGET_MS = 24000;
 const MAX_RETRY = 20000;
 const FX_FALLBACK = 1.40;            // live fallback if FX API down
 const FX_TTL_MS = 6 * 3600 * 1000;
 const CJ_CONCURRENCY = 3;   // parallel CJ lookups (stay under MCP ~4 req/sec per-IP)
 const WRITE_CONCURRENCY = 3; // parallel Shopify product-variant writes
 const WRITE_SLEEP_MS = 80;   // pacing between Shopify product writes
+const HARD_DEADLINE_MS = 46000; // stop persisting before Cloudflare ~50s kill
 
 // Fetch the live USD→AUD rate, cached in a shop metafield (survives isolate recycling).
 async function liveAudRate(env) {
@@ -219,7 +221,7 @@ async function mapLimit(items, concurrency, fn) {
   return results;
 }
 
-async function applyBatch(env, changes, rate) {
+async function applyBatch(env, changes, rate, hardDeadline, onDefer) {
   if (!changes.length) return { updated: 0, failed: 0, errors: [] };
   let updatedN = 0, failedN = 0;
   const errors = [];
@@ -287,6 +289,11 @@ async function applyBatch(env, changes, rate) {
   }
 
   const entries = Array.from(byProduct.entries());
+  if (hardDeadline && Date.now() > hardDeadline) {
+    // Out of time entirely: defer everything (idempotent — will re-resolve next run).
+    if (onDefer) for (const [pid] of entries) onDefer(pid);
+    return { updated: updatedN, failed: failedN, errors, deferred: true };
+  }
   const results = await mapLimit(entries, WRITE_CONCURRENCY, ([pid, items]) => writeOne(pid, items));
   for (const r of results) {
     updatedN += r.ok;
@@ -379,7 +386,9 @@ export async function onRequest(context) {
       const queue = parseProducts(txt);
 
       let updatedNow = 0, failedNow = 0, skipNoSkuNow = 0, skipNoSugNow = 0, aud0Now = 0, cjSkipNow = 0, retriedNow = 0, processedNow = 0;
-      const deadline = Date.now() + RUN_BUDGET_MS;
+      const runStart = Date.now();
+      const hardDeadline = runStart + HARD_DEADLINE_MS;   // absolute stop for the WHOLE run
+      const deadline = runStart + RUN_BUDGET_MS;          // lookup-phase budget
       const nextRetry = [];
       const changes = [];
       let rateLimited = false;
@@ -455,8 +464,21 @@ export async function onRequest(context) {
       }
       st.done = idx;
 
-      // Phase 3: bulk-apply (per-variant price + compare-at cleared)
-      const applied = await applyBatch(env, changes, rate);
+      // Phase 3: bulk-apply (per-variant price + compare-at cleared).
+      // If we are already past the hard deadline, defer ALL writes and requeue the
+      // unresolved slice items so nothing is lost (idempotent — re-resolved next run).
+      const deferredItems = [];
+      const applied = (Date.now() > hardDeadline)
+        ? { updated: 0, failed: 0, errors: [], deferred: true }
+        : await applyBatch(env, changes, rate, hardDeadline, (pid) => {
+            const orig = queue.find(q => String(q.shopProductId) === String(pid));
+            if (orig) deferredItems.push(orig);
+          });
+      if (applied.deferred) {
+        // Out of time: requeue every unresolved slice item (their changes were never written).
+        for (const o of sliceItems) { if (o.cursor >= idx) nextRetry.push(queue[o.cursor]); }
+      }
+      if (deferredItems.length) nextRetry.push(...deferredItems);
       updatedNow += applied.updated;
       failedNow += applied.failed;
       if (applied.errors.length) {
