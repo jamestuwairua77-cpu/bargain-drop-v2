@@ -387,6 +387,18 @@ export async function onRequest(context) {
       return json({ ok: true, phase: op?.status || 'unknown', opId: meta.opId });
     }
 
+    if (action === 'clear-retry') {
+      // Zero the retry queue for a specific shard (keeps done/cursor).
+      // Used to un-stick shards poisoned by a throttle storm.
+      const shard = shardParam != null ? parseInt(shardParam, 10) || 0 : 0;
+      if (shard < 0 || shard >= SHARDS) return json({ ok: false, error: 'shard out of range 0..' + (SHARDS - 1) }, 400);
+      const st = await loadShard(env, shard);
+      const cleared = st.retry.length;
+      st.retry = [];
+      await saveShard(env, shard, st);
+      return json({ ok: true, shard, cleared, done: st.done });
+    }
+
     if (action === 'run') {
       const shard = shardParam != null ? parseInt(shardParam, 10) || 0 : 0;
       if (shard < 0 || shard >= SHARDS) return json({ ok: false, error: 'shard out of range 0..' + (SHARDS - 1) }, 400);
