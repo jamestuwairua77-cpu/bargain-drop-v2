@@ -1,7 +1,7 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ `suggestSellPrice` × 1.5 → ceil whole dollar (AUD).
 //
-// v7 (2026-09-15): PER-PRODUCT CJ LOOKUPS + throttle/busy-resilient write phase + timing cap.
+// v8 (2026-09-15): MCP-token lookups at ~4 req/sec (Prime tier) — 4x faster than apiKey 1/sec.
 // Instead of one CJ call per variant (?variantSku=SKU), we group variants by Shopify
 // product and issue ONE CJ lookup per product (first variant's SKU). CJ's product/query
 // response already contains the full sibling-variant list (variantSku + variantSugSellPrice),
@@ -16,8 +16,8 @@
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
 const STATE_KEY = 'reprice-suggest';
-const CJ_PAUSE_MS = 1000;      // CJ free tier = 1 req/sec per IP
-const MAX_PER_RUN = 30;        // PRODUCTS per run (fits ~50s CF limit incl. write pacing)
+const CJ_PAUSE_MS = 250;       // MCP tokens allow ~4 req/sec (Prime tier)
+const MAX_PER_RUN = 40;        // PRODUCTS per run (fits ~50s CF limit incl. write pacing)
 const RUN_BUDGET_MS = 28000;   // cap CJ phase; leaves ~20s for the write phase under CF ~50s
 const MAX_RETRY = 20000;
 
