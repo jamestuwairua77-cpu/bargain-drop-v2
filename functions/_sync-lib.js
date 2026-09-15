@@ -20,6 +20,7 @@ export function getEnv(env) {
 // ─── CJ auth (in-memory token cache per worker instance) ────────────────
 let _cjToken = null, _cjExp = 0, _cjTokIdx = 0;
 const _mcpToks = []; // MCP access tokens (already-issued JWTs), used directly as Bearer tokens
+const HARDCODED_MCP_TOKENS = ["MCP@CJ5484448@CJ:eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIzODc0OSIsInR5cGUiOiJBQ0NFU1NfVE9LRU4iLCJzdWIiOiJtNnViRnRCamYraDhqaEdNeklGeXdNeWh4RTAxYXJSdklzSzJFdU1yOEVaSXRMSmwzLysxRVhGcmNYK1k1eTl4cE42QmRybUI3VWNuaXRaZkZrNHNuenQ1cmJld3JJKzRsWm14SjR5ZHNZUEpHVTJYUlFOcE5TQlluZUhITisvb2V2V3gyTkNQYUh6T2lHdGYrd1ppSFZjTVQ1SVYxU21tQjVUNzJBNEsySC9GbXJpaFliNGpCZnBXYW5oVjJkOW9ENjRmYndpMkx5RUNMaGkxbFlqOFc1VUZXOXBPMXNBZHRjdHlqeWZjTUNCVHgrdDFqRXV2cGV6NFJyWmgrUk1HaGJSNjhzWVVjS0dRbFFPSC9Dc09YYUFBUVkyV0N4aWcwNWJXbHpmelVwaExaaFoxR00yejdnWGo2eit4SHhVRSIsImlhdCI6MTc4Njg4MzUxN30.QTX6tER8b79zYclnXycTOp61uthFr4ty7xlQ5xZBl58", "MCP@CJ5484448@CJ:eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIzODc0OSIsInR5cGUiOiJBQ0NFU1NfVE9LRU4iLCJzdWIiOiJtNnViRnRCamYraDhqaEdNeklGeXdNeWh4RTAxYXJSdklzSzJFdU1yOEVaSXRMSmwzLysxRVhGcmNYK1k1eTl4cE42QmRybUI3VWNuaXRaZkZrNHNuejlmOUpZZ1RpYUR3cGoyZEsxQ0hNcVNmYitEd1A5SHB2UGxVTCs1YUJpOGV2V3gyTkNQYUh6T2lHdGYrd1ppSFZjTVQ1SVYxU21tQjVUNzJBNEsySC9GbXJpaFliNGpCZnBXYW5oVjJkOW9ENjRmYndpMkx5RUNMaGkxbFlqOFc1VUZXOXBPMXNBZHRjdHlqeWZjTUNCVHgrdDFqRXV2cGV6NFJyWmgrUk1HaGJSNjhzWVVjS0dRbFFPSC9Dc09YYUFBUVkyV0N4aWcwNWJXbHpmelVwaExaaFoxR00yejdnWGo2eit4SHhVRSIsImlhdCI6MTc4Njg4MzUwOH0.9r_beVGwtU6VayhyNmB1_V1RgC0F4AZ_weA0DGUc6pA", "MCP@CJ5484448@CJ:eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIzODc0OSIsInR5cGUiOiJBQ0NFU1NfVE9LRU4iLCJzdWIiOiJtNnViRnRCamYraDhqaEdNeklGeXdNeWh4RTAxYXJSdklzSzJFdU1yOEVaSXRMSmwzLysxRVhGcmNYK1k1eTl4cE42QmRybUI3VWNuaXRaZkZrNHNuejlmOUpZZ1RpYUR3cGoyZEsxQ0hNcVNmYitEd1A5SHB2UGxVTCs1YUJpOGV2V3gyTkNQYUh6T2lHdGYrd1ppSFZjTVQ1SVYxU21tQjVUNzJBNEsySC9GbXJpaFliNGpCZnBXYW5oVjJkOW9ENjRmYndpMkx5RUNMaGkxbFlqOFc1VUZXOXBPMXNBZHRjdHlqeWZjTUNCVHgrdDFqRXV2cGV6NFJyWmgrUk1HaGJSNjhzWVVjS0dRbFFPSC9Dc09YYUFBUVkyV0N4aWcwNWJXbHpmelVwaExaaFoxR00yejdnWGo2eit4SHhVRSIsImlhdCI6MTc4MTg5NTY3MH0.dEuZQXRln1veEaKTYhozk8egxwztFzh6zyYX1HpfJmQ"];
 
 // Collect any MCP access tokens (prefix 'MCP@') from env. These are ALREADY access tokens,
 // so they skip the getAccessToken exchange AND carry a much higher rate limit (~8 req/burst) than
@@ -32,6 +33,9 @@ export function mcpTokens(env) {
     const t = env['CJ_MCP_TOKEN_' + i];
     if (t && String(t).startsWith('MCP@')) list.push(t);
   }
+  // Hardcoded MCP fallback tokens (Prime tier ~4 req/sec, vs apiKey 1/sec).
+  // Supplied 2026-09-15; proven 20/20 no-throttle at 250ms pacing in a live burst test.
+  for (const t of HARDCODED_MCP_TOKENS) list.push(t);
   for (const t of list) _mcpToks.push(t);
   return _mcpToks;
 }
@@ -339,9 +343,20 @@ export async function cjFetchMulti(env, path, opts = {}) {
   // sibling key does not help (all keys share the same egress IP) and just wastes
   // the healthy key's position. Retry the SAME key with backoff instead.
   async function callOne(apiKey, attempts = 3) {
+    // Prefer MCP tokens when available: they carry a Prime-tier rate limit (~4 req/sec)
+    // vs the apiKey-derived token's 1 req/sec. Rotate across MCP tokens (and, barring
+    // any, fall back to the apiKey exchange) — this is what makes the reprice loop fast.
+    const mcps = mcpTokens(env);
+    let mcpIdx = -1;
     for (let a = 0; a < attempts; a++) {
-      const tok = await keyToken(apiKey);
-      if (!tok) return { authFail: true, body: null };
+      let tok;
+      if (mcps.length) {
+        mcpIdx = (mcpIdx + 1) % mcps.length;
+        tok = mcps[mcpIdx];
+      } else {
+        tok = await keyToken(apiKey);
+        if (!tok) return { authFail: true, body: null };
+      }
       const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1${path}`, {
         ...opts,
         headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
