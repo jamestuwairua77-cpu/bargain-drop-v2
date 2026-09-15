@@ -11,7 +11,7 @@
 //  - Same pricing: per-variant `variantSugSellPrice` → live USD→AUD → whole-dollar ceil,
 //    compareAtPrice cleared (null). Idempotent re-queue preserves cursor correctness.
 
-import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
+import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet, cjKeys, keyToken } from '../_sync-lib.js';
 
 const SHARDS = 16;                 // number of parallel workers
 const META_KEY = 'reprice-meta';   // shared: bulk csv url + totals + fx (written by poll-bulk)
@@ -214,6 +214,47 @@ const gidVariant = (id) => /^gid:/.test(id) ? id : `gid://shopify/ProductVariant
 const gidProduct = (id) => /^gid:/.test(id) ? id : `gid://shopify/Product/${id}`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ─── Cross-account round-robin CJ lookup (fixes the ~1/sec sticky-key floor) ─
+// cjFetchMulti is STICKY to one preferred key, so a burst of concurrent lookups
+// all hit ONE account at ~1 req/sec (CJ's per-IP QPS floor). This helper instead
+// ROUND-ROBINS across the fresh API-key accounts so each gets ~1 req/sec and the
+// worker sustains ~N req/sec (N = healthy accounts) from the single worker IP.
+const CJ_PACE_MS = 1050;                    // per-account min gap (slightly >1s to avoid QPS)
+const _rrIdx = { i: 0 };                      // module-level round-robin cursor
+const _rrLast = {};                           // apiKey -> last call timestamp (ms)
+
+async function cjFetchRoundRobin(env, path) {
+  const all = Array.isArray(cjKeys(env)) ? cjKeys(env) : [];
+  // Only API-key accounts (CJ######@api@...) — skip MCP tokens (exhausted account)
+  // and any env-only tokens that may not be fresh. Keep resolve simple & resumable.
+  const keys = all.filter((k) => typeof k === 'string' && /^CJ\d+@api@/.test(k));
+  if (!keys.length) return { code: -1, data: null, rateLimited: true };
+  // stagger: each account fires once, spaced CJ_PACE_MS apart
+  for (let n = 0; n < keys.length; n++) {
+    const apiKey = keys[(_rrIdx.i + n) % keys.length];
+    const last = _rrLast[apiKey] || 0;
+    const wait = CJ_PACE_MS - (Date.now() - last);
+    if (wait > 0) await sleep(wait);
+    _rrLast[apiKey] = Date.now();
+    let tok;
+    try { tok = await keyToken(apiKey); } catch { continue; }
+    if (!tok) continue;
+    try {
+      const r = await fetch(`https://developers.cjdropshipping.com/api2.0/v1${path}`, {
+        headers: { 'CJ-Access-Token': tok, 'Content-Type': 'application/json' },
+      });
+      const body = await r.json();
+      const code = Number(body && body.code);
+      if (code === 200 || code === 0) { _rrIdx.i = (n + 1) % keys.length; return body; }
+      if (code === 429 || code === 1600200) { /* per-IP QPS: still try next account */ continue; }
+      if (code === 16900500) { /* this account out of points: try next */ continue; }
+      // 1600014 / 1602001 etc = account can't see this SKU -> try next account
+      continue;
+    } catch { continue; }
+  }
+  return { code: 1600200, data: null, rateLimited: true };
+}
+
 async function mapLimit(items, concurrency, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -291,7 +332,7 @@ async function applyBatch(env, changes) {
 
 // ─── Shard slice: products whose global index % SHARDS === shard ─────────
 function shardSlice(queue, shard) {
-  // Returns the shard's ordered product list (already filtered by i%SHARDS===shard),
+  // Returns the shard's ordered product list (already filtered by I%SHARDS===shard),
   // and we advance an INDEX into THIS list, not the global index.
   const slice = [];
   for (let i = 0; i < queue.length; i++) {
@@ -425,10 +466,11 @@ export async function onRequest(context) {
       async function resolveProduct(item) {
         const firstSku = (item.variants.find(v => v.sku) || {}).sku;
         if (!firstSku) return { skipNoSku: item.variants.length, skipNoSug: 0, aud0: 0, changes: [] };
-        const cj = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(firstSku));
+        const cj = await cjFetchRoundRobin(env, '/product/query?variantSku=' + encodeURIComponent(firstSku));
         const code = cj?.code;
-        if (code === 429 || code === 1600200) return { rateLimited: true, item };
+        if (cj?.rateLimited || code === 429 || code === 1600200) return { rateLimited: true, item };
         if (code === 16900500) return { cjskip: true };
+        if (code !== 200 && code !== 0) return { cjskip: true };
         return processProduct(env, item, cj, rate);
       }
 
