@@ -1,13 +1,13 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ `suggestSellPrice` × 1.5 → ceil whole dollar (AUD).
 //
-// v4 (2026-09-15): PER-PRODUCT CJ LOOKUPS. Instead of one CJ call per variant
-// (?variantSku=SKU), we group variants by Shopify product and issue ONE CJ lookup
-// per product (using the first variant's SKU). CJ's product/query response already
-// contains the full sibling-variant list (variantSku + variantSugSellPrice), so a
-// single call resolves the suggested price for every variant in that product.
-// This collapses ~76,788 lookups to ~13,817 (the product count). Shopify writes
-// remain batched per-product via productVariantsBulkUpdate.
+// v5 (2026-09-15): PER-PRODUCT CJ LOOKUPS + throttle-resilient write phase.
+// Instead of one CJ call per variant (?variantSku=SKU), we group variants by Shopify
+// product and issue ONE CJ lookup per product (first variant's SKU). CJ's product/query
+// response already contains the full sibling-variant list (variantSku + variantSugSellPrice),
+// so a single call resolves the suggested price for every variant in that product.
+// This collapses ~76,788 lookups to ~16,307 (the product count). Shopify writes are
+// batched per-product via productVariantsBulkUpdate, with THROTTLED retry + pacing.
 //
 // PRICING: CJ returns prices in USD (`suggestSellPrice` / `variantSugSellPrice`).
 // We convert to AUD via `ceil(usd * 1.5)` (whole Australian dollars).
@@ -166,6 +166,8 @@ function processProduct(env, item, cjData) {
 const gidVariant = (id) => /^gid:/.test(id) ? id : `gid://shopify/ProductVariant/${id}`;
 const gidProduct = (id) => /^gid:/.test(id) ? id : `gid://shopify/Product/${id}`;
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // Batch-apply price changes grouped by product via productVariantsBulkUpdate.
 async function applyBatch(env, changes) {
   if (!changes.length) return { updated: 0, failed: 0, errors: [] };
@@ -190,33 +192,52 @@ async function applyBatch(env, changes) {
         }
       }
     `;
-    const r = await shopifyFetch(env, '/graphql.json', {
-      method: 'POST',
-      body: JSON.stringify({ query: q, variables: { productId: gidProduct(pid), variants } }),
-    });
-    const b = r.body;
-    if (b?.errors?.length) {
-      failedN += items.length;
-      if (errors.length < 30) errors.push('graphql: ' + (b.errors[0]?.message || 'unknown'));
-      continue;
+
+    // Retry on GraphQL THROTTLED (HTTP 200 with extensions.code=THROTTLED) — the
+    // admin API cost bucket overflows when we hammer one bulk update per product.
+    let payload = null, rawErrors = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const r = await shopifyFetch(env, '/graphql.json', {
+        method: 'POST',
+        body: JSON.stringify({ query: q, variables: { productId: gidProduct(pid), variants } }),
+      });
+      const b = r.body;
+      if (b?.errors?.length) {
+        const throttled = b.errors.some(e => (e?.extensions?.code) === 'THROTTLED' || /throttl/i.test(e?.message || ''));
+        if (throttled && attempt < 5) {
+          await sleep(2000 * (attempt + 1));
+          continue;
+        }
+        rawErrors = b.errors;
+        break;
+      }
+      payload = b?.data?.productVariantsBulkUpdate;
+      if (payload) break;
+      // no payload and no errors — brief pause and retry
+      if (attempt < 3) { await sleep(500 * (attempt + 1)); continue; }
+      break;
     }
-    const payload = b?.data?.productVariantsBulkUpdate;
-    if (!payload) {
+
+    if (rawErrors && !payload) {
+      failedN += items.length;
+      if (errors.length < 30) errors.push('graphql: ' + (rawErrors[0]?.message || 'unknown'));
+    } else if (!payload) {
       failedN += items.length;
       if (errors.length < 30) errors.push('no payload for product ' + pid);
-      continue;
-    }
-    const ue = payload.userErrors || [];
-    if (ue.length) {
-      const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : 0;
-      updatedN += okCount;
-      failedN += Math.max(0, items.length - okCount);
-      for (const e of ue) { if (errors.length < 30 && e?.message) errors.push(e.message); }
     } else {
+      const ue = payload.userErrors || [];
       const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : items.length;
       updatedN += okCount;
-      if (okCount !== items.length) failedN += (items.length - okCount);
+      if (ue.length) {
+        failedN += Math.max(0, items.length - okCount);
+        for (const e of ue) { if (errors.length < 30 && e?.message) errors.push(e.message); }
+      } else if (okCount !== items.length) {
+        failedN += (items.length - okCount);
+      }
     }
+
+    // Pace writes to stay under the GraphQL cost throttle.
+    await sleep(350);
   }
   return { updated: updatedN, failed: failedN, errors };
 }
