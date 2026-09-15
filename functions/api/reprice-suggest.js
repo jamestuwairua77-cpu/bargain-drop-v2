@@ -8,9 +8,9 @@ import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMeta
 
 const STATE_KEY = 'reprice-suggest';
 const SHOPIFY_PAUSE_MS = 1600;
-const CJ_PAUSE_MS = 1200;
-const MAX_PER_RUN = 30;
-const RUN_BUDGET_MS = 22000;
+const CJ_PAUSE_MS = 1100;
+const MAX_PER_RUN = 60;
+const RUN_BUDGET_MS = 25000;
 const MAX_RETRY = 5000;
 
 function usdToAudWhole(usd) {
@@ -136,7 +136,11 @@ async function processItem(env, item) {
 
   const d = cj?.data;
   const code = cj?.code;
-  if (code === 16900500 || code === 429 || code === 1600200) {
+  // QPS throttle (429/1600200) -> signal to re-queue, NOT drop. Out-of-points (16900500) is a true skip.
+  if (code === 429 || code === 1600200) {
+    return { done: 'cjRateLimited', err: code };
+  }
+  if (code === 16900500) {
     return { done: 'cjskip', err: code };
   }
   const sugProduct = d?.suggestSellPrice != null ? parseFloat(d.suggestSellPrice) : NaN;
@@ -253,6 +257,14 @@ export async function onRequest(context) {
           else if (res.done === 'aud0') { aud0Now++; retriedNow++; }
           else if (res.done === 'same') { retriedNow++; }
           else if (res.done === 'cjskip') { cjSkipNow++; retriedNow++; }
+          else if (res.done === 'cjRateLimited') {
+            // CJ QPS throttle on lookup -> re-queue this item and stop (never drop a variant).
+            rateLimited = true;
+            nextRetry.push(item);
+            if (st.retry.length) nextRetry.push(...st.retry);
+            st.retry = [];
+            break;
+          }
           else if (res.done === 'failed') {
             failedNow++;
             if (res.err === 429) {
@@ -289,6 +301,13 @@ export async function onRequest(context) {
             else if (res.done === 'aud0') { aud0Now++; }
             else if (res.done === 'same') { /* no-op */ }
             else if (res.done === 'cjskip') { cjSkipNow++; }
+            else if (res.done === 'cjRateLimited') {
+              // CJ QPS throttle on lookup -> re-queue this item + the rest of this chunk, then stop.
+              rateLimited = true;
+              nextRetry.push(item);
+              for (let k = idx + 1; k < end; k++) nextRetry.push(queue[k]);
+              break;
+            }
             else if (res.done === 'failed') {
               if (res.err === 429) {
                 rateLimited = true;
