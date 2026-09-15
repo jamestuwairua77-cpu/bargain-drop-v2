@@ -1,7 +1,7 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ `suggestSellPrice` × 1.5 → ceil whole dollar (AUD).
 //
-// v5 (2026-09-15): PER-PRODUCT CJ LOOKUPS + throttle-resilient write phase.
+// v6 (2026-09-15): PER-PRODUCT CJ LOOKUPS + throttle-resilient write phase + timing cap.
 // Instead of one CJ call per variant (?variantSku=SKU), we group variants by Shopify
 // product and issue ONE CJ lookup per product (first variant's SKU). CJ's product/query
 // response already contains the full sibling-variant list (variantSku + variantSugSellPrice),
@@ -16,8 +16,8 @@ import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMeta
 
 const STATE_KEY = 'reprice-suggest';
 const CJ_PAUSE_MS = 1000;      // CJ free tier = 1 req/sec per IP
-const MAX_PER_RUN = 60;        // PRODUCTS per run (QPS-bound; each product = 1 CJ call)
-const RUN_BUDGET_MS = 55000;   // keep margin under CF ~50s hard limit
+const MAX_PER_RUN = 30;        // PRODUCTS per run (fits ~50s CF limit incl. write pacing)
+const RUN_BUDGET_MS = 28000;   // cap CJ phase; leaves ~20s for the write phase under CF ~50s
 const MAX_RETRY = 20000;
 
 // USD → AUD: whole Australian dollars via ceil(usd * 1.5).
@@ -237,7 +237,7 @@ async function applyBatch(env, changes) {
     }
 
     // Pace writes to stay under the GraphQL cost throttle.
-    await sleep(350);
+    await sleep(200);
   }
   return { updated: updatedN, failed: failedN, errors };
 }
