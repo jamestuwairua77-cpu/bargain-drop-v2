@@ -1,25 +1,25 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ per-variant `variantSugSellPrice` → AUD at live FX.
 //
-// v9 (2026-09-15): per-variant pricing + live USD→AUD exchange rate + compare-at cleared.
-//  - Every variant is priced from its OWN CJ `variantSugSellPrice` (already returned in
-//    the product/query sibling list), NOT the product-level suggestSellPrice.
-//  - USD→AUD uses the LIVE exchange rate (fallback 1.40 if the FX API is unreachable),
-//    rounded to whole Australian dollars (ceil).
-//  - compareAtPrice is cleared (null) so there is no strikethrough / "was" price.
-//  - MCP-token CJ lookups at ~4 req/sec (Prime tier), one lookup per PRODUCT (CJ returns
-//    the full sibling variant list), Shopify writes batched per product.
+// v10 (2026-09-15): v9 semantics + CONCURRENCY (speed boost).
+//  - CJ lookups resolved in parallel (bounded pool of CJ_CONCURRENCY=3, under the MCP
+//    ~4 req/sec per-IP ceiling) instead of sequential + 250ms sleep, and Shopify product
+//    variant writes run with WRITE_CONCURRENCY=3 and 80ms pacing instead of 200ms.
+//  - Same per-variant `variantSugSellPrice` → live USD→AUD → whole-dollar ceil,
+//    compareAtPrice cleared (null). State cursor logic preserved (idempotent re-queue).
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
 const STATE_KEY = 'reprice-suggest';
 const FX_KEY = 'reprice-fx';         // cached live AUD rate in shop metafield
-const CJ_PAUSE_MS = 250;
-const MAX_PER_RUN = 40;
+const MAX_PER_RUN = 200;
 const RUN_BUDGET_MS = 28000;
 const MAX_RETRY = 20000;
 const FX_FALLBACK = 1.40;            // live fallback if FX API down
-const FX_TTL_MS = 6 * 3600 * 1000;   // refresh rate every 6h
+const FX_TTL_MS = 6 * 3600 * 1000;
+const CJ_CONCURRENCY = 3;   // parallel CJ lookups (stay under MCP ~4 req/sec per-IP)
+const WRITE_CONCURRENCY = 3; // parallel Shopify product-variant writes
+const WRITE_SLEEP_MS = 80;   // pacing between Shopify product writes
 
 // Fetch the live USD→AUD rate, cached in a shop metafield (survives isolate recycling).
 async function liveAudRate(env) {
@@ -201,6 +201,24 @@ const gidProduct = (id) => /^gid:/.test(id) ? id : `gid://shopify/Product/${id}`
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Concurrent map over `items` with bounded parallelism.
+async function mapLimit(items, concurrency, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) break;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  const workers = [];
+  const n = Math.max(1, Math.min(concurrency, items.length));
+  for (let w = 0; w < n; w++) workers.push(worker());
+  await Promise.all(workers);
+  return results;
+}
+
 async function applyBatch(env, changes, rate) {
   if (!changes.length) return { updated: 0, failed: 0, errors: [] };
   let updatedN = 0, failedN = 0;
@@ -213,7 +231,7 @@ async function applyBatch(env, changes, rate) {
     byProduct.get(pid).push(c);
   }
 
-  for (const [pid, items] of byProduct) {
+  async function writeOne(pid, items) {
     // Set regular price (per-variant CJ suggested), and CLEAR compare-at (no strikethrough).
     const variants = items.map(c => ({ id: gidVariant(c.variantId), price: c.price, compareAtPrice: null }));
     const q = `
@@ -250,24 +268,30 @@ async function applyBatch(env, changes, rate) {
     }
 
     if (rawErrors && !payload) {
-      failedN += items.length;
-      if (errors.length < 30) errors.push('graphql: ' + (rawErrors[0]?.message || 'unknown'));
+      return { ok: 0, fail: items.length, err: 'graphql: ' + (rawErrors[0]?.message || 'unknown') };
     } else if (!payload) {
-      failedN += items.length;
-      if (errors.length < 30) errors.push('no payload for product ' + pid);
+      return { ok: 0, fail: items.length, err: 'no payload for product ' + pid };
     } else {
       const ue = payload.userErrors || [];
       const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : items.length;
-      updatedN += okCount;
+      let fail = 0, errs = [];
       if (ue.length) {
-        failedN += Math.max(0, items.length - okCount);
-        for (const e of ue) { if (errors.length < 30 && e?.message) errors.push(e.message); }
+        fail = Math.max(0, items.length - okCount);
+        for (const e of ue) { if (errs.length < 3 && e?.message) errs.push(e.message); }
       } else if (okCount !== items.length) {
-        failedN += (items.length - okCount);
+        fail = items.length - okCount;
       }
+      await sleep(WRITE_SLEEP_MS);
+      return { ok: okCount, fail, err: errs.join('; ') || null };
     }
+  }
 
-    await sleep(200);
+  const entries = Array.from(byProduct.entries());
+  const results = await mapLimit(entries, WRITE_CONCURRENCY, ([pid, items]) => writeOne(pid, items));
+  for (const r of results) {
+    updatedN += r.ok;
+    failedN += r.fail;
+    if (r.err && errors.length < 30) errors.push(r.err);
   }
   return { updated: updatedN, failed: failedN, errors };
 }
@@ -364,59 +388,72 @@ export async function onRequest(context) {
         const firstSku = (item.variants.find(v => v.sku) || {}).sku;
         if (!firstSku) { return { skipNoSku: item.variants.length, other: {} }; }
         const cj = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(firstSku));
-        await new Promise(r2 => setTimeout(r2, CJ_PAUSE_MS));
         const code = cj?.code;
         if (code === 429 || code === 1600200) return { rateLimited: true, item };
         if (code === 16900500) return { cjskip: true };
         return processProduct(env, item, cj, rate);
       }
 
-      // Phase 1: persisted retry queue
-      while (st.retry.length && Date.now() <= deadline) {
-        const item = st.retry.shift();
-        const res = await resolveProduct(item);
-        processedNow++;
-        if (res.rateLimited) {
-          rateLimited = true;
-          nextRetry.push(res.item);
-          if (st.retry.length) nextRetry.push(...st.retry);
-          st.retry = [];
-          break;
-        }
-        if (res.cjskip) { cjSkipNow++; retriedNow++; continue; }
-        if (res.other) { retriedNow++; continue; }
-        changes.push(...res.changes);
-        skipNoSkuNow += res.skipNoSku;
-        skipNoSugNow += res.skipNoSug;
-        aud0Now += res.aud0;
-        retriedNow++;
-      }
+      // Phase 1: persisted retry queue (resolve concurrently)
+      const retryItems = [];
+      while (st.retry.length && Date.now() <= deadline) retryItems.push(st.retry.shift());
 
-      // Phase 2: advance the main product cursor
+      // Phase 2: advance the main product cursor (gather this run's slice)
       let idx = st.done;
+      const sliceItems = [];
       if (!rateLimited) {
         const start = st.done;
         const end = Math.min(st.total, start + limit);
         for (idx = start; idx < end; idx++) {
           if (Date.now() > deadline) break;
-          const item = queue[idx];
-          const res = await resolveProduct(item);
-          processedNow++;
-          if (res.rateLimited) {
-            rateLimited = true;
-            nextRetry.push(res.item);
-            for (let k = idx + 1; k < end; k++) nextRetry.push(queue[k]);
-            break;
-          }
-          if (res.cjskip) { cjSkipNow++; continue; }
-          if (res.other) { continue; }
-          changes.push(...res.changes);
-          skipNoSkuNow += res.skipNoSku;
-          skipNoSugNow += res.skipNoSug;
-          aud0Now += res.aud0;
+          sliceItems.push({ item: queue[idx], cursor: idx });
         }
-        st.done = idx;
       }
+
+      // Phase 2b: resolve BOTH slices concurrently under a bounded pool.
+      // Attach the slice cursor so we can fold in stable order and safely advance st.done.
+      const allItems = retryItems.map(item => ({ item, isRetry: true, cursor: -1 }))
+        .concat(sliceItems.map(o => ({ item: o.item, isRetry: false, cursor: o.cursor })));
+      const resolutions = await mapLimit(allItems, CJ_CONCURRENCY, async ({ item, isRetry, cursor }) => {
+        const res = await resolveProduct(item);
+        return { res, isRetry, cursor, item };
+      });
+
+      // Fold: retries and the main slice share the SAME cursor ordering rules.
+      // We advance st.done only up to the first slice item that rate-limited (inclusive),
+      // re-queueing that item and everything after it. Retry items that rate-limit are
+      // simply re-queued. Everything is idempotent (price-matched writes are skipped),
+      // so a rare double-requeue is harmless correctness-wise.
+      let sliceRateLimitCursor = Infinity;
+      for (const { res, isRetry, cursor } of resolutions) {
+        processedNow++;
+        if (res.rateLimited) {
+          rateLimited = true;
+          nextRetry.push(res.item);
+          if (!isRetry && cursor < sliceRateLimitCursor) sliceRateLimitCursor = cursor;
+          continue;
+        }
+        if (res.cjskip) { if (isRetry) retriedNow++; else cjSkipNow++; continue; }
+        if (res.other) { if (isRetry) retriedNow++; continue; }
+        changes.push(...res.changes);
+        skipNoSkuNow += res.skipNoSku;
+        skipNoSugNow += res.skipNoSug;
+        aud0Now += res.aud0;
+        if (isRetry) retriedNow++;
+      }
+      if (rateLimited && Number.isFinite(sliceRateLimitCursor)) {
+        // Re-queue every slice item at/after the first rate-limited cursor (the
+        // rate-limited one was already pushed in the fold loop via res.item; the rest
+        // ran concurrently and may have been throttled too). Idempotent, so safe.
+        for (const o of sliceItems) {
+          if (o.cursor >= sliceRateLimitCursor && o.cursor !== sliceRateLimitCursor) {
+            nextRetry.push(queue[o.cursor]);
+          }
+        }
+        // Advance only past items BEFORE the first rate-limit; do not skip unprocessed products.
+        idx = sliceRateLimitCursor;
+      }
+      st.done = idx;
 
       // Phase 3: bulk-apply (per-variant price + compare-at cleared)
       const applied = await applyBatch(env, changes, rate);
