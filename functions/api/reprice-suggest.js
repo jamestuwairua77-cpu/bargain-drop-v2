@@ -204,7 +204,7 @@ function processProduct(env, item, cjData, rate) {
     if (usdSug == null) { skipNoSug++; continue; }
     const aud = usdToAudWhole(usdSug, rate);
     if (aud == null || aud <= 0) { aud0++; continue; }
-    changes.push({ price: String(aud), shopProductId: item.shopProductId, variantId: v.variantId });
+    changes.push({ price: String(aud), shopProductId: item.shopProductId, variantId: v.variantId, item });
   }
   return { changes, skipNoSku, skipNoSug, aud0 };
 }
@@ -231,9 +231,10 @@ async function mapLimit(items, concurrency, fn) {
 }
 
 async function applyBatch(env, changes) {
-  if (!changes.length) return { updated: 0, failed: 0, errors: [] };
+  if (!changes.length) return { updated: 0, failed: 0, failedChanges: [], errors: [] };
   let updatedN = 0, failedN = 0;
   const errors = [];
+  const failedChanges = [];
   const byProduct = new Map();
   for (const c of changes) {
     if (!byProduct.has(c.shopProductId)) byProduct.set(c.shopProductId, []);
@@ -265,20 +266,26 @@ async function applyBatch(env, changes) {
       if (attempt < 3) { await sleep(500 * (attempt + 1)); continue; }
       break;
     }
-    if (rawErrors && !payload) return { ok: 0, fail: items.length, err: 'graphql: ' + (rawErrors[0]?.message || 'unknown') };
-    if (!payload) return { ok: 0, fail: items.length, err: 'no payload for product ' + pid };
+    if ((rawErrors || !payload)) {
+      if (payload) return { ok: 0, fail: items.length, err: 'graphql: ' + (rawErrors[0]?.message || 'unknown'), failedItems: items };
+      return { ok: 0, fail: items.length, err: rawErrors ? 'graphql: ' + (rawErrors[0]?.message || 'unknown') : 'no payload for product ' + pid, failedItems: items };
+    }
     const ue = payload.userErrors || [];
     const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : items.length;
     let fail = 0, errs = [];
     if (ue.length) { fail = Math.max(0, items.length - okCount); for (const e of ue) { if (errs.length < 3 && e?.message) errs.push(e.message); } }
     else if (okCount !== items.length) fail = items.length - okCount;
     await sleep(WRITE_SLEEP_MS);
-    return { ok: okCount, fail, err: errs.join('; ') || null };
+    return { ok: okCount, fail, err: errs.join('; ') || null, failedItems: fail ? items : [] };
   }
   const entries = Array.from(byProduct.entries());
   const results = await mapLimit(entries, WRITE_CONCURRENCY, ([pid, items]) => writeOne(pid, items));
-  for (const r of results) { updatedN += r.ok; failedN += r.fail; if (r.err && errors.length < 30) errors.push(r.err); }
-  return { updated: updatedN, failed: failedN, errors };
+  for (const r of results) {
+    updatedN += r.ok; failedN += r.fail;
+    if (r.err && errors.length < 30) errors.push(r.err);
+    if (r.failedItems && r.failedItems.length) failedChanges.push(...r.failedItems);
+  }
+  return { updated: updatedN, failed: failedN, failedChanges, errors };
 }
 
 // ─── Shard slice: products whose global index % SHARDS === shard ─────────
@@ -449,7 +456,7 @@ export async function onRequest(context) {
       }
 
       // writes (parallel)
-      let applied = { updated: 0, failed: 0, errors: [] };
+      let applied = { updated: 0, failed: 0, failedChanges: [], errors: [] };
       if (Date.now() <= hardDeadline && changes.length) {
         applied = await applyBatch(env, changes);
       }
@@ -457,6 +464,10 @@ export async function onRequest(context) {
       st.failed += applied.failed;
       for (const e of applied.errors) { st.errors.unshift({ err: e }); }
       st.errors = st.errors.slice(0, 20);
+      // requeue failed writes so they retry on a later fire instead of being dropped
+      for (const fc of (applied.failedChanges || [])) {
+        if (fc && fc.item) nextRetry.push(fc.item);
+      }
       if (nextRetry.length) st.retry = nextRetry.slice(0, MAX_RETRY);
       st.done = idx;
 
