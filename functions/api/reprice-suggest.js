@@ -1,17 +1,18 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ `suggestSellPrice` × 1.5 → ceil whole dollar (AUD).
 //
-// CJ-POINT-SAFE retry design (2026-09-15): on a Shopify 429 the loop stops CJ lookups
-// immediately and re-queues failed variants for retry instead of skipping them forever.
+// v2 (2026-09-15): BULK WRITE PATH. CJ lookups are the only per-item cost (1 req/sec QPS);
+// Shopify writes are now batched via N aliased productVariantUpdate mutations per GraphQL call,
+// eliminating the per-variant REST PUT pause + 429 storm. CJ lookups decoupled from writes.
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
 const STATE_KEY = 'reprice-suggest';
-const SHOPIFY_PAUSE_MS = 1600;
-const CJ_PAUSE_MS = 1100;
-const MAX_PER_RUN = 60;
-const RUN_BUDGET_MS = 25000;
-const MAX_RETRY = 5000;
+const CJ_PAUSE_MS = 1000;      // CJ free tier = 1 req/sec per IP
+const MAX_PER_RUN = 120;       // lookups per run (QPS-bound; ~2min of lookups)
+const RUN_BUDGET_MS = 55000;   // Cloudflare Function hard limit ~50s budget; keep margin
+const BATCH_SIZE = 50;         // aliased productVariantUpdate mutations per GraphQL call (cost-safe)
+const MAX_RETRY = 20000;
 
 function usdToAudWhole(usd) {
   const n = parseFloat(usd);
@@ -114,9 +115,6 @@ function parseRows(txt) {
     if (!m) continue;
     const p = products.get(m[1]);
     if (!p) continue;
-    // Shopify REST needs the NUMERIC id, not the full GID. The product id is already
-    // stripped above via /(\d+)$/; do the same for the variant so the PUT path
-    // (/variants/{id}.json) and body (variant.id) don't carry "gid://..." (→ HTTP 406).
     const vm = /(\d+)$/.exec(String(r.id || ''));
     p.variants.push({ variantId: vm ? vm[1] : String(r.id || ''), sku: r.sku != null ? String(r.sku) : '', oldPrice: r.price != null ? String(r.price) : '' });
   }
@@ -129,20 +127,17 @@ function parseRows(txt) {
   return queue;
 }
 
-async function processItem(env, item) {
+// CJ lookup only — returns { done, aud?, err? }, no Shopify write.
+async function lookUpCj(env, item) {
   if (!item.sku) return { done: 'skipNoSku' };
   const cj = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(item.sku));
   await new Promise(r2 => setTimeout(r2, CJ_PAUSE_MS));
 
   const d = cj?.data;
   const code = cj?.code;
-  // QPS throttle (429/1600200) -> signal to re-queue, NOT drop. Out-of-points (16900500) is a true skip.
-  if (code === 429 || code === 1600200) {
-    return { done: 'cjRateLimited', err: code };
-  }
-  if (code === 16900500) {
-    return { done: 'cjskip', err: code };
-  }
+  if (code === 429 || code === 1600200) return { done: 'cjRateLimited', err: code };
+  if (code === 16900500) return { done: 'cjskip', err: code };
+
   const sugProduct = d?.suggestSellPrice != null ? parseFloat(d.suggestSellPrice) : NaN;
   const sugVariant = (Array.isArray(d?.variants) && d.variants[0]?.variantSugSellPrice != null)
     ? parseFloat(d.variants[0].variantSugSellPrice)
@@ -156,14 +151,39 @@ async function processItem(env, item) {
   if (aud == null || aud <= 0) return { done: 'aud0' };
   const audStr = String(aud);
   if (audStr === String(item.oldPrice)) return { done: 'same' };
+  return { done: 'price', aud: audStr };
+}
 
-  const put = await shopifyFetch(env, `/variants/${item.variantId}.json`, {
-    method: 'PUT',
-    body: JSON.stringify({ variant: { id: item.variantId, price: audStr } }),
-  });
-  await new Promise(r2 => setTimeout(r2, SHOPIFY_PAUSE_MS));
-  if (put && put.ok) return { done: 'updated' };
-  return { done: 'failed', err: put ? put.status : 'no-response', item };
+// Batch-apply price changes via aliased productVariantUpdate mutations (cross-product safe).
+async function applyBatch(env, changes) {
+  if (!changes.length) return { updated: 0, failed: 0, errors: [] };
+  let updatedN = 0, failedN = 0;
+  const errors = [];
+
+  for (let i = 0; i < changes.length; i += BATCH_SIZE) {
+    const chunk = changes.slice(i, i + BATCH_SIZE);
+    const mutations = chunk.map((c, j) => {
+      const gid = /^gid:/.test(c.variantId) ? c.variantId : `gid://shopify/ProductVariant/${c.variantId}`;
+      return `m${j}: productVariantUpdate(input: { id: "${gid}", price: "${c.aud}" }) { productVariant { id price } userErrors { field message } }`;
+    }).join('\n');
+    const q = `mutation { ${mutations} }`;
+    const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
+    const b = r.body;
+    if (b?.errors?.length) {
+      errors.push('graphql: ' + (b.errors[0]?.message || 'unknown'));
+    }
+    for (let j = 0; j < chunk.length; j++) {
+      const res = b?.data?.['m' + j];
+      if (!res) { failedN++; continue; }
+      if (res.userErrors && res.userErrors.length) {
+        failedN++;
+        if (errors.length < 30) errors.push(res.userErrors[0].message || 'userError');
+      } else {
+        updatedN++;
+      }
+    }
+  }
+  return { updated: updatedN, failed: failedN, errors };
 }
 
 export async function onRequest(context) {
@@ -184,7 +204,7 @@ export async function onRequest(context) {
     }
 
     if (action === 'status') {
-      const remaining = Math.max(0, st.total - st.done - st.failed);
+      const remaining = Math.max(0, st.total - st.done - st.retry.length);
       return json({ ok: true, ...st, remaining, errors: st.errors.slice(0, 10) });
     }
 
@@ -243,94 +263,65 @@ export async function onRequest(context) {
       let updatedNow = 0, failedNow = 0, skipNoSkuNow = 0, skipNoSugNow = 0, aud0Now = 0, cjSkipNow = 0, retriedNow = 0, processedNow = 0;
       const deadline = Date.now() + RUN_BUDGET_MS;
       const nextRetry = [];
+      const changes = [];
       let rateLimited = false;
 
-      // Phase 1: process the persisted retry queue first
+      // Phase 1: CJ-look up the persisted retry queue first
       while (st.retry.length && Date.now() <= deadline) {
         const item = st.retry.shift();
-        try {
-          const res = await processItem(env, item);
-          processedNow++;
-          if (res.done === 'updated') { updatedNow++; retriedNow++; }
-          else if (res.done === 'skipNoSku') { skipNoSkuNow++; retriedNow++; }
-          else if (res.done === 'skipNoSug') { skipNoSugNow++; retriedNow++; }
-          else if (res.done === 'aud0') { aud0Now++; retriedNow++; }
-          else if (res.done === 'same') { retriedNow++; }
-          else if (res.done === 'cjskip') { cjSkipNow++; retriedNow++; }
-          else if (res.done === 'cjRateLimited') {
-            // CJ QPS throttle on lookup -> re-queue this item and stop (never drop a variant).
-            rateLimited = true;
-            nextRetry.push(item);
-            if (st.retry.length) nextRetry.push(...st.retry);
-            st.retry = [];
-            break;
-          }
-          else if (res.done === 'failed') {
-            failedNow++;
-            if (res.err === 429) {
-              rateLimited = true;
-              nextRetry.push(item);
-              if (st.retry.length) nextRetry.push(...st.retry);
-              st.retry = [];
-              break;
-            }
-            st.errors.unshift({ variantId: item.variantId, sku: item.sku, err: res.err });
-            st.errors = st.errors.slice(0, 30);
-          }
-        } catch (e) {
-          failedNow++;
-          st.errors.unshift({ sku: item && item.sku, err: String(e?.message || e) });
-          st.errors = st.errors.slice(0, 30);
+        const res = await lookUpCj(env, item);
+        processedNow++;
+        if (res.done === 'price') { changes.push({ variantId: item.variantId, aud: res.aud }); retriedNow++; }
+        else if (res.done === 'skipNoSku') { skipNoSkuNow++; retriedNow++; }
+        else if (res.done === 'skipNoSug') { skipNoSugNow++; retriedNow++; }
+        else if (res.done === 'aud0') { aud0Now++; retriedNow++; }
+        else if (res.done === 'same') { retriedNow++; }
+        else if (res.done === 'cjskip') { cjSkipNow++; retriedNow++; }
+        else if (res.done === 'cjRateLimited') {
+          rateLimited = true;
+          nextRetry.push(item);
+          if (st.retry.length) nextRetry.push(...st.retry);
+          st.retry = [];
+          break;
         }
       }
 
-      // Phase 2: advance the main cursor (skipped if rate-limited)
+      // Phase 2: advance the main cursor (CJ lookups), skipped if rate-limited
       let idx = st.done;
       if (!rateLimited) {
         const start = st.done;
         const end = Math.min(st.total, start + limit);
         for (idx = start; idx < end; idx++) {
-          if (Date.now() > deadline) { break; }
+          if (Date.now() > deadline) break;
           const item = queue[idx];
-          try {
-            const res = await processItem(env, item);
-            processedNow++;
-            if (res.done === 'updated') { updatedNow++; }
-            else if (res.done === 'skipNoSku') { skipNoSkuNow++; }
-            else if (res.done === 'skipNoSug') { skipNoSugNow++; }
-            else if (res.done === 'aud0') { aud0Now++; }
-            else if (res.done === 'same') { /* no-op */ }
-            else if (res.done === 'cjskip') { cjSkipNow++; }
-            else if (res.done === 'cjRateLimited') {
-              // CJ QPS throttle on lookup -> re-queue this item + the rest of this chunk, then stop.
-              rateLimited = true;
-              nextRetry.push(item);
-              for (let k = idx + 1; k < end; k++) nextRetry.push(queue[k]);
-              break;
-            }
-            else if (res.done === 'failed') {
-              if (res.err === 429) {
-                rateLimited = true;
-                nextRetry.push(item);
-                for (let k = idx + 1; k < end; k++) nextRetry.push(queue[k]);
-                break;
-              }
-              failedNow++;
-              st.errors.unshift({ variantId: item.variantId, sku: item.sku, err: res.err });
-              st.errors = st.errors.slice(0, 30);
-            }
-          } catch (e) {
-            failedNow++;
-            st.errors.unshift({ sku: item && item.sku, err: String(e?.message || e) });
-            st.errors = st.errors.slice(0, 30);
+          const res = await lookUpCj(env, item);
+          processedNow++;
+          if (res.done === 'price') { changes.push({ variantId: item.variantId, aud: res.aud }); }
+          else if (res.done === 'skipNoSku') { skipNoSkuNow++; }
+          else if (res.done === 'skipNoSug') { skipNoSugNow++; }
+          else if (res.done === 'aud0') { aud0Now++; }
+          else if (res.done === 'same') { /* no-op */ }
+          else if (res.done === 'cjskip') { cjSkipNow++; }
+          else if (res.done === 'cjRateLimited') {
+            rateLimited = true;
+            nextRetry.push(item);
+            for (let k = idx + 1; k < end; k++) nextRetry.push(queue[k]);
+            break;
           }
         }
         st.done = idx;
       }
 
-      if (nextRetry.length) {
-        st.retry = nextRetry.slice(0, MAX_RETRY);
+      // Phase 3: bulk-apply all collected price changes to Shopify
+      const applied = await applyBatch(env, changes);
+      updatedNow += applied.updated;
+      failedNow += applied.failed;
+      if (applied.errors.length) {
+        for (const e of applied.errors) { st.errors.unshift({ err: e }); }
+        st.errors = st.errors.slice(0, 30);
       }
+
+      if (nextRetry.length) st.retry = nextRetry.slice(0, MAX_RETRY);
 
       st.updated += updatedNow;
       st.failed += failedNow;
