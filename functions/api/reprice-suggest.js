@@ -1,54 +1,49 @@
 // /api/reprice-suggest.js — Cloudflare Pages Function
 // Reprice ALL Shopify products to CJ per-variant `variantSugSellPrice` → AUD at live FX.
 //
-// v10.1 (2026-09-15): v9 semantics + CONCURRENCY + total-budget safety.
-//  - CJ lookups resolved in parallel (CJ_CONCURRENCY=3) and Shopify writes in parallel
-//    (WRITE_CONCURRENCY=3, 80ms pacing), with a HARD_DEADLINE_MS total-run guard that
-//    defers + re-queues unresolved items instead of getting killed mid-run by Cloudflare's
-//    ~50s wall-clock limit (MAX_PER_RUN capped at 80 to keep lookup+write within budget).
-//  - Same per-variant `variantSugSellPrice` → live USD→AUD → whole-dollar ceil,
+// v11 (2026-09-15): SHARDED PARALLEL WORKERS.
+//  - The catalog is partitioned into SHARDS mutually-exclusive slices (product i → shard
+//    i % SHARDS). Each shard keeps an INDEPENDENT cursor in its own metafield, so many
+//    workers can run in parallel with zero cursor contention.
+//  - This removes the CSV-download + Shopify-write overhead from the CJ-lookup critical
+//    path. CJ lookups remain ~4/sec per-IP (the hard floor), but writes/overhead are now
+//    fully parallel across shards instead of competing for one 50s request window.
+//  - Same pricing: per-variant `variantSugSellPrice` → live USD→AUD → whole-dollar ceil,
 //    compareAtPrice cleared (null). Idempotent re-queue preserves cursor correctness.
 
 import { corsHeaders, isAdmin, adminDenied, shopifyFetch, cjFetchMulti, shopMetaGet, shopMetaSet } from '../_sync-lib.js';
 
-const STATE_KEY = 'reprice-suggest';
-const FX_KEY = 'reprice-fx';         // cached live AUD rate in shop metafield
-const MAX_PER_RUN = 80;
-const RUN_BUDGET_MS = 24000;
+const SHARDS = 16;                 // number of parallel workers
+const META_KEY = 'reprice-meta';   // shared: bulk csv url + totals + fx (written by poll-bulk)
+const FX_KEY = 'reprice-fx';       // cached live AUD rate (shared)
+const MAX_PER_RUN = 160;           // per-shard products to resolve per run
+const RUN_BUDGET_MS = 40000;       // CJ lookup budget per run (generous; CJ is the floor)
 const MAX_RETRY = 20000;
-const FX_FALLBACK = 1.40;            // live fallback if FX API down
+const FX_FALLBACK = 1.40;
 const FX_TTL_MS = 6 * 3600 * 1000;
-const CJ_CONCURRENCY = 3;   // parallel CJ lookups (stay under MCP ~4 req/sec per-IP)
-const WRITE_CONCURRENCY = 3; // parallel Shopify product-variant writes
-const WRITE_SLEEP_MS = 80;   // pacing between Shopify product writes
-const HARD_DEADLINE_MS = 46000; // stop persisting before Cloudflare ~50s kill
+const CJ_CONCURRENCY = 3;          // in-flight CJ lookups (under MCP ~4/sec per-IP)
+const WRITE_CONCURRENCY = 4;       // in-flight Shopify writes
+const WRITE_SLEEP_MS = 60;
+const HARD_DEADLINE_MS = 46000;    // stop before Cloudflare ~50s kill
 
-// Fetch the live USD→AUD rate, cached in a shop metafield (survives isolate recycling).
+const shardKey = (s) => `reprice-s${s}`;
+
+// ─── Live FX (shared, cached) ────────────────────────────────────────────
 async function liveAudRate(env) {
   const cached = await shopMetaGet(env, FX_KEY);
   if (cached && cached.value) {
     try {
       const c = JSON.parse(cached.value);
-      if (c && typeof c.rate === 'number' && c.rate > 0 && (Date.now() - (c.at || 0)) < FX_TTL_MS) {
-        return c.rate;
-      }
+      if (c && typeof c.rate === 'number' && c.rate > 0 && (Date.now() - (c.at || 0)) < FX_TTL_MS) return c.rate;
     } catch {}
   }
   let rate = FX_FALLBACK;
-  // Multiple FX sources, first success wins.
-  const sources = [
-    'https://open.er-api.com/v6/latest/USD',
-    'https://api.frankfurter.app/latest?from=USD&to=AUD',
-  ];
-  for (const url of sources) {
+  for (const url of ['https://open.er-api.com/v6/latest/USD', 'https://api.frankfurter.app/latest?from=USD&to=AUD']) {
     try {
       const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
       if (!r.ok) continue;
       const j = await r.json();
-      let v = j?.rates?.AUD;
-      if (!v && Array.isArray(j?.rates)) { /* frankfurter legacy shape */ }
-      v = v || (j?.rates && j.rates.AUD);
-      v = parseFloat(v);
+      const v = parseFloat((j?.rates && j.rates.AUD) || j?.rates?.AUD);
       if (Number.isFinite(v) && v > 0) { rate = v; break; }
     } catch {}
   }
@@ -56,42 +51,66 @@ async function liveAudRate(env) {
   return rate;
 }
 
-// USD → AUD whole dollars: ceil(usd * liveRate). Cents dropped (whole dollars).
 function usdToAudWhole(usd, rate) {
   const n = parseFloat(usd);
   if (!Number.isFinite(n) || n <= 0) return null;
-  const aud = n * rate;
-  return Math.ceil(aud);
+  return Math.ceil(n * rate);
 }
 
-function emptyState() {
-  return { total: 0, done: 0, aud0: 0, skipNoSku: 0, skipNoSug: 0, failed: 0, updated: 0, opId: null, url: null, errors: [], retry: [] };
+// ─── Shared meta (bulk csv url + totals) ─────────────────────────────────
+const LEGACY_KEY = 'reprice-suggest';
+async function loadMeta(env) {
+  const e = await shopMetaGet(env, META_KEY);
+  let raw = {};
+  if (e && e.value) { try { raw = JSON.parse(e.value); } catch {} }
+  raw = raw && typeof raw === 'object' ? raw : {};
+  if (raw.url || raw.total || raw.opId) {
+    return { url: raw.url || null, opId: raw.opId || null, total: Number(raw.total) || 0, totalVariants: Number(raw.totalVariants) || 0 };
+  }
+  // MIGRATION: read the legacy single-cursor metafield once and seed the new meta.
+  const le = await shopMetaGet(env, LEGACY_KEY);
+  if (le && le.value) {
+    try {
+      const lr = JSON.parse(le.value);
+      if (lr && (lr.url || lr.opId || lr.total)) {
+        const migrated = { url: lr.url || null, opId: lr.opId || null, total: Number(lr.total) || 0, totalVariants: Number(lr.totalVariants) || 0 };
+        await shopMetaSet(env, META_KEY, migrated);
+        return migrated;
+      }
+    } catch {}
+  }
+  return { url: null, opId: null, total: 0, totalVariants: 0 };
 }
 
-async function loadState(env) {
-  const e = await shopMetaGet(env, STATE_KEY);
+// ─── Per-shard cursor state ──────────────────────────────────────────────
+function emptyShard() {
+  return { done: 0, updated: 0, failed: 0, skipNoSku: 0, skipNoSug: 0, aud0: 0, errors: [], retry: [] };
+}
+async function loadShard(env, s) {
+  const e = await shopMetaGet(env, shardKey(s));
   let raw = {};
   if (e && e.value) { try { raw = JSON.parse(e.value); } catch {} }
   raw = raw && typeof raw === 'object' ? raw : {};
   return {
-    total: Number(raw.total) || 0,
     done: Number(raw.done) || 0,
-    aud0: Number(raw.aud0) || 0,
+    updated: Number(raw.updated) || 0,
+    failed: Number(raw.failed) || 0,
     skipNoSku: Number(raw.skipNoSku) || 0,
     skipNoSug: Number(raw.skipNoSug) || 0,
-    failed: Number(raw.failed) || 0,
-    updated: Number(raw.updated) || 0,
-    opId: raw.opId || null,
-    url: raw.url || null,
-    errors: Array.isArray(raw.errors) ? raw.errors.slice(0, 30) : [],
+    aud0: Number(raw.aud0) || 0,
+    errors: Array.isArray(raw.errors) ? raw.errors.slice(0, 20) : [],
     retry: Array.isArray(raw.retry) ? raw.retry.slice(0, MAX_RETRY) : [],
   };
+}
+async function saveShard(env, s, st) {
+  await shopMetaSet(env, shardKey(s), st);
 }
 
 function json(o, status = 200) {
   return new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
 }
 
+// ─── Shopify bulk op helpers ─────────────────────────────────────────────
 async function startBulk(env) {
   const mutation = `
 mutation {
@@ -115,7 +134,7 @@ mutation {
     const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: mutation }) });
     const j = r.body;
     const errArr = j?.errors || [];
-    if (errArr.length && errArr.some(e => (e?.extensions?.code) === 'THROTTLED')) {
+    if (errArr.length && errArr.some(e => e?.extensions?.code === 'THROTTLED')) {
       lastThrottled = true;
       await new Promise(r2 => setTimeout(r2, 1500 * (attempt + 1)));
       continue;
@@ -132,13 +151,11 @@ mutation {
 
 async function bulkStatus(env, opId) {
   const q = `query($id: ID!) { node(id: $id) { ... on BulkOperation { id status objectCount errorCode url } } }`;
-  const { body } = await shopifyFetch(env, '/graphql.json', {
-    method: 'POST',
-    body: JSON.stringify({ query: q, variables: { id: opId } }),
-  });
+  const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q, variables: { id: opId } }) });
   return body?.data?.node || null;
 }
 
+// ─── CSV parse → product queue ───────────────────────────────────────────
 function parseProducts(txt) {
   const products = new Map();
   const rows = [];
@@ -163,14 +180,11 @@ function parseProducts(txt) {
     p.variants.push({ variantId: vm ? vm[1] : String(r.id || ''), sku: r.sku != null ? String(r.sku) : '', oldPrice: r.price != null ? String(r.price) : '' });
   }
   const queue = [];
-  for (const [sid, p] of products) {
-    queue.push({ shopProductId: sid, title: (p.title || '').slice(0, 60), variants: p.variants });
-  }
+  for (const [sid, p] of products) queue.push({ shopProductId: sid, title: (p.title || '').slice(0, 60), variants: p.variants });
   return queue;
 }
 
-// Per-variant pricing: each variant is priced from its OWN CJ variantSugSellPrice.
-// Falls back to product-level suggestSellPrice ONLY if the sibling map lacks this SKU.
+// ─── Per-variant pricing ─────────────────────────────────────────────────
 function processProduct(env, item, cjData, rate) {
   const d = cjData?.data;
   const sugs = {};
@@ -181,9 +195,8 @@ function processProduct(env, item, cjData, rate) {
     if (sku && Number.isFinite(sug) && sug > 0) sugs[sku] = sug;
   }
   const productSug = d?.suggestSellPrice != null ? parseFloat(d.suggestSellPrice) : NaN;
-
   const changes = [];
-  let skipNoSku = 0, skipNoSug = 0, aud0 = 0, same = 0;
+  let skipNoSku = 0, skipNoSug = 0, aud0 = 0;
   for (const v of item.variants) {
     if (!v.sku) { skipNoSku++; continue; }
     let usdSug = sugs[v.sku];
@@ -191,19 +204,15 @@ function processProduct(env, item, cjData, rate) {
     if (usdSug == null) { skipNoSug++; continue; }
     const aud = usdToAudWhole(usdSug, rate);
     if (aud == null || aud <= 0) { aud0++; continue; }
-    const audStr = String(aud);
-    // Always emit: even if price matches, we still want compare-at cleared.
-    changes.push({ price: audStr, shopProductId: item.shopProductId, variantId: v.variantId, priceChanged: audStr !== String(v.oldPrice) });
+    changes.push({ price: String(aud), shopProductId: item.shopProductId, variantId: v.variantId });
   }
-  return { changes, skipNoSku, skipNoSug, aud0, same };
+  return { changes, skipNoSku, skipNoSug, aud0 };
 }
 
 const gidVariant = (id) => /^gid:/.test(id) ? id : `gid://shopify/ProductVariant/${id}`;
 const gidProduct = (id) => /^gid:/.test(id) ? id : `gid://shopify/Product/${id}`;
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Concurrent map over `items` with bounded parallelism.
 async function mapLimit(items, concurrency, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -221,20 +230,16 @@ async function mapLimit(items, concurrency, fn) {
   return results;
 }
 
-async function applyBatch(env, changes, rate, hardDeadline, onDefer) {
+async function applyBatch(env, changes) {
   if (!changes.length) return { updated: 0, failed: 0, errors: [] };
   let updatedN = 0, failedN = 0;
   const errors = [];
-
   const byProduct = new Map();
   for (const c of changes) {
-    const pid = c.shopProductId || 'unknown';
-    if (!byProduct.has(pid)) byProduct.set(pid, []);
-    byProduct.get(pid).push(c);
+    if (!byProduct.has(c.shopProductId)) byProduct.set(c.shopProductId, []);
+    byProduct.get(c.shopProductId).push(c);
   }
-
   async function writeOne(pid, items) {
-    // Set regular price (per-variant CJ suggested), and CLEAR compare-at (no strikethrough).
     const variants = items.map(c => ({ id: gidVariant(c.variantId), price: c.price, compareAtPrice: null }));
     const q = `
       mutation($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -245,62 +250,46 @@ async function applyBatch(env, changes, rate, hardDeadline, onDefer) {
         }
       }
     `;
-
     let payload = null, rawErrors = null;
     for (let attempt = 0; attempt < 6; attempt++) {
-      const r = await shopifyFetch(env, '/graphql.json', {
-        method: 'POST',
-        body: JSON.stringify({ query: q, variables: { productId: gidProduct(pid), variants } }),
-      });
+      const r = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q, variables: { productId: gidProduct(pid), variants } }) });
       const b = r.body;
       if (b?.errors?.length) {
-        const throttled = b.errors.some(e => (e?.extensions?.code) === 'THROTTLED' || /throttl/i.test(e?.message || ''));
+        const throttled = b.errors.some(e => e?.extensions?.code === 'THROTTLED' || /throttl/i.test(e?.message || ''));
         const busy = b.errors.some(e => /being modified|currently being modified|try again later/i.test(e?.message || ''));
-        if ((throttled || busy) && attempt < 5) {
-          await sleep(2000 * (attempt + 1));
-          continue;
-        }
-        rawErrors = b.errors;
-        break;
+        if ((throttled || busy) && attempt < 5) { await sleep(2000 * (attempt + 1)); continue; }
+        rawErrors = b.errors; break;
       }
       payload = b?.data?.productVariantsBulkUpdate;
       if (payload) break;
       if (attempt < 3) { await sleep(500 * (attempt + 1)); continue; }
       break;
     }
-
-    if (rawErrors && !payload) {
-      return { ok: 0, fail: items.length, err: 'graphql: ' + (rawErrors[0]?.message || 'unknown') };
-    } else if (!payload) {
-      return { ok: 0, fail: items.length, err: 'no payload for product ' + pid };
-    } else {
-      const ue = payload.userErrors || [];
-      const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : items.length;
-      let fail = 0, errs = [];
-      if (ue.length) {
-        fail = Math.max(0, items.length - okCount);
-        for (const e of ue) { if (errs.length < 3 && e?.message) errs.push(e.message); }
-      } else if (okCount !== items.length) {
-        fail = items.length - okCount;
-      }
-      await sleep(WRITE_SLEEP_MS);
-      return { ok: okCount, fail, err: errs.join('; ') || null };
-    }
+    if (rawErrors && !payload) return { ok: 0, fail: items.length, err: 'graphql: ' + (rawErrors[0]?.message || 'unknown') };
+    if (!payload) return { ok: 0, fail: items.length, err: 'no payload for product ' + pid };
+    const ue = payload.userErrors || [];
+    const okCount = Array.isArray(payload.productVariants) ? payload.productVariants.length : items.length;
+    let fail = 0, errs = [];
+    if (ue.length) { fail = Math.max(0, items.length - okCount); for (const e of ue) { if (errs.length < 3 && e?.message) errs.push(e.message); } }
+    else if (okCount !== items.length) fail = items.length - okCount;
+    await sleep(WRITE_SLEEP_MS);
+    return { ok: okCount, fail, err: errs.join('; ') || null };
   }
-
   const entries = Array.from(byProduct.entries());
-  if (hardDeadline && Date.now() > hardDeadline) {
-    // Out of time entirely: defer everything (idempotent — will re-resolve next run).
-    if (onDefer) for (const [pid] of entries) onDefer(pid);
-    return { updated: updatedN, failed: failedN, errors, deferred: true };
-  }
   const results = await mapLimit(entries, WRITE_CONCURRENCY, ([pid, items]) => writeOne(pid, items));
-  for (const r of results) {
-    updatedN += r.ok;
-    failedN += r.fail;
-    if (r.err && errors.length < 30) errors.push(r.err);
-  }
+  for (const r of results) { updatedN += r.ok; failedN += r.fail; if (r.err && errors.length < 30) errors.push(r.err); }
   return { updated: updatedN, failed: failedN, errors };
+}
+
+// ─── Shard slice: products whose global index % SHARDS === shard ─────────
+function shardSlice(queue, shard) {
+  // Returns the shard's ordered product list (already filtered by i%SHARDS===shard),
+  // and we advance an INDEX into THIS list, not the global index.
+  const slice = [];
+  for (let i = 0; i < queue.length; i++) {
+    if (i % SHARDS === shard) slice.push(queue[i]);
+  }
+  return { slice, total: slice.length };
 }
 
 export async function onRequest(context) {
@@ -310,92 +299,104 @@ export async function onRequest(context) {
 
   const url = new URL(request.url);
   const action = url.searchParams.get('action') || 'status';
+  const shardParam = url.searchParams.get('shard');
   const limit = Math.min(parseInt(url.searchParams.get('limit') || String(MAX_PER_RUN), 10) || MAX_PER_RUN, MAX_PER_RUN);
 
   try {
-    const st = await loadState(env);
-
     if (action === 'reset') {
-      await shopMetaSet(env, STATE_KEY, emptyState());
-      return json({ ok: true, reset: true });
+      for (let s = 0; s < SHARDS; s++) await shopMetaSet(env, shardKey(s), emptyShard());
+      await shopMetaSet(env, META_KEY, {});
+      return json({ ok: true, reset: true, shards: SHARDS });
     }
 
     if (action === 'status') {
-      const remaining = Math.max(0, st.total - st.done - st.retry.length);
-      return json({ ok: true, ...st, remaining, errors: st.errors.slice(0, 10) });
+      const meta = await loadMeta(env);
+      let done = 0, updated = 0, failed = 0, skipNoSku = 0, skipNoSug = 0, aud0 = 0, retry = 0;
+      const perShard = {};
+      for (let s = 0; s < SHARDS; s++) {
+        const st = await loadShard(env, s);
+        done += st.done; updated += st.updated; failed += st.failed;
+        skipNoSku += st.skipNoSku; skipNoSug += st.skipNoSug; aud0 += st.aud0; retry += st.retry.length;
+        perShard[s] = { done: st.done, updated: st.updated, failed: st.failed, retry: st.retry.length };
+      }
+      const remaining = Math.max(0, meta.total - done - retry);
+      return json({ ok: true, shards: SHARDS, total: meta.total, totalVariants: meta.totalVariants, done, updated, failed, skipNoSku, skipNoSug, aud0, retry, remaining, perShard });
     }
 
     if (action === 'fx') {
-      const rate = await liveAudRate(env);
-      return json({ ok: true, usdToAud: rate, note: 'live USD->AUD rate (whole-dollar ceil applied at run)' });
+      return json({ ok: true, usdToAud: await liveAudRate(env) });
     }
 
     if (action === 'start-bulk') {
       const opId = await startBulk(env);
-      st.opId = opId;
-      st.url = null;
-      await shopMetaSet(env, STATE_KEY, st);
+      const meta = await loadMeta(env);
+      meta.url = null;
+      meta.opId = opId;
+      await shopMetaSet(env, META_KEY, meta);
       return json({ ok: true, opId, phase: 'started' });
     }
 
     if (action === 'poll-bulk') {
-      if (!st.opId) {
-        if (st.url && st.total) return json({ ok: true, phase: 'COMPLETED', total: st.total, note: 'already persisted' });
+      const meta = await loadMeta(env);
+      if (!meta.opId) {
+        if (meta.url && meta.total) return json({ ok: true, phase: 'COMPLETED', total: meta.total, note: 'already persisted' });
         return json({ ok: false, error: 'no opId; run start-bulk first' }, 400);
       }
-      const op = await bulkStatus(env, st.opId);
+      const op = await bulkStatus(env, meta.opId);
       if (!op) return json({ ok: false, error: 'bulk op not found (maybe expired)' }, 400);
-      if (op.status !== 'COMPLETED') {
-        return json({ ok: true, phase: op.status, opId: st.opId, objectCount: op.objectCount, errorCode: op.errorCode });
-      }
+      if (op.status !== 'COMPLETED') return json({ ok: true, phase: op.status, objectCount: op.objectCount, errorCode: op.errorCode });
       if (op.errorCode) return json({ ok: false, error: 'bulk error ' + op.errorCode }, 500);
-      if (!op.url) return json({ ok: false, error: 'bulk op COMPLETED but no url' }, 500);
+      if (!op.url) return json({ ok: false, error: 'bulk COMPLETED but no url' }, 500);
       const r = await fetch(op.url);
       if (!r.ok) return json({ ok: false, error: 'bulk download ' + r.status }, 500);
-      const txt = await r.text();
-      const queue = parseProducts(txt);
-      st.url = op.url;
-      st.total = queue.length;
-      st.done = 0; st.failed = 0; st.updated = 0; st.skipNoSku = 0; st.skipNoSug = 0; st.aud0 = 0; st.errors = [];
-      st.retry = [];
-      await shopMetaSet(env, STATE_KEY, st);
-      const totalVariants = queue.reduce((a, p) => a + p.variants.length, 0);
-      return json({ ok: true, phase: 'COMPLETED', total: st.total, totalVariants, withSku: queue.reduce((a, p) => a + p.variants.filter(v => v.sku).length, 0) });
+      const queue = parseProducts(await r.text());
+      meta.url = op.url;
+      meta.total = queue.length;
+      meta.totalVariants = queue.reduce((a, p) => a + p.variants.length, 0);
+      await shopMetaSet(env, META_KEY, meta);
+      // init all shard cursors
+      for (let s = 0; s < SHARDS; s++) await shopMetaSet(env, shardKey(s), emptyShard());
+      return json({ ok: true, phase: 'COMPLETED', total: meta.total, totalVariants: meta.totalVariants, shards: SHARDS });
     }
 
     if (action === 'scan') {
-      if (!st.opId) {
+      const meta = await loadMeta(env);
+      if (!meta.opId) {
         const opId = await startBulk(env);
-        st.opId = opId;
-        await shopMetaSet(env, STATE_KEY, st);
-        return json({ ok: true, opId, phase: 'started', hint: 'call poll-bulk to collect' });
+        meta.opId = opId;
+        await shopMetaSet(env, META_KEY, meta);
+        return json({ ok: true, opId, phase: 'started' });
       }
-      const op = await bulkStatus(env, st.opId);
-      return json({ ok: true, phase: op?.status || 'unknown', opId: st.opId });
+      const op = await bulkStatus(env, meta.opId);
+      return json({ ok: true, phase: op?.status || 'unknown', opId: meta.opId });
     }
 
     if (action === 'run') {
-      if (!st.url) return json({ ok: false, error: 'no persisted bulk url; run poll-bulk first' }, 400);
-      if (!st.total) return json({ ok: false, error: 'queue empty (total=0)' }, 400);
+      const shard = shardParam != null ? parseInt(shardParam, 10) || 0 : 0;
+      if (shard < 0 || shard >= SHARDS) return json({ ok: false, error: 'shard out of range 0..' + (SHARDS - 1) }, 400);
+
+      const meta = await loadMeta(env);
+      if (!meta.url) return json({ ok: false, error: 'no persisted bulk url; run poll-bulk first' }, 400);
+      if (!meta.total) return json({ ok: false, error: 'no products (total=0); run poll-bulk' }, 400);
 
       const rate = await liveAudRate(env);
 
-      const r = await fetch(st.url);
+      const r = await fetch(meta.url);
       if (!r.ok) return json({ ok: false, error: 'bulk re-download ' + r.status }, 500);
-      const txt = await r.text();
-      const queue = parseProducts(txt);
+      const queue = parseProducts(await r.text());
+      const { slice, total: shardTotal } = shardSlice(queue, shard);
 
-      let updatedNow = 0, failedNow = 0, skipNoSkuNow = 0, skipNoSugNow = 0, aud0Now = 0, cjSkipNow = 0, retriedNow = 0, processedNow = 0;
+      let st = await loadShard(env, shard);
       const runStart = Date.now();
-      const hardDeadline = runStart + HARD_DEADLINE_MS;   // absolute stop for the WHOLE run
-      const deadline = runStart + RUN_BUDGET_MS;          // lookup-phase budget
-      const nextRetry = [];
+      const hardDeadline = runStart + HARD_DEADLINE_MS;
+      const deadline = runStart + RUN_BUDGET_MS;
       const changes = [];
-      let rateLimited = false;
+      const nextRetry = [];
+      let rateLimited = false, processedNow = 0, cjSkipNow = 0, retriedNow = 0;
 
       async function resolveProduct(item) {
         const firstSku = (item.variants.find(v => v.sku) || {}).sku;
-        if (!firstSku) { return { skipNoSku: item.variants.length, other: {} }; }
+        if (!firstSku) return { skipNoSku: item.variants.length, skipNoSug: 0, aud0: 0, changes: [] };
         const cj = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(firstSku));
         const code = cj?.code;
         if (code === 429 || code === 1600200) return { rateLimited: true, item };
@@ -403,24 +404,19 @@ export async function onRequest(context) {
         return processProduct(env, item, cj, rate);
       }
 
-      // Phase 1: persisted retry queue (resolve concurrently)
+      // gather: retry queue first, then this shard's slice from its cursor
       const retryItems = [];
       while (st.retry.length && Date.now() <= deadline) retryItems.push(st.retry.shift());
 
-      // Phase 2: advance the main product cursor (gather this run's slice)
-      let idx = st.done;
       const sliceItems = [];
-      if (!rateLimited) {
-        const start = st.done;
-        const end = Math.min(st.total, start + limit);
-        for (idx = start; idx < end; idx++) {
-          if (Date.now() > deadline) break;
-          sliceItems.push({ item: queue[idx], cursor: idx });
-        }
+      const end = Math.min(shardTotal, st.done + limit);
+      for (let i = st.done; i < end; i++) {
+        if (Date.now() > deadline) break;
+        sliceItems.push({ item: slice[i], cursor: i });
       }
+      let idx = sliceItems.length ? sliceItems[sliceItems.length - 1].cursor + 1 : st.done;
 
-      // Phase 2b: resolve BOTH slices concurrently under a bounded pool.
-      // Attach the slice cursor so we can fold in stable order and safely advance st.done.
+      // resolve concurrently (CJ ~4/sec floor, but intershard this is fine)
       const allItems = retryItems.map(item => ({ item, isRetry: true, cursor: -1 }))
         .concat(sliceItems.map(o => ({ item: o.item, isRetry: false, cursor: o.cursor })));
       const resolutions = await mapLimit(allItems, CJ_CONCURRENCY, async ({ item, isRetry, cursor }) => {
@@ -428,88 +424,41 @@ export async function onRequest(context) {
         return { res, isRetry, cursor, item };
       });
 
-      // Fold: retries and the main slice share the SAME cursor ordering rules.
-      // We advance st.done only up to the first slice item that rate-limited (inclusive),
-      // re-queueing that item and everything after it. Retry items that rate-limit are
-      // simply re-queued. Everything is idempotent (price-matched writes are skipped),
-      // so a rare double-requeue is harmless correctness-wise.
       let sliceRateLimitCursor = Infinity;
       for (const { res, isRetry, cursor } of resolutions) {
         processedNow++;
-        if (res.rateLimited) {
-          rateLimited = true;
-          nextRetry.push(res.item);
-          if (!isRetry && cursor < sliceRateLimitCursor) sliceRateLimitCursor = cursor;
-          continue;
-        }
+        if (res.rateLimited) { rateLimited = true; nextRetry.push(res.item); if (!isRetry && cursor < sliceRateLimitCursor) sliceRateLimitCursor = cursor; continue; }
         if (res.cjskip) { if (isRetry) retriedNow++; else cjSkipNow++; continue; }
-        if (res.other) { if (isRetry) retriedNow++; continue; }
         changes.push(...res.changes);
-        skipNoSkuNow += res.skipNoSku;
-        skipNoSugNow += res.skipNoSug;
-        aud0Now += res.aud0;
+        st.skipNoSku += res.skipNoSku;
+        st.skipNoSug += res.skipNoSug;
+        st.aud0 += res.aud0;
         if (isRetry) retriedNow++;
       }
       if (rateLimited && Number.isFinite(sliceRateLimitCursor)) {
-        // Re-queue every slice item at/after the first rate-limited cursor (the
-        // rate-limited one was already pushed in the fold loop via res.item; the rest
-        // ran concurrently and may have been throttled too). Idempotent, so safe.
-        for (const o of sliceItems) {
-          if (o.cursor >= sliceRateLimitCursor && o.cursor !== sliceRateLimitCursor) {
-            nextRetry.push(queue[o.cursor]);
-          }
-        }
-        // Advance only past items BEFORE the first rate-limit; do not skip unprocessed products.
+        for (const o of sliceItems) if (o.cursor > sliceRateLimitCursor) nextRetry.push(slice[o.cursor]);
         idx = sliceRateLimitCursor;
       }
+
+      // writes (parallel)
+      let applied = { updated: 0, failed: 0, errors: [] };
+      if (Date.now() <= hardDeadline && changes.length) {
+        applied = await applyBatch(env, changes);
+      }
+      st.updated += applied.updated;
+      st.failed += applied.failed;
+      for (const e of applied.errors) { st.errors.unshift({ err: e }); }
+      st.errors = st.errors.slice(0, 20);
+      if (nextRetry.length) st.retry = nextRetry.slice(0, MAX_RETRY);
       st.done = idx;
 
-      // Phase 3: bulk-apply (per-variant price + compare-at cleared).
-      // If we are already past the hard deadline, defer ALL writes and requeue the
-      // unresolved slice items so nothing is lost (idempotent — re-resolved next run).
-      const deferredItems = [];
-      const applied = (Date.now() > hardDeadline)
-        ? { updated: 0, failed: 0, errors: [], deferred: true }
-        : await applyBatch(env, changes, rate, hardDeadline, (pid) => {
-            const orig = queue.find(q => String(q.shopProductId) === String(pid));
-            if (orig) deferredItems.push(orig);
-          });
-      if (applied.deferred) {
-        // Out of time: requeue every unresolved slice item (their changes were never written).
-        for (const o of sliceItems) { if (o.cursor >= idx) nextRetry.push(queue[o.cursor]); }
-      }
-      if (deferredItems.length) nextRetry.push(...deferredItems);
-      updatedNow += applied.updated;
-      failedNow += applied.failed;
-      if (applied.errors.length) {
-        for (const e of applied.errors) { st.errors.unshift({ err: e }); }
-        st.errors = st.errors.slice(0, 30);
-      }
-
-      if (nextRetry.length) st.retry = nextRetry.slice(0, MAX_RETRY);
-
-      st.updated += updatedNow;
-      st.failed += failedNow;
-      st.skipNoSku += skipNoSkuNow;
-      st.skipNoSug += skipNoSugNow;
-      st.aud0 += aud0Now;
-      await shopMetaSet(env, STATE_KEY, st);
-      const remaining = Math.max(0, st.total - st.done - st.retry.length);
+      await saveShard(env, shard, st);
+      const remaining = Math.max(0, shardTotal - st.done - st.retry.length);
       return json({
-        ok: true,
-        processed: processedNow,
-        retried: retriedNow,
-        done: st.done,
-        total: st.total,
-        updated: st.updated,
-        failed: st.failed,
-        skipNoSku: st.skipNoSku,
-        skipNoSug: st.skipNoSug,
-        retryQueued: st.retry.length,
-        rateLimited,
-        usdToAud: rate,
-        remaining,
-        errors: st.errors.slice(0, 5),
+        ok: true, shard, shardTotal, processed: processedNow, retried: retriedNow,
+        done: st.done, total: meta.total, shardUpdated: st.updated, updated: st.updated,
+        failed: st.failed, skipNoSku: st.skipNoSku, skipNoSug: st.skipNoSug,
+        retryQueued: st.retry.length, rateLimited, usdToAud: rate, remaining, errors: st.errors.slice(0, 5),
       });
     }
 
