@@ -18,6 +18,7 @@ const META_KEY = 'reprice-meta';   // shared: bulk csv url + totals + fx (writte
 const FX_KEY = 'reprice-fx';       // cached live AUD rate (shared)
 const MAX_PER_RUN = 160;           // per-shard products to resolve per run
 const RUN_BUDGET_MS = 40000;       // CJ lookup budget per run (generous; CJ is the floor)
+const RETRY_PER_RUN = 20;          // max retry items to drain per fire (fits 46s window)
 const MAX_RETRY = 20000;
 const FX_FALLBACK = 1.40;
 const FX_TTL_MS = 6 * 3600 * 1000;
@@ -421,7 +422,7 @@ export async function onRequest(context) {
 
       // gather: retry queue first, then this shard's slice from its cursor
       const retryItems = [];
-      while (st.retry.length && retryItems.length < MAX_PER_RUN && Date.now() <= deadline) retryItems.push(st.retry.shift());
+      while (st.retry.length && retryItems.length < RETRY_PER_RUN && Date.now() <= deadline) retryItems.push(st.retry.shift());
 
       const sliceItems = [];
       const end = Math.min(shardTotal, st.done + limit);
