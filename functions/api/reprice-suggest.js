@@ -304,9 +304,17 @@ export async function onRequest(context) {
 
   try {
     if (action === 'reset') {
+      // Clear ONLY the shard cursors — preserve the shared meta (bulk url + total),
+      // otherwise `total` flaps to 0 and the job stalls. To also drop the shared meta,
+      // use action=reset-all.
+      for (let s = 0; s < SHARDS; s++) await shopMetaSet(env, shardKey(s), emptyShard());
+      return json({ ok: true, reset: true, shards: SHARDS });
+    }
+
+    if (action === 'reset-all') {
       for (let s = 0; s < SHARDS; s++) await shopMetaSet(env, shardKey(s), emptyShard());
       await shopMetaSet(env, META_KEY, {});
-      return json({ ok: true, reset: true, shards: SHARDS });
+      return json({ ok: true, resetAll: true, shards: SHARDS });
     }
 
     if (action === 'status') {
