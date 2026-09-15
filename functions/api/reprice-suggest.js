@@ -22,8 +22,8 @@ const MAX_RETRY = 20000;
 const FX_FALLBACK = 1.40;
 const FX_TTL_MS = 6 * 3600 * 1000;
 const CJ_CONCURRENCY = 3;          // in-flight CJ lookups (under MCP ~4/sec per-IP)
-const WRITE_CONCURRENCY = 4;       // in-flight Shopify writes
-const WRITE_SLEEP_MS = 60;
+const WRITE_CONCURRENCY = 2;       // in-flight Shopify writes (gentler: avoid store throttle)
+const WRITE_SLEEP_MS = 800;
 const HARD_DEADLINE_MS = 46000;    // stop before Cloudflare ~50s kill
 
 const shardKey = (s) => `reprice-s${s}`;
@@ -258,7 +258,7 @@ async function applyBatch(env, changes) {
       if (b?.errors?.length) {
         const throttled = b.errors.some(e => e?.extensions?.code === 'THROTTLED' || /throttl/i.test(e?.message || ''));
         const busy = b.errors.some(e => /being modified|currently being modified|try again later/i.test(e?.message || ''));
-        if ((throttled || busy) && attempt < 5) { await sleep(2000 * (attempt + 1)); continue; }
+        if ((throttled || busy) && attempt < 5) { await sleep(Math.min(5000 * (attempt + 1), 20000)); continue; }
         rawErrors = b.errors; break;
       }
       payload = b?.data?.productVariantsBulkUpdate;
@@ -421,7 +421,7 @@ export async function onRequest(context) {
 
       // gather: retry queue first, then this shard's slice from its cursor
       const retryItems = [];
-      while (st.retry.length && Date.now() <= deadline) retryItems.push(st.retry.shift());
+      while (st.retry.length && retryItems.length < MAX_PER_RUN && Date.now() <= deadline) retryItems.push(st.retry.shift());
 
       const sliceItems = [];
       const end = Math.min(shardTotal, st.done + limit);
