@@ -19,13 +19,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy Worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: mail-relay
-          command: deploy
-          secrets: |
-            HAVITO_MAIL_PASS
+        working-directory: mail-relay
         env:
-          HAVITO_MAIL_PASS: ${{ secrets.HAVITO_MAIL_PASS }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install -g wrangler
+          wrangler deploy src/worker.js \
+            --name bargain-drop-mail-relay \
+            --var "ADMIN_PIN:03091996" \
+            --var "HAVITO_MAIL_USER:support@bargain-drop.online" \
+            --var "HAVITO_MAIL_PASS:${{ secrets.HAVITO_MAIL_PASS }}"
