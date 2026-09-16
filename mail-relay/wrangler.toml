@@ -1,0 +1,8 @@
+name = "bargain-drop-mail-relay"
+main = "src/worker.js"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ADMIN_PIN = "03091996"
+HAVITO_MAIL_USER = "support@bargain-drop.online"
