@@ -6,9 +6,10 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Admin — Bargain Drop</title>
 <style>
-:root{--bg:#0F0F0F;--card:#1A1A1A;--fg:#fff;--muted:rgba(255,255,255,.5);--accent:#e60023;--line:rgba(255,255,255,.08);--radius:14px}
+:root{--bg:#0F0F0F;--card:#1A1A1A;--card2:#222;--fg:#fff;--muted:rgba(255,255,255,.5);--accent:#e60023;--line:rgba(255,255,255,.08);--radius:14px}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden}
+a{color:inherit;text-decoration:none}
 .overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
 .overlay.hidden{display:none}
 .keypad-wrap{text-align:center;max-width:320px;padding:20px}
@@ -19,22 +20,52 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .keypad-dot{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.2);transition:all .15s}
 .keypad-dot.filled{background:var(--accent);border-color:var(--accent)}
 .keypad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto 16px}
-.keypad-btn{aspect-ratio:1;border-radius:var(--radius);background:var(--card);border:1px solid var(--line);color:var(--fg);font-size:1.2rem;font-weight:700;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.keypad-btn{aspect-ratio:1;border-radius:var(--radius);background:var(--card);border:1px solid var(--line);color:var(--fg);font-size:1.2rem;font-weight:700;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center}
 .keypad-btn:active{background:var(--accent);color:var(--bg);transform:scale(.95)}
 .keypad-btn.del{font-size:.85rem;background:transparent;border-color:transparent;color:var(--muted)}
 .keypad-error{font-size:.65rem;color:var(--accent);min-height:20px;margin-bottom:8px}
-.content{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
-.content.hidden{display:none}
-.wrap{max-width:480px;width:100%}
-.wrap h1{font-size:1.6rem;font-weight:800;margin-bottom:8px}
-.wrap h1 span{color:var(--accent)}
-.wrap p{font-size:.85rem;color:var(--muted);margin-bottom:28px}
-.inbox{display:inline-block;padding:18px 32px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-size:1.05rem;font-weight:700;letter-spacing:.3px}
-.inbox a{color:var(--fg);text-decoration:none}
-.inbox a:hover{color:var(--accent)}
+.app{display:flex;flex-direction:column;height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--line);background:var(--card)}
+.header h2{font-size:.95rem;font-weight:800}
+.header h2 span{color:var(--accent)}
+.header .actions{display:flex;gap:8px}
+.btn{height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--fg);font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{opacity:.9}
+.body{flex:1;display:flex;overflow:hidden}
+.list{width:340px;border-right:1px solid var(--line);overflow-y:auto;background:var(--bg)}
+.list-item{padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
+.list-item:hover{background:var(--card)}
+.list-item.active{background:var(--card2);box-shadow:inset 3px 0 0 var(--accent)}
+.list-item .from{font-size:.82rem;font-weight:700;margin-bottom:3px;display:flex;justify-content:space-between;gap:8px}
+.list-item .from .date{font-size:.62rem;color:var(--muted);font-weight:500;flex-shrink:0}
+.list-item .subject{font-size:.78rem;color:var(--fg);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{padding:30px 16px;text-align:center;color:var(--muted);font-size:.78rem}
+.pane{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.pane .msg-scroll{flex:1;overflow-y:auto;padding:24px}
+.pane .msg-scroll h3{font-size:1.15rem;font-weight:800;margin-bottom:10px}
+.pane .msg-meta{font-size:.72rem;color:var(--muted);margin-bottom:20px;line-height:1.6}
+.pane .msg-body{font-size:.9rem;line-height:1.6;color:var(--fg)}
+.pane .msg-body pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit}
+.pane .msg-body .html{overflow-wrap:break-word}
+.pane-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem}
+.compose{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+.compose.hidden{display:none}
+.compose-card{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:12px}
+.compose-card h3{font-size:1rem;font-weight:800}
+.compose-card input,.compose-card textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--fg);font-family:inherit;font-size:.85rem;resize:none}
+.compose-card input:focus,.compose-card textarea:focus{outline:none;border-color:var(--accent)}
+.compose-card textarea{min-height:180px}
+.compose-card .row{display:flex;gap:8px;justify-content:flex-end}
+.status{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:.75rem;z-index:2000;display:none}
+.status.err{border-color:var(--accent)}
+.status.show{display:block}
+@media(max-width:640px){.list{width:100%;border-right:none}.pane{display:none}.pane.open{display:flex;position:fixed;inset:0 0 0 0;background:var(--bg);z-index:500}}
 </style>
 </head>
 <body>
+
 <div class="overlay" id="overlay">
   <div class="keypad-wrap">
     <h1>Bargain Drop <span>Admin</span></h1>
@@ -44,59 +75,131 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="keypad-grid" id="grid"></div>
   </div>
 </div>
-<div class="content hidden" id="content">
-  <div class="wrap">
-    <h1>Bargain Drop <span>Admin</span></h1>
-    <p>Support inbox</p>
-    <div class="inbox"><a href="mailto:support@bargain-drop.online">support@bargain-drop.online</a></div>
+
+<div class="app" id="app">
+  <div class="header">
+    <h2>Support Inbox <span>•</span></h2>
+    <div class="actions">
+      <button class="btn" id="refreshBtn">↻ Refresh</button>
+      <button class="btn primary" id="composeBtn">✉ Compose</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="list" id="list"></div>
+    <div class="pane" id="pane"><div class="pane-empty">Select a message</div></div>
   </div>
 </div>
+
+<div class="compose hidden" id="compose">
+  <div class="compose-card">
+    <h3>New Message</h3>
+    <input type="text" id="cTo" placeholder="To (email address)">
+    <input type="text" id="cReply" placeholder="Reply-To (optional)">
+    <input type="text" id="cSubject" placeholder="Subject">
+    <textarea id="cBody" placeholder="Message body..."></textarea>
+    <div class="row">
+      <button class="btn" id="cancelBtn">Cancel</button>
+      <button class="btn primary" id="sendBtn">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="status" id="status"></div>
+
 <script>
+// ── CONFIG ────────────────────────────────────────────────────────────
+// Set this to the Workers.dev URL of your mail-relay Worker after first deploy.
+const RELAY_URL = 'https://bargain-drop-mail-relay.bargain-drop.workers.dev';
 const PIN = '03091996';
+
 let entered = '';
 const overlay = document.getElementById('overlay');
-const content = document.getElementById('content');
 const dots = document.getElementById('dots');
 const errEl = document.getElementById('err');
 const grid = document.getElementById('grid');
-function renderDots(){
-  dots.innerHTML = '';
-  for (let i = 0; i < PIN.length; i++){
-    const d = document.createElement('div');
-    d.className = 'keypad-dot' + (i < entered.length ? ' filled' : '');
-    dots.appendChild(d);
-  }
+function renderDots(){ dots.innerHTML=''; for(let i=0;i<PIN.length;i++){ const d=document.createElement('div'); d.className='keypad-dot'+(i<entered.length?' filled':''); dots.appendChild(d);} }
+function renderGrid(){ grid.innerHTML=''; ['1','2','3','4','5','6','7','8','9','del','0','c'].forEach(k=>{ const b=document.createElement('button'); b.className='keypad-btn'+(k==='del'||k==='c'?' del':''); b.textContent=k==='del'?'⌫':k==='c'?'C':k; b.addEventListener('click',()=>handle(k)); grid.appendChild(b); }); }
+function handle(k){ errEl.textContent=''; if(k==='del'){entered=entered.slice(0,-1);} else if(k==='c'){entered='';} else { if(entered.length<PIN.length) entered+=k; } renderDots(); if(entered.length===PIN.length){ if(entered===PIN){ overlay.classList.add('hidden'); loadInbox(); } else { errEl.textContent='Incorrect PIN'; entered=''; renderDots(); } } }
+renderDots(); renderGrid();
+
+const $ = id => document.getElementById(id);
+function status(msg, isErr){ const s=$('status'); s.textContent=msg; s.className='status show'+(isErr?' err':''); clearTimeout(s._t); s._t=setTimeout(()=>s.classList.remove('show'),4000); }
+async function api(action, params, body){
+  const url = new URL(RELAY_URL);
+  url.searchParams.set('action', action);
+  if (params) for (const k in params) url.searchParams.set(k, params[k]);
+  const opts = { method: body ? 'POST' : 'GET', headers: { 'X-Admin-Pin': PIN } };
+  if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  const r = await fetch(url, opts);
+  return await r.json();
 }
-function renderGrid(){
-  grid.innerHTML = '';
-  const keys = ['1','2','3','4','5','6','7','8','9','del','0','c'];
-  keys.forEach(k => {
-    const b = document.createElement('button');
-    b.className = 'keypad-btn' + (k === 'del' || k === 'c' ? ' del' : '');
-    b.textContent = k === 'del' ? '⌫' : k === 'c' ? 'C' : k;
-    b.addEventListener('click', () => handle(k));
-    grid.appendChild(b);
-  });
+
+let messages = [];
+async function loadInbox(){
+  status('Loading inbox…');
+  try {
+    const r = await api('list', { limit: 100 });
+    if (!r.ok) throw new Error(r.error || 'Failed to load inbox');
+    messages = r.messages || [];
+    renderList();
+    status('Inbox loaded (' + messages.length + ' messages)');
+  } catch(e){ status('Error: ' + e.message, true); renderList(); }
 }
-function handle(k){
-  errEl.textContent = '';
-  if (k === 'del'){ entered = entered.slice(0, -1); }
-  else if (k === 'c'){ entered = ''; }
-  else { if (entered.length < PIN.length) entered += k; }
-  renderDots();
-  if (entered.length === PIN.length){
-    if (entered === PIN){
-      overlay.classList.add('hidden');
-      content.classList.remove('hidden');
-    } else {
-      errEl.textContent = 'Incorrect PIN';
-      entered = '';
-      renderDots();
-    }
-  }
+function fmtDate(d){ try { const x=new Date(d); return x.toLocaleDateString()+' '+x.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); } catch(e){ return (d||'').slice(0,16); } }
+function renderList(){
+  const el = $('list');
+  if (!messages.length){ el.innerHTML='<div class="empty">No messages</div>'; return; }
+  el.innerHTML = messages.map((m,i)=>`
+    <div class="list-item" data-i="${i}">
+      <div class="from"><span>${esc(m.from||'(no sender)')}</span><span class="date">${fmtDate(m.date)}</span></div>
+      <div class="subject">${esc(m.subject||'(no subject)')}</div>
+    </div>`).join('');
+  el.querySelectorAll('.list-item').forEach(li=>li.addEventListener('click',()=>openMessage(+li.dataset.i)));
 }
-renderDots();
-renderGrid();
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function openMessage(i){
+  document.querySelectorAll('.list-item').forEach(x=>x.classList.remove('active'));
+  document.querySelector('.list-item[data-i="'+i+'"]')?.classList.add('active');
+  const m = messages[i];
+  const pane = $('pane');
+  pane.innerHTML = '<div class="msg-scroll"><div style="text-align:center;color:var(--muted);padding:20px">Loading…</div></div>';
+  pane.classList.add('open');
+  try {
+    const r = await api('read', { uid: m.uid });
+    if (!r.ok) throw new Error(r.error || 'Failed to read message');
+    const bodyHtml = r.html ? '<div class="html">'+r.html+'</div>' : '<pre>'+esc(r.text||'(empty)')+'</pre>';
+    pane.innerHTML = `<div class="msg-scroll">
+      <h3>${esc(r.subject||'(no subject)')}</h3>
+      <div class="msg-meta">
+        <div><strong>From:</strong> ${esc(r.from||'')}</div>
+        <div><strong>To:</strong> ${esc(r.to||'')}</div>
+        ${r.cc?`<div><strong>Cc:</strong> ${esc(r.cc)}</div>`:''}
+        <div><strong>Date:</strong> ${esc(r.date||'')}</div>
+      </div>
+      <div class="msg-body">${bodyHtml}</div>
+    </div>`;
+  } catch(e){ pane.innerHTML='<div class="pane-empty">'+esc('Error: '+e.message)+'</div>'; }
+}
+
+$('composeBtn').addEventListener('click',()=>$('compose').classList.remove('hidden'));
+$('cancelBtn').addEventListener('click',()=>$('compose').classList.add('hidden'));
+$('refreshBtn').addEventListener('click',loadInbox);
+$('sendBtn').addEventListener('click',async()=>{
+  const to=$('cTo').value.trim(), reply=$('cReply').value.trim(), subject=$('cSubject').value.trim(), text=$('cBody').value.trim();
+  if(!to){ status('Please enter a recipient',true); return; }
+  if(!subject && !text){ status('Please enter a subject or body',true); return; }
+  $('sendBtn').disabled=true; $('sendBtn').textContent='Sending…';
+  try {
+    const body = { to, subject, text };
+    if (reply) body.replyTo = reply;
+    const r = await api('send', null, body);
+    if (!r.ok) throw new Error(r.error || 'Send failed');
+    status('Sent to ' + to);
+    $('compose').classList.add('hidden');
+    $('cTo').value=''; $('cReply').value=''; $('cSubject').value=''; $('cBody').value='';
+  } catch(e){ status('Error: '+e.message, true); }
+  finally { $('sendBtn').disabled=false; $('sendBtn').textContent='Send'; }
+});
 </script>
 </body>
 </html>
