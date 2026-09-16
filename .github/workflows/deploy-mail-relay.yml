@@ -27,6 +27,7 @@ jobs:
           npm install -g wrangler
           wrangler deploy src/worker.js \
             --name bargain-drop-mail-relay \
+            --compatibility-date 2024-04-15 \
             --var "ADMIN_PIN:03091996" \
             --var "HAVITO_MAIL_USER:support@bargain-drop.online" \
             --var "HAVITO_MAIL_PASS:${{ secrets.HAVITO_MAIL_PASS }}"
