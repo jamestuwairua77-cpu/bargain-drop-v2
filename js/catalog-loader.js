@@ -1,8 +1,12 @@
 /* catalog-loader.js — load the sharded catalog and merge into a single array/object.
  * The catalog is split across all-products-N.json / categories-data-N.json with
  * all-products.json / categories-data.json serving as { shards: N, count: M } manifests.
- * This keeps the whole catalog (5,700+ products) deployable under Cloudflare Pages'
- * 25 MiB per-file limit. */
+ * This keeps the whole catalog (20k+ products) deployable under Cloudflare Pages'
+ * 25 MiB per-file limit.
+ *
+ * For the HOMEPAGE, use loadFeatured() — it loads a single lightweight featured.json
+ * (~a few hundred products) so the hero slideshow + trending + "more products" render
+ * instantly instead of waiting on every shard of the full catalog. */
 (function(){
   function fetchJSON(url, timeoutMs){
     return new Promise(function(resolve, reject){
@@ -21,6 +25,16 @@
     return out;
   }
   function bust(){ return '?v=' + encodeURIComponent(Date.now().toString(36)); }
+
+  // Load a single lightweight featured product file (fast homepage path).
+  window.loadFeatured = function(cb){
+    if(window.__catalogFeatured){ cb(window.__catalogFeatured); return; }
+    fetchJSON('/featured.json' + bust(), 15000).then(function(arr){
+      var out = Array.isArray(arr) ? arr : [];
+      window.__catalogFeatured = out;
+      cb(out);
+    }).catch(function(){ cb([]); });
+  };
 
   // Load the sharded product catalog as one array.
   window.loadCatalog = function(cb){
