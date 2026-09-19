@@ -27,6 +27,7 @@ ASSET_DIRS = ['js', 'css', 'images', 'fonts', 'chat-widget']
 JSON_ASSETS = [
     'all-products.json', 'categories-data.json', 'products-index.json',
     'categories-index.json', 'reviews-cache.json', 'users-seed.json',
+    'featured.json',
 ]
 EXT_RE = re.compile(r'\.(js|css|png|jpe?g|svg|webp|gif|woff2?|ttf|otf|ico)$', re.I)
 

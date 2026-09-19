@@ -210,6 +210,28 @@ for c in catObjs:
 if cur: c_shards.append(cur)
 
 files = {}
+
+# featured.json — a small, image-first subset for the homepage hero + trending +
+# "more products" so the homepage can render instantly without loading every shard.
+# Pick distinct products that have an image, then top up with the rest.
+def build_featured(products, n=300):
+    have_img = [p for p in products if p.get('image')]
+    rest = [p for p in products if not p.get('image')]
+    picked = []
+    seen = set()
+    for p in (have_img + rest):
+        key = p.get('image') or p.get('title')
+        if key in seen:
+            continue
+        seen.add(key)
+        picked.append(p)
+        if len(picked) >= n:
+            break
+    return picked
+
+featured = build_featured(all_, 300)
+files['featured.json'] = json.dumps(featured, ensure_ascii=False)
+
 for i, s in enumerate(p_shards):
     files[f'all-products-{i}.json'] = json.dumps(s, ensure_ascii=False)
 files['all-products.json'] = json.dumps({'shards': len(p_shards), 'count': len(all_)})
