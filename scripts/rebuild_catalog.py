@@ -137,14 +137,42 @@ def is_furniture(title):
             return True
     return False
 
+def is_home_improvement(title):
+    """Detect home-improvement / tools / cleaning products mislabeled as
+    'Home, Garden & Furniture' so they route to 'home-improvement'."""
+    if not title:
+        return False
+    t = str(title).lower()
+    KW = ['screwdriver','wrench','plier','pliers','drill','tool set','tools','hardware',
+          'plumb','ladder','wallpaper','socket','faucet','door handle','lighting',
+          'light bulb','extension cord','flashlight','work light','worklight',
+          'tape measure','saw','hammer','nail','screw','bolt','nut','hinge','bracket',
+          'adapter','valve','hose','shower head','bathroom fixture','toilet',
+          'towel bar','curtain rod','furniture repair','repair kit','cleaning gel',
+          'cleaning paste','cleaning sheet','cleaning tablet','cleaning cream',
+          'scratch remover','stain remover','decontamination','rust remover','sealant',
+          'adhesive','grease','lubricant','degreaser','descaler','paint remover',
+          'wall anchor','dryer vent','cleaning brush','polish','car interior cleaner',
+          'engine degreaser','grout','silicone','mounting tape','glue','caulk',
+          'window cleaner','floor cleaner','stovetop','oven cleaner','descaler']
+    for kw in KW:
+        if re.search(r'(^|[^a-z0-9])' + re.escape(kw) + r'($|[^a-z0-9])', t):
+            return True
+    return False
+
 def map_category(ptype, title):
     """Map a Shopify product_type + title to a canonical storefront category slug.
-    Splits CJ's combined "Home, Garden & Furniture" into 'furniture' vs 'home-garden'."""
+    Splits CJ's combined "Home, Garden & Furniture" into 'furniture' / 'home-garden'
+    / 'home-improvement' based on title signals."""
     if not ptype:
         return 'other'
     key = ptype.lower().replace(' & ', '-').replace(' ', '-').replace('"','').replace("'",'').replace(',','')
     if key == 'home-garden-furniture':
-        return 'furniture' if is_furniture(title) else 'home-garden'
+        if is_home_improvement(title):
+            return 'home-improvement'
+        if is_furniture(title):
+            return 'furniture'
+        return 'home-garden'
     return key
 
 cats, all_, idx = {}, [], {}
@@ -160,7 +188,7 @@ for p in prods:
                  'product_type': p['product_type'], 'tags': p['tags'], 'variants': vars_list})
     ptype = p['product_type'] or 'other'
     key = map_category(ptype, p['title'])
-    name = 'Furniture' if key == 'furniture' else ('Home & Garden' if key == 'home-garden' else ptype)
+    name = {'furniture': 'Furniture', 'home-garden': 'Home & Garden', 'home-improvement': 'Home Improvement'}.get(key, ptype)
     if key not in cats: cats[key] = {'name': name, 'products': []}
     cats[key]['products'].append({'id': p['id'], 'title': p['title'], 'price': price,
         'image': imgs[0] if imgs else None, 'body_html': p['body_html'], 'vendor': p['vendor'],
