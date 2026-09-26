@@ -1,54 +1,46 @@
-// CJ Dropshipping webhook → catalog import logic.
+// functions/_cj-import.js — Shared core for CJ webhook imports + auto-sync
 //
-// Consumes the verified payloads (already HMAC-verified by cj-webhook.js) and
-// ensures every store product carries its complete CJ variant set.
+// Extracted from cj-webhook.js so other endpoints (e.g. cj-sync, manual reimports)
+// can reuse the exact same product-upsert logic without code duplication.
 //
-// ── ARCHITECTURE (important) ─────────────────────────────────────────────
-// The storefront serves products from `all-products.json`, which is REBUILT
-// from Shopify on every Shopify product webhook (see product-sync-webhook.js).
-// Therefore `all-products.json` is NOT a durable place to write CJ-only fields
-// (vid / variantWeight / variantKey / variantNameEn) — a Shopify rebuild wipes them.
-//
-// The single durable source of truth for variants is SHOPIFY. So this handler:
-//   1. On a PRODUCT/VARIANT push, if the full variant set isn't already present,
-//      it RETRIEVES the complete variant list from CJ (product/query by sku).
-//   2. Reconciles CJ variants → Shopify (create missing variants, update
-//      price / weight / options / image / sku), using the existing multi-key
-//      CJ client (handles cross-account 1600014) and existing shopifyFetch.
-//   3. Shopify then emits products/update → product-sync-webhook rebuilds the
-//      catalog with the now-complete variants.
-// This satisfies "all products have all their variants" without depending on
-// CJ pushes firing for every unchanged variant, and without quota-heavy pulls.
-//
-// Message types handled:
-//   PRODUCT      → retrieve full variant list from CJ + reconcile to Shopify
-//   VARIANT      → incremental variant field update (reconcile to Shopify)
-//   STOCK        → per-variant stock → variant availability (Shopify inventory)
-//   ORDER        → order status (defer to fulfillment flow)
-//   LOGISTIC     → tracking (log-only for now)
-//
-// Constraints:
-//   - Idempotent on messageId (CJ keeps messageId stable across retries).
-//   - Runs inside event.waitUntil (AFTER the ack) → never blocks the 200.
-//   - Uses CJK variant normalization matching sync-full.js (do not regress).
-//   - Never logs openId / raw sign header — only masked messageId + type.
+// WHAT THIS DOES:
+//   - Receives raw CJ webhook payloads (both wrapped { Message, Timestamp } and flat)
+//   - Dispatches by message type (product/create, product/update, variant/create, etc.)
+//   - Normalizes CJK option values to clean English (Color: "Red", Size: "XL")
+//   - Syncs to Shopify via REST admin API:
+//       * Creates new products if they don't exist
+//       * Updates existing products (title, description, tags, category, images)
+//       * Updates/creates variants (price, SKU, weight, options)
+//   - Normalizes and publishes categories:
+//       * Maps CJ category name → standard Bargain Drop category
+//       * Writes product_type in Shopify
+//       * Rebuilds dynamic subcategory cache if needed
+//   - Tracks sync history in /data/sync-log.json (resilient ring buffer)
+//   - Handles order fulfillment status sync (CJ tracking → Shopify fulfillment)
 
 import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, shopMetaSet, readCatalogFromGithub, writeCatalogFromGithub, listOrders, updateOrderStatus, appendSyncLog } from './_sync-lib.js';
 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 
-// ── Reprice policy ───────────────────────────────────────────────────────────────────────────────────────────────
-// Price imported products at CJ's SUGGESTED RETAIL price (suggestSellPrice /
-// variantSugSellPrice, USD) converted to AUD at the LIVE USD→AUD rate (not a
-// hardcoded multiplier), rounded to whole dollars, compare-at-price CLEARED.
-// Falls back to the wholesale cost (sellPrice / variantSellPrice) only when the
-// suggested-retail field is absent, so imports never lose a price.
-const USD_AUD = 1.4234; // live USD→AUD rate (update as FX moves)
-
-function repriceAUD(usd) {
-  const c = parseFloat(usd);
+// ── Reprice policy: tiered markup on wholesale cost (clean .95 retail) ─────
+// Applies fair-margin tiering anchored at 2.5x, rounded to clean .95 endings:
+//   < $5 -> 3.2x, < $8 -> 3.0x, < $15 -> 2.6x, < $30 -> 2.5x,
+//   < $60 -> 2.1x, < $120 -> 1.9x, >= $120 -> 1.7x.
+function computePrice(baseCost) {
+  const c = parseFloat(baseCost);
   if (!isFinite(c) || c <= 0) return null;
-  return Math.round(c * USD_AUD);
+  let mult;
+  if (c < 5)        mult = 3.2;
+  else if (c < 8)   mult = 3.0;
+  else if (c < 15)  mult = 2.6;
+  else if (c < 30)  mult = 2.5;
+  else if (c < 60)  mult = 2.1;
+  else if (c < 120) mult = 1.9;
+  else              mult = 1.7;
+  const raw = c * mult;
+  let price = Math.ceil(raw) - 0.05;
+  if (price <= 0) price = raw;
+  return +price.toFixed(2);
 }
 
 // Dedupe ring of recently-processed messageIds.
@@ -58,345 +50,274 @@ const PROCESSED_MAX = 2000;
 // ── CJK variant normalization (must match sync-full.js EXACTLY) ──────────
 const CN_COLOR_MAP = [
   ['黑色','Black'],['白色','White'],['红色','Red'],['蓝色','Blue'],
-  ['绿色','Green'],['粉色','Pink'],['粉红','Pink'],['紫色','Purple'],
-  ['黄色','Yellow'],['灰色','Grey'],['橙色','Orange'],['棕色','Brown'],
-  ['米色','Beige'],['藏青色','Navy'],['藏青','Navy'],['金色','Gold'],
-  ['银色','Silver'],['卡其','Khaki'],['酒红','Wine'],['酒红色','Wine'],
-  ['杏色','Apricot'],['深蓝','Navy'],['浅蓝','Light Blue'],['玫红','Rose'],
-  ['天蓝','Sky Blue'],['肤色','Skin'],['裸色','Nude'],['黑白','Black'],
+  ['黄色','Yellow'],['绿色','Green'],['灰色','Gray'],['粉红色','Pink'],
+  ['粉色','Pink'],['紫色','Purple'],['橙色','Orange'],['棕色','Brown'],
+  ['咖啡色','Coffee'],['米色','Beige'],['卡其色','Khaki'],['银色','Silver'],
+  ['金色','Gold'],['透明','Clear'],['花色','Multicolor'],['混色','Mixed'],
+  ['深蓝','Dark Blue'],['浅蓝','Light Blue'],['藏青','Navy Blue'],
+  ['军绿','Army Green'],['酒红','Wine Red'],['玫红','Rose Red'],
 ];
-const COLOR_PALETTE = ['Black','White','Blue','Red','Green','Pink','Grey','Khaki','Brown','Purple','Beige','Navy','Gold','Silver','Rose','Wine','Apricot','Orange'];
-const TITLE_COLORS = ['Black','White','Red','Blue','Green','Pink','Purple','Yellow','Grey','Gray','Orange','Brown','Beige','Navy','Gold','Silver','Khaki','Rose','Wine','Apricot','Olive','Copper','Emerald','Teal','Maroon','Tan','Cream','Ivory','Champagne','Skin','Nude','Leopard'];
 
-function hasCJK(s){ return /[\u4e00-\u9fff]/.test(s || ''); }
-function cnToEn(s){ for (const [cn,en] of CN_COLOR_MAP) if ((s||'').includes(cn)) return en; return null; }
-function seedFromId(s){ let h=0; const str=String(s); for (let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h=((h<<5)-h)+ch; h|=0; } return Math.abs(h); }
-function titleColor(title){ if(!title) return null; for (const c of TITLE_COLORS){ if (new RegExp('\\b'+c+'\\b','i').test(title)) return c; } return null; }
-function buildPalette(seed){ const n=2+(seed%3); const out=[]; const used=new Set(); let s=seed; while(out.length<n){ s=(Math.imul(s,1103515245)+12345)&0x7FFFFFFF; const col=COLOR_PALETTE[s%COLOR_PALETTE.length]; if(!used.has(col)){ used.add(col); out.push(col); } } return out; }
-function normalizeVariantOption(raw, productId, title) {
-  if (!hasCJK(raw)) return (raw == null ? '' : raw);
-  const en = cnToEn(raw);
-  if (en) return en;
-  const tcol = titleColor(title);
-  if (tcol) return tcol;
-  const pal = buildPalette(seedFromId(productId));
-  return pal[0];
+const LETTER_SIZES = new Set([
+  'XXS','XS','S','M','L','XL','2XL','XXL','3XL','XXXL','4XL','XXXXL',
+  '5XL','XXXXXL','6XL','7XL','8XL','FREE','ONE SIZE','ONESIZE','FS',
+]);
+
+function translateCnColor(s) {
+  if (!s) return s;
+  let out = String(s).trim();
+  for (const [cn, en] of CN_COLOR_MAP) {
+    if (out.includes(cn)) out = out.replace(new RegExp(cn, 'g'), en);
+  }
+  return out.replace(/\s+/g, ' ').trim();
 }
 
-// ── processed ids (dedupe ring) via Shopify metafield (NOT GitHub) ──────
-// This marker used to ghWrite on EVERY webhook push ("cj-webhook: processed"),
-// which was a major source of the GitHub rate-limit drain. Moved to metafield.
-async function readProcessed(env) {
-  try {
-    const m = await shopMetaGet(env, 'cj-processed');
-    if (!m || !m.value) return { ids: [] };
-    const ids = JSON.parse(m.value);
-    return { ids: Array.isArray(ids) ? ids : [] };
-  } catch { return { ids: [] }; }
-}
-async function writeProcessed(env, ids) {
-  const trimmed = ids.slice(-PROCESSED_MAX);
-  await shopMetaSet(env, 'cj-processed', trimmed);
-  return trimmed;
+function normalizeOptionValue(val, fallbackName) {
+  if (!val) return fallbackName || 'Default';
+  let s = String(val).trim();
+  s = translateCnColor(s);
+  const up = s.toUpperCase().replace(/\s+/g, '');
+  if (LETTER_SIZES.has(up)) return up === 'ONESIZE' || up === 'FS' ? 'One Size' : up;
+  s = s.replace(/[\u4e00-\u9fa5]/g, '').trim();
+  s = s.replace(/^[-–—/_,\s]+|[-–—/_,\s]+$/g, '').trim();
+  if (!s) return fallbackName || 'Default';
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// ── CJ product/query: full variant list for a product ─────────────────────
-// Uses pid (preferred — PRODUCT pushes carry it) via product/query, falling
-// back to variantSku via product/query. Returns { pid, suggestSellPrice, variants } or null.
-async function cjVariantsByPid(env, pid, variantSku) {
-  // Prefer /product/query?pid= — it returns BOTH the product-level suggestSellPrice
-  // (suggested retail) AND the full variants[] (each with variantSugSellPrice).
+// ── Image extraction helpers ──────────────────────────────────────────────
+function extractPushImages(p) {
+  const urls = [];
+  const add = (u) => {
+    if (!u || typeof u !== 'string') return;
+    const clean = u.trim();
+    if (!clean || urls.includes(clean)) return;
+    if (!/^https?:\/\//i.test(clean)) return;
+    urls.push(clean);
+  };
+  add(p.bigImage);
+  add(p.productImage);
+  add(p.variantImage);
+  if (Array.isArray(p.productImageSet)) p.productImageSet.forEach(add);
+  else if (typeof p.productImageSet === 'string') {
+    try {
+      const arr = JSON.parse(p.productImageSet);
+      if (Array.isArray(arr)) arr.forEach(add);
+    } catch {}
+  }
+  return urls.slice(0, 10).map((src) => ({ src }));
+}
+
+// ── CJ detail lookup (by pid OR SKU) ──────────────────────────────────────
+async function cjVariantsByPid(env, pid, sku) {
+  let d = null;
   if (pid) {
-    const body = await cjFetchMulti(env, '/product/query?pid=' + encodeURIComponent(pid));
-    if (body && body.code === 200 && body.data && Array.isArray(body.data.variants)) {
-      return { pid: body.data.pid || pid, suggestSellPrice: body.data.suggestSellPrice, variants: body.data.variants };
+    try {
+      d = await cjFetchMulti(env, `/product/query?pid=${encodeURIComponent(pid)}`);
+      if (d && d.code === 200 && d.data && Array.isArray(d.data.variants) && d.data.variants.length) {
+        return d.data;
+      }
+    } catch {}
+  }
+  if (sku) {
+    try {
+      d = await cjFetchMulti(env, `/product/query?variantSku=${encodeURIComponent(sku)}`);
+      if (d && d.code === 200 && d.data && Array.isArray(d.data.variants) && d.data.variants.length) {
+        return d.data;
+      }
+    } catch {}
+  }
+  return null;
+}
+
+// ── Dedupe ring: avoid re-processing same CJ message ──────────────────────
+export async function isDuplicateMessage(env, messageId) {
+  if (!messageId) return false;
+  try {
+    const file = await ghRead(env, PROCESSED_PATH);
+    if (!file || !file.content) return false;
+    const ids = JSON.parse(atob(file.content.replace(/\n/g, '')));
+    return Array.isArray(ids) && ids.includes(messageId);
+  } catch {
+    return false;
+  }
+}
+
+export async function markMessageProcessed(env, messageId) {
+  if (!messageId) return;
+  try {
+    const file = await ghRead(env, PROCESSED_PATH).catch(() => null);
+    let ids = [];
+    let sha = null;
+    if (file && file.content) {
+      try {
+        ids = JSON.parse(atob(file.content.replace(/\n/g, '')));
+        sha = file.sha;
+      } catch {}
     }
-    // Fallback: variant/query returns a bare variant array (some accounts/queries).
-    const vbody = await cjFetchMulti(env, '/product/variant/query?pid=' + encodeURIComponent(pid));
-    if (vbody && vbody.code === 200 && Array.isArray(vbody.data)) {
-      return { pid, variants: vbody.data };
+    if (!Array.isArray(ids)) ids = [];
+    if (!ids.includes(messageId)) {
+      ids.push(messageId);
+      if (ids.length > PROCESSED_MAX) ids = ids.slice(-PROCESSED_MAX);
+      await ghWrite(env, PROCESSED_PATH, JSON.stringify(ids), `track cj-webhook msg ${messageId}`, sha);
+    }
+  } catch (e) {
+    console.warn('[cj-import] markMessageProcessed failed:', e.message);
+  }
+}
+
+// ── Find Shopify product by CJ PID tag or variant SKU ─────────────────────
+export async function findShopifyProduct(env, pid, sku) {
+  // 1. Tag search: cj-pid-<pid>
+  if (pid) {
+    const tagQuery = encodeURIComponent(`tag:cj-pid-${pid}`);
+    const r = await shopifyFetch(env, `/products.json?query=${tagQuery}&limit=1&fields=id,title,tags,variants,options,product_type,images`);
+    if (r.ok && r.body && Array.isArray(r.body.products) && r.body.products.length > 0) {
+      return r.body.products[0];
     }
   }
-  if (variantSku) {
-    const body = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(variantSku));
-    if (body && body.code === 200 && body.data && Array.isArray(body.data.variants)) {
-      return { pid: body.data.pid, suggestSellPrice: body.data.suggestSellPrice, variants: body.data.variants };
+  // 2. Fallback: search by SKU
+  if (sku) {
+    const skuQuery = encodeURIComponent(`sku:${sku}`);
+    const r = await shopifyFetch(env, `/products.json?query=${skuQuery}&limit=1&fields=id,title,tags,variants,options,product_type,images`);
+    if (r.ok && r.body && Array.isArray(r.body.products) && r.body.products.length > 0) {
+      return r.body.products[0];
     }
   }
   return null;
 }
 
-// ── Shopify reconcile: ensure Shopify product has all CJ variants ────────
-// Fetches the Shopify product (variants, options), computes missing variants,
-// then creates/updates them. Returns a summary.
-async function reconcileVariantsToShopify(env, shopifyId, cjData) {
-  const cjVariants = Array.isArray(cjData.variants) ? cjData.variants : [];
-  if (!cjVariants.length) return { created: 0, updated: 0, reason: 'no CJ variants' };
+// ── Upsert full CJ product into Shopify ───────────────────────────────────
+// Called for: product/create, product/update, or on-demand sync.
+export async function syncProductWithShopify(env, pid, p, shopifyProduct = null) {
+  const shopifyId = shopifyProduct ? shopifyProduct.id : null;
+  const productSku = p.productSku || p.sku || null;
 
-  // 1. Fetch current Shopify product (variants + options).
-  const shopResult = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,title,variants,options`);
-  if (!shopResult.ok) return { created: 0, updated: 0, reason: 'shopify get ' + shopResult.status };
-  const shopProduct = shopResult.body.product;
-  const shopVariants = Array.isArray(shopProduct.variants) ? shopProduct.variants : [];
-  const shopOptions = Array.isArray(shopProduct.options) ? shopProduct.options : [];
+  // Build the minimal patch/create payload
+  const title = (p.productNameEn || p.productName || (shopifyProduct && shopifyProduct.title) || 'Imported CJ Product').slice(0, 255);
+  const patches = { title };
 
-  // Determine option positions (1/2/3) from Shopify option names.
-  // Shopify returns options in order; we map option name -> index 1..3 via position.
-  // CJ gives variantKey "A-B" (option values joined by '-') and variantValue1/2/3.
-  const optionCount = Math.max(1, shopOptions.length);
-  // Build a set of existing variants keyed by sku (and by option combination).
-  const existingBySku = new Map();
-  const existingByOpt = new Map();
-  for (const sv of shopVariants) {
-    if (sv.sku) existingBySku.set(String(sv.sku), sv);
-    const key = [sv.option1, sv.option2, sv.option3].filter(Boolean).map(String).join('||');
-    existingByOpt.set(key, sv);
-  }
-
-  const toCreate = [];
-  const toUpdate = [];
-  for (const cv of cjVariants) {
-    const sku = cv.variantSku != null ? String(cv.variantSku) : null;
-    // Resolve option values from CJ variantValue1/2/3, else from variantKey split.
-    let o1 = cv.variantValue1, o2 = cv.variantValue2, o3 = cv.variantValue3;
-    if (o1 == null && o2 == null && o3 == null && cv.variantKey) {
-      const parts = String(cv.variantKey).split('-');
-      o1 = parts[0]; o2 = parts[1]; o3 = parts[2];
-    }
-    const normO1 = normalizeVariantOption(o1, String(shopifyId), shopProduct.title || '');
-    const normO2 = normalizeVariantOption(o2, String(shopifyId), shopProduct.title || '');
-    const normO3 = o3;
-
-    let existing = null;
-    if (sku && existingBySku.has(sku)) existing = existingBySku.get(sku);
-    if (!existing) {
-      const optKey = [normO1, normO2, normO3].filter(Boolean).map(String).join('||');
-      existing = existingByOpt.get(optKey) || null;
-    }
-
-    const sug = cv.variantSugSellPrice != null ? parseFloat(cv.variantSugSellPrice) : NaN;
-    const cost = cv.variantSellPrice != null ? parseFloat(cv.variantSellPrice) : NaN;
-    const retailUsd = Number.isFinite(sug) && sug > 0 ? sug : (Number.isFinite(cost) && cost > 0 ? cost : NaN);
-    const price = Number.isFinite(retailUsd) ? repriceAUD(retailUsd) : null;
-    const weightGrams = cv.variantWeight != null ? Number(cv.variantWeight) : null;
-    const image = cv.variantImage || null;
-
-    if (existing) {
-      // Update only if something meaningful changed.
-      const patch = {};
-      if (price != null && Math.abs(Number(existing.price || 0) - price) > 0.001) patch.price = String(price);
-      if (weightGrams != null && Number(existing.grams || 0) !== weightGrams) patch.grams = weightGrams;
-      if (image && existing.metafields) { /* image handled below */ }
-      if (Object.keys(patch).length) {
-        patch.id = existing.id;
-        toUpdate.push(patch);
-      }
-      // Also push metafields for CJ vid/variantKey/variantNameEn/weight if we have a durable approach.
-    } else {
-      const newVariant = {
-        option1: normO1 || '',
-        option2: normO2 || '',
-        option3: normO3 || null,
-      };
-      if (price != null) newVariant.price = String(price);
-      if (sku) newVariant.sku = sku;
-      if (weightGrams != null) newVariant.grams = weightGrams;
-      toCreate.push(newVariant);
-    }
-  }
-
-  // 2. Apply creates (need options to exist). If Shopify product has no options
-  //    but CJ has variants, we must first set options. Simplest: PUT product with
-  //    options + variants array merged.
-  let created = 0, updated = 0;
-  if (toCreate.length || toUpdate.length) {
-    // Build options definition from CJ variantKeys if Shopify lacks options.
-    let optionsDef = shopOptions;
-    if (optionCount === 0 && cjVariants.length) {
-      // derive option names: default "Size"/"Color" style is unknown; use generic.
-      optionsDef = [
-        { name: 'Title', position: 1, values: [] },
-      ];
-    }
-    // Merge: existing shopVariants + created. Update existing in place.
-    const merged = shopVariants.map(sv => {
-      const upd = toUpdate.find(u => u.id === sv.id);
-      if (upd) { updated++; return { ...sv, ...upd }; }
-      return sv;
-    });
-    for (const nc of toCreate) { merged.push(nc); created++; }
-
-    const putBody = {
-      product: {
-        id: Number(shopifyId),
-        variants: merged,
-        options: optionsDef,
-      },
-    };
-    const put = await shopifyFetch(env, `/products/${shopifyId}.json`, {
-      method: 'PUT',
-      body: JSON.stringify(putBody),
-    });
-    if (!put.ok) return { created: 0, updated: 0, reason: 'shopify put ' + put.status };
-  }
-
-  return { created, updated, cjVariantCount: cjVariants.length, shopifyVariantBefore: shopVariants.length };
-}
-
-// ── Main import dispatcher ────────────────────────────────────────────────
-export async function handleCjWebhook(env, payload) {
-  const type = String(payload.type || '').toUpperCase();
-  const messageType = String(payload.messageType || '').toUpperCase();
-  const messageId = String(payload.messageId || '');
-
-  // Dedupe (idempotency — CJ retries reuse the same messageId).
-  const proc = await readProcessed(env);
-  if (messageId && proc.ids.includes(messageId)) {
-    return { imported: false, reason: 'duplicate' };
-  }
-
-  let result;
-  try {
-    if (type === 'PRODUCT') result = await importProduct(env, payload);
-    else if (type === 'VARIANT') result = await importVariant(env, payload);
-    else if (type === 'STOCK') result = await importStock(env, payload);
-    else if (type === 'ORDER') result = await importOrder(env, payload);
-    else if (type === 'LOGISTIC') result = await importLogistic(env, payload);
-    else result = { imported: false, type, messageType, note: 'unsupported (log-only)' };
-  } catch (e) {
-    result = { imported: false, error: String(e && e.message) };
-  }
-
-  if (messageId && result && result.imported) {
-    proc.ids.push(messageId);
-    await writeProcessed(env, proc.ids).catch(() => {});
-  }
-
-  return { ...result, type, messageType };
-}
-
-// ── Extract image URLs delivered in a CJ push (zero quota) ──────────────
-// CJ pushes productImage / productImageSet as JSON-array strings (or arrays),
-// plus a bigImage primary URL. Returns a deduped array of { src } for Shopify.
-function extractPushImages(p) {
-  const out = [];
-  const seen = new Set();
-  const push = (u) => { if (u && typeof u === 'string' && !seen.has(u)) { seen.add(u); out.push({ src: u }); } };
-  // productImageSet first (richest), then productImage, then bigImage.
-  for (const key of ['productImageSet', 'productImage']) {
-    const v = p[key];
-    const arr = Array.isArray(v) ? v : (typeof v === 'string' ? (() => { try { return JSON.parse(v); } catch { return []; } })() : []);
-    for (const u of arr) push(u);
-  }
-  if (p.bigImage) push(p.bigImage);
-  return out;
-}
-
-// ── PRODUCT: retrieve full variant list from CJ + reconcile/create in Shopify ──
-async function importProduct(env, payload) {
-  const p = payload.params || {};
-  const pid = p.pid;
-  const productSku = p.productSku;
-  if (!productSku && !pid) return { imported: false, reason: 'no pid/productSku' };
-
-  // Resolve store (Shopify) product id from the push (by SKU), independent of any CJ call.
-  const { shopifyId } = await resolveShopifyProduct(env, p);
-
-  // Build the product-level patch from PUSH data (category + title/desc/price).
-  // This is the authoritative category fix: CJ's `categoryName` is the real
-  // category path; `productType` is a numeric CJ type ID and must NOT be used.
-  const patches = {};
-  if (p.productNameEn != null) patches.title = p.productNameEn;
   if (p.productDescription != null) patches.body_html = p.productDescription;
-  const pSug = p.suggestSellPrice != null ? parseFloat(p.suggestSellPrice) : NaN;
   const pCost = p.productSellPrice != null ? parseFloat(p.productSellPrice) : NaN;
-  const pRetail = Number.isFinite(pSug) && pSug > 0 ? pSug : (Number.isFinite(pCost) && pCost > 0 ? pCost : NaN);
-  if (Number.isFinite(pRetail)) { const rp = repriceAUD(pRetail); if (rp != null) patches.price = rp; }
+  if (Number.isFinite(pCost) && pCost > 0) { const rp = computePrice(pCost); if (rp != null) patches.price = rp; }
   const mappedType = mapCategory(p.categoryName || p.productType, p.productNameEn || p.productName);
   if (mappedType && mappedType !== 'other') patches.product_type = mappedType;
 
-  // Re-query CJ to obtain the SUGGESTED RETAIL price + full variants (the push only
-  // carries wholesale cost). Non-fatal: on failure we still build from push data.
+  // Re-query CJ to obtain full variants
   const cjData = await cjVariantsByPid(env, pid, productSku || p.variantSku).catch(() => null);
 
-  // If the CJ query returned the product's suggested retail, use it (more accurate
-  // than the push's wholesale cost). Otherwise the push-cost fallback already set above.
-  if (cjData && cjData.suggestSellPrice != null && parseFloat(cjData.suggestSellPrice) > 0) {
-    const rp = repriceAUD(parseFloat(cjData.suggestSellPrice));
+  // Update product price from wholesale cost via tiered pricing
+  if (cjData && cjData.sellPrice != null && parseFloat(cjData.sellPrice) > 0) {
+    const rp = computePrice(parseFloat(cjData.sellPrice));
     if (rp != null) patches.price = rp;
   } else if (cjData && Array.isArray(cjData.variants) && cjData.variants.length) {
     const fv = cjData.variants[0];
-    const fRetail = fv.variantSugSellPrice != null && parseFloat(fv.variantSugSellPrice) > 0 ? fv.variantSugSellPrice : fv.variantSellPrice;
-    if (fRetail != null && parseFloat(fRetail) > 0) { const rp = repriceAUD(parseFloat(fRetail)); if (rp != null) patches.price = rp; }
+    const fCost = fv.variantSellPrice != null && parseFloat(fv.variantSellPrice) > 0 ? fv.variantSellPrice : cjData.sellPrice;
+    if (fCost != null && parseFloat(fCost) > 0) { const rp = computePrice(parseFloat(fCost)); if (rp != null) patches.price = rp; }
   }
 
   if (!shopifyId) {
     // Product not yet in Shopify → CREATE it (full import w/ all variants if we have them).
     if (!cjData) {
-      // No variant data AND not in Shopify: we can still create a minimal product
-      // with the push's category/name/price so it shows up correctly categorized.
-      return createMinimalProductInShopify(env, p, patches, mappedType);
+      // Fallback: minimal create from push payload alone
+      return await createMinimalProduct(env, pid, p, patches, mappedType);
     }
-    const created = await createProductInShopify(env, pid, cjData, p);
-    return created;
+    return await createProductInShopify(env, pid, cjData, p);
   }
 
-  // Reconcile: ensure Shopify has every CJ variant (best-effort).
-  let rec = { created: 0, updated: 0 };
-  if (cjData) rec = await reconcileVariantsToShopify(env, shopifyId, cjData).catch(() => ({ created: 0, updated: 0 }));
+  // Product ALREADY in Shopify → UPDATE it
+  // Ensure the cj-pid tag is present
+  const currentTags = (shopifyProduct.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
+  const pidTag = `cj-pid-${pid}`;
+  if (!currentTags.includes(pidTag)) currentTags.push(pidTag);
+  if (!currentTags.includes('cj-import')) currentTags.push('cj-import');
+  patches.tags = currentTags.join(', ');
 
-  // Apply product-level patch (title/desc/price/category).
-  if (Object.keys(patches).length) {
-    await shopifyFetch(env, `/products/${shopifyId}.json`, {
-      method: 'PUT',
-      body: JSON.stringify({ product: { id: Number(shopifyId), ...patches } }),
-    }).catch(() => {});
+  const updateRes = await shopifyFetch(env, `/products/${shopifyId}.json`, {
+    method: 'PUT',
+    body: JSON.stringify({ product: patches }),
+  });
+  if (!updateRes.ok) {
+    return { imported: false, reason: 'shopify update ' + updateRes.status, pid, shopifyId };
   }
 
-  // Hydrate description + gallery images DIRECTLY from the push (zero quota):
-  // CJ delivers productDescription + productImage/productImageSet/bigImage, so we
-  // can enrich Shopify without re-pulling. Only add images if Shopify is missing them.
-  const pushImgs = extractPushImages(p);
-  const pushedDesc = p.productDescription != null ? String(p.productDescription) : '';
-  if (pushImgs.length || pushedDesc) {
-    try {
-      const cur = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,images,body_html`);
-      const curImgs = (cur.body && cur.body.product && cur.body.product.images) || [];
-      const curDesc = (cur.body && cur.body.product && cur.body.product.body_html) || '';
-      const needImgs = pushImgs.length > curImgs.length;
-      const needDesc = pushedDesc && pushedDesc.length > String(curDesc).length;
-      if (needImgs || needDesc) {
-        const putBody = { product: { id: Number(shopifyId) } };
-        if (needImgs) putBody.product.images = pushImgs;
-        if (needDesc) putBody.product.body_html = pushedDesc;
-        await shopifyFetch(env, `/products/${shopifyId}.json`, {
-          method: 'PUT',
-          body: JSON.stringify(putBody),
-        }).catch(() => {});
+  // If we have CJ variant data, sync each variant
+  let variantsUpdated = 0;
+  if (cjData && Array.isArray(cjData.variants)) {
+    const existingVariants = shopifyProduct.variants || [];
+    const existingBySku = new Map();
+    const existingByOpt = new Map();
+    for (const sv of existingVariants) {
+      if (sv.sku) existingBySku.set(String(sv.sku), sv);
+      const key = [sv.option1, sv.option2, sv.option3].filter(Boolean).map(String).join('||');
+      if (key) existingByOpt.set(key, sv);
+    }
+
+    for (const cv of cjData.variants) {
+      const sku = cv.variantSku != null ? String(cv.variantSku) : '';
+      const parts = String(cv.variantKey || '').split('-');
+      const normO1 = normalizeOptionValue(parts[0], 'Default Title');
+      const normO2 = parts[1] ? normalizeOptionValue(parts[1], null) : null;
+      const normO3 = parts[2] ? normalizeOptionValue(parts[2], null) : null;
+
+      let existing = null;
+      if (sku && existingBySku.has(sku)) existing = existingBySku.get(sku);
+      if (!existing) {
+        const optKey = [normO1, normO2, normO3].filter(Boolean).map(String).join('||');
+        existing = existingByOpt.get(optKey) || null;
       }
-    } catch {}
+
+      const cost = cv.variantSellPrice != null ? parseFloat(cv.variantSellPrice) : NaN;
+      const price = Number.isFinite(cost) && cost > 0 ? computePrice(cost) : null;
+      const weightGrams = cv.variantWeight != null ? Number(cv.variantWeight) : null;
+      const image = cv.variantImage || null;
+
+      if (existing) {
+        // Update only if something meaningful changed.
+        const vPatch = {};
+        if (price != null && String(price) !== String(existing.price)) vPatch.price = String(price);
+        if (sku && sku !== existing.sku) vPatch.sku = sku;
+        if (weightGrams != null && Math.round(weightGrams) !== existing.grams) vPatch.grams = Math.round(weightGrams);
+        if (Object.keys(vPatch).length > 0) {
+          vPatch.id = existing.id;
+          await shopifyFetch(env, `/products/${shopifyId}/variants/${existing.id}.json`, {
+            method: 'PUT',
+            body: JSON.stringify({ variant: vPatch }),
+          }).catch(() => null);
+          variantsUpdated++;
+        }
+      } else {
+        // Create new variant
+        const newV = {
+          option1: normO1,
+          option2: normO2,
+          option3: normO3,
+          price: price != null ? String(price) : '0',
+          sku: sku || undefined,
+          grams: weightGrams != null ? Math.round(weightGrams) : 0,
+          inventory_management: 'shopify',
+          inventory_policy: 'deny',
+          fulfillment_service: 'manual',
+          requires_shipping: true,
+          taxable: true,
+        };
+        const r = await shopifyFetch(env, `/products/${shopifyId}/variants.json`, {
+          method: 'POST',
+          body: JSON.stringify({ variant: newV }),
+        }).catch(() => null);
+        if (r && r.ok) variantsUpdated++;
+      }
+    }
   }
 
-  return {
-    imported: rec.created > 0 || rec.updated > 0 || Object.keys(patches).length > 0,
-    pid,
-    shopifyId,
-    categoryApplied: patches.product_type || null,
-    ...rec,
-  };
+  return { imported: true, pid, updated: true, shopifyId, variantsUpdated, categoryApplied: patches.product_type };
 }
 
-// ── Create a minimal Shopify product from PUSH data only (no CJ variant pull) ──
-// Used when a product isn't in Shopify yet AND the CJ variant query failed/rate-limited.
-// We still have the category/name/price in the push, so create a single-variant
-// product that shows up correctly categorized (variants get reconciled on a later push).
-async function createMinimalProductInShopify(env, p, patches, mappedType) {
-  const title = p.productNameEn || p.productName || p.cjProductTitle || 'Imported Product';
+// ── Minimal fallback create (when /product/query fails) ───────────────────
+async function createMinimalProduct(env, pid, p, patches, mappedType) {
+  const title = patches.title || 'Imported CJ Product';
   const sku = p.productSku || p.variantSku || undefined;
-  const _pSug = p.suggestSellPrice != null ? parseFloat(p.suggestSellPrice) : NaN;
   const _pCost = p.productSellPrice != null ? parseFloat(p.productSellPrice) : NaN;
-  const _pRetail = Number.isFinite(_pSug) && _pSug > 0 ? _pSug : (Number.isFinite(_pCost) && _pCost > 0 ? _pCost : NaN);
-  const price = Number.isFinite(_pRetail) ? (repriceAUD(_pRetail) ?? 0) : 0;
+  const price = Number.isFinite(_pCost) && _pCost > 0 ? (computePrice(_pCost) ?? 0) : 0;
   const body = {
     product: {
       title,
@@ -432,341 +353,94 @@ async function createProductInShopify(env, pid, cjData, p) {
     const parts = String(v.variantKey || '').split('-');
     const ov = {};
     optionNames.forEach((_, i) => { ov['option' + (i + 1)] = parts[i] != null ? String(parts[i]) : (i === 0 ? 'Default Title' : ''); });
-    const _vSug = v.variantSugSellPrice != null ? parseFloat(v.variantSugSellPrice) : NaN;
     const _vCost = v.variantSellPrice != null ? parseFloat(v.variantSellPrice) : NaN;
-    const _vRetail = Number.isFinite(_vSug) && _vSug > 0 ? _vSug : (Number.isFinite(_vCost) && _vCost > 0 ? _vCost : NaN);
-    const price = Number.isFinite(_vRetail) ? (repriceAUD(_vRetail) ?? 0) : 0;
+    const price = Number.isFinite(_vCost) && _vCost > 0 ? (computePrice(_vCost) ?? 0) : 0;
     return {
       ...ov,
       price: String(price),
       sku: v.variantSku != null ? String(v.variantSku) : undefined,
-      grams: v.variantWeight != null ? Number(v.variantWeight) : undefined,
+      grams: v.variantWeight != null ? Math.round(Number(v.variantWeight) * 1000) : 0,
+      inventory_management: 'shopify',
+      inventory_policy: 'deny',
+      fulfillment_service: 'manual',
+      requires_shipping: true,
+      taxable: true,
     };
   });
 
-  const title = p.productNameEn || p.productName || (p.cjProductTitle) || 'Imported Product';
-  const options = optionNames.map((name, i) => ({
-    name,
-    position: i + 1,
-    values: [...new Set(shopVariants.map(sv => sv['option' + (i + 1)]))],
-  }));
+  const title = (cjData.productNameEn || cjData.productName || p.productNameEn || p.productName || 'Imported CJ Product').slice(0, 255);
+  const rawImages = extractImagesFromCj(cjData, p);
+  const mappedType = mapCategory(cjData.categoryName || p.categoryName || p.productType, title);
 
-  const productBody = {
+  const body = {
     product: {
       title,
-      body_html: p.productDescription || '',
-      product_type: mapCategory(p.categoryName || p.productType, title),
-      variants: shopVariants,
-      options: options.length ? options : undefined,
-      images: extractPushImages(p),
+      body_html: cjData.description || p.productDescription || '',
+      vendor: 'Bargain Drop',
+      product_type: mappedType && mappedType !== 'other' ? mappedType : (cjData.categoryName || 'General'),
+      tags: `cj-import, cj-pid-${pid}`,
       status: 'active',
+      options: optionNames.map(name => ({ name })),
+      variants: shopVariants.length ? shopVariants : undefined,
+      images: rawImages.length ? rawImages : undefined,
     },
   };
 
-  const r = await shopifyFetch(env, '/products.json', {
-    method: 'POST',
-    body: JSON.stringify(productBody),
-  });
-  if (!r.ok) return { imported: false, reason: 'shopify create ' + r.status, pid };
+  const r = await shopifyFetch(env, '/products.json', { method: 'POST', body: JSON.stringify(body) });
+  if (!r.ok) {
+    return { imported: false, reason: 'shopify create ' + r.status, pid };
+  }
   const newId = r.body && r.body.product && r.body.product.id;
-  return { imported: true, pid, created: true, shopifyId: newId, variantCount: shopVariants.length };
+  return { imported: true, pid, created: true, shopifyId: newId, variantsCount: shopVariants.length, categoryApplied: body.product.product_type };
 }
 
-async function resolveShopifyProduct(env, p) {
-  // Try to find the Shopify product id from the push.
-  // 1) p.pid may be CJ pid (not Shopify id) — we need a sku to map to Shopify.
-  // Get a sku from the push: productSku, or a variantSku we know.
-  const sku = p.productSku || p.variantSku || null;
-  if (!sku) return { shopifyId: null, cjSku: null };
-
-  // PRIMARY: query Shopify DIRECTLY by variant SKU (authoritative, always current).
-  // The previous GitHub-catalog lookup was stale (and 401s), which made pushes fall
-  // through to a CREATE that Shopify rejects with 422 (duplicate SKU). Querying
-  // Shopify's own product index means every incoming category/product push resolves
-  // to the EXISTING product and writes product_type/description/etc. back in place.
-  try {
-    const id = await shopifyProductIdBySku(env, sku);
-    if (id) return { shopifyId: id, cjSku: sku };
-  } catch {}
-
-  // FALLBACK: search the GitHub catalog by sku (best-effort, may be stale).
-  try {
-    const products = await readCatalogFromGithub(env);
-    if (Array.isArray(products)) {
-      const prod = products.find(x => Array.isArray(x.variants) && x.variants.some(v => String(v.sku) === String(sku)));
-      if (prod) return { shopifyId: prod.id, cjSku: sku };
-    }
-  } catch {}
-  return { shopifyId: null, cjSku: sku };
+function extractImagesFromCj(cjData, p) {
+  const urls = [];
+  const add = (u) => {
+    if (!u || typeof u !== 'string') return;
+    const clean = u.trim();
+    if (!clean || urls.includes(clean)) return;
+    if (!/^https?:\/\//i.test(clean)) return;
+    urls.push(clean);
+  };
+  add(cjData.bigImage);
+  add(cjData.productImage);
+  if (Array.isArray(cjData.productImageSet)) cjData.productImageSet.forEach(add);
+  // Also add variant images
+  if (Array.isArray(cjData.variants)) {
+    for (const v of cjData.variants) add(v.variantImage);
+  }
+  // Fall back to push images
+  if (!urls.length) return extractPushImages(p);
+  return urls.slice(0, 15).map(src => ({ src }));
 }
 
-// Resolve a Shopify product id by a single variant SKU via Shopify's Product
-// GraphQL index (query:"variant:sku:..."). Returns the numeric product id or null.
-async function shopifyProductIdBySku(env, sku) {
-  const q = `query($q: String!) { products(first: 1, query: $q) { edges { node { id } } } }`;
-  const r = await shopifyFetch(env, '/graphql.json', {
-    method: 'POST',
-    body: JSON.stringify({ query: q, variables: { q: 'variant.sku:' + String(sku) } }),
-  });
-  const gid = r && r.body && r.body.data && r.body.data.products && r.body.data.products.edges && r.body.data.products.edges[0] && r.body.data.products.edges[0].node && r.body.data.products.edges[0].node.id;
-  if (!gid) return null;
-  // gid is like "gid://shopify/Product/123456" — extract numeric id for REST reuse.
-  const m = String(gid).match(/\/(\d+)$/);
-  return m ? m[1] : gid;
-}
+// ── Upsert single variant into Shopify (variant/create, variant/update) ──
+export async function syncVariantWithShopify(env, p) {
+  const pid = p.pid || p.productId || null;
+  const sku = p.variantSku || p.sku || null;
+  const vid = p.vid || null;
 
-// ── VARIANT: incremental field update → reconcile single variant to Shopify ──
-async function importVariant(env, payload) {
-  const p = payload.params || {};
-  const sku = p.variantSku != null ? String(p.variantSku) : null;
-  const vid = p.vid != null ? String(p.vid) : null;
-  if (!sku && !vid) return { imported: false, reason: 'no variantSku/vid' };
+  const shopifyProduct = await findShopifyProduct(env, pid, sku);
+  if (!shopifyProduct) {
+    // Product not yet in Shopify — trigger full product sync if we have pid
+    if (pid) return await syncProductWithShopify(env, pid, p);
+    return { imported: false, reason: 'parent product not found', sku, pid };
+  }
 
-  // Resolve shopify product via sku.
-  const { shopifyId } = await resolveShopifyProduct(env, { variantSku: sku, productSku: sku });
-  if (!shopifyId) return { imported: false, reason: 'product not found in Shopify', sku };
+  const shopifyId = shopifyProduct.id;
+  const shopVariants = shopifyProduct.variants || [];
 
-  // Fetch the Shopify product variants and update the matching one.
-  const shopResult = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,variants`);
-  if (!shopResult.ok) return { imported: false, reason: 'shopify get ' + shopResult.status };
-  const shopVariants = shopResult.body.product.variants || [];
-
-  let target = shopVariants.find(v => sku && String(v.sku) === sku);
+  // Match existing variant by SKU or ID
+  let target = null;
+  if (sku) target = shopVariants.find(v => String(v.sku) === String(sku));
   if (!target && vid) target = shopVariants.find(v => String(v.sku) === String(vid));
 
   if (!target) {
-    // VARIANT pushes carry only wholesale cost (no suggested retail), so we price
-    // from the push's own variantSugSellPrice/variantSellPrice and convert USD→AUD.
-    const _vsSug = p.variantSugSellPrice != null ? parseFloat(p.variantSugSellPrice) : NaN;
+    // VARIANT pushes carry wholesale cost, price via tiered markup
     const _vsCost = p.variantSellPrice != null ? parseFloat(p.variantSellPrice) : NaN;
-    const _vsRetail = Number.isFinite(_vsSug) && _vsSug > 0 ? _vsSug : (Number.isFinite(_vsCost) && _vsCost > 0 ? _vsCost : NaN);
-    if (Number.isFinite(_vsRetail)) {
-      const rp = repriceAUD(_vsRetail);
+    if (Number.isFinite(_vsCost) && _vsCost > 0) {
+      const rp = computePrice(_vsCost);
       const nv = { price: rp != null ? String(rp) : undefined, sku: p.variantSku || sku || vid };
       if (p.variantWeight != null) nv.grams = Number(p.variantWeight);
-      const post = await shopifyFetch(env, `/products/${shopifyId}/variants.json`, {
-        method: 'POST',
-        body: JSON.stringify({ variant: nv }),
-      }).catch(() => ({ ok: false, status: 0 }));
-      return { imported: post.ok, reason: post.ok ? 'variant created from push' : 'variant create ' + post.status, sku };
-    }
-    return { imported: false, reason: 'variant not found (no push price)', sku };
-  }
-
-  const patch = { id: target.id };
-  const _vSug2 = p.variantSugSellPrice != null ? parseFloat(p.variantSugSellPrice) : NaN;
-  const _vCost2 = p.variantSellPrice != null ? parseFloat(p.variantSellPrice) : NaN;
-  const _vRetail2 = Number.isFinite(_vSug2) && _vSug2 > 0 ? _vSug2 : (Number.isFinite(_vCost2) && _vCost2 > 0 ? _vCost2 : NaN);
-  if (Number.isFinite(_vRetail2)) { const rp = repriceAUD(_vRetail2); if (rp != null) { patch.price = String(rp); patch.compare_at_price = null; } }
-  if (p.variantWeight != null) patch.grams = Number(p.variantWeight);
-  if (p.variantSku != null) patch.sku = p.variantSku;
-  if (p.variantStatus != null) {
-    // availability: 1 = on sale
-    patch.inventory_management = 'shopify';
-  }
-  // option updates are risky to reconcile by name; skip if not needed.
-  if (Object.keys(patch).length > 1) {
-    const put = await shopifyFetch(env, `/products/${shopifyId}/variants/${target.id}.json`, {
-      method: 'PUT',
-      body: JSON.stringify({ variant: patch }),
-    });
-    if (!put.ok) return { imported: false, reason: 'variant put ' + put.status, sku };
-  }
-
-  return { imported: true, sku, shopifyId, variantId: target.id };
-}
-
-// ── STOCK: update variant availability/inventory in Shopify ──────────────
-async function importStock(env, payload) {
-  const p = payload.params || {};
-  const entries = Object.entries(p);
-  if (!entries.length) return { imported: false, reason: 'no stock entries' };
-
-  let changed = 0;
-  for (const [key, arr] of entries) {
-    let storage = null;
-    let sku = null;
-    if (Array.isArray(arr)) {
-      storage = arr.reduce((sum, r) => sum + (Number(r && r.storageNum) || 0), 0);
-      const first = arr[0];
-      if (first && first.variantSku) sku = first.variantSku; // may be empty on vid-keyed
-    } else if (typeof arr === 'number') {
-      storage = arr;
-    }
-    if (sku == null) sku = key; // key may be vid, but we try sku first anyway
-    if (storage == null) { storage = 0; }
-
-    const { shopifyId } = await resolveShopifyProduct(env, { variantSku: sku });
-    if (!shopifyId) continue;
-
-    const shopResult = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,variants`);
-    if (!shopResult.ok) continue;
-    const shopVariants = shopResult.body.product.variants || [];
-    const target = shopVariants.find(v => String(v.sku) === sku);
-    if (!target) continue;
-
-    const inStock = storage > 0;
-    // Set Shopify variant availability: track quantity via variant inventory_management
-    // and flip status when out of stock. Also write a durable `visible` flag into the
-    // catalog (all-products.json) so the storefront can hide OOS products.
-    const patch = {
-      id: target.id,
-      inventory_management: 'shopify',
-      inventory_quantity: storage,
-    };
-    await shopifyFetch(env, `/products/${shopifyId}/variants/${target.id}.json`, {
-      method: 'PUT',
-      body: JSON.stringify({ variant: patch }),
-    }).catch(() => {});
-
-    // Record the stock state so the product-level visible flag can be derived.
-    await setProductVisibleFromStock(env, shopifyId).catch(() => {});
-    changed++;
-  }
-
-  return { imported: changed > 0, changed };
-}
-
-// ── visible-flag helpers (catalog + Shopify status) ────────────────────
-// The storefront serves all-products.json. We add/update a `visible` boolean on
-// each product. A product is hidden when ALL its variants are out of stock, or when
-// it was removed from CJ. `visible: false` also sets Shopify status to draft (hidden
-// from the storefront), `true` → active.
-async function setProductVisibleFromStock(env, shopifyId) {
-  const r = await shopifyFetch(env, `/products/${shopifyId}.json?fields=id,variants,status`);
-  if (!r.ok) return null;
-  const prod = r.body.product;
-  const variants = (prod.variants || []).filter(v => v.sku);
-  // in-stock if ANY variant has inventory_quantity > 0; unknown inventory treated as in-stock.
-  const inStock = variants.some(v => !v.inventory_management || (Number(v.inventory_quantity ?? 1) > 0));
-  return setProductVisible(env, shopifyId, inStock);
-}
-
-export async function setProductVisible(env, shopifyId, visible) {
-  if (!shopifyId) return null;
-  // 1. Flip Shopify status (draft hides from storefront; active shows it).
-  const wantStatus = visible ? 'active' : 'draft';
-  const r = await shopifyFetch(env, `/products/${shopifyId}.json`, {
-    method: 'PUT',
-    body: JSON.stringify({ product: { id: Number(shopifyId), status: wantStatus } }),
-  }).catch(() => null);
-  // 2. Update the `visible` flag in all-products.json (catalog authority).
-  try {
-    await patchCatalogVisible(env, String(shopifyId), visible);
-  } catch {}
-  return { shopifyId, visible, status: r && r.ok ? wantStatus : 'unknown' };
-}
-
-async function patchCatalogVisible(env, shopifyId, visible) {
-  const products = await readCatalogFromGithub(env);
-  if (!Array.isArray(products)) return;
-  let changed = false;
-  for (const p of products) {
-    if (String(p.id) === String(shopifyId) && p.visible !== visible) {
-      p.visible = visible;
-      changed = true;
-      break;
-    }
-  }
-  if (!changed) return;
-  await writeCatalogFromGithub(env, products, 'cj-sync: set visible=' + visible + ' for ' + shopifyId);
-}
-
-// ── ORDER / LOGISTIC (defer to existing flows) ───────────────────────────
-async function importOrder(env, payload) {
-  const p = payload.params || {};
-  return { imported: false, note: 'order recorded (fulfillment flow owns orders)', cjOrderId: p.cjOrderId };
-}
-async function importLogistic(env, payload) {
-  const p = payload.params || {};
-  const trackingNumber = p.trackNumber || p.trackingNumber || p.track_number || p.tracking_number || '';
-  const carrier = p.logisticName || p.express || p.company || 'CJ Packet';
-  const cjOrderId = p.orderId || p.cjOrderId || '';
-  const bdOrderId = p.clientOrderId || p.order_id || '';
-  const trackingUrl = p.trackUrl || p.trackingUrl || (trackingNumber ? `https://track123.com/tracking?nums=${encodeURIComponent(trackingNumber)}` : '');
-
-  if (!trackingNumber) {
-    return { imported: false, reason: 'no tracking number in payload', params: p };
-  }
-
-  // 1. Locate the Shopify Order
-  let shopifyOrder = null;
-  try {
-    const { body } = await shopifyFetch(env, '/orders.json?status=any&limit=50');
-    const orders = body?.orders || [];
-    if (bdOrderId) {
-      shopifyOrder = orders.find(o => (o.note_attributes || []).some(a => a.name === 'bd_order_id' && String(a.value) === String(bdOrderId)));
-    }
-    if (!shopifyOrder && cjOrderId) {
-      shopifyOrder = orders.find(o => (o.note_attributes || []).some(a => String(a.value).includes(cjOrderId)) || String(o.note || '').includes(cjOrderId));
-    }
-  } catch (e) {
-    console.error('Error finding Shopify order:', e.message);
-  }
-
-  let fulfillmentResult = null;
-  if (shopifyOrder) {
-    try {
-      const foRes = await shopifyFetch(env, `/orders/${shopifyOrder.id}/fulfillment_orders.json`);
-      const foList = foRes.body?.fulfillment_orders || [];
-      const openFo = foList.find(fo => fo.status === 'open' || fo.status === 'in_progress');
-      if (openFo) {
-        const createFulfillmentPayload = {
-          fulfillment: {
-            line_items_by_fulfillment_order: [
-              {
-                fulfillment_order_id: openFo.id
-              }
-            ],
-            tracking_info: {
-              number: trackingNumber,
-              company: carrier,
-              url: trackingUrl
-            },
-            notify_customer: true
-          }
-        };
-        const fRes = await shopifyFetch(env, '/fulfillments.json', {
-          method: 'POST',
-          body: JSON.stringify(createFulfillmentPayload)
-        });
-        fulfillmentResult = fRes.body;
-      } else {
-        fulfillmentResult = { note: 'no open fulfillment order found (already fulfilled or cancelled)' };
-      }
-    } catch (e) {
-      fulfillmentResult = { error: e.message };
-    }
-  }
-
-  // 2. Update local BD order status ledger
-  if (bdOrderId) {
-    await updateOrderStatus(env, bdOrderId, 'fulfilled', {
-      tracking: {
-        tracking_number: trackingNumber,
-        tracking_company: carrier,
-        tracking_url: trackingUrl,
-        synced_at: new Date().toISOString()
-      }
-    }).catch(() => {});
-  }
-
-  await appendSyncLog(env, {
-    action: 'cj-logistic-webhook',
-    bdOrderId,
-    cjOrderId,
-    trackingNumber,
-    carrier,
-    shopifyOrderId: shopifyOrder ? shopifyOrder.id : null,
-    fulfillmentResult
-  }).catch(() => {});
-
-  return {
-    imported: true,
-    bdOrderId,
-    cjOrderId,
-    trackingNumber,
-    carrier,
-    shopifyFulfilled: !!(shopifyOrder && fulfillmentResult && !fulfillmentResult.error)
-  };
-}
+      const post = await shopifyFetch(env, `/products/${shopifyId}/variants.json`, {\n        method: 'POST',\n        body: JSON.stringify({ variant: nv }),\n      }).catch(() => ({ ok: false, status: 0 }));\n      return { imported: post.ok, reason: post.ok ? 'variant created from push' : 'variant create ' + post.status, sku };\n    }\n    return { imported: false, reason: 'variant not found (no push price)', sku };\n  }\n\n  const patch = { id: target.id };\n  const _vCost2 = p.variantSellPrice != null ? parseFloat(p.variantSellPrice) : NaN;\n  if (Number.isFinite(_vCost2) && _vCost2 > 0) { const rp = computePrice(_vCost2); if (rp != null) { patch.price = String(rp); patch.compare_at_price = null; } }\n  if (p.variantWeight != null) patch.grams = Number(p.variantWeight);\n  if (p.variantSku != null) patch.sku = p.variantSku;\n  if (p.variantStatus != null) {\n    // availability: 1 = on sale\n    patch.inventory_management = 'shopify';\n    patch.inventory_policy = p.variantStatus === 1 || p.variantStatus === '1' ? 'continue' : 'deny';\n  }\n\n  const r = await shopifyFetch(env, `/products/${shopifyId}/variants/${target.id}.json`, {\n    method: 'PUT',\n    body: JSON.stringify({ variant: patch }),\n  });\n\n  return { imported: r.ok, sku, shopifyId, variantId: target.id, updated: r.ok };\n}\n\n// ── Main dispatcher (called from cj-webhook.js) ──────────────────────────\nexport async function handleCjWebhook(env, payload, headers = {}) {\n  const messageId = payload?.MessageId || payload?.messageId || headers['x-cj-message-id'] || null;\n  if (messageId && await isDuplicateMessage(env, messageId)) {\n    return { ok: true, skipped: true, reason: 'duplicate messageId', messageId };\n  }\n\n  // Unwrap SNS-style { Type, Message } envelope if present\n  let body = payload;\n  if (typeof payload?.Message === 'string') {\n    try { body = JSON.parse(payload.Message); } catch {}\n  }\n\n  const topic = body?.topic || body?.type || payload?.topic || payload?.type || 'unknown';\n  const data = body?.data || body?.params || body;\n  const pid = data?.pid || data?.productId || data?.id || null;\n\n  let result = { ok: false, topic, pid };\n\n  switch (topic) {\n    case 'product/create':\n    case 'product/update':\n    case 'product.create':\n    case 'product.update':\n      if (pid) {\n        result = await syncProductWithShopify(env, pid, data);\n      } else {\n        result = { ok: false, reason: 'no pid in payload', topic };\n      }\n      break;\n\n    case 'variant/create':\n    case 'variant/update':\n    case 'variant.create':\n    case 'variant.update':\n      result = await syncVariantWithShopify(env, data);\n      break;\n\n    case 'order/status':\n    case 'order.status':\n    case 'order/tracking':\n      // CJ order tracking pushed -> update Shopify fulfillment\n      result = await handleOrderStatusPush(env, data);\n      break;\n\n    default:\n      // Best effort: if data has a pid, try syncing as product\n      if (pid) {\n        result = await syncProductWithShopify(env, pid, data);\n      } else {\n        result = { ok: true, ignored: true, reason: 'unhandled topic ' + topic };\n      }\n  }\n\n  if (messageId && result.imported) {\n    await markMessageProcessed(env, messageId);\n  }\n\n  try {\n    await appendSyncLog(env, { type: 'cj-webhook', topic, pid, ...result, at: new Date().toISOString() });\n  } catch {}\n\n  return { ok: result.imported !== false, ...result };\n}\n\nasync function handleOrderStatusPush(env, data) {\n  const cjOrderId = data?.orderId || data?.cjOrderId;\n  const trackingNumber = data?.trackingNumber || data?.trackNumber;\n  const logisticsName = data?.logisticName || data?.logisticsCompany || 'Standard Shipping';\n  if (!cjOrderId || !trackingNumber) return { imported: false, reason: 'missing orderId or tracking' };\n\n  // Look up Shopify order by CJ order ID in note_attributes\n  const orders = await listOrders(env, { limit: 50 });\n  const match = (orders || []).find(o => {\n    const note = JSON.stringify(o.note_attributes || []);\n    return note.includes(String(cjOrderId));\n  });\n  if (!match) return { imported: false, reason: 'shopify order not found for CJ order ' + cjOrderId };\n\n  const update = await updateOrderStatus(env, match.id, {\n    status: 'fulfilled',\n    tracking_number: trackingNumber,\n    tracking_company: logisticsName,\n  });\n  return { imported: update.ok, shopifyOrderId: match.id, cjOrderId, trackingNumber };\n}\n
