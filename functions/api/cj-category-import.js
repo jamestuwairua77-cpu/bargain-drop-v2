@@ -2,7 +2,7 @@
 //
 // Discovers products across 5 CJ top-level categories, pulls full detail
 // (variants + images + description) for each, and bulk-creates them in Shopify
-// as published products at CJ suggested retail (USD→AUD 1.5×, whole dollars). Progress is persisted
+// as published products at CJ suggested retail (USD→AUD at live FX, whole dollars). Progress is persisted
 // to GitHub so overlapping/repeated runs are safe and it self-continues.
 //
 // Triggered by GitHub Actions cron with ADMIN_PIN, so it runs fully in the
@@ -26,11 +26,13 @@ const CATEGORY_MAP = {
   "Computer & Office": ["2252588B-72E3-4397-8C92-7D9967161084", "2502190343061609600", "874B7C94-D225-43FE-AB79-FFAF1B800651", "C7365895-913A-4078-9946-681EFD45D2B8", "D8BBE038-9ECD-4698-8CB1-DE63E27F33C7", "E33443F7-144C-4CBE-8D34-C1B6256A6325", "F8024D10-AB96-4558-AC79-C49625F768DA", "0598E853-9BF7-4939-A571-2407E819C91E", "0ACCE01C-2C83-4767-B9E8-736B7E0CC38D", "0B50EC4B-F78C-4D2D-839C-4767D6B4B7C7", "28F0E5A1-0A9A-43C5-8197-F1420A9BD10B", "BB57B72C-A8C6-40FF-BCBB-EAE0251273C6", "4D3B9582-E92E-46BF-B00E-715E70FB4742", "591E8920-019B-42FA-AE0B-420052E6C4F0", "76B88FB8-9B37-4B55-AA09-082C5627DFE8", "7E65A403-CF6E-4B55-96FF-B7C3C376A47A", "C62BC6BF-BA2B-41ED-AB12-599A6D7FCAA5", "24FAA1AB-BF10-41ED-8405-A9FA53031B3A", "3F3EFC96-82B8-44C1-BF7A-2E3E7083A875", "74B144C9-321D-4E78-986C-757BA551DD8C", "87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E", "EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6", "1E9A3E86-7E5A-439E-9B33-CBD495421F0B", "25E64DFD-1ED3-4171-86CD-0C2F40052F3B", "7D962F30-E20E-4DE9-8911-EB8AB078FB23", "D190FBF9-A352-48BD-9F4B-B6AB432988E5", "E3963C40-89BE-46AC-985D-A86FA417F6B8", "4F7EE88B-4209-42E8-A501-5F634B58BB35", "76CD1BD4-2A0A-4D72-913C-6DAADD7E9EDB", "9A33970D-F4BC-48EC-BEAB-FEC19C130963", "A77A4E59-D931-4BBE-9D48-FF995C481B66", "C019C59C-C274-44F9-B04B-5520F1EBE5FA"],
 };
 
-// ── CJ price: suggested retail USD → AUD (1.5x currency only, whole dollars) ──
+// ── CJ price: suggested retail USD → AUD at live FX (whole dollars) ─────
+const USD_AUD = 1.4234; // live USD→AUD rate
+
 function repriceAUD(usd) {
   const c = parseFloat(usd) || 0;
   if (c <= 0) return null;
-  return Math.round(c * 1.5);
+  return Math.round(c * USD_AUD);
 }
 
 function extractImages(p) {
