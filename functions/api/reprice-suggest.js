@@ -22,7 +22,7 @@ const RETRY_PER_RUN = 20;          // max retry items to drain per fire (fits 46
 const MAX_RETRY = 20000;
 const FX_FALLBACK = 1.40;
 const FX_TTL_MS = 6 * 3600 * 1000;
-const CJ_CONCURRENCY = 3;          // in-flight CJ lookups (under MCP ~4/sec per-IP)
+const CJ_CONCURRENCY = 1;          // in-flight CJ lookups (CJ hard-limits ~1/sec per-IP)
 const WRITE_CONCURRENCY = 2;       // in-flight Shopify writes (gentler: avoid store throttle)
 const WRITE_SLEEP_MS = 800;
 const HARD_DEADLINE_MS = 46000;    // stop before Cloudflare ~50s kill
@@ -215,11 +215,7 @@ const gidProduct = (id) => /^gid:/.test(id) ? id : `gid://shopify/Product/${id}`
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ─── Cross-account round-robin CJ lookup (fixes the ~1/sec sticky-key floor) ─
-// cjFetchMulti is STICKY to one preferred key, so a burst of concurrent lookups
-// all hit ONE account at ~1 req/sec (CJ's per-IP QPS floor). This helper instead
-// ROUND-ROBINS across the fresh API-key accounts so each gets ~1 req/sec and the
-// worker sustains ~N req/sec (N = healthy accounts) from the single worker IP.
-const CJ_PACE_MS = 1050;                    // per-account min gap (slightly >1s to avoid QPS)
+const CJ_PACE_MS = 1500;                    // per-account min gap (CJ per-IP QPS = 1/sec)
 const _rrIdx = { i: 0 };                      // module-level round-robin cursor
 const _rrLast = {};                           // apiKey -> last call timestamp (ms)
 
@@ -246,10 +242,12 @@ async function cjFetchRoundRobin(env, path) {
       const body = await r.json();
       const code = Number(body && body.code);
       if (code === 200 || code === 0) { _rrIdx.i = (n + 1) % keys.length; return body; }
-      if (code === 429 || code === 1600200) { /* per-IP QPS: still try next account */ continue; }
+      if (code === 429 || code === 1600200 || code === 1600001) { /* per-IP QPS: try another account */ continue; }
       if (code === 16900500) { /* this account out of points: try next */ continue; }
-      // 1600014 / 1602001 etc = account can't see this SKU -> try next account
-      continue;
+      // Definitive "product gone" (1602002/1602003) and "account can't see" (1600014/1602001):
+      // these are NOT key-specific for removed products — return immediately to avoid
+      // burning 4 lookups per dead SKU (which is ~70% of the catalog).
+      return body;
     } catch { continue; }
   }
   return { code: 1600200, data: null, rateLimited: true };
@@ -332,8 +330,6 @@ async function applyBatch(env, changes) {
 
 // ─── Shard slice: products whose global index % SHARDS === shard ─────────
 function shardSlice(queue, shard) {
-  // Returns the shard's ordered product list (already filtered by I%SHARDS===shard),
-  // and we advance an INDEX into THIS list, not the global index.
   const slice = [];
   for (let i = 0; i < queue.length; i++) {
     if (i % SHARDS === shard) slice.push(queue[i]);
@@ -353,9 +349,6 @@ export async function onRequest(context) {
 
   try {
     if (action === 'reset') {
-      // Clear ONLY the shard cursors — preserve the shared meta (bulk url + total),
-      // otherwise `total` flaps to 0 and the job stalls. To also drop the shared meta,
-      // use action=reset-all.
       for (let s = 0; s < SHARDS; s++) await shopMetaSet(env, shardKey(s), emptyShard());
       return json({ ok: true, reset: true, shards: SHARDS });
     }
@@ -411,7 +404,6 @@ export async function onRequest(context) {
       meta.total = queue.length;
       meta.totalVariants = queue.reduce((a, p) => a + p.variants.length, 0);
       await shopMetaSet(env, META_KEY, meta);
-      // init all shard cursors
       for (let s = 0; s < SHARDS; s++) await shopMetaSet(env, shardKey(s), emptyShard());
       return json({ ok: true, phase: 'COMPLETED', total: meta.total, totalVariants: meta.totalVariants, shards: SHARDS });
     }
@@ -429,8 +421,6 @@ export async function onRequest(context) {
     }
 
     if (action === 'clear-retry') {
-      // Zero the retry queue for a specific shard (keeps done/cursor).
-      // Used to un-stick shards poisoned by a throttle storm.
       const shard = shardParam != null ? parseInt(shardParam, 10) || 0 : 0;
       if (shard < 0 || shard >= SHARDS) return json({ ok: false, error: 'shard out of range 0..' + (SHARDS - 1) }, 400);
       const st = await loadShard(env, shard);
@@ -468,9 +458,14 @@ export async function onRequest(context) {
         if (!firstSku) return { skipNoSku: item.variants.length, skipNoSug: 0, aud0: 0, changes: [] };
         const cj = await cjFetchRoundRobin(env, '/product/query?variantSku=' + encodeURIComponent(firstSku));
         const code = cj?.code;
+        // Throttle (429/1600200) -> retry later (transient per-IP QPS).
         if (cj?.rateLimited || code === 429 || code === 1600200) return { rateLimited: true, item };
-        if (code === 16900500) return { cjskip: true };
-        if (code !== 200 && code !== 0) return { cjskip: true };
+        // Out-of-points -> retry later (account may replenish).
+        if (code === 16900500) return { rateLimited: true, item };
+        // Product removed from shelves / not found -> PERMANENT dead, never retry.
+        if (code === 1602002 || code === 1602003 || code === 1600014) return { dead: true };
+        // Any other non-success -> permanent skip (bad SKU / no data).
+        if (code !== 200 && code !== 0) return { dead: true };
         return processProduct(env, item, cj, rate);
       }
 
@@ -486,7 +481,6 @@ export async function onRequest(context) {
       }
       let idx = sliceItems.length ? sliceItems[sliceItems.length - 1].cursor + 1 : st.done;
 
-      // resolve concurrently (CJ ~4/sec floor, but intershard this is fine)
       const allItems = retryItems.map(item => ({ item, isRetry: true, cursor: -1 }))
         .concat(sliceItems.map(o => ({ item: o.item, isRetry: false, cursor: o.cursor })));
       const resolutions = await mapLimit(allItems, CJ_CONCURRENCY, async ({ item, isRetry, cursor }) => {
@@ -497,6 +491,7 @@ export async function onRequest(context) {
       let sliceRateLimitCursor = Infinity;
       for (const { res, isRetry, cursor } of resolutions) {
         processedNow++;
+        if (res.dead) { cjSkipNow++; continue; }              // permanently removed: skip forever
         if (res.rateLimited) { rateLimited = true; nextRetry.push(res.item); if (!isRetry && cursor < sliceRateLimitCursor) sliceRateLimitCursor = cursor; continue; }
         if (res.cjskip) { if (isRetry) retriedNow++; else cjSkipNow++; continue; }
         changes.push(...res.changes);
@@ -510,7 +505,6 @@ export async function onRequest(context) {
         idx = sliceRateLimitCursor;
       }
 
-      // writes (parallel)
       let applied = { updated: 0, failed: 0, failedChanges: [], errors: [] };
       if (Date.now() <= hardDeadline && changes.length) {
         applied = await applyBatch(env, changes);
@@ -519,7 +513,6 @@ export async function onRequest(context) {
       st.failed += applied.failed;
       for (const e of applied.errors) { st.errors.unshift({ err: e }); }
       st.errors = st.errors.slice(0, 20);
-      // requeue failed writes so they retry on a later fire instead of being dropped
       for (const fc of (applied.failedChanges || [])) {
         if (fc && fc.item) nextRetry.push(fc.item);
       }
