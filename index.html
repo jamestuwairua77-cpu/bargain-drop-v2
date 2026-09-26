@@ -28,7 +28,7 @@
     .search-box{background:#fff;border-radius:14px;padding:16px;width:90%;max-width:500px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
     .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
     .search-box input:focus{border-color:#B8A9E8}
-    </style><script src="/js/catalog-loader.js?v=9abc9e3443"></script><script src="/js/currency.js?v=767a37dc67"></script><script src="/js/wishlist.js?v=1"></script></head><body>
+    </style><script src="/js/catalog-loader.js?v=2026-09-26.2"></script><script src="/js/currency.js?v=767a37dc67"></script><script src="/js/wishlist.js?v=1"></script></head><body>
 <!-- PROMO STRIP -->
     <div class="promo-strip"><span>🎉 30% OFF SITEWIDE — USE CODE <b>BARGAIN26</b> AT CHECKOUT &nbsp;·&nbsp; Free Shipping A$29+ · SSL Encrypted · Verified Seller · 30-Day Returns</span></div>
     <nav class="navbar">
@@ -37,7 +37,7 @@
         <div class="logo-text">BARGAIN DROP</div>
       </a>
       <div class="nav-actions">
-        <button class="nav-btn" onclick="document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
+        <button class="nav-btn" onclick="ensureFullCatalog();document.getElementById('search-overlay').classList.add('show');document.getElementById('search-input').focus()" aria-label="Search">
           <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
         </button>
         <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
@@ -87,7 +87,7 @@
 <a class="cat-card" href="category.html?cat=mens-clothing&name=Men's Clothing"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/8bf92e01-2701-46fa-9a32-4092c27552c5.png?v=1787035101" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>👔</div>'" /></div><div class="cat-card-label">Men's Clothing</div><span class="cat-card-shop">Shop →</span></a>
 <a class="cat-card" href="category.html?cat=bags-shoes&name=Bags &amp; Shoes"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/113ab291-040c-4ad3-8375-4f9f3ea9f476.jpg?v=1787034434" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>👜</div>'" /></div><div class="cat-card-label">Bags &amp; Shoes</div><span class="cat-card-shop">Shop →</span></a>
 <a class="cat-card" href="category.html?cat=jewelry-watches&name=Jewelry &amp; Watches"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/cd15f438-dec6-4550-b172-f428d2ec21d5.jpg?v=1787034390" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>💍</div>'" /></div><div class="cat-card-label">Jewelry &amp; Watches</div><span class="cat-card-shop">Shop →</span></a>
-<a class="cat-card" href="category.html?cat=furniture&name=Furniture"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/9389e1b2-ee7b-46f7-81d5-b81902eadac0.jpg?v=1787034951" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>🛋️</div>'" /></div><div class="cat-card-label">Furniture</div><span class="cat-card-shop">Shop →</span></a>
+<a class="cat-card" href="category.html?cat=furniture&name=Furniture"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/9389e1b2-ee7b-46f7-81d5-b81902eadac0.jpg?v=1787034951" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>🛋︍</div>'" /></div><div class="cat-card-label">Furniture</div><span class="cat-card-shop">Shop →</span></a>
 <a class="cat-card" href="category.html?cat=home-garden&name=Home &amp; Garden"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/38a9f349-b82b-4cf5-86e4-0173008a8279_water.jpg?v=1787036852" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>🏡</div>'" /></div><div class="cat-card-label">Home &amp; Garden</div><span class="cat-card-shop">Shop →</span></a>
 <a class="cat-card" href="category.html?cat=home-improvement&name=Home Improvement"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/0449d434-37e5-46ca-b585-eb4a934b8e21.jpg?v=1787034518" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>🔧</div>'" /></div><div class="cat-card-label">Home Improvement</div><span class="cat-card-shop">Shop →</span></a>
 <a class="cat-card" href="category.html?cat=health-beauty-hair&name=Health, Beauty &amp; Hair"><div class="cat-card-img-wrap"><img src="https://cdn.shopify.com/s/files/1/0735/9404/4547/files/90567b14-e507-4a0c-99ba-7c4210509aef.jpg?v=1787034470" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=cat-card-emoji>💄</div>'" /></div><div class="cat-card-label">Health, Beauty &amp; Hair</div><span class="cat-card-shop">Shop →</span></a>
@@ -163,15 +163,21 @@ function dedupeProducts(list){if(!list||!list.length)return list;var seen={},out
     ALL = FEATURED.slice();
     renderHome();
   });
-  // Background: fetch the full catalog so homepage search still works once ready.
+})();
+
+// Lazily load the full catalog (~89 MB across shards) ONLY when the user needs it:
+// i.e. when they open search. This keeps the homepage fast (just featured.json).
+window.__catalogEnsured = false;
+window.ensureFullCatalog = function(cb){
+  if(window.__catalogEnsured){ if(cb)cb(ALL); return; }
+  window.__catalogEnsured = true;
   loadCatalog(function(arr){
     var full=(arr||[]).filter(function(p){return p.visible!==false});
     full=dedupeProducts(full);
     if(full.length) { ALL = full; }
-    // Re-render only if the featured set was empty (fallback), otherwise leave the fast render as-is.
-    if(!FEATURED.length && ALL.length) renderHome();
+    if(cb)cb(ALL);
   });
-})();
+};
 
 /* Re-render prices after currency auto-detection resolves (geo-based) */
 (function initCurrencyRefresh(){
@@ -242,6 +248,7 @@ function renderHome(){
 
 var searchTimeout;
 function doSearch(){
+  ensureFullCatalog();
   var q=document.getElementById("search-input").value.toLowerCase().trim();
   clearTimeout(searchTimeout);
   searchTimeout=setTimeout(function(){
@@ -303,6 +310,7 @@ window.addEventListener("scroll",function(){
   lastScroll=s;
 },{passive:true});
 function expandSearch(){
+  ensureFullCatalog();
   var s=document.getElementById("nav-search");s.classList.add("expanded");
   document.getElementById("search-input").focus();
 }
