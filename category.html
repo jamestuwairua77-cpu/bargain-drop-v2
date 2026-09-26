@@ -97,7 +97,7 @@ body{padding-top:calc(var(--nav-h) + var(--promo-h))}
     .search-box input{width:100%;padding:14px;border:1.5px solid #e8e5e0;border-radius:10px;font-size:.9rem;outline:none;font-family:inherit}
     .search-box input:focus{border-color:#B8A9E8}
     </style>
-<script src="/js/catalog-loader.js?v=9abc9e3443"></script>
+<script src="/js/catalog-loader.js?v=2026-09-26.2"></script>
 </head><body>
 <!-- PROMO STRIP -->
     <div class="promo-strip"><span>🎉 30% OFF SITEWIDE — USE CODE <b>BARGAIN26</b> AT CHECKOUT &nbsp;·&nbsp; Free Shipping A$29+ · SSL Encrypted · Verified Seller · 30-Day Returns</span></div>
@@ -306,16 +306,6 @@ document.addEventListener("cat-prods-ready", function() {
     var cb = document.querySelector('.subcat-bar');
     if (cb) {
       cb.innerHTML = '';
-      var allFirst = null;
-      for (var fi = 0; fi < subs.length; fi++) {
-        var fp0 = subs[fi].prods && subs[fi].prods[0];
-        if (fp0 && fp0.image) { allFirst = fp0.image; break; }
-      }
-      var ac = document.createElement('button');
-      ac.className = 'subcat-chip' + (uc ? '' : ' active');
-      ac.innerHTML = (allFirst ? '<img class="subcat-chip-img" src="' + allFirst + '" alt="All" loading="lazy">' : '<div class="subcat-chip-placeholder">\ud83d\udce6</div>') + '<span class="subcat-chip-label">All</span>';
-      ac.onclick = function() { fp(''); };
-      cb.appendChild(ac);
 
       var chips = uc ? subs.filter(function(s){ return s.key === uc || s.key.indexOf(uc) === 0; }) : subs;
       if (!chips.length) chips = subs;
