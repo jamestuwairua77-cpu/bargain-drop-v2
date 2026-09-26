@@ -24,7 +24,8 @@
     for(var i=0;i<shards.length;i++){ if(Array.isArray(shards[i])) out = out.concat(shards[i]); }
     return out;
   }
-  function bust(){ return '?v=' + encodeURIComponent(Date.now().toString(36)); }
+  var CATALOG_VERSION = '2026-09-26';
+  function bust(){ return '?v=' + CATALOG_VERSION; }
 
   // Load a single lightweight featured product file (fast homepage path).
   window.loadFeatured = function(cb){
