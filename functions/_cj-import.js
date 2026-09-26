@@ -37,13 +37,16 @@ import { ghRead, ghWrite, shopifyFetch, cjFetchMulti, mapCategory, shopMetaGet, 
 
 const REPO = 'jamestuwairua77-cpu/bargain-drop-v2';
 
-// ── Reprice policy (must match reprice-flat.js EXACTLY) ────────────────────
-// No markup: price = CJ suggested retail (USD) converted USD→AUD at 1.5×,
-// rounded to whole dollars, with compare-at-price CLEARED (honest price).
-//   newPriceAUD = round( suggestSellPrice(USD) × 1.5 )
-const USD_AUD = 1.5;
-function repriceAUD(usdCost) {
-  const c = parseFloat(usdCost);
+// ── Reprice policy ───────────────────────────────────────────────────────────────────────────────────────────────
+// Price imported products at CJ's SUGGESTED RETAIL price (suggestSellPrice /
+// variantSugSellPrice, USD) converted to AUD at the LIVE USD→AUD rate (not a
+// hardcoded multiplier), rounded to whole dollars, compare-at-price CLEARED.
+// Falls back to the wholesale cost (sellPrice / variantSellPrice) only when the
+// suggested-retail field is absent, so imports never lose a price.
+const USD_AUD = 1.4234; // live USD→AUD rate (update as FX moves)
+
+function repriceAUD(usd) {
+  const c = parseFloat(usd);
   if (!isFinite(c) || c <= 0) return null;
   return Math.round(c * USD_AUD);
 }
@@ -98,19 +101,26 @@ async function writeProcessed(env, ids) {
 }
 
 // ── CJ product/query: full variant list for a product ─────────────────────
-// Uses pid (preferred — PRODUCT pushes carry it) via product/variant/query,
-// falling back to variantSku via product/query. Returns { pid, variants } or null.
+// Uses pid (preferred — PRODUCT pushes carry it) via product/query, falling
+// back to variantSku via product/query. Returns { pid, suggestSellPrice, variants } or null.
 async function cjVariantsByPid(env, pid, variantSku) {
+  // Prefer /product/query?pid= — it returns BOTH the product-level suggestSellPrice
+  // (suggested retail) AND the full variants[] (each with variantSugSellPrice).
   if (pid) {
-    const body = await cjFetchMulti(env, '/product/variant/query?pid=' + encodeURIComponent(pid));
-    if (body && body.code === 200 && Array.isArray(body.data)) {
-      return { pid, variants: body.data };
+    const body = await cjFetchMulti(env, '/product/query?pid=' + encodeURIComponent(pid));
+    if (body && body.code === 200 && body.data && Array.isArray(body.data.variants)) {
+      return { pid: body.data.pid || pid, suggestSellPrice: body.data.suggestSellPrice, variants: body.data.variants };
+    }
+    // Fallback: variant/query returns a bare variant array (some accounts/queries).
+    const vbody = await cjFetchMulti(env, '/product/variant/query?pid=' + encodeURIComponent(pid));
+    if (vbody && vbody.code === 200 && Array.isArray(vbody.data)) {
+      return { pid, variants: vbody.data };
     }
   }
   if (variantSku) {
     const body = await cjFetchMulti(env, '/product/query?variantSku=' + encodeURIComponent(variantSku));
     if (body && body.code === 200 && body.data && Array.isArray(body.data.variants)) {
-      return { pid: body.data.pid, variants: body.data.variants };
+      return { pid: body.data.pid, suggestSellPrice: body.data.suggestSellPrice, variants: body.data.variants };
     }
   }
   return null;
@@ -164,7 +174,10 @@ async function reconcileVariantsToShopify(env, shopifyId, cjData) {
       existing = existingByOpt.get(optKey) || null;
     }
 
-    const price = cv.variantSellPrice != null ? repriceAUD(cv.variantSellPrice) : null;
+    const sug = cv.variantSugSellPrice != null ? parseFloat(cv.variantSugSellPrice) : NaN;
+    const cost = cv.variantSellPrice != null ? parseFloat(cv.variantSellPrice) : NaN;
+    const retailUsd = Number.isFinite(sug) && sug > 0 ? sug : (Number.isFinite(cost) && cost > 0 ? cost : NaN);
+    const price = Number.isFinite(retailUsd) ? repriceAUD(retailUsd) : null;
     const weightGrams = cv.variantWeight != null ? Number(cv.variantWeight) : null;
     const image = cv.variantImage || null;
 
@@ -289,22 +302,33 @@ async function importProduct(env, payload) {
   // Resolve store (Shopify) product id from the push (by SKU), independent of any CJ call.
   const { shopifyId } = await resolveShopifyProduct(env, p);
 
-  // Build the product-level patch from PUSH data only (zero extra CJ quota).
+  // Build the product-level patch from PUSH data (category + title/desc/price).
   // This is the authoritative category fix: CJ's `categoryName` is the real
   // category path; `productType` is a numeric CJ type ID and must NOT be used.
   const patches = {};
   if (p.productNameEn != null) patches.title = p.productNameEn;
   if (p.productDescription != null) patches.body_html = p.productDescription;
-  if (p.productSellPrice != null) { const rp = repriceAUD(p.productSellPrice); if (rp != null) patches.price = rp; }
+  const pSug = p.suggestSellPrice != null ? parseFloat(p.suggestSellPrice) : NaN;
+  const pCost = p.productSellPrice != null ? parseFloat(p.productSellPrice) : NaN;
+  const pRetail = Number.isFinite(pSug) && pSug > 0 ? pSug : (Number.isFinite(pCost) && pCost > 0 ? pCost : NaN);
+  if (Number.isFinite(pRetail)) { const rp = repriceAUD(pRetail); if (rp != null) patches.price = rp; }
   const mappedType = mapCategory(p.categoryName || p.productType, p.productNameEn || p.productName);
   if (mappedType && mappedType !== 'other') patches.product_type = mappedType;
 
-  // CJ-POINT-SAFE: do NOT re-query CJ for the full variant list. Every outbound
-  // CJ lookup burns points, and CJ webhooks were driving an unbounded re-query loop.
-  // We build/update Shopify purely from the PUSH data (category/title/price/images),
-  // which CJ already delivered for free. Missing products fall through to
-  // createMinimalProductInShopify (push-only); variants reconcile on later pushes.
-  const cjData = null; // was: cjVariantsByPid(env, pid, productSku || p.variantSku)
+  // Re-query CJ to obtain the SUGGESTED RETAIL price + full variants (the push only
+  // carries wholesale cost). Non-fatal: on failure we still build from push data.
+  const cjData = await cjVariantsByPid(env, pid, productSku || p.variantSku).catch(() => null);
+
+  // If the CJ query returned the product's suggested retail, use it (more accurate
+  // than the push's wholesale cost). Otherwise the push-cost fallback already set above.
+  if (cjData && cjData.suggestSellPrice != null && parseFloat(cjData.suggestSellPrice) > 0) {
+    const rp = repriceAUD(parseFloat(cjData.suggestSellPrice));
+    if (rp != null) patches.price = rp;
+  } else if (cjData && Array.isArray(cjData.variants) && cjData.variants.length) {
+    const fv = cjData.variants[0];
+    const fRetail = fv.variantSugSellPrice != null && parseFloat(fv.variantSugSellPrice) > 0 ? fv.variantSugSellPrice : fv.variantSellPrice;
+    if (fRetail != null && parseFloat(fRetail) > 0) { const rp = repriceAUD(parseFloat(fRetail)); if (rp != null) patches.price = rp; }
+  }
 
   if (!shopifyId) {
     // Product not yet in Shopify → CREATE it (full import w/ all variants if we have them).
@@ -369,7 +393,10 @@ async function importProduct(env, payload) {
 async function createMinimalProductInShopify(env, p, patches, mappedType) {
   const title = p.productNameEn || p.productName || p.cjProductTitle || 'Imported Product';
   const sku = p.productSku || p.variantSku || undefined;
-  const price = p.productSellPrice != null ? (repriceAUD(p.productSellPrice) ?? 0) : 0;
+  const _pSug = p.suggestSellPrice != null ? parseFloat(p.suggestSellPrice) : NaN;
+  const _pCost = p.productSellPrice != null ? parseFloat(p.productSellPrice) : NaN;
+  const _pRetail = Number.isFinite(_pSug) && _pSug > 0 ? _pSug : (Number.isFinite(_pCost) && _pCost > 0 ? _pCost : NaN);
+  const price = Number.isFinite(_pRetail) ? (repriceAUD(_pRetail) ?? 0) : 0;
   const body = {
     product: {
       title,
@@ -405,7 +432,10 @@ async function createProductInShopify(env, pid, cjData, p) {
     const parts = String(v.variantKey || '').split('-');
     const ov = {};
     optionNames.forEach((_, i) => { ov['option' + (i + 1)] = parts[i] != null ? String(parts[i]) : (i === 0 ? 'Default Title' : ''); });
-    const price = v.variantSellPrice != null ? (repriceAUD(v.variantSellPrice) ?? 0) : 0;
+    const _vSug = v.variantSugSellPrice != null ? parseFloat(v.variantSugSellPrice) : NaN;
+    const _vCost = v.variantSellPrice != null ? parseFloat(v.variantSellPrice) : NaN;
+    const _vRetail = Number.isFinite(_vSug) && _vSug > 0 ? _vSug : (Number.isFinite(_vCost) && _vCost > 0 ? _vCost : NaN);
+    const price = Number.isFinite(_vRetail) ? (repriceAUD(_vRetail) ?? 0) : 0;
     return {
       ...ov,
       price: String(price),
@@ -505,11 +535,13 @@ async function importVariant(env, payload) {
   if (!target && vid) target = shopVariants.find(v => String(v.sku) === String(vid));
 
   if (!target) {
-    // CJ-POINT-SAFE: do NOT re-query CJ for the variant (was cjVariantsByPid).
-    // If the variant is not yet in Shopify, apply the push's own price directly
-    // by creating the single variant from push data (zero outbound CJ cost).
-    if (p.variantSellPrice != null) {
-      const rp = repriceAUD(p.variantSellPrice);
+    // VARIANT pushes carry only wholesale cost (no suggested retail), so we price
+    // from the push's own variantSugSellPrice/variantSellPrice and convert USD→AUD.
+    const _vsSug = p.variantSugSellPrice != null ? parseFloat(p.variantSugSellPrice) : NaN;
+    const _vsCost = p.variantSellPrice != null ? parseFloat(p.variantSellPrice) : NaN;
+    const _vsRetail = Number.isFinite(_vsSug) && _vsSug > 0 ? _vsSug : (Number.isFinite(_vsCost) && _vsCost > 0 ? _vsCost : NaN);
+    if (Number.isFinite(_vsRetail)) {
+      const rp = repriceAUD(_vsRetail);
       const nv = { price: rp != null ? String(rp) : undefined, sku: p.variantSku || sku || vid };
       if (p.variantWeight != null) nv.grams = Number(p.variantWeight);
       const post = await shopifyFetch(env, `/products/${shopifyId}/variants.json`, {
@@ -522,7 +554,10 @@ async function importVariant(env, payload) {
   }
 
   const patch = { id: target.id };
-  if (p.variantSellPrice != null) { const rp = repriceAUD(p.variantSellPrice); if (rp != null) { patch.price = String(rp); patch.compare_at_price = null; } }
+  const _vSug2 = p.variantSugSellPrice != null ? parseFloat(p.variantSugSellPrice) : NaN;
+  const _vCost2 = p.variantSellPrice != null ? parseFloat(p.variantSellPrice) : NaN;
+  const _vRetail2 = Number.isFinite(_vSug2) && _vSug2 > 0 ? _vSug2 : (Number.isFinite(_vCost2) && _vCost2 > 0 ? _vCost2 : NaN);
+  if (Number.isFinite(_vRetail2)) { const rp = repriceAUD(_vRetail2); if (rp != null) { patch.price = String(rp); patch.compare_at_price = null; } }
   if (p.variantWeight != null) patch.grams = Number(p.variantWeight);
   if (p.variantSku != null) patch.sku = p.variantSku;
   if (p.variantStatus != null) {
