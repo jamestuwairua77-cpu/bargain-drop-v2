@@ -368,113 +368,192 @@ async function createProductInShopify(env, pid, cjData, p) {
     };
   });
 
+  const title = (cjData.productNameEn || cjData.productName || p.productNameEn || p.productName || 'Imported CJ Product').slice(0, 255);
+  const rawImages = extractImagesFromCj(cjData, p);
+  const mappedType = mapCategory(cjData.categoryName || p.categoryName || p.productType, title);
+
   const body = {
     product: {
-      title: cjData.productNameEn || cjData.productName || p.productNameEn || p.productName || 'Imported CJ Product',
-      body_html: cjData.productDescription || p.productDescription || '',
-      product_type: mapCategory(cjData.categoryName || p.categoryName, cjData.productNameEn || p.productNameEn),
-      vendor: 'CJ Dropshipping',
-      tags: 'cj-import',
+      title,
+      body_html: cjData.description || p.productDescription || '',
+      vendor: 'Bargain Drop',
+      product_type: mappedType && mappedType !== 'other' ? mappedType : (cjData.categoryName || 'General'),
+      tags: `cj-import, cj-pid-${pid}`,
+      status: 'active',
+      options: optionNames.map(name => ({ name })),
       variants: shopVariants.length ? shopVariants : undefined,
-      images: extractImagesFromCj(cjData, p),
+      images: rawImages.length ? rawImages : undefined,
     },
   };
 
   const r = await shopifyFetch(env, '/products.json', { method: 'POST', body: JSON.stringify(body) });
-  if (!r.ok) return { imported: false, reason: 'create ' + r.status, pid };
+  if (!r.ok) {
+    return { imported: false, reason: 'shopify create ' + r.status, pid };
+  }
   const newId = r.body && r.body.product && r.body.product.id;
   return { imported: true, pid, created: true, shopifyId: newId, variantsCount: shopVariants.length, categoryApplied: body.product.product_type };
 }
 
-// â”€â”€ Extract images from C‰ data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” ™[˜Ý[Ûˆ^˜XÝ[XYÙ\Ñœ›ÛPÚŠÚ‘]K
-HÂˆÛÛœÝ\›ÈH×NÂˆÛÛœÝYH
-JHOˆÂˆYˆ
-]JH™]\›ŽÂˆÛÛœÝÛX[ˆHÝš[™ÊJKš[J
-NÂˆYˆ
-XÛX[ˆ\›Ëš[˜ÛY\ÊÛX[ŠHK×šÏÎ‹ÚK\Ý
-ÛX[ŠJH™]\›ŽÂˆ\›Ëœ\Ú
-ÛX[ŠNÂˆNÂˆY
-Ú‘]Kœ›ÙXÝ[XYÙJNÂˆYˆ
-\œ˜^Kš\Ð\œ˜^JÚ‘]Kœ›ÙXÝ[XYÙTÙ]
-JHÚ‘]Kœ›ÙXÝ[XYÙTÙ]™›Ü‘XXÚ
-Y
-NÂˆËÈ[ÛÈY˜\šX[[XYÙ\ÂˆYˆ
-\œ˜^Kš\Ð\œ˜^JÚ‘]K˜\šX[ÊJHÂˆ›Üˆ
-ÛÛœÝˆÙˆÚ‘]K˜\šX[ÊHY
-‹˜\šX[[XYÙJNÂˆBˆËÈ˜[˜XÚÈÈ\Ú[XYÙ\ÂˆYˆ
-]\›Ë›[™Ý
-H™]\›ˆ^˜XÝ\Ú[XYÙ\Ê
-NÂˆ™]\›ˆ\›ËœÛXÙJMJK›X\
-Ü˜ÈOˆ
-ÈÜ˜ÈJJNÂŸB‚‹ËÈ8¥ 8¥ \Ù\Ú[™ÛH˜\šX[[ÈÚÜYžH
-˜\šX[ØÜ™X]K˜\šX[Ý\]JH8¥ 8¥ 8¥ ™^Ü\Þ[˜È[˜Ý[ÛˆÞ[˜Õ˜\šX[Ú]ÚÜYžJ[‹
-HÂˆÛÛœÝYHœYœ›ÙXÝY[ÂˆÛÛœÝÚÝHH˜\šX[ÚÝHœÚÝH[ÂˆÛÛœÝšYHšY[Â‚ˆÛÛœÝÚÜYžT›ÙXÝH]ØZ]š[™ÚÜYžT›ÙXÝ
-[‹YÚÝJNÂˆYˆ
-\ÚÜYžT›ÙXÝ
-HÂˆËÈ›ÙXÝ›ÝY][ˆÚÜYžH8¡¥šYÙÙ\ˆ[›ÙXÝÞ[˜ÈYˆÙH]™HYˆYˆ
-Y
-H™]\›ˆ]ØZ]Þ[˜Ô›ÙXÝÚ]ÚÜYžJ[‹Y
-NÂˆ™]\›ˆÈ[\ÜYˆ˜[ÙK™X\ÛÛŽˆ	Ü\™[›ÙXÝ›Ý›Ý[™	ËÚÝKYNÂˆB‚ˆÛÛœÝÚÜYžRYHÚÜYžT›ÙXÝšYÂˆÛÛœÝÚÜ˜\šX[ÈHÚÜYžT›ÙXÝ˜\šX[È×NÂ‚ˆËÈX]Ú^\Ý[™È˜\šX[žHÒÕHÜˆQˆ]\™Ù]H[ÂˆYˆ
-ÚÝJH\™Ù]HÚÜ˜\šX[Ë™š[™
-ˆOˆÝš[™Ê‹œÚÝJHOOHÝš[™ÊÚÝJJNÂˆYˆ
-]\™Ù]	‰ˆšY
-H\™Ù]HÚÜ˜\šX[Ë™š[™
-ˆOˆÝš[™Ê‹œÚÝJHOOHÝš[™ÊšY
-JNÂ‚ˆYˆ
-]\™Ù]
-HÂˆËÈT’PS•\Ú\ÈØ\œžHÚÛ\Ø[HÛÜÝšXÙHšXHY\™YX\šÝ\ˆÛÛœÝÝœÐÛÜÝH˜\šX[Ù[šXÙHOH[È\œÙQ›Ø]
-˜\šX[Ù[šXÙJHˆ˜SŽÂˆYˆ
-[X™\‹š\Ñš[š]JÝœÐÛÜÝ
-H	‰ˆÝœÐÛÜÝˆ
-HÂˆÛÛœÝœHÛÛ\]TšXÙJÝœÐÛÜÝ
-NÂˆÛÛœÝˆHÈšXÙNˆœOH[ÈÝš[™Êœ
-Hˆ[™Yš[™YÚÝNˆ˜\šX[ÚÝHÚÝHšYNÂˆYˆ
-˜\šX[ÙZYÚOH[
-H‹™Ü˜[\ÈH[X™\Š˜\šX[ÙZYÚ
-NÂˆÛÛœÝÜÝH]ØZ]ÚÜYžQ™]Ú
-[‹Ü›ÙXÝËÉÜÚÜYžRYKÝ˜\šX[ËšœÛÛ˜ÂˆY]Ùˆ	ÔÔÕ	Ëˆ›ÙNˆ”ÓÓ‹œÝš[™ÚYžJÈ˜\šX[ˆˆJKˆJK˜Ø]Ú
+function extractImagesFromCj(cjData, p) {
+  const urls = [];
+  const add = (u) => {
+    if (!u || typeof u !== 'string') return;
+    const clean = u.trim();
+    if (!clean || urls.includes(clean)) return;
+    if (!/^https?:\/\//i.test(clean)) return;
+    urls.push(clean);
+  };
+  add(cjData.bigImage);
+  add(cjData.productImage);
+  if (Array.isArray(cjData.productImageSet)) cjData.productImageSet.forEach(add);
+  // Also add variant images
+  if (Array.isArray(cjData.variants)) {
+    for (const v of cjData.variants) add(v.variantImage);
+  }
+  // Fall back to push images
+  if (!urls.length) return extractPushImages(p);
+  return urls.slice(0, 15).map(src => ({ src }));
+}
 
+// â”€â”€ Upsert single variant into Shopify (variant/create, variant/update) â”€â”€
+export async function syncVariantWithShopify(env, p) {
+  const pid = p.pid || p.productId || null;
+  const sku = p.variantSku || p.sku || null;
+  const vid = p.vid || null;
 
-HOˆ
-ÈÚÎˆ˜[ÙKÝ]\ÎˆJJNÂˆ™]\›ˆÈ[\ÜYˆÜÝ›ÚË™X\ÛÛŽˆÜÝ›ÚÈÈ	Ý˜\šX[Ü™X]Yœ›ÛH\Ú	Èˆ	Ý˜\šX[Ü™X]H	È
-ÈÜÝœÝ]\ËÚÝHNÂˆBˆ™]\›ˆÈ[\ÜYˆ˜[ÙK™X\ÛÛŽˆ	Ý˜\šX[›Ý›Ý[™
-›È\ÚšXÙJIËÚÝHNÂˆB‚ˆÛÛœÝ]ÚHÈYˆ\™Ù]šYNÂˆÛÛœÝÝÛÜÝˆH˜\šX[Ù[šXÙHOH[È\œÙQ›Ø]
-˜\šX[Ù[šXÙJHˆ˜SŽÂˆYˆ
-[X™\‹š\Ñš[š]JÝÛÜÝŠH	‰ˆÝÛÜÝˆˆ
-HÈÛÛœÝœHÛÛ\]TšXÙJÝÛÜÝŠNÈYˆ
-œOH[
-HÈ]ÚœšXÙHHÝš[™Êœ
-NÈ]Ú˜ÛÛ\\™WØ]ÜšXÙHH[ÈHBˆYˆ
-˜\šX[ÙZYÚOH[
-H]Ú™Ü˜[\ÈH[X™\Š˜\šX[ÙZYÚ
-NÂˆYˆ
-˜\šX[ÚÝHOH[
-H]ÚœÚÝHH˜\šX[ÚÝNÂˆYˆ
-˜\šX[Ý]\ÈOH[
-HÂˆËÈ]˜Z[Xš[]NˆHHÛˆØ[Bˆ]Úš[™[ÜžWÛX[˜YÙ[Y[H	ÜÚÜYžIÎÂˆ]Úš[™[ÜžWÜÛXÞHH˜\šX[Ý]\ÈOHH˜\šX[Ý]\ÈOH	ÌIÈÈ	ØÛÛ[YIÈˆ	Ù[žIÎÂˆB‚ˆÛÛœÝˆH]ØZ]ÚÜYžQ™]Ú
-[‹Ü›ÙXÝËÉÜÚÜYžRYKÝ˜\šX[ËÞÉ\™Ù]šYKšœÛÛ˜ÂˆY]Ùˆ	ÔU	Ëˆ›ÙNˆ”ÓÓ‹œÝš[™ÚYžJÈ˜\šX[ˆ]ÚJKˆJNÂ‚ˆ™]\›ˆÈ[\ÜYˆ‹›ÚËÚÝKÚÜYžRY˜\šX[Yˆ\™Ù]šY\]Yˆ‹›ÚÈNÂŸB‚‹ËÈ8¥ 8¥ XZ[ˆ\Ü]Ú\ˆ
-Ø[Yœ›ÛHÚ‹]ÙXšÛÚËšœÊH8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ 8¥ ™^Ü\Þ[˜È[˜Ý[Ûˆ[™PÚ•ÙXšÛÚÊ[‹^[ØYXY\œÈHßJHÂˆÛÛœÝY\ÜØYÙRYH^[ØYË“Y\ÜØYÙRY^[ØYË›Y\ÜØYÙRYXY\œÖÉÞXÚ‹[Y\ÜØYÙKZY	×H[ÂˆYˆ
-Y\ÜØYÙRY	‰ˆ]ØZ]\Ñ\XØ]SY\ÜØYÙJ[‹Y\ÜØYÙRY
-JHÂˆ™]\›ˆÈÚÎˆYKÚÚ\YˆYK™X\ÛÛŽˆ	Ù\XØ]HY\ÜØYÙRY	ËY\ÜØYÙRYNÂˆB‚ˆËÈ[Ü˜\Ó”Ë\Ý[HÈ\KY\ÜØYÙHH[™[ÜHYˆ™\Ù[ˆ]›ÙHH^[ØYÂˆYˆ
-\[Ùˆ^[ØYË“Y\ÜØYÙHOOH	ÜÝš[™ÉÊHÂˆžHÈ›ÙHH”ÓÓ‹œ\œÙJ^[ØY“Y\ÜØYÙJNÈHØ]ÚßBˆB‚ˆÛÛœÝÜXÈH›ÙOËÜXÈ›ÙOË\H^[ØYËÜXÈ^[ØYË\H	Ý[šÛ›ÝÛ‰ÎÂˆÛÛœÝ]HH›ÙOË™]H›ÙOËœ\˜[\È›ÙNÂˆÛÛœÝYH]OËœY]OËœ›ÙXÝY]OËšY[Â‚ˆ]™\Ý[HÈÚÎˆ˜[ÙKÜXËYNÂ‚ˆÝÚ]Ú
-ÜXÊHÂˆØ\ÙH	Ü›ÙXÝØÜ™X]IÎ‚ˆØ\ÙH	Ü›ÙXÝÝ\]IÎ‚ˆØ\ÙH	Ü›ÙXÝ˜Ü™X]IÎ‚ˆØ\ÙH	Ü›ÙXÝ\]IÎ‚ˆYˆ
-Y
-HÂˆ™\Ý[H]ØZ]Þ[˜Ô›ÙXÝÚ]ÚÜYžJ[‹Y]JNÂˆH[ÙHÂˆ™\Ý[HÈÚÎˆ˜[ÙK™X\ÛÛŽˆ	Û›ÈY[ˆ^[ØY	ËÜXÈNÂˆBˆœ™XZÎÂ‚ˆØ\ÙH	Ý˜\šX[ØÜ™X]IÎ‚ˆØ\ÙH	Ý˜\šX[Ý\]IÎ‚ˆØ\ÙH	Ý˜\šX[˜Ü™X]IÎ‚ˆØ\ÙH	Ý˜\šX[\]IÎ‚ˆ™\Ý[H]ØZ]Þ[˜Õ˜\šX[Ú]ÚÜYžJ[‹]JNÂˆœ™XZÎÂ‚ˆØ\ÙH	ÛÜ™\‹ÜÝ]\ÉÎ‚ˆØ\ÙH	ÛÜ™\‹œÝ]\ÉÎ‚ˆØ\ÙH	ÛÜ™\‹Ý˜XÚÚ[™ÉÎ‚ˆËÈÒˆÜ™\ˆ˜XÚÚ[™È\ÚYOˆ\]HÚÜYžH[š[Y[ˆ™\Ý[H]ØZ][™SÜ™\”Ý]\Ô\Ú
-[‹]JNÂˆœ™XZÎÂ‚ˆY˜][‚ˆËÈ™\ÝY™›ÜˆYˆ]H\ÈHYžHÞ[˜Ú[™È\È›ÙXÝˆYˆ
-Y
-HÂˆ™\Ý[H]ØZ]Þ[˜Ô›ÙXÝÚ]ÚÜYžJ[‹Y]JNÂˆH[ÙHÂˆ™\Ý[HÈÚÎˆYKYÛ›Ü™YˆYK™X\ÛÛŽˆ	Ý[š[™YÜXÈ	È
-ÈÜXÈNÂˆBˆB‚ˆYˆ
-Y\ÜØYÙRY	‰ˆ™\Ý[š[\ÜY
-HÂˆ]ØZ]X\šÓY\ÜØYÙT›ØÙ\ÜÙY
-[‹Y\ÜØYÙRY
-NÂˆB‚ˆžHÂˆ]ØZ]\[™Þ[˜ÓÙÊ[‹È\Nˆ	ØÚ‹]ÙXšÛÚÉËÜXËY‹‹œ™\Ý[]ˆ™]È]J
-KÒTÓÔÝš[™Ê
-HJNÂˆHØ]ÚßB‚ˆ™]\›ˆÈÚÎˆ™\Ý[š[\ÜYOOH˜[ÙK‹‹œ™\Ý[NÂŸB‚˜\Þ[˜È[˜Ý[Ûˆ[™SÜ™\”Ý]\Ô\Ú
-[‹]JHÂˆÛÛœÝÚ“Ü™\’YH]OË›Ü™\’Y]OË˜Ú“Ü™\’YÂˆÛÛœÝ˜XÚÚ[™Ó[X™\ˆH]OË˜XÚÚ[™Ó[X™\ˆ]OË˜XÚÓ[X™\ŽÂˆÛÛœÝÙÚ\ÝXÜÓ˜[YHH]OË›ÙÚ\ÝXÓ˜[YH]OË›ÙÚ\ÝXÜÐÛÛ\[žH	ÔÝ[™\™Ú\[™ÉÎÂˆYˆ
-XÚ“Ü™\’Y]˜XÚÚ[™Ó[X™\ŠH™]\›ˆÈ[\ÜYˆ˜[ÙK™X\ÛÛŽˆ	ÛZ\ÜÚ[™ÈÜ™\’YÜˆ˜XÚÚ[™ÉÈNÂ‚ˆËÈÛÚÈ\ÚÜYžHÜ™\ˆžHÒˆÜ™\ˆQ[ˆ›ÝWØ]šX]\ÂˆÛÛœÝÜ™\œÈH]ØZ]\ÝÜ™\œÊ[‹È[Z]ˆLJNÂˆÛÛœÝX]ÚH
-Ü™\œÈ×JK™š[™
-ÈOˆÂˆÛÛœÝ›ÝHH”ÓÓ‹œÝš[™ÚYžJË››ÝWØ]šX]\È×JNÂˆ™]\›ˆ›ÝKš[˜ÛY\ÊÝš[™ÊÚ“Ü™\’Y
-JNÂˆJNÂˆYˆ
-[X]Ú
-H™]\›ˆÈ[\ÜYˆ˜[ÙK™X\ÛÛŽˆ	ÜÚÜYžHÜ™\ˆ›Ý›Ý[™›ÜˆÒˆÜ™\ˆ	È
-ÈÚ“Ü™\’YNÂ‚ˆÛÛœÝ\]HH]ØZ]\]SÜ™\”Ý]\Ê[‹X]ÚšYÂˆÝ]\Îˆ	Ù[š[Y	Ëˆ˜XÚÚ[™×Û[X™\Žˆ˜XÚÚ[™Ó[X™\‹ˆ˜XÚÚ[™×ØÛÛ\[žNˆÙÚ\ÝXÜÓ˜[YKˆJNÂˆ™]\›ˆÈ[\ÜYˆ\]K›ÚËÚÜYžSÜ™\’YˆX]ÚšYÚ“Ü™\’Y˜XÚÚ[™Ó[X™\ˆNÂŸB
+  const shopifyProduct = await findShopifyProduct(env, pid, sku);
+  if (!shopifyProduct) {
+    // Product not yet in Shopify â€” trigger full product sync if we have pid
+    if (pid) return await syncProductWithShopify(env, pid, p);
+    return { imported: false, reason: 'parent product not found', sku, pid };
+  }
+
+  const shopifyId = shopifyProduct.id;
+  const shopVariants = shopifyProduct.variants || [];
+
+  // Match existing variant by SKU or ID
+  let target = null;
+  if (sku) target = shopVariants.find(v => String(v.sku) === String(sku));
+  if (!target && vid) target = shopVariants.find(v => String(v.sku) === String(vid));
+
+  if (!target) {
+    // VARIANT pushes carry wholesale cost, price via tiered markup
+    const _vsCost = p.variantSellPrice != null ? parseFloat(p.variantSellPrice) : NaN;
+    if (Number.isFinite(_vsCost) && _vsCost > 0) {
+      const rp = computePrice(_vsCost);
+      const nv = { price: rp != null ? String(rp) : undefined, sku: p.variantSku || sku || vid };
+      if (p.variantWeight != null) nv.grams = Number(p.variantWeight);
+      const post = await shopifyFetch(env, `/products/${shopifyId}/variants.json`, {
+        method: 'POST',
+        body: JSON.stringify({ variant: nv }),
+      }).catch(() => ({ ok: false, status: 0 }));
+      return { imported: post.ok, reason: post.ok ? 'variant created from push' : 'variant create ' + post.status, sku };
+    }
+    return { imported: false, reason: 'variant not found (no push price)', sku };
+  }
+
+  const patch = { id: target.id };
+  const _vCost2 = p.variantSellPrice != null ? parseFloat(p.variantSellPrice) : NaN;
+  if (Number.isFinite(_vCost2) && _vCost2 > 0) { const rp = computePrice(_vCost2); if (rp != null) { patch.price = String(rp); patch.compare_at_price = null; } }
+  if (p.variantWeight != null) patch.grams = Number(p.variantWeight);
+  if (p.variantSku != null) patch.sku = p.variantSku;
+  if (p.variantStatus != null) {
+    // availability: 1 = on sale
+    patch.inventory_management = 'shopify';
+    patch.inventory_policy = p.variantStatus === 1 || p.variantStatus === '1' ? 'continue' : 'deny';
+  }
+
+  const r = await shopifyFetch(env, `/products/${shopifyId}/variants/${target.id}.json`, {
+    method: 'PUT',
+    body: JSON.stringify({ variant: patch }),
+  });
+
+  return { imported: r.ok, sku, shopifyId, variantId: target.id, updated: r.ok };
+}
+
+// â”€â”€ Main dispatcher (called from cj-webhook.js) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export async function handleCjWebhook(env, payload, headers = {}) {
+  const messageId = payload?.MessageId || payload?.messageId || headers['x-cj-message-id'] || null;
+  if (messageId && await isDuplicateMessage(env, messageId)) {
+    return { ok: true, skipped: true, reason: 'duplicate messageId', messageId };
+  }
+
+  // Unwrap SNS-style { Type, Message } envelope if present
+  let body = payload;
+  if (typeof payload?.Message === 'string') {
+    try { body = JSON.parse(payload.Message); } catch {}
+  }
+
+  const topic = body?.topic || body?.type || payload?.topic || payload?.type || 'unknown';
+  const data = body?.data || body?.params || body;
+  const pid = data?.pid || data?.productId || data?.id || null;
+
+  let result = { ok: false, topic, pid };
+
+  switch (topic) {
+    case 'product/create':
+    case 'product/update':
+    case 'product.create':
+    case 'product.update':
+      if (pid) {
+        result = await syncProductWithShopify(env, pid, data);
+      } else {
+        result = { ok: false, reason: 'no pid in payload', topic };
+      }
+      break;
+
+    case 'variant/create':
+    case 'variant/update':
+    case 'variant.create':
+    case 'variant.update':
+      result = await syncVariantWithShopify(env, data);
+      break;
+
+    case 'order/status':
+    case 'order.status':
+    case 'order/tracking':
+      // CJ order tracking pushed -> update Shopify fulfillment
+      result = await handleOrderStatusPush(env, data);
+      break;
+
+    default:
+      // Best effort: if data has a pid, try syncing as product
+      if (pid) {
+        result = await syncProductWithShopify(env, pid, data);
+      } else {
+        result = { ok: true, ignored: true, reason: 'unhandled topic ' + topic };
+      }
+  }
+
+  if (messageId && result.imported) {
+    await markMessageProcessed(env, messageId);
+  }
+
+  try {
+    await appendSyncLog(env, { type: 'cj-webhook', topic, pid, ...result, at: new Date().toISOString() });
+  } catch {}
+
+  return { ok: result.imported !== false, ...result };
+}
+
+async function handleOrderStatusPush(env, data) {
+  const cjOrderId = data?.orderId || data?.cjOrderId;
+  const trackingNumber = data?.trackingNumber || data?.trackNumber;
+  const logisticsName = data?.logisticName || data?.logisticsCompany || 'Standard Shipping';
+  if (!cjOrderId || !trackingNumber) return { imported: false, reason: 'missing orderId or tracking' };
+
+  // Look up Shopify order by CJ order ID in note_attributes
+  const orders = await listOrders(env, { limit: 50 });
+  const match = (orders || []).find(o => {
+    const note = JSON.stringify(o.note_attributes || []);
+    return note.includes(String(cjOrderId));
+  });
+  if (!match) return { imported: false, reason: 'shopify order not found for CJ order ' + cjOrderId };
+
+  const update = await updateOrderStatus(env, match.id, {
+    status: 'fulfilled',
+    tracking_number: trackingNumber,
+    tracking_company: logisticsName,
+  });
+  return { imported: update.ok, shopifyOrderId: match.id, cjOrderId, trackingNumber };
+}
