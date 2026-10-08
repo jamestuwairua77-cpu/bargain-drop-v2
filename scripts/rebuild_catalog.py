@@ -190,8 +190,10 @@ for p in prods:
     key = map_category(ptype, p['title'])
     name = {'furniture': 'Furniture', 'home-garden': 'Home & Garden', 'home-improvement': 'Home Improvement'}.get(key, ptype)
     if key not in cats: cats[key] = {'name': name, 'products': []}
+    # Truncate body_html in category entries to keep shards under Cloudflare's 25MiB file limit.
+    short_html = (p['body_html'] or '')[:300]
     cats[key]['products'].append({'id': p['id'], 'title': p['title'], 'price': price,
-        'image': imgs[0] if imgs else None, 'body_html': p['body_html'], 'vendor': p['vendor'],
+        'image': imgs[0] if imgs else None, 'body_html': short_html, 'vendor': p['vendor'],
         'product_type': name, 'variants': len(vars_list), 'images': len(imgs)})
     idx[p['id']] = {'idx': len(cats[key]['products'])-1, 'category': key}
 
