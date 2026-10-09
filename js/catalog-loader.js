@@ -24,7 +24,7 @@
     for(var i=0;i<shards.length;i++){ if(Array.isArray(shards[i])) out = out.concat(shards[i]); }
     return out;
   }
-  var CATALOG_VERSION = '2026-10-09';
+  var CATALOG_VERSION = '2026-10-09b';
   function bust(){ return '?v=' + CATALOG_VERSION; }
 
   // Load a single lightweight featured product file (fast homepage path).
@@ -49,6 +49,25 @@
       Promise.all(jobs).then(function(shards){
         var all = merge(shards);
         window.__catalogAll = all;
+        cb(all);
+      }).catch(function(){ cb([]); });
+    }).catch(function(){ cb([]); });
+  };
+
+  // Load the SLIM product catalog (id/title/price/image/sku/product_type/category)
+  // — a lightweight listing/search index. Ships ~7 MiB across shards instead of the
+  // full ~106 MiB all-products.json (which carries body_html + full images[]/variants[]).
+  window.loadSlimCatalog = function(cb){
+    if(window.__catalogSlim){ cb(window.__catalogSlim); return; }
+    fetchJSON('/products-slim.json' + bust(), 15000).then(function(manifest){
+      if(Array.isArray(manifest)){ window.__catalogSlim = manifest; cb(manifest); return; }
+      var n = (manifest && manifest.shards) || 0;
+      if(!n){ cb([]); return; }
+      var jobs = [];
+      for(var i=0;i<n;i++){ jobs.push(fetchJSON('/products-slim-' + i + '.json' + bust(), 25000)); }
+      Promise.all(jobs).then(function(shards){
+        var all = merge(shards);
+        window.__catalogSlim = all;
         cb(all);
       }).catch(function(){ cb([]); });
     }).catch(function(){ cb([]); });

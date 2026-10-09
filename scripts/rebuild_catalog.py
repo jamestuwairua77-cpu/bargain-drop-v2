@@ -184,7 +184,7 @@ def map_category(ptype, title):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from categorize_taxonomy import classify as _classify, TOP_NAME
 
-cats, all_, idx = {}, [], {}
+cats, all_, idx, slim_ = {}, [], {}, []
 for p in prods:
     imgs = []
     for s in p['images']:
@@ -212,6 +212,11 @@ for p in prods:
         'image': imgs[0] if imgs else None, 'body_html': short_html, 'vendor': p['vendor'],
         'product_type': name, 'variants': len(vars_list), 'images': len(imgs)})
     idx[p['id']] = {'idx': len(cats[key]['products'])-1, 'category': key}
+    first_variant = vars_list[0] if vars_list else {}
+    slim_.append({'id': p['id'], 'title': p['title'], 'price': price,
+                  'image': imgs[0] if imgs else None, 'product_type': p['product_type'],
+                  'tags': p['tags'], 'sku': first_variant.get('sku'),
+                  'category': key})
 
 def shard(arr, size):
     return [arr[i:i+size] for i in range(0, len(arr), size)]
@@ -253,12 +258,19 @@ files['featured.json'] = json.dumps(featured, ensure_ascii=False)
 for i, s in enumerate(p_shards):
     files[f'all-products-{i}.json'] = json.dumps(s, ensure_ascii=False)
 files['all-products.json'] = json.dumps({'shards': len(p_shards), 'count': len(all_)})
+# Slim listing shards: only the fields listing/search pages need (no body_html,
+# full images[] or full variants[]) so the "All Products" page loads in ~7 MiB
+# instead of ~106 MiB. Keeps every shard well under Cloudflare's 25 MiB limit.
+slim_shards = shard(slim_, 4000)
+for i, s in enumerate(slim_shards):
+    files[f'products-slim-{i}.json'] = json.dumps(s, ensure_ascii=False)
+files['products-slim.json'] = json.dumps({'shards': len(slim_shards), 'count': len(slim_)})
 for i, s in enumerate(c_shards):
     files[f'categories-data-{i}.json'] = json.dumps(s, ensure_ascii=False)
 files['categories-data.json'] = json.dumps({'shards': len(c_shards), 'count': len(catObjs)})
 files['products-index.json'] = json.dumps(idx)
 
-print('product shards:', len(p_shards), 'category shards:', len(c_shards), 'index:', len(idx))
+print('product shards:', len(p_shards), 'category shards:', len(c_shards), 'slim shards:', len(slim_shards), 'index:', len(idx))
 
 GHAPI = f'https://api.github.com/repos/{REPO}'
 HDR = {'Authorization': 'Bearer ' + GH, 'Accept': 'application/vnd.github+json', 'User-Agent': 'bargain-drop-rebuild'}
@@ -289,6 +301,8 @@ try:
         if path.startswith('all-products-') and path.endswith('.json') and path not in files:
             entries.append({'path': path, 'mode': node.get('mode','100644'), 'type': 'blob', 'sha': None})
         elif path.startswith('categories-data-') and path.endswith('.json') and path not in files:
+            entries.append({'path': path, 'mode': node.get('mode','100644'), 'type': 'blob', 'sha': None})
+        elif path.startswith('products-slim-') and path.endswith('.json') and path not in files:
             entries.append({'path': path, 'mode': node.get('mode','100644'), 'type': 'blob', 'sha': None})
 except Exception as e:
     print('warning: could not detect stale shards:', e, file=sys.stderr)
