@@ -161,19 +161,27 @@ def is_home_improvement(title):
     return False
 
 def map_category(ptype, title):
-    """Map a Shopify product_type + title to a canonical storefront category slug.
-    Splits CJ's combined "Home, Garden & Furniture" into 'furniture' / 'home-garden'
-    / 'home-improvement' based on title signals."""
-    if not ptype:
-        return 'other'
-    key = ptype.lower().replace(' & ', '-').replace(' ', '-').replace('"','').replace("'",'').replace(',','')
-    if key == 'home-garden-furniture':
-        if is_home_improvement(title):
-            return 'home-improvement'
-        if is_furniture(title):
-            return 'furniture'
-        return 'home-garden'
-    return key
+    """Classify a product into (top_level, subcategory, sub_display) using the
+    title-first taxonomy in categorize_taxonomy.py."""
+    try:
+        from categorize_taxonomy import classify, TOP_NAME
+        top, sub, disp = classify(title or '', ptype or '')
+        if top not in TOP_NAME:
+            top = 'other'
+        return top, sub, disp
+    except Exception:
+        if not ptype:
+            return 'other', 'other', 'Other'
+        key = ptype.lower().replace(' & ', '-').replace(' ', '-').replace('"','').replace("'",'').replace(',','')
+        if key == 'home-garden-furniture':
+            if is_home_improvement(title):
+                return 'home-improvement', 'tools', 'Tools'
+            if is_furniture(title):
+                return 'furniture', 'other', 'Other'
+            return 'home-garden', 'other', 'Other'
+        return key, 'other', ptype
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 cats, all_, idx = {}, [], {}
 for p in prods:
@@ -187,8 +195,15 @@ for p in prods:
                  'body_html': p['body_html'], 'vendor': p['vendor'],
                  'product_type': p['product_type'], 'tags': p['tags'], 'variants': vars_list})
     ptype = p['product_type'] or 'other'
-    key = map_category(ptype, p['title'])
-    name = {'furniture': 'Furniture', 'home-garden': 'Home & Garden', 'home-improvement': 'Home Improvement'}.get(key, ptype)
+    top, sub, disp = map_category(ptype, p['title'])
+    # Hierarchical key: top-level alone, or 'top->sub' for subcategories.
+    key = (top + '->' + sub) if (sub and sub != 'other') else top
+    # Display name: subcategory friendly name, or canonical top-level name.
+    if sub and sub != 'other':
+        name = disp
+    else:
+        name = {'furniture':'Furniture','home-garden':'Home & Garden',
+                'home-improvement':'Home Improvement'}.get(top) or TOP_NAME.get(top, top.replace('-',' ').title())
     if key not in cats: cats[key] = {'name': name, 'products': []}
     # Truncate body_html in category entries to keep shards under Cloudflare's 25MiB file limit.
     short_html = (p['body_html'] or '')[:300]
