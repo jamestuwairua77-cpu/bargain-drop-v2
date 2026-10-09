@@ -14,7 +14,7 @@ import re
 
 RULES = [
     # === EYEWEAR (fix: sunglasses/glasses were landing in dinnerware) ===
-    (['sunglasses','sun glasses','eyeglasses','eye glasses','reading glasses','eyewear','optical glasses','blue light glasses','blue light blocking','nose pad','nose pads','glasses frame','frame glasses','fashion glasses','plain glasses','decorated glasses','multi-purpose glasses','glasses for women','glasses for men','prescription glasses','polarized sunglasses','spectacles'], 'consumer-electronics', 'electronics', 'Eyewear & Glasses'),
+    (['sunglasses','sun glasses','eyeglasses','eye glasses','reading glasses','eyewear','optical glasses','blue light glasses','blue light blocking','nose pad','nose pads','glasses frame','frame glasses','fashion glasses','plain glasses','decorated glasses','multi-purpose glasses','glasses for women','glasses for men','prescription glasses','polarized sunglasses','windproof goggles','cycling goggles','riding goggles','spectacles'], 'consumer-electronics', 'electronics', 'Eyewear & Glasses'),
     # === DUMBBELL / WEIGHTS (fix: 'weight plates' was landing in dinnerware) ===
     (['dumbbell','weight plate','weight plates','barbell weight','barbell weights','weight plate set','barbell','strength training'], 'sports-outdoors', 'fitness', 'Fitness & Yoga'),
     # === PET WATER BOTTLES / FEEDING (fix: 'water bottle' was landing in food-storage) ===
@@ -135,7 +135,7 @@ RULES = [
     (['football','soccer','basketball','tennis','badminton','volleyball','cricket','lacrosse','trampoline','skate','scooter','surf','snow','ski','skiing','swimming','swim ','goggles','racket'], 'sports-outdoors', 'sports-gear', 'Sports Gear'),
 
     # === TOYS, KIDS & BABIES ===
-    ([' toy','toys','plush','doll','action figure','building block','lego','puzzle','board game','remote control car','rc car','bubble machine','building blocks','montessori','toy set','stuffed'], 'toys-kids-babies', 'toys', 'Toys & Games'),
+    ([' toy','toys','plush','doll','doll clothes','doll outfit','doll accessories','doll accessory','doll clothing','action figure','building block','lego','puzzle','board game','remote control car','rc car','bubble machine','building blocks','montessori','toy set','stuffed'], 'toys-kids-babies', 'toys', 'Toys & Games'),
     (['baby','toddler','infant','stroller','pram','nursing','pacifier','crib','bassinet','high chair','diaper','baby bottle','nursery','teether'], 'toys-kids-babies', 'baby-toddler', 'Baby & Toddler'),
     (['kids','children','toddler','child ','boys','girls'], 'toys-kids-babies', 'kids', 'Kids'),
 
