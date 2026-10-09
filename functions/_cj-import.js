@@ -309,11 +309,86 @@ export async function syncProductWithShopify(env, pid, p, shopifyProduct = null)
     }
   }
 
+  // ── Variant completeness rule ─────────────────────────────────────────────
+  // Guarantee the Shopify product ends up with ALL of CJ's variants. The sync
+  // above only upserts whatever CJ returned; if CJ returned full data but
+  // Shopify is still short (e.g. a partial import from a prior run), re-pull CJ
+  // and top up. If CJ genuinely has zero sellable variants, delete the product.
+  const cjCount = cjData && Array.isArray(cjData.variants) ? cjData.variants.length : 0;
+  const shopCount = (shopifyProduct.variants && shopifyProduct.variants.length) || 0;
+  if (cjCount === 0) {
+    // CJ lists no variants at all → delisted/empty; remove the Shopify product.
+    const del = await shopifyFetch(env, `/products/${shopifyId}.json`, { method: 'DELETE' }).catch(() => null);
+    return { imported: true, pid, updated: true, deleted: true, reason: 'zero variants at CJ', shopifyId, variantsUpdated };
+  }
+  if (cjCount > 0 && shopCount < cjCount) {
+    // Shopify is missing variants → re-pull CJ fresh and backfill the remainder.
+    const retry = await cjVariantsByPid(env, pid, productSku || p.variantSku).catch(() => null);
+    if (retry && Array.isArray(retry.variants) && retry.variants.length > shopCount) {
+      variantsUpdated += await backfillVariants(env, shopifyId, shopifyProduct.variants || [], retry.variants);
+    }
+  }
+
   return { imported: true, pid, updated: true, shopifyId, variantsUpdated, categoryApplied: patches.product_type };
+}
+
+// ── Backfill: create any CJ variant not already present on the Shopify product.
+// Returns the number of new variants actually created.
+async function backfillVariants(env, shopifyId, existingVariants, cjVariants) {
+  const existingBySku = new Map();
+  const existingByOpt = new Map();
+  for (const sv of existingVariants) {
+    if (sv.sku) existingBySku.set(String(sv.sku), sv);
+    const key = [sv.option1, sv.option2, sv.option3].filter(Boolean).map(String).join('||');
+    if (key) existingByOpt.set(key, sv);
+  }
+  let created = 0;
+  for (const cv of cjVariants) {
+    const sku = cv.variantSku != null ? String(cv.variantSku) : '';
+    const parts = String(cv.variantKey || '').split('-');
+    const normO1 = normalizeOptionValue(parts[0], 'Default Title');
+    const normO2 = parts[1] ? normalizeOptionValue(parts[1], null) : null;
+    const normO3 = parts[2] ? normalizeOptionValue(parts[2], null) : null;
+    if (sku && existingBySku.has(sku)) continue;
+    const optKey = [normO1, normO2, normO3].filter(Boolean).map(String).join('||');
+    if (existingByOpt.has(optKey)) continue;
+    const cost = cv.variantSellPrice != null ? parseFloat(cv.variantSellPrice) : NaN;
+    const price = Number.isFinite(cost) && cost > 0 ? computePrice(cost) : null;
+    const newV = {
+      option1: normO1,
+      option2: normO2,
+      option3: normO3,
+      price: price != null ? String(price) : '0',
+      sku: sku || undefined,
+      grams: cv.variantWeight != null ? Math.round(Number(cv.variantWeight)) : 0,
+      inventory_management: 'shopify',
+      inventory_policy: 'deny',
+      fulfillment_service: 'manual',
+      requires_shipping: true,
+      taxable: true,
+    };
+    const r = await shopifyFetch(env, `/products/${shopifyId}/variants.json`, {
+      method: 'POST',
+      body: JSON.stringify({ variant: newV }),
+    }).catch(() => null);
+    if (r && r.ok) created++;
+  }
+  return created;
 }
 
 // ── Minimal fallback create (when /product/query fails) ───────────────────
 async function createMinimalProduct(env, pid, p, patches, mappedType) {
+  // ── Variant completeness rule ──
+  // Before falling back to a single 'Default Title' placeholder, retry the
+  // full CJ variant lookup so a transient /product/query failure doesn't create
+  // a permanently incomplete product. Only if CJ truly returns nothing do we
+  // create the minimal placeholder.
+  const retryCj = await cjVariantsByPid(env, pid, p.productSku || p.sku || p.variantSku).catch(() => null);
+  if (retryCj && Array.isArray(retryCj.variants) && retryCj.variants.length) {
+    const full = await createProductInShopify(env, pid, retryCj, p);
+    return { ...full, minimal: false, recoveredFromFallback: true };
+  }
+
   const title = patches.title || 'Imported CJ Product';
   const sku = p.productSku || p.variantSku || undefined;
   const _pCost = p.productSellPrice != null ? parseFloat(p.productSellPrice) : NaN;
