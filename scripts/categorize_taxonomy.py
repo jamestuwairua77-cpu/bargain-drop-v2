@@ -183,7 +183,7 @@ TOP_NAME = {s: n for s, n in TOP_LEVELS}
 RULES.sort(key=lambda r: -max(len(k) for k in r[0]))
 
 def _tk_re(tok):
-    return r'(?<![a-z0-9])' + re.escape(tok) + r'(?:[a-z0-9]*)'
+    return r'(?<![a-z0-9])' + re.escape(tok) + r'(?:s|es)?(?![a-z0-9])'
 
 _SEP = r'[\s\-]+'
 

@@ -127,7 +127,7 @@ export const TAXONOMY_TOP_LEVELS = [
 ];
 
 // Precompile rules: [regex, top, sub, disp], most-specific first.
-const _tkRe = (tok) => `(?<![a-z0-9])${tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[a-z0-9]*)`;
+const _tkRe = (tok) => `(?<![a-z0-9])${tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:s|es)?(?![a-z0-9])`;
 const _SEP = `[\\s\\-]+`;
 const _compiled = [];
 for (const [phrases, top, sub, disp] of TAXONOMY_RULES) {
