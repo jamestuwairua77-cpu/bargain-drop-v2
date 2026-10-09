@@ -182,6 +182,7 @@ def map_category(ptype, title):
         return key, 'other', ptype
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from categorize_taxonomy import classify as _classify, TOP_NAME
 
 cats, all_, idx = {}, [], {}
 for p in prods:

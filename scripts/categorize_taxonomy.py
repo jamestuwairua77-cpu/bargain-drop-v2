@@ -38,7 +38,7 @@ RULES = [
 
     # === FURNITURE ===
     (['bunk bed','loft bed','kids bed','children bed','kids bunk'], 'furniture', 'beds', 'Beds'),
-    (['bed frame','bedframe','headboard','mattress','slatted base','bed base','bedstead'], 'furniture', 'beds', 'Beds'),
+    (['bed frame','bedframe','headboard','mattress','slatted base','bed base','bedstead','bed','beds'], 'furniture', 'beds', 'Beds'),
     ([' sofa','couch','loveseat','recliner','futon','sofa bed','sectional','chesterfield','corner sofa','bed sofa'], 'furniture', 'sofas', 'Sofas & Couches'),
     (['dining table','coffee table','side table','end table','console table','bar table','folding table','nightstand','bedside table','dressing table','vanity table','laptop table','nesting table'], 'furniture', 'tables', 'Tables'),
     ([' desk','writing desk','computer desk','study desk','office desk','standing desk','l-shaped desk','corner desk'], 'furniture', 'desks', 'Desks'),
@@ -185,11 +185,14 @@ RULES.sort(key=lambda r: -max(len(k) for k in r[0]))
 def _tk_re(tok):
     return r'(?<![a-z0-9])' + re.escape(tok) + r'(?:[a-z0-9]*)'
 
+_SEP = r'[\s\-]+'
+
 _compiled = []
 for _phrases, _top, _sub, _disp in RULES:
     for _ph in _phrases:
         _toks = [_t for _t in _ph.split(' ') if _t]
-        _compiled.append((re.compile(''.join(_tk_re(_t) for _t in _toks)), _top, _sub, _disp))
+        _pat = _SEP.join(_tk_re(_t) for _t in _toks)
+        _compiled.append((re.compile(_pat), _top, _sub, _disp))
 _compiled.sort(key=lambda x: -len(x[0].pattern))
 
 _FALLBACK_TOP = {
