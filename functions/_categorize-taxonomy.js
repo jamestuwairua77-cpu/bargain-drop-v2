@@ -1,6 +1,10 @@
 // AUTO-GENERATED from scripts/categorize_taxonomy.py — do not hand-edit.
 // Title-first category + subcategory taxonomy (mirrors the Python rebuild).
 export const TAXONOMY_RULES = [
+  [["sunglasses", "sun glasses", "eyeglasses", "eye glasses", "reading glasses", "eyewear", "optical glasses", "blue light glasses", "prescription glasses", "polarized sunglasses", "spectacles"], "consumer-electronics", "electronics", "Eyewear & Glasses"],
+  [["dumbbell", "weight plate", "weight plates", "barbell weight", "barbell weights", "weight plate set", "barbell", "strength training"], "sports-outdoors", "fitness", "Fitness & Yoga"],
+  [["dog water bottle", "cat water bottle", "pet water bottle", "water bottle for dogs", "water bottle for small dogs", "dog drinking water", "dog kettle", "drinking water bottle", "pet water", "pet feeding", "pet bowl", "dog bowl", "cat bowl", "hamster cage", "bird cage", "animal cage", "small animal cage", "ferret cage", "pet food storage", "pet feeder", "feeding station", "bird cage feeder", "pet drinking"], "pet-supplies", "pet-supplies", "Pet Supplies"],
+  [["shower drain", "linear shower drain", "floor drain", "bathroom drain"], "home-improvement", "supplies", "Home Improvement Supplies"],
   [["dinnerware", "plate set", "plates", "bowl set", "serving bowl", "cutlery set", "mug set", "cup set", "glass set", "glasses", "tumbler", "wine glass", "coffee mug", "teacup", "ceramic dinnerware"], "kitchen-dining", "dinnerware", "Dinnerware & Drinkware"],
   [["duvet", "quilt", "pillow", "blanket", "bedding", "comforter", "bed sheet", "sheet set", "bedspread", "mattress topper", "mattress protector", "pillowcase", "duvet cover", "quilt cover", "body pillow", "throw blanket", "fitted sheet"], "bedding-bath", "bedding", "Bedding"],
   [[" toy", "toys", "plush", "doll", "action figure", "building block", "lego", "puzzle", "board game", "remote control car", "rc car", "bubble machine", "building blocks", "montessori", "toy set", "stuffed"], "toys-kids-babies", "toys", "Toys & Games"],

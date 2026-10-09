@@ -13,6 +13,15 @@ Enhances the flat 16-category taxonomy with:
 import re
 
 RULES = [
+    # === EYEWEAR (fix: sunglasses/glasses were landing in dinnerware) ===
+    (['sunglasses','sun glasses','eyeglasses','eye glasses','reading glasses','eyewear','optical glasses','blue light glasses','prescription glasses','polarized sunglasses','spectacles'], 'consumer-electronics', 'electronics', 'Eyewear & Glasses'),
+    # === DUMBBELL / WEIGHTS (fix: 'weight plates' was landing in dinnerware) ===
+    (['dumbbell','weight plate','weight plates','barbell weight','barbell weights','weight plate set','barbell','strength training'], 'sports-outdoors', 'fitness', 'Fitness & Yoga'),
+    # === PET WATER BOTTLES / FEEDING (fix: 'water bottle' was landing in food-storage) ===
+    (['dog water bottle','cat water bottle','pet water bottle','water bottle for dogs','water bottle for small dogs','dog drinking water','dog kettle','drinking water bottle','pet water','pet feeding','pet bowl','dog bowl','cat bowl','hamster cage','bird cage','animal cage','small animal cage','ferret cage','pet food storage','pet feeder','feeding station','bird cage feeder','pet drinking'], 'pet-supplies', 'pet-supplies', 'Pet Supplies'),
+    # === SHOWER DRAIN (fix: 'drain' was landing in bathroom) ===
+    (['shower drain','linear shower drain','floor drain','bathroom drain'], 'home-improvement', 'supplies', 'Home Improvement Supplies'),
+
     # === APPLIANCES (new top-level) ===
     (['air fryer','friteuse','deep fryer'], 'appliances', 'air-fryers', 'Air Fryers'),
     (['coffee maker','coffee machine','espresso','percolator','coffee filter','nespresso','french press','moka pot','coffee pot','milk frother'], 'appliances', 'coffee-machines', 'Coffee Machines'),
