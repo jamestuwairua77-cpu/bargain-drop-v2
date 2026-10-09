@@ -14,7 +14,7 @@ import re
 
 RULES = [
     # === EYEWEAR (fix: sunglasses/glasses were landing in dinnerware) ===
-    (['sunglasses','sun glasses','eyeglasses','eye glasses','reading glasses','eyewear','optical glasses','blue light glasses','prescription glasses','polarized sunglasses','spectacles'], 'consumer-electronics', 'electronics', 'Eyewear & Glasses'),
+    (['sunglasses','sun glasses','eyeglasses','eye glasses','reading glasses','eyewear','optical glasses','blue light glasses','blue light blocking','nose pad','nose pads','glasses frame','frame glasses','fashion glasses','plain glasses','decorated glasses','multi-purpose glasses','glasses for women','glasses for men','prescription glasses','polarized sunglasses','spectacles'], 'consumer-electronics', 'electronics', 'Eyewear & Glasses'),
     # === DUMBBELL / WEIGHTS (fix: 'weight plates' was landing in dinnerware) ===
     (['dumbbell','weight plate','weight plates','barbell weight','barbell weights','weight plate set','barbell','strength training'], 'sports-outdoors', 'fitness', 'Fitness & Yoga'),
     # === PET WATER BOTTLES / FEEDING (fix: 'water bottle' was landing in food-storage) ===
