@@ -3,6 +3,7 @@
 // Rebuilds all-products.json, categories-data.json, categories-index.json.
 
 import { corsHeaders, shopifyFetch, ghRead, ghWrite, verifyHmac, shopMetaGet, shopMetaSet, writeShardedCatalog } from '../_sync-lib.js';
+import { classifyProduct, TAXONOMY_TOP_NAME } from '../_categorize-taxonomy.js';
 
 function getImages(prod) {
   // Return [{id,src}] so we can resolve variant.image_id -> image index.
@@ -101,12 +102,14 @@ async function rebuildAllProducts(env) {
       variants: vars,
     });
     const ptype = p.product_type || 'other';
-    const key = ptype.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-').replace(/[\"',]/g, '');
-    if (!cats[key]) cats[key] = { name: ptype, products: [] };
+    const [top, sub, disp] = classifyProduct(p.title, ptype);
+    const key = (sub && sub !== 'other') ? `${top}->${sub}` : top;
+    const name = (sub && sub !== 'other') ? disp : TAXONOMY_TOP_NAME[top] || top;
+    if (!cats[key]) cats[key] = { name, products: [] };
     cats[key].products.push({
       id: String(p.id), title: p.title, price,
       image: srcs[0] || null, body_html: p.body_html || '',
-      vendor: p.vendor, product_type: p.product_type,
+      vendor: p.vendor, product_type: TAXONOMY_TOP_NAME[top] || top,
       variants: vars.length, images: imgs.length,
     });
     idx[String(p.id)] = { idx: cats[key].products.length - 1, category: key };
