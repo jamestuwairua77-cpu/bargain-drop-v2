@@ -1,4 +1,5 @@
-import { corsHeaders, isAdmin, adminDenied, getShopifyToken } from '../_sync-lib.js';
+import { corsHeaders, isAdmin, adminDenied } from '../_sync-lib.js';
+import { getShopifyToken } from '../_shopify-token.js';
 // TEMPORARY admin endpoint: returns current valid Shopify token + oauth creds for
 // rotating the GitHub Actions secret. REMOVE after use.
 let _t = null;
