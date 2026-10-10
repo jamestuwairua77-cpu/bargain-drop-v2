@@ -134,7 +134,14 @@ export async function onRequest(context) {
     if (url.searchParams.get('status') === '1') {
       return json(await loadState(env));
     }
-    return json({ usage: '?run=1 | ?poll=1&opId=<gid> | ?status=1' });
+    if (url.searchParams.get('verify') === '1') {
+      const id = url.searchParams.get('id');
+      if (!id) return json({ error: 'missing id' }, 400);
+      const r = await shopifyFetch(env, '/products/' + id + '.json', { skip429Retry: true });
+      const p = r.body && r.body.product;
+      return json({ id, title: p && p.title, body_html: p && p.body_html });
+    }
+    return json({ usage: '?run=1 | ?poll=1&opId=<gid> | ?status=1 | ?verify=1&id=<pid>' });
   } catch (e) {
     return json({ error: String(e && e.message || e) }, 500);
   }
