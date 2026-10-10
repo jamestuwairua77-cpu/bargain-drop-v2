@@ -6,17 +6,38 @@ Reads env: SHOPIFY_STORE_DOMAIN, SHOPIFY_ACCESS_TOKEN, GITHUB_TOKEN, REPO.
 import os, sys, json, time, urllib.request, urllib.error, re
 
 DOMAIN = os.environ['SHOPIFY_STORE_DOMAIN']
-TOKEN  = os.environ['SHOPIFY_ACCESS_TOKEN']
 GH     = os.environ['GITHUB_TOKEN']
 REPO   = os.environ['REPO']
 BRANCH = 'main'
 API    = f"https://{DOMAIN}/admin/api/2025-10"
+TOKEN  = ''
+
+def _client_credentials_token():
+    """Exchange client_id/secret for a fresh 24h access token (self-heals)."""
+    cid = os.environ.get('SHOPIFY_CLIENT_ID') or os.environ.get('SHOPIFY_OAUTH_CLIENT_ID') or ''
+    csec = os.environ.get('SHOPIFY_CLIENT_SECRET') or os.environ.get('SHOPIFY_OAUTH_CLIENT_SECRET') or ''
+    if not cid or not csec:
+        return None
+    req = urllib.request.Request(f"https://{DOMAIN}/admin/oauth/access_token", method='POST',
+        data=json.dumps({'client_id': cid, 'client_secret': csec, 'grant_type': 'client_credentials'}).encode(),
+        headers={'Content-Type': 'application/json'})
+    j = json.load(urllib.request.urlopen(req, timeout=60))
+    return j.get('access_token')
+
+def get_token():
+    global TOKEN
+    if TOKEN:
+        return TOKEN
+    TOKEN = _client_credentials_token() or os.environ.get('SHOPIFY_ACCESS_TOKEN', '')
+    if not TOKEN:
+        raise SystemExit('no Shopify token available')
+    return TOKEN
 
 def gql(query, variables=None):
     body = {'query': query}
     if variables: body['variables'] = variables
     req = urllib.request.Request(API + '/graphql.json', data=json.dumps(body).encode(),
-        headers={'Content-Type': 'application/json', 'X-Shopify-Access-Token': TOKEN})
+        headers={'Content-Type': 'application/json', 'X-Shopify-Access-Token': get_token()})
     return json.load(urllib.request.urlopen(req, timeout=120))
 
 def is_throttled(r):
