@@ -97,14 +97,15 @@ async function pollBulk(env, opId) {
     try {
       const r = await fetch(n.url);
       const txt = await r.text();
-      let ok = 0, err = 0;
+      let ok = 0, err = 0, samples = [];
       for (const ln of txt.split('\n')) {
         if (!ln.trim()) continue;
-        let d; try { d = JSON.parse(ln); } catch { continue; }
+        let d; try { d = JSON.parse(ln); } catch { samples.push('UNPARSEABLE: ' + ln.slice(0, 200)); continue; }
+        if (samples.length < 3) samples.push(JSON.stringify(d).slice(0, 300));
         if (d.errors || (d.data && d.data.productUpdate && d.data.productUpdate.userErrors && d.data.productUpdate.userErrors.length)) err++;
         else ok++;
       }
-      out.ok = ok; out.err = err;
+      out.ok = ok; out.err = err; out.samples = samples;
     } catch (e) { out.resultError = String(e && e.message); }
   }
   return out;
