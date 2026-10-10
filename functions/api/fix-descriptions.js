@@ -55,7 +55,7 @@ async function buildJsonl(env) {
   const r = await fetch(origin + DATA_URL);
   if (!r.ok) throw new Error('fetch writeback_list.json failed: ' + r.status);
   const wb = await r.json();
-  const lines = wb.map(it => JSON.stringify({ input: { id: 'gid://shopify/Product/' + it.id, bodyHtml: it.body_html } }));
+  const lines = wb.map(it => JSON.stringify({ input: { id: 'gid://shopify/Product/' + it.id, descriptionHtml: it.body_html } }));
   return { jsonl: lines.join('\n') + '\n', count: wb.length };
 }
 
