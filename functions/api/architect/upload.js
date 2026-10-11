@@ -9,7 +9,7 @@
 // The canonical durable store is GitHub; the Zaro workspace mirror is kept in
 // sync at /.nexus/uploads/{images,files}/ by the blueprint bridge agent.
 
-import { corsHeaders, json, ok, err, storeUpload, mimeKind, base64ToBytes, extractDocumentText } from './_lib.js';
+import { corsHeaders, json, ok, err, storeUpload, mimeKind, base64ToBytes, extractDocumentText, requireSession, sessionDenied } from './_lib.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -20,6 +20,9 @@ export async function onRequest(context) {
   if (request.method !== 'POST') {
     return err('Method not allowed — use POST', 405);
   }
+
+  // Gate behind the Architect Console session cookie (PIN-authenticated).
+  if (!(await requireSession(request, env))) return sessionDenied();
 
   let body;
   try { body = await request.json(); } catch (e) { return err('Invalid JSON body', 400); }

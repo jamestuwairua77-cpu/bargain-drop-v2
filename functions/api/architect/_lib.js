@@ -63,6 +63,61 @@ export function requireAdmin(request, env) {
 
 export function adminDenied() { return err('Unauthorized — admin PIN required', 401); }
 
+// ─── Session gate (Architect Console cookie session) ──────────────────────
+// The console, chat, and history are all gated behind an HttpOnly signed
+// cookie (architect_auth) issued by /api/architect/auth after PIN entry.
+// This mirrors the HMAC-SHA256 signature scheme in auth.js / architect.js.
+export const SESSION_COOKIE = 'architect_auth';
+export const SESSION_SECRET = 'bargain-drop-architect-console-v1';
+
+export function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function sessionHmac(keyText, message) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(keyText), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  return b64url(sig);
+}
+
+function readCookie(request, name) {
+  const h = (request.headers.get('Cookie') || '');
+  for (const part of h.split(';')) {
+    const i = part.indexOf('=');
+    if (i < 0) continue;
+    if (part.slice(0, i).trim() === name) return part.slice(i + 1).trim();
+  }
+  return '';
+}
+
+// Returns true if the request carries a valid, unexpired, correctly-signed
+// architect_auth session cookie.
+export async function requireSession(request, env) {
+  try {
+    const token = readCookie(request, SESSION_COOKIE);
+    if (!token) return false;
+    const dot = token.indexOf('.');
+    if (dot <= 0) return false;
+    const exp = parseInt(token.slice(0, dot), 10);
+    const sig = token.slice(dot + 1);
+    if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
+    const expected = await sessionHmac((env.ADMIN_PIN || '') + '|' + SESSION_SECRET, String(exp));
+    if (expected.length !== sig.length) return false;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
+    return diff === 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function sessionDenied() { return err('Unauthorized — session required', 401); }
+
+
 // ─── Media type helpers ────────────────────────────────────────────────────
 // Normalises MIME types and file extensions so images vs documents are
 // classified consistently across the upload path and the Gemini path.

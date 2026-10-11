@@ -11,7 +11,7 @@
 //   4. Calls Gemini via env.GEMINI_API_KEY (encrypted Worker binding).
 //   5. Persists both turns (incl. attachment metadata) to chat-logs.json.
 
-import { corsHeaders, json, err, callGeminiMultimodal, readHistory, appendHistory, processAttachments } from './_lib.js';
+import { corsHeaders, json, err, callGeminiMultimodal, readHistory, appendHistory, processAttachments, requireSession, sessionDenied } from './_lib.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -22,6 +22,9 @@ export async function onRequest(context) {
   if (request.method !== 'POST') {
     return err('Method not allowed — use POST', 405);
   }
+
+  // Gate behind the Architect Console session cookie (PIN-authenticated).
+  if (!(await requireSession(request, env))) return sessionDenied();
 
   let body;
   try { body = await request.json(); } catch (e) { return err('Invalid JSON body', 400); }

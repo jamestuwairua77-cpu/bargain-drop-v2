@@ -7,7 +7,7 @@
 // file is mirrored between the GitHub repo (data/chat-logs.json) and the
 // Zaro workspace (/.nexus/history/chat-logs.json).
 
-import { corsHeaders, json, err, readHistory, appendHistory } from './_lib.js';
+import { corsHeaders, json, err, readHistory, appendHistory, requireSession, sessionDenied } from './_lib.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -15,6 +15,9 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders() });
   }
+
+  // Gate behind the Architect Console session cookie (PIN-authenticated).
+  if (!(await requireSession(request, env))) return sessionDenied();
 
   if (request.method === 'GET') {
     try {
