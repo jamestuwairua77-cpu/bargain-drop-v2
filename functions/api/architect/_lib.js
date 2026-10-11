@@ -6,6 +6,10 @@
 
 import { corsHeaders, ghRead, ghWrite } from '../../_sync-lib.js';
 
+// Re-export the shared helpers so sibling functions can import them from this
+// module directly (single import surface for the architect feature).
+export { corsHeaders, ghRead, ghWrite };
+
 // ─── Repo / path constants ────────────────────────────────────────────────
 export const REPO = 'bargain-drop-v2';
 export const HISTORY_PATH = 'data/chat-logs.json';
