@@ -1,5 +1,10 @@
 {
   "version": 1,
-  "include": ["/api/*", "/oauth/*"],
+  "include": [
+    "/api/*",
+    "/oauth/*",
+    "/architect",
+    "/architect/*"
+  ],
   "exclude": []
 }
