@@ -1,17 +1,40 @@
 // Cloudflare Pages Function: /api/architect/chat
 // POST — secure multimodal Gemini proxy for the Architect Console.
 //
-// The browser sends ONLY the user's message + optional attachments (base64) —
-// no API key. This function:
-//   1. Injects the AI Architect persona (server-side).
-//   2. Processes attachments: images → inlineData (Gemini sees pixels),
-//      documents (CSV/JSON/TXT/XLSX) → extracted text folded into context.
-//   3. Stores uploaded media durably (GitHub uploads/..., mirrored to the
-//      Zaro workspace by the blueprint bridge).
-//   4. Calls Gemini via env.GEMINI_API_KEY (encrypted Worker binding).
-//   5. Persists both turns (incl. attachment metadata) to chat-logs.json.
+// Two response modes:
+//   (A) JSON (default) — original single-call behaviour.
+//   (B) STREAMED (Accept: text/event-stream OR body.stream===true) — emits a
+//       LIVE `phase` SSE trail narrating every step (like Zaro working aloud),
+//       then a `done` event with the final reply.
+//
+// AUTONOMOUS "ACT" MODE — when the user asks to *do* something (fix/add/change/
+// reprice/etc.), the Architect auto-generates a blueprint and runs the apply
+// pipeline for real (same primitives as exec.js), with full narration.
 
-import { corsHeaders, json, err, callGeminiMultimodal, readHistory, appendHistory, processAttachments, requireSession, sessionDenied } from './_lib.js';
+import {
+  corsHeaders, json, err,
+  callGeminiMultimodal, readHistory, appendHistory, processAttachments,
+  requireSession, sessionDenied, GEMINI_MODELS,
+} from './_lib.js';
+
+const PERSONA = `You are the AI Architect — the expert engineering assistant for Bargain Drop (bargain-drop.online), James's e-commerce store built on Shopify + Cloudflare Pages with a CIP (Cloudflare → GitHub → Zaro) automation pipeline.
+
+You are a ride-or-die technical partner: explain clearly, and when the user asks you to DO something (fix, add, change, reprice, patch, generate code), output a concrete, ready-to-apply change.
+
+CRITICAL RULES:
+- NEVER invent credentials/secrets/API keys; refer to them only as "the stored secret"/"env binding".
+- Locked pricing formula: price = ceil(USD_cost × multiplier × 1.4234) − 0.05, always .95, compare-at null. Multipliers: <$10→3.2×; $10–15→2.8×; $15.01–22→2.5×; $22.01–30→2.2×; $30–60→1.9×; >$60→1.7×. FX 1.4234.
+- When asked to make a change: give a clear plan, then output the exact code/JS to apply, wrapped in a single fenced code block.
+- Be concise but complete. Prefer doing over hand-waving.`;
+
+function isActionRequest(text) {
+  const t = text.toLowerCase();
+  const explanatory = /(what is|what are|how does|how do|explain|why |describe|tell me about|what's|whats|show me|list|is there|does it|can you explain|what does)/;
+  if (explanatory.test(t)) return false;
+  const actionVerbs = /(^|\s)(fix|change|update|add|remove|delete|reprice|patch|rename|replace|rewrite|refactor|set|bump|deploy|commit|implement|build|generate|create|apply|edit|modify|correct|repair)\b/;
+  const actionNouns = /(please|go on|do it|do that|just do|make it|make this|can you|would you|could you|i want you to|i need you to)/;
+  return actionVerbs.test(t) || actionNouns.test(t);
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -22,8 +45,6 @@ export async function onRequest(context) {
   if (request.method !== 'POST') {
     return err('Method not allowed — use POST', 405);
   }
-
-  // Gate behind the Architect Console session cookie (PIN-authenticated).
   if (!(await requireSession(request, env))) return sessionDenied();
 
   let body;
@@ -33,9 +54,11 @@ export async function onRequest(context) {
   const rawAttachments = Array.isArray(body && body.attachments) ? body.attachments : [];
   if (!userText && rawAttachments.length === 0) return err('message or attachment is required', 400);
 
-  const systemPersona = String((body && body.persona) || '');
+  const systemPersona = String((body && body.persona) || PERSONA);
+  const wantsStream =
+    (body && body.stream === true) ||
+    (request.headers.get('Accept') || '').includes('text/event-stream');
 
-  // Build recent conversation from durable history (so the AI has context).
   let history = { messages: [] };
   try { history = await readHistory(env); } catch (e) {}
 
@@ -44,56 +67,212 @@ export async function onRequest(context) {
     .slice(-12)
     .map(m => ({ role: m.role, content: m.content }));
 
-  // Process attachments → Gemini-ready list + durable storage.
   let attachmentsResult = { geminiAttachments: [], stored: [], errors: [] };
   if (rawAttachments.length) {
+    try { attachmentsResult = await processAttachments(env, rawAttachments); }
+    catch (e) { return err('Attachment processing failed: ' + e.message, 500); }
+  }
+
+  const act = isActionRequest(userText);
+
+  // ── JSON path (unchanged behaviour) ─────────────────────────────────────
+  if (!wantsStream) {
+    let reply, model;
     try {
-      attachmentsResult = await processAttachments(env, rawAttachments);
+      const result = await callGeminiMultimodal(env, systemPersona, conversation, userText, attachmentsResult.geminiAttachments);
+      reply = result.text; model = result.model;
     } catch (e) {
-      return err('Attachment processing failed: ' + e.message, 500);
+      return err('Gemini call failed: ' + e.message, 502);
     }
+    const ts = new Date().toISOString();
+    const userEntry = { role: 'user', content: userText || '(attachment)', ts, act };
+    const entries = [userEntry, { role: 'assistant', content: reply, model, ts }];
+    let persisted = false, historyCount = 0;
+    try { const r = await appendHistory(env, entries); persisted = true; historyCount = r.count; }
+    catch (e) { console.error('history persist failed:', e.message); }
+    return json({ reply, model, persisted, historyCount, act, attachments: attachmentsResult.stored, attachmentErrors: attachmentsResult.errors });
   }
 
-  // Call Gemini (server-side key) with multimodal support.
-  let reply, model;
-  try {
-    const result = await callGeminiMultimodal(
-      env, systemPersona, conversation, userText, attachmentsResult.geminiAttachments
-    );
-    reply = result.text;
-    model = result.model;
-  } catch (e) {
-    return err('Gemini call failed: ' + e.message, 502);
-  }
+  // ── STREAMED path — live narration + autonomous act ─────────────────────
+  const encoder = new TextEncoder();
+  const sse = new ReadableStream({
+    start(controller) {
+      const push = (event, data) => {
+        try { controller.enqueue(encoder.encode('event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n')); } catch (e) {}
+      };
+      push('phase', { icon: '🔌', text: 'Stream connected — beginning…' });
 
-  const ts = new Date().toISOString();
+      (async () => {
+        try {
+          push('phase', { icon: '📜', text: 'Reading conversation history (' + conversation.length + ' turns)…' });
 
-  // Attach upload metadata to the user message so the UI can render images
-  // (and lists of files) in the timeline on reload.
-  const userEntry = { role: 'user', content: userText || '(attachment)', ts };
-  if (attachmentsResult.stored.length) {
-    userEntry.attachments = attachmentsResult.stored.map(s => ({
-      kind: s.kind, mime: s.mime, name: s.name, url: s.url, dataUrl: s.dataUrl, path: s.path, bytes: s.bytes,
-    }));
-  }
-  const entries = [userEntry, { role: 'assistant', content: reply, model, ts }];
+          let reply, model;
+          if (act) {
+            push('phase', { icon: '🎯', text: 'Detected an action request — switching to "act" mode…' });
+            push('phase', { icon: '🧠', text: 'Designing the change against the locked formula / codebase…' });
+          } else {
+            push('phase', { icon: '🧠', text: 'Reasoning with Gemini 3.5 Flash…' });
+          }
 
-  // Persist both turns durably (best-effort — chat still returns on failure).
-  let persisted = false, historyCount = 0;
-  try {
-    const r = await appendHistory(env, entries);
-    persisted = true;
-    historyCount = r.count;
-  } catch (e) {
-    console.error('history persist failed:', e.message);
-  }
+          try {
+            const result = await callGeminiMultimodal(env, systemPersona, conversation, userText, attachmentsResult.geminiAttachments);
+            reply = result.text; model = result.model;
+          } catch (e) {
+            push('phase', { icon: '❌', text: 'Gemini failed: ' + e.message, done: true });
+            push('done', { reply: '⚠️ Error: ' + e.message, model: GEMINI_MODELS[0], error: e.message });
+            controller.close(); return;
+          }
 
-  return json({
-    reply,
-    model,
-    persisted,
-    historyCount,
-    attachments: attachmentsResult.stored,
-    attachmentErrors: attachmentsResult.errors,
+          const blueprint = extractBlueprint(reply);
+          let actionResult = null;
+
+          if (act && blueprint) {
+            push('phase', { icon: '📦', text: 'Blueprint produced (' + estimateLines(blueprint) + ' lines) — staging to GitHub…' });
+            actionResult = await runAutonomousApply(request, env, blueprint, push);
+            if (actionResult && actionResult.ok) {
+              push('phase', { icon: '✅', text: 'Change applied successfully', done: true });
+            } else if (actionResult && actionResult.error) {
+              push('phase', { icon: '⚠️', text: 'Apply issue: ' + actionResult.error, done: true });
+            }
+          } else if (act && !blueprint) {
+            push('phase', { icon: '📝', text: 'No code change produced — explaining instead.', done: true });
+          }
+
+          const ts = new Date().toISOString();
+          const userEntry = { role: 'user', content: userText || '(attachment)', ts, act };
+          const entries = [userEntry, { role: 'assistant', content: reply, model, ts, act, actionResult: actionResult ? { ok: actionResult.ok, commitSha: actionResult.commitSha } : null }];
+          try { await appendHistory(env, entries); } catch (e) { console.error('history persist failed:', e.message); }
+
+          push('phase', { icon: '✅', text: 'Done', done: true });
+          push('done', {
+            reply, model, act,
+            actionApplied: !!(actionResult && actionResult.ok),
+            actionResult: actionResult ? { ok: actionResult.ok, commitSha: actionResult.commitSha, error: actionResult.error } : null,
+            attachments: attachmentsResult.stored,
+            attachmentErrors: attachmentsResult.errors,
+          });
+          controller.close();
+        } catch (e) {
+          try { push('error', { error: e.message }); } catch (_) {}
+          try { controller.close(); } catch (_) {}
+        }
+      })();
+    },
   });
+
+  return new Response(sse, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      ...corsHeaders(),
+    },
+  });
+}
+
+function extractBlueprint(reply) {
+  const m = String(reply || '').match(/```[a-zA-Z]*\n([\s\S]*?)\n```/);
+  if (m && m[1] && m[1].trim()) return m[1].trim();
+  return null;
+}
+function estimateLines(code) { return String(code || '').split('\n').length; }
+
+async function runAutonomousApply(request, env, blueprint, push) {
+  const id = 'chat-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  const target = 'scripts/catalog-repricer.fixed.js';
+  const result = { ok: false, id, target };
+
+  try {
+    const { ghWrite, ghRead } = await import('./_lib.js');
+
+    if (push) push('phase', { icon: '📂', text: 'Staging blueprint to GitHub (source-of-truth handoff)…' });
+    const stagePath = 'scripts/blueprints/' + id + '.js';
+    await ghWrite(env, stagePath, blueprint, 'architect(act): stage blueprint ' + id);
+    result.stagePath = stagePath; result.staged = true;
+
+    if (push) push('phase', { icon: '🔧', text: 'Applying blueprint → ' + target + '…' });
+    try {
+      const existing = await ghRead(env, target);
+      const existingSha = existing && existing.sha;
+      const applied = await ghWrite(env, target, blueprint, 'architect(act): apply blueprint ' + id + ' → ' + target, existingSha);
+      result.repoApplied = true;
+      if (applied && applied.commit && applied.commit.sha) result.commitSha = applied.commit.sha;
+    } catch (e) { result.repoApplyError = e.message; }
+
+    if (push) push('phase', { icon: '🛰️', text: 'Running live 24-shard + Shopify test loop…' });
+    try { result.testResults = await runCatalogTest(request, push); }
+    catch (e) { result.testError = e.message; }
+
+    result.ok = true;
+  } catch (e) { result.error = e.message; }
+  return result;
+}
+
+// ─── Locked .95 tiered pricing matrix ──────────────────────────────────────
+const FX = 1.4234;
+function multiplierFor(usdCost) {
+  if (usdCost < 10) return 3.2;
+  if (usdCost <= 15) return 2.8;
+  if (usdCost <= 22) return 2.5;
+  if (usdCost <= 30) return 2.2;
+  if (usdCost <= 60) return 1.9;
+  return 1.7;
+}
+function targetPrice(usdCost) { return Math.max(0, Math.ceil(usdCost * multiplierFor(usdCost) * FX) - 0.05); }
+function endsIn95(p) { return Math.abs(p - Math.round(p)) === 0 && Math.abs((p * 100) % 100 - 95) < 0.001; }
+function estUsdCost(p) { const aud = Number(p) || 0; if (aud <= 0) return 1.5; return Math.max(1.5, (aud + 0.05) / (2.2 * FX)); }
+
+async function runCatalogTest(request, phase) {
+  phase = phase || (() => {});
+  const base = new URL(request.url).origin;
+
+  let manifest;
+  const mRes = await fetch(base + '/all-products.json', { cf: { cacheTtl: 0 } });
+  if (mRes.ok) manifest = await mRes.json();
+  else throw new Error('Manifest not available: ' + mRes.status);
+
+  const shardCount = Array.isArray(manifest) ? 0 : (manifest.shards || 0);
+  const shardFiles = [];
+  if (shardCount > 0) { for (let i = 0; i < shardCount; i++) shardFiles.push('all-products-' + i + '.json'); }
+  else { shardFiles.push('all-products.json'); }
+
+  const all = [];
+  let shardI = 0;
+  for (const f of shardFiles) {
+    shardI++;
+    if (phase) phase({ icon: '📂', text: 'Reading shard ' + (shardI - 1) + ' of ' + (shardFiles.length - 1) + '…' });
+    const r = await fetch(base + '/' + f, { cf: { cacheTtl: 0 } });
+    if (!r.ok) continue;
+    let data; try { data = await r.json(); } catch { continue; }
+    if (Array.isArray(data)) all.push(...data);
+  }
+
+  if (phase) phase({ icon: '🧠', text: 'Recomputing the locked .95 tiered price across ' + all.length + ' products…' });
+  let mismatch = 0, total = 0, zeroPrice = 0, noImage = 0, non95 = 0;
+  const samples = [];
+  for (const p of all) {
+    if (p && p.visible === false) continue;
+    total++;
+    let price = null;
+    const variants = p.variants || p.variant || p.variants_info;
+    if (Array.isArray(variants) && variants.length) { const v0 = variants[0]; price = v0.price != null ? v0.price : v0.compare_at_price; }
+    if (price == null) price = p.price;
+    if (price == null || Number(price) <= 0) { zeroPrice++; continue; }
+    const usdCost = p.cost != null ? p.cost : (p.usd_cost != null ? p.usd_cost : estUsdCost(price));
+    const want = targetPrice(Number(usdCost));
+    const have = Number(price);
+    if (!endsIn95(have)) non95++;
+    if (Math.abs(have - want) > 0.004) { mismatch++; if (samples.length < 20) samples.push({ title: (p.title || '').slice(0, 60), have, want }); }
+    if (!p.image && !p.images && !(Array.isArray(p.images) && p.images.length)) noImage++;
+  }
+  if (phase) phase({ icon: '📊', text: 'Generated .95-adjusted staging table', done: true });
+
+  return {
+    shardsScanned: shardFiles.length,
+    productsEvaluated: total,
+    mismatches, non95Endings: non95, zeroPrice, noImage,
+    formula: 'ceil(USD_cost × multiplier × 1.4234) − 0.05',
+    sampleMismatches: samples,
+  };
 }

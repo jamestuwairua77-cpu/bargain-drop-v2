@@ -44,6 +44,7 @@
     .spinner { width: 15px; height: 15px; border: 2px solid rgba(99,102,241,.25); border-top-color: #818cf8; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .phase-line { animation: phaseIn .25s ease; }
+    .narration-line { animation: phaseIn .25s ease; display:flex; align-items:flex-start; gap:7px; font-size:12px; color:#94a3b8; padding:2px 0; line-height:1.35; }
     @keyframes phaseIn { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform:none; } }
     .phase-line.done .spinner { border-top-color: #34d399; border-color: rgba(52,211,153,.35); animation: none; }
     .phase-line.done .spinner::after { content: ''; display:block; width:100%; height:100%; border-radius:50%; background: transparent; }
@@ -377,14 +378,21 @@ form.addEventListener('submit', async (e) => {
   sendBtn.disabled = true;
   addTypingIndicator();
   try {
-    const d = await apiCall('/chat', {
-      method: 'POST',
-      body: { message: text, attachments },
-    });
+    const d = await streamChat({ message: text, attachments, onPhase: p => {
+      // Narration lines stream live into a dedicated trail bubble.
+      renderNarration(trailId, p);
+    }});
     removeTypingIndicator();
     document.getElementById('model-badge').textContent = d.model || 'secure proxy';
-    addBubble('assistant', d.reply);
-    // Surface any attachment processing errors to the user.
+
+    // If an autonomous change was applied, surface a clear confirmation.
+    if (d.actionApplied) {
+      const sha = d.actionResult && d.actionResult.commitSha ? d.actionResult.commitSha.slice(0, 7) : 'n/a';
+      addBubble('assistant', d.reply);
+      addBubble('assistant', `✅ **Applied automatically** — commit \`${sha}\` · ${(d.actionResult && d.actionResult.testResults ? d.actionResult.testResults.productsEvaluated + ' products checked' : 'test loop ran')}`);
+    } else {
+      addBubble('assistant', d.reply);
+    }
     if (d.attachmentErrors && d.attachmentErrors.length) {
       const errs = d.attachmentErrors.map(x => `- ${x.name}: ${x.error}`).join('\n');
       addBubble('assistant', `⚠️ **Some attachments were not processed:**\n${errs}`);
@@ -397,6 +405,85 @@ form.addEventListener('submit', async (e) => {
     sendBtn.disabled = false; input.focus();
   }
 });
+
+/* ---------------------------------------------------------------------
+   LIVE NARRATION — a "working out loud" trail rendered while the answer streams
+   ------------------------------------------------------------------- */
+let trailId = null;
+let trailEl = null;
+
+// Open a narration trail bubble (persisted here so phase events can append).
+function ensureTrail() {
+  if (trailEl && trailEl.isConnected) return trailEl;
+  trailId = 'trail-' + Date.now().toString(36);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'fade-in flex justify-start';
+  const bubble = document.createElement('div');
+  bubble.className = 'max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed bg-panel border border-edge text-slate-300 rounded-bl-sm shadow';
+  const label = document.createElement('div');
+  label.className = 'text-[10px] uppercase tracking-wide text-slate-600 mb-1.5';
+  label.textContent = 'Working…';
+  bubble.appendChild(label);
+  wrapper.appendChild(bubble);
+  chatEl.appendChild(wrapper);
+  scrollBottom();
+  trailEl = bubble;
+  return bubble;
+}
+
+function renderNarration(_id, p) {
+  const bubble = ensureTrail();
+  const line = document.createElement('div');
+  line.className = 'narration-line';
+  line.innerHTML = `<span class="shrink-0">${escapeHtml(p.icon || '⚙️')}</span><span>${escapeHtml(p.text || '')}</span>`;
+  bubble.appendChild(line);
+  // Mark done lines subtly.
+  if (p.done) line.style.color = '#5eead4';
+  scrollBottom();
+}
+
+// Streaming chat client — sends stream:true, parses SSE, resolves on `done`.
+async function streamChat(body) {
+  const res = await fetch(CONFIG.API_BASE + '/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+    body: JSON.stringify(Object.assign({ stream: true }, body)),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    let msg = 'HTTP ' + res.status;
+    try { msg = JSON.parse(t).error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let donePayload = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) >= 0) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const lines = frame.split('\n');
+      let ev = 'message', data = '';
+      for (const ln of lines) {
+        if (ln.startsWith('event:')) ev = ln.slice(6).trim();
+        else if (ln.startsWith('data:')) data += ln.slice(5).trim();
+      }
+      let parsed; try { parsed = JSON.parse(data); } catch { continue; }
+      if (ev === 'phase' && body.onPhase) body.onPhase(parsed);
+      else if (ev === 'done') donePayload = parsed;
+      else if (ev === 'error') throw new Error((parsed && parsed.error) || 'stream error');
+    }
+  }
+  if (!donePayload) throw new Error('stream ended without a reply');
+  return donePayload;
+}
 
 /* ---------------------------------------------------------------------
    EXECUTE VIA ZARO — real backend plumbing
