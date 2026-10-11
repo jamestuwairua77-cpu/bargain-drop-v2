@@ -10,6 +10,8 @@ import { corsHeaders, ghRead, ghWrite } from '../../_sync-lib.js';
 // module directly (single import surface for the architect feature).
 export { corsHeaders, ghRead, ghWrite };
 
+import { extractXlsx } from './xlsx.js';
+
 // ─── Repo / path constants ────────────────────────────────────────────────
 export const REPO = 'bargain-drop-v2';
 export const HISTORY_PATH = 'data/chat-logs.json';
@@ -132,13 +134,22 @@ export function extractDocumentText(bytes, mime, name) {
       // Simple tabular alignment: keep as-is but cap columns to keep it sane.
       text = rows.slice(0, 500).join('\n');
     }
-  } else if (ext === 'xlsx' || ext === 'xls') {
-    // No full XLSX parser on the edge; surface an honest note so the AI
-    // knows the binary wasn't fully decoded and can ask the user to re-send
-    // as CSV/JSON if exact cell data is required.
-    text = `[Binary spreadsheet ${name || ext} attached — ${bytes.length} bytes. ` +
-           `The Architect Console extracts text from CSV/JSON/TXT natively; ` +
-           `for exact cell data please re-attach as CSV or JSON.]`;
+  } else if (ext === 'xlsx') {
+    // Real XLSX parse: inflate the ZIP and read the first N sheets as TSV.
+    const parsed = extractXlsx(bytes);
+    if (parsed.ok) {
+      text = parsed.text;
+    } else {
+      // Fall back to an honest note if the archive couldn't be parsed.
+      text = `[Spreadsheet ${name || ext} attached — ${bytes.length} bytes; ` +
+             `could not parse: ${parsed.error}]`;
+    }
+  } else if (ext === 'xls') {
+    // Legacy .xls is a binary BIFF format, not a ZIP — out of scope for this
+    // lightweight parser. Surface an honest note.
+    text = `[Legacy Excel spreadsheet ${name || ext} attached — ${bytes.length} bytes. ` +
+           `The Architect Console extracts .xlsx, CSV, JSON and TXT natively; ` +
+           `for exact cell data from this legacy .xls please re-save as .xlsx or CSV.]`;
   } else if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'webp' || ext === 'svg') {
     // Images are handled via the multimodal path, not text extraction.
     return null;
