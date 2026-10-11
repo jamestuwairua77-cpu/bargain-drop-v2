@@ -21,6 +21,7 @@
 // runs the Shopify variant sync (the actual production mutation path).
 
 import { corsHeaders, json, err, requireAdmin, adminDenied, ghRead, ghWrite } from './_lib.js';
+import { publishPhase } from './stream.js';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -45,42 +46,120 @@ export async function onRequest(context) {
   const runTestLoop = !(body && body.dryRun === true);
 
   const id = 'bp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-  const results = { id, target, staged: false, repoApplied: false, testLoop: runTestLoop };
+  const runId = String((body && body.runId) || id);
+  const results = { id, runId, target, staged: false, repoApplied: false, testLoop: runTestLoop };
 
-  // ── 2. Stage the blueprint durably (source-of-truth handoff to Zaro) ────
-  try {
+  // Live phase emitter: fans out to any open /api/architect/stream?run=<runId>
+  // connection AND relays to KV (env.ARCH_PHASES) for cross-isolate delivery.
+  let phase = (icon, text, extra = {}) => {
+    const p = { ts: Date.now(), icon, text, ...extra };
+    try { publishPhase(runId, p); } catch (e) {}
+    if (env && env.ARCH_PHASES) {
+      (async () => {
+        try {
+          const key = 'run:' + runId;
+          let arr = [];
+          const v = await env.ARCH_PHASES.get(key);
+          if (v) { try { arr = JSON.parse(v); } catch (_) {} }
+          arr.push(p);
+          if (arr.length > 200) arr = arr.slice(-200);
+          await env.ARCH_PHASES.put(key, JSON.stringify(arr), { expirationTtl: 300 });
+        } catch (e2) {}
+      })();
+    }
+    return p;
+  };
+
+  // ── Core execution (shared by the streaming + JSON paths) ──────────────
+  const runCore = async () => {
+    phase('🔍', 'Checking connection to Cloudflare secure proxy...');
+    phase('📂', 'Staging blueprint durably to GitHub (source-of-truth handoff)…');
+
+    // 2. Stage the blueprint durably (source-of-truth handoff to Zaro).
     const stagePath = 'scripts/blueprints/' + id + '.js';
     await ghWrite(env, stagePath, blueprint, 'architect: stage blueprint ' + id);
     results.staged = true;
     results.stagePath = stagePath;
-  } catch (e) {
-    return err('Failed to stage blueprint: ' + e.message, 500);
-  }
 
-  // ── 3. Overwrite the repo copy of the repricer engine ───────────────────
-  try {
-    const existing = await ghRead(env, target);
-    const existingSha = existing && existing.sha;
-    const applied = await ghWrite(env, target, blueprint, 'architect: apply blueprint ' + id + ' → ' + target, existingSha);
-    results.repoApplied = true;
-    results.repoSha = (applied && applied.content && applied.content.sha) || null;
-    if (applied && applied.commit && applied.commit.sha) results.commitSha = applied.commit.sha;
-  } catch (e) {
-    // Non-fatal: staging succeeded; repo copy apply is best-effort.
-    results.repoApplyError = e.message;
-  }
-
-  // ── 4. Live read-only test loop over the 24-shard catalog ───────────────
-  if (runTestLoop) {
+    // 3. Overwrite the repo copy of the repricer engine (best-effort).
     try {
-      const test = await runCatalogTest(request);
-      results.testResults = test;
+      const existing = await ghRead(env, target);
+      const existingSha = existing && existing.sha;
+      const applied = await ghWrite(env, target, blueprint, 'architect: apply blueprint ' + id + ' → ' + target, existingSha);
+      results.repoApplied = true;
+      results.repoSha = (applied && applied.content && applied.content.sha) || null;
+      if (applied && applied.commit && applied.commit.sha) results.commitSha = applied.commit.sha;
     } catch (e) {
-      results.testError = e.message;
+      results.repoApplyError = e.message;
     }
+
+    // 4. Live read-only test loop over the 24-shard catalog.
+    if (runTestLoop) {
+      phase('🛰️', 'Pulling live Shopify catalog entries via cursor pagination...');
+      try {
+        const test = await runCatalogTest(request, phase);
+        results.testResults = test;
+      } catch (e) {
+        results.testError = e.message;
+      }
+    }
+
+    return results;
+  };
+
+  // ── STREAMING path: client asked for Server-Sent Events ─────────────────
+  const wantsStream =
+    (body && body.stream === true) ||
+    (request.headers.get('Accept') || '').includes('text/event-stream');
+
+  if (!wantsStream) {
+    try {
+      await runCore();
+    } catch (e2) {
+      return err('Execution failed: ' + e2.message, 500);
+    }
+    phase('✅', 'Execution loop complete', { testResults: results.testResults });
+    return json({ ok: true, ...results });
   }
 
-  return json({ ok: true, ...results });
+  const encoder = new TextEncoder();
+  const sseStream = new ReadableStream({
+    start(controller) {
+      const push = (event, data) => {
+        try { controller.enqueue(encoder.encode('event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n')); } catch (e) {}
+      };
+      // Redirect the module-scoped phase so runCore + runCatalogTest stream live.
+      phase = (icon, text, extra = {}) => {
+        const p = { ts: Date.now(), icon, text, ...extra };
+        push('phase', p);
+        try { publishPhase(runId, p); } catch (e) {}   // mirror to /stream too (best-effort)
+        return p;
+      };
+      push('ready', { runId });
+      (async () => {
+        try {
+          await runCore();
+          phase('✅', 'Execution loop complete', { testResults: results.testResults });
+          push('phase', { ts: Date.now(), icon: '✅', text: 'Execution loop complete', done: true });
+          push('done', { ok: true, ...results });
+        } catch (err) {
+          push('error', { error: err.message });
+        } finally {
+          try { controller.close(); } catch (e) {}
+        }
+      })();
+    },
+  });
+
+  return new Response(sseStream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      ...corsHeaders(),
+    },
+  });
 }
 
 // ─── Locked .95 tiered pricing matrix (must match engine exactly) ─────────
@@ -113,7 +192,8 @@ function estUsdCost(p) {
 }
 
 // ─── Test loop over the sharded catalog served from the app origin ────────
-async function runCatalogTest(request) {
+async function runCatalogTest(request, phase) {
+  phase = phase || (() => {});
   const base = new URL(request.url).origin;
 
   // 1. Manifest
@@ -132,7 +212,10 @@ async function runCatalogTest(request) {
 
   // 2. Load every product across all shards
   const all = [];
+  let shardI = 0;
   for (const f of shardFiles) {
+    shardI++;
+    phase('📂', 'Downloading GitHub Catalog: Reading Shard ' + (shardI - 1) + ' of ' + (shardFiles.length - 1) + '...');
     const r = await fetch(base + '/' + f, { cf: { cacheTtl: 0 } });
     if (!r.ok) continue;
     let data;
@@ -141,6 +224,7 @@ async function runCatalogTest(request) {
   }
 
   // 3. Evaluate each product against the locked formula
+  phase('🧠', 'Running pricing formula matrix check on Gemini 3.5 Flash...');
   let mismatch = 0, total = 0, zeroPrice = 0, noImage = 0, non95 = 0;
   const samples = [];
 
@@ -171,6 +255,8 @@ async function runCatalogTest(request) {
     if (!p.image && !p.images && !(Array.isArray(p.images) && p.images.length)) noImage++;
   }
 
+  phase('📊', 'Generating .95-adjusted staging table...', { productsEvaluated: total });
+
   return {
     shardsScanned: shardFiles.length,
     productsEvaluated: total,
@@ -182,3 +268,4 @@ async function runCatalogTest(request) {
     sampleMismatches: samples,
   };
 }
+
