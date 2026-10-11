@@ -124,30 +124,34 @@ export async function onRequest(context) {
           }
 
           const blueprint = extractBlueprint(reply);
-          let actionResult = null;
+          let delegationId = null;
+          let delegationOk = false;
 
-          if (act && blueprint) {
-            push('phase', { icon: '📦', text: 'Blueprint produced (' + estimateLines(blueprint) + ' lines) — staging to GitHub…' });
-            actionResult = await runAutonomousApply(request, env, blueprint, push);
-            if (actionResult && actionResult.ok) {
-              push('phase', { icon: '✅', text: 'Change applied successfully', done: true });
-            } else if (actionResult && actionResult.error) {
-              push('phase', { icon: '⚠️', text: 'Apply issue: ' + actionResult.error, done: true });
+          if (act) {
+            push('phase', { icon: '📦', text: 'Preparing a structured work order for Zaro…' });
+            try {
+              delegationId = await createWorkOrder(env, userText, reply, blueprint);
+              delegationOk = !!delegationId;
+              if (delegationOk) {
+                push('phase', { icon: '🤝', text: 'Work order ' + delegationId + ' handed to Zaro — building…' });
+              } else {
+                push('phase', { icon: '⚠️', text: 'Could not stage work order — Zaro will just read the chat.', done: true });
+              }
+            } catch (e) {
+              push('phase', { icon: '⚠️', text: 'Delegation stage error: ' + e.message, done: true });
             }
-          } else if (act && !blueprint) {
-            push('phase', { icon: '📝', text: 'No code change produced — explaining instead.', done: true });
           }
 
           const ts = new Date().toISOString();
           const userEntry = { role: 'user', content: userText || '(attachment)', ts, act };
-          const entries = [userEntry, { role: 'assistant', content: reply, model, ts, act, actionResult: actionResult ? { ok: actionResult.ok, commitSha: actionResult.commitSha } : null }];
+          const entries = [userEntry, { role: 'assistant', content: reply, model, ts, act, delegationId: delegationId || null }];
           try { await appendHistory(env, entries); } catch (e) { console.error('history persist failed:', e.message); }
 
           push('phase', { icon: '✅', text: 'Done', done: true });
           push('done', {
             reply, model, act,
-            actionApplied: !!(actionResult && actionResult.ok),
-            actionResult: actionResult ? { ok: actionResult.ok, commitSha: actionResult.commitSha, error: actionResult.error } : null,
+            delegated: delegationOk,
+            delegationId: delegationId || null,
             attachments: attachmentsResult.stored,
             attachmentErrors: attachmentsResult.errors,
           });
@@ -178,35 +182,52 @@ function extractBlueprint(reply) {
 }
 function estimateLines(code) { return String(code || '').split('\n').length; }
 
-async function runAutonomousApply(request, env, blueprint, push) {
-  const id = 'chat-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-  const target = 'scripts/catalog-repricer.fixed.js';
-  const result = { ok: false, id, target };
+/**
+ * createWorkOrder — hand the "what + how" from Gemini to Zaro for BUILDING.
+ *
+ * Gemini is the ARCHITECT (understands intent, writes the plan/code); Zaro is
+ * the BUILDER (has GitHub/Shopify/Cloudflare/workspace access). This function
+ * writes a structured work order durably to GitHub `delegations/pending/<id>.json`
+ * which the Zaro-side bridge polls and executes, then reports back to
+ * `delegations/done/<id>.json`. The console surfaces "Zaro done ✅" via
+ * /api/architect/delegation-status.
+ *
+ * Task actions Zaro understands:
+ *   write_file  { path, content, message }  — create/overwrite a repo file
+ *   shell       { command }                 — run a command in the Zaro sandbox
+ *   shopify     { note }                    — Zaro uses its Shopify integration
+ *   deploy      { note }                    — Zaro triggers deploy (GH Actions)
+ */
+async function createWorkOrder(env, userText, reply, blueprint) {
+  const { ghWrite } = await import('./_lib.js');
 
-  try {
-    const { ghWrite, ghRead } = await import('./_lib.js');
+  const id = 'wo-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 
-    if (push) push('phase', { icon: '📂', text: 'Staging blueprint to GitHub (source-of-truth handoff)…' });
-    const stagePath = 'scripts/blueprints/' + id + '.js';
-    await ghWrite(env, stagePath, blueprint, 'architect(act): stage blueprint ' + id);
-    result.stagePath = stagePath; result.staged = true;
+  // Build a conservative task list from whatever Gemini produced. If Gemini
+  // emitted a fenced code block, treat it as a candidate file write (Zaro will
+  // decide the correct target path after reviewing the request). Otherwise the
+  // work order carries the prose plan so Zaro implements it via its own tools.
+  const tasks = [];
+  if (blueprint) {
+    tasks.push({
+      action: 'write_file',
+      note: 'Gemini produced a code block. Target path is Zaro (the builder) decision; content below is the candidate implementation.',
+      content: blueprint,
+    });
+  }
+  // Always attach the human request + Gemini's prose plan so Zaro has full context.
+  const envelope = {
+    id,
+    ts: new Date().toISOString(),
+    from: 'gemini-architect',
+    summary: String(userText || 'Untitled request').trim(),
+    plan: String(reply || '').slice(0, 20000),
+    tasks,
+    status: 'pending',
+  };
 
-    if (push) push('phase', { icon: '🔧', text: 'Applying blueprint → ' + target + '…' });
-    try {
-      const existing = await ghRead(env, target);
-      const existingSha = existing && existing.sha;
-      const applied = await ghWrite(env, target, blueprint, 'architect(act): apply blueprint ' + id + ' → ' + target, existingSha);
-      result.repoApplied = true;
-      if (applied && applied.commit && applied.commit.sha) result.commitSha = applied.commit.sha;
-    } catch (e) { result.repoApplyError = e.message; }
-
-    if (push) push('phase', { icon: '🛰️', text: 'Running live 24-shard + Shopify test loop…' });
-    try { result.testResults = await runCatalogTest(request, push); }
-    catch (e) { result.testError = e.message; }
-
-    result.ok = true;
-  } catch (e) { result.error = e.message; }
-  return result;
+  await ghWrite(env, 'delegations/pending/' + id + '.json', JSON.stringify(envelope, null, 2), 'architect(delegate): ' + id);
+  return id;
 }
 
 // ─── Locked .95 tiered pricing matrix ──────────────────────────────────────

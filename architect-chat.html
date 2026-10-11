@@ -385,11 +385,11 @@ form.addEventListener('submit', async (e) => {
     removeTypingIndicator();
     document.getElementById('model-badge').textContent = d.model || 'secure proxy';
 
-    // If an autonomous change was applied, surface a clear confirmation.
-    if (d.actionApplied) {
-      const sha = d.actionResult && d.actionResult.commitSha ? d.actionResult.commitSha.slice(0, 7) : 'n/a';
+    // If Zaro was handed a work order, show "building" then poll for the report.
+    if (d.delegated && d.delegationId) {
       addBubble('assistant', d.reply);
-      addBubble('assistant', `✅ **Applied automatically** — commit \`${sha}\` · ${(d.actionResult && d.actionResult.testResults ? d.actionResult.testResults.productsEvaluated + ' products checked' : 'test loop ran')}`);
+      addBubble('assistant', `🤝 **Handed to Zaro** — work order \`${d.delegationId}\` · Zaro is building it now…`);
+      pollDelegationStatus(d.delegationId);
     } else {
       addBubble('assistant', d.reply);
     }
@@ -443,6 +443,26 @@ function renderNarration(_id, p) {
 }
 
 // Streaming chat client — sends stream:true, parses SSE, resolves on `done`.
+async function pollDelegationStatus(id, attempts = 0) {
+  // Poll /api/architect/delegation-status until Zaro posts a completion report.
+  if (attempts >= 40) { addBubble('assistant', `⏳ Zaro is still building \`${id}\`. It will appear here when done.`); return; }
+  try {
+    const res = await fetch('/api/architect/delegation-status?id=' + encodeURIComponent(id), { credentials: 'include' });
+    const data = await res.json();
+    if (data.status === 'done') {
+      const r = data.report || {};
+      const commits = (r.commits || []).map(c => typeof c === 'string' ? c.slice(0, 7) : (c.sha || '').slice(0, 7)).filter(Boolean).join(', ');
+      addBubble('assistant', `✅ **Zaro finished** — ${r.summary || 'done'}` + (commits ? `  · commit \`${commits}\`` : ''));
+      return;
+    }
+    if (data.status === 'failed') {
+      addBubble('assistant', `❌ **Zaro reported an issue** — ${(data.report && data.report.summary) || 'check with Zaro for details'}`);
+      return;
+    }
+  } catch (e) { /* transient — keep polling */ }
+  setTimeout(() => pollDelegationStatus(id, attempts + 1), 8000);
+}
+
 async function streamChat(body) {
   const res = await fetch(CONFIG.API_BASE + '/chat', {
     method: 'POST',
