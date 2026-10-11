@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architect Console — Bargain Drop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0a0c12', panel: '#11141d', panel2: '#171b26', edge: '#232836',
+            accent: '#6366f1', accent2: '#8b5cf6', mint: '#34d399',
+          },
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root { color-scheme: dark; }
+    body { background: #0a0c12; }
+    .scrollbar-thin::-webkit-scrollbar { width: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #2a3040; border-radius: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #3a4256; }
+    .glow { box-shadow: 0 0 0 1px rgba(99,102,241,0.25), 0 8px 32px -8px rgba(99,102,241,0.45); }
+    @keyframes pulse-dot { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+    .typing-dot { animation: pulse-dot 1.2s infinite ease-in-out; }
+    .typing-dot:nth-child(2){ animation-delay:.15s }
+    .typing-dot:nth-child(3){ animation-delay:.3s }
+    pre code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .fade-in { animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform:none } }
+  </style>
+</head>
+<body class="bg-ink text-slate-200 font-sans antialiased h-screen flex flex-col">
+
+  <header class="flex items-center justify-between px-5 py-3 border-b border-edge bg-panel/80 backdrop-blur">
+    <div class="flex items-center gap-3">
+      <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-accent to-accent2 flex items-center justify-center glow">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+      <div>
+        <h1 class="text-sm font-semibold tracking-tight text-white">Architect Console</h1>
+        <p class="text-[11px] text-slate-500 -mt-0.5">Bargain Drop · AI Architect · <span id="model-badge" class="text-accent2">secure proxy</span></p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="status-dot" class="h-2 w-2 rounded-full bg-mint"></span>
+      <button id="clear-btn" class="text-xs px-3 py-1.5 rounded-md border border-edge hover:bg-panel2 transition text-slate-400 hover:text-slate-200">Clear</button>
+      <button id="export-btn" class="text-xs px-3 py-1.5 rounded-md border border-edge hover:bg-panel2 transition text-slate-400 hover:text-slate-200">Export JSON</button>
+    </div>
+  </header>
+
+  <main id="chat-scroll" class="flex-1 overflow-y-auto scrollbar-thin px-4 py-6">
+    <div id="chat" class="max-w-3xl mx-auto flex flex-col gap-4"></div>
+  </main>
+
+  <footer class="px-4 pb-4 pt-1">
+    <form id="composer" class="max-w-3xl mx-auto">
+      <div class="flex items-end gap-2 bg-panel border border-edge rounded-xl px-4 py-3 focus-within:border-accent/60 transition shadow-lg">
+        <textarea id="input" rows="1" placeholder="Ask the AI Architect about the system, pricing matrix, or shard automation…"
+          class="flex-1 bg-transparent resize-none outline-none text-sm placeholder-slate-600 leading-relaxed max-h-40"></textarea>
+        <button type="submit" id="send-btn" class="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-accent to-accent2 text-white flex items-center justify-center hover:opacity-90 transition disabled:opacity-40">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 9-18 9 4-9z"/><path d="M7 12h14"/></svg>
+        </button>
+      </div>
+      <p class="text-[10px] text-slate-600 text-center mt-2">Secure proxy · history → <span class="font-mono">data/chat-logs.json</span> (GitHub) · "Execute via Zaro" applies + runs live test loop</p>
+    </form>
+  </footer>
+
+  <!-- EXECUTE MODAL -->
+  <div id="exec-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeExec()"></div>
+    <div class="relative bg-panel border border-edge rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col fade-in">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-edge">
+        <h2 class="text-sm font-semibold text-white">Execute via Zaro</h2>
+        <button onclick="closeExec()" class="text-slate-500 hover:text-slate-200 text-lg leading-none">×</button>
+      </div>
+      <div class="px-5 py-3 text-xs text-slate-400 bg-panel2 border-b border-edge">
+        This blueprint will be applied to <span class="font-mono text-accent2">/scripts/catalog-repricer.fixed.js</span>, then a live test loop runs across the 24 shards + Shopify.
+      </div>
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-5">
+        <pre id="exec-code" class="text-xs font-mono whitespace-pre-wrap text-slate-300 bg-ink border border-edge rounded-lg p-4 max-h-[38vh] overflow-auto"></pre>
+      </div>
+      <div class="px-5 py-3 border-t border-edge flex items-center justify-between gap-3">
+        <div class="flex flex-col gap-1">
+          <div id="exec-status" class="text-xs text-slate-400">Authenticate with admin PIN to execute.</div>
+          <input id="exec-pin" type="password" placeholder="Admin PIN" class="hidden text-xs bg-panel2 border border-edge rounded-md px-3 py-1.5 outline-none focus:border-accent/60 w-48">
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="closeExec()" class="text-xs px-3 py-2 rounded-md border border-edge hover:bg-panel2 transition">Cancel</button>
+          <button id="exec-confirm" onclick="confirmExec()" class="text-xs px-4 py-2 rounded-md bg-gradient-to-r from-accent to-accent2 text-white font-medium hover:opacity-90 transition">Confirm &amp; Execute</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =====================================================================
+   Architect Console — secure backend edition.
+   NO secrets live here. The front-end talks to Cloudflare Pages Functions
+   (/api/architect/*), which hold GEMINI_API_KEY / GITHUB_TOKEN /
+   SHOPIFY_ACCESS_TOKEN as encrypted Worker bindings.
+   ===================================================================== */
+
+const CONFIG = {
+  API_BASE: '/api/architect',   // same-origin Pages Functions (proxied on prod)
+};
+
+let localMessages = [];      // transient local mirror (rendered instantly)
+let pendingExec = null;
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderMarkdown(text) {
+  let out = escapeHtml(text);
+  const codeBlocks = [];
+  out = out.replace(/```([\s\S]*?)```/g, (m, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(code.replace(/^\s*[\r\n]+/, '').replace(/\s+$/,''));
+    return `\u0000CODE${idx}\u0000`;
+  });
+  out = out.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-black/40 text-accent2 font-mono text-[13px]">$1</code>');
+  out = out.replace(/\n/g, '<br/>');
+  codeBlocks.forEach((code, idx) => {
+    out = out.replace(`\u0000CODE${idx}\u0000`,
+      `<div class="code-block relative mt-2 mb-1 group">
+         <pre class="bg-black/50 border border-edge rounded-lg p-3 overflow-x-auto text-[12px] leading-relaxed"><code>${code}</code></pre>
+         <button class="exec-btn mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-md bg-gradient-to-r from-accent to-accent2 text-white hover:opacity-90 transition"
+                 data-code="${encodeURIComponent(code)}">
+           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+           Execute via Zaro
+         </button>
+       </div>`);
+  });
+  return out;
+}
+
+const chatEl = document.getElementById('chat');
+const scrollEl = document.getElementById('chat-scroll');
+function scrollBottom() { requestAnimationFrame(() => { scrollEl.scrollTop = scrollEl.scrollHeight; }); }
+
+function addBubble(role, content, opts = {}) {
+  const isUser = role === 'user';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'fade-in flex ' + (isUser ? 'justify-end' : 'justify-start');
+  const bubble = document.createElement('div');
+  bubble.className = 'max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ' +
+    (isUser ? 'bg-gradient-to-br from-accent to-accent2 text-white rounded-br-sm shadow-lg'
+            : 'bg-panel border border-edge text-slate-200 rounded-bl-sm shadow');
+  bubble.innerHTML = opts.raw ? escapeHtml(content).replace(/\n/g,'<br/>') : renderMarkdown(content);
+  wrapper.appendChild(bubble);
+  chatEl.appendChild(wrapper);
+  scrollBottom();
+  return bubble;
+}
+
+function addTypingIndicator() {
+  const w = document.createElement('div');
+  w.className = 'fade-in flex justify-start'; w.id = 'typing';
+  w.innerHTML = `<div class="px-5 py-3.5 rounded-2xl bg-panel border border-edge flex items-center gap-1.5">
+    <span class="typing-dot h-2 w-2 rounded-full bg-slate-400"></span>
+    <span class="typing-dot h-2 w-2 rounded-full bg-slate-400"></span>
+    <span class="typing-dot h-2 w-2 rounded-full bg-slate-400"></span></div>`;
+  chatEl.appendChild(w); scrollBottom();
+}
+function removeTypingIndicator() { const t = document.getElementById('typing'); if (t) t.remove(); }
+
+/* ---------------------------------------------------------------------
+   API calls — all server-side (no secrets client-side)
+   ------------------------------------------------------------------- */
+async function apiCall(path, opts = {}) {
+  const res = await fetch(CONFIG.API_BASE + path, {
+    method: opts.method || 'GET',
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({ error: 'non-JSON response' }));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+async function loadHistoryFromServer() {
+  try {
+    const d = await apiCall('/history');
+    return (d.history && d.history.messages) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/* ---------------------------------------------------------------------
+   COMPOSER
+   ------------------------------------------------------------------- */
+const form = document.getElementById('composer');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send-btn');
+
+input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 160) + 'px'; });
+input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+
+  addBubble('user', text);
+  sendBtn.disabled = true;
+  addTypingIndicator();
+  try {
+    const d = await apiCall('/chat', { method: 'POST', body: { message: text } });
+    removeTypingIndicator();
+    document.getElementById('model-badge').textContent = d.model || 'secure proxy';
+    addBubble('assistant', d.reply);
+    bindExecButtons();
+  } catch (err) {
+    removeTypingIndicator();
+    addBubble('assistant', `⚠️ **Error:** ${escapeHtml(err.message)}`);
+  } finally {
+    sendBtn.disabled = false; input.focus();
+  }
+});
+
+/* ---------------------------------------------------------------------
+   EXECUTE VIA ZARO — real backend plumbing
+   ------------------------------------------------------------------- */
+function bindExecButtons() {
+  document.querySelectorAll('.exec-btn').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => openExec(decodeURIComponent(btn.dataset.code)));
+  });
+}
+
+function openExec(code) {
+  pendingExec = code;
+  document.getElementById('exec-code').textContent = code;
+  document.getElementById('exec-status').textContent = 'Enter admin PIN to execute.';
+  const pin = document.getElementById('exec-pin');
+  pin.classList.remove('hidden'); pin.value = '';
+  document.getElementById('exec-modal').classList.remove('hidden');
+  resetExecBtn();
+}
+
+function closeExec() { pendingExec = null; document.getElementById('exec-modal').classList.add('hidden'); }
+
+async function confirmExec() {
+  if (!pendingExec) return;
+  const statusEl = document.getElementById('exec-status');
+  const pin = document.getElementById('exec-pin').value.trim();
+  const confirmBtn = document.getElementById('exec-confirm');
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Executing…';
+  statusEl.textContent = 'Applying blueprint + running live test loop…';
+  statusEl.classList.add('text-accent2');
+
+  try {
+    const headers = pin ? { 'X-Admin-Pin': pin } : {};
+    const d = await apiCall('/exec', {
+      method: 'POST',
+      headers,
+      body: { blueprint: pendingExec, dedupId: Date.now().toString(36) },
+    });
+
+    let msg = `Applied ✓ (commit ${d.commitSha ? d.commitSha.slice(0,7) : 'n/a'})`;
+    if (d.testResults) {
+      const t = d.testResults;
+      msg += ` · test loop → ${t.productsEvaluated} products, ${t.mismatches} mismatches, ${t.non95Endings} non-.95, ${t.zeroPrice} zero-price`;
+    }
+    statusEl.textContent = msg;
+    statusEl.classList.add('text-mint');
+    addBubble('assistant', formatExecResult(d));
+  } catch (err) {
+    statusEl.textContent = 'Execution failed: ' + err.message;
+    statusEl.classList.add('text-red-400');
+  }
+  confirmBtn.textContent = 'Done';
+  setTimeout(() => { closeExec(); resetExecBtn(); }, 1800);
+}
+
+function formatExecResult(d) {
+  let s = `### ✅ Executed via Zaro\n\n`;
+  s += `- **Blueprint**: ${d.stagePath || d.target}\n`;
+  s += `- **Commit**: \`${(d.commitSha || 'n/a').slice(0,7)}\`\n`;
+  if (d.testResults) {
+    const t = d.testResults;
+    s += `- **Shards scanned**: ${t.shardsScanned}\n- **Products evaluated**: ${t.productsEvaluated}\n`;
+    s += `- **Mismatches**: ${t.mismatches}\n- **Non-.95 endings**: ${t.non95Endings}\n`;
+    s += `- **Zero-price**: ${t.zeroPrice} · **No-image**: ${t.noImage}\n`;
+    if (t.sampleMismatches && t.sampleMismatches.length) {
+      s += `\n\`\`\`\n${t.sampleMismatches.map(m => m.title + '  have=' + m.have + '  want=' + m.want).join('\n')}\n\`\`\``;
+    }
+  } else if (d.testError) {
+    s += `\n⚠️ Test loop error: ${d.testError}`;
+  }
+  return s;
+}
+
+function resetExecBtn() {
+  const b = document.getElementById('exec-confirm');
+  b.textContent = 'Confirm & Execute'; b.disabled = false;
+}
+
+/* ---------------------------------------------------------------------
+   EXPORT / CLEAR
+   ------------------------------------------------------------------- */
+document.getElementById('export-btn').addEventListener('click', async () => {
+  try {
+    const d = await apiCall('/history');
+    const blob = new Blob([JSON.stringify(d.history, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'chat-logs.json'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    alert('Export failed: ' + e.message);
+  }
+});
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  if (!confirm('Clear local view? (server history is preserved)')) return;
+  chatEl.innerHTML = '';
+  renderWelcome();
+});
+
+function renderWelcome() {
+  addBubble('assistant',
+`### 👋 Architect Console online (secure backend).
+
+I am the **AI Architect** for Bargain Drop. Secrets are now server-side (no API key in the page). History persists to the durable \`chat-logs.json\`, and **"Execute via Zaro"** truly applies blueprints to \`/scripts/catalog-repricer.fixed.js\` and runs a live 24-shard + Shopify test loop.
+
+Ask me to:
+- Audit pricing against \`ceil(USD_cost × multiplier × 1.4234) − 0.05\`
+- Draft an automation blueprint for a shard or the Shopify sync
+- Diagnose a repricer / bulk-operation / deploy issue`);
+  bindExecButtons();
+}
+
+/* ---------------------------------------------------------------------
+   INIT — load durable server history, else welcome
+   ------------------------------------------------------------------- */
+(async function init() {
+  const msgs = await loadHistoryFromServer();
+  if (msgs && msgs.length) {
+    for (const m of msgs) {
+      if (m.role === 'system') continue;
+      addBubble(m.role === 'user' ? 'user' : 'assistant', m.content);
+    }
+    bindExecButtons();
+  } else {
+    renderWelcome();
+  }
+})();
+</script>
+</body>
+</html>
