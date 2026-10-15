@@ -1,152 +1,80 @@
 javascript
 /**
- * Bargain Drop - Automated Repricer Worker (Emergency Patched)
- * CIP Pipeline: GitHub Shards -&gt; Price Calculation -&gt; Shopify GraphQL API
+ * Bargain Drop - Zaro Usage &amp; Credit Drain Audit Script
+ * Run: ZARO_API_KEY=your_key node audit-zaro-usage.js
  */
 
-const CONFIG = {
-  // EMERGENCY KILL SWITCH: Set to false to completely block all Zaro/API executions
-  ACTIVE: false, 
-  MAX_ITEMS_PER_RUN: 50 // Safety cap to prevent runaway token/credit consumption
-};
+const ZARO_API_BASE = process.env.ZARO_API_ENDPOINT || "https://api.zaro.dev/v1"; 
 
-export default {
-  async scheduled(event, env, ctx) {
-    if (!CONFIG.ACTIVE) {
-      console.warn("Repricer aborted: EMERGENCY KILL SWITCH IS ACTIVE.");
-      return;
-    }
-    ctx.waitUntil(runRepricer(env));
-  },
+async function auditZaroUsage() {
+  const apiKey = process.env.ZARO_API_KEY;
 
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    
-    if (url.pathname === "/run" &amp;&amp; request.method === "POST") {
-      if (!CONFIG.ACTIVE) {
-        return new Response(JSON.stringify({ 
-          status: "blocked", 
-          message: "Execution halted. Emergency kill switch CONFIG.ACTIVE is set to false." 
-        }), { status: 403, headers: { "Content-Type": "application/json" } });
-      }
-
-      const summary = await runRepricer(env);
-      return new Response(JSON.stringify(summary, null, 2), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-    
-    return new Response(`Bargain Drop Repricer Worker active. Status: ${CONFIG.ACTIVE ? 'RUNNING' : 'HALTED (Emergency Stop)'}`, { status: 200 });
+  if (!apiKey) {
+    console.error("❌ Error: Missing ZARO_API_KEY environment variable.");
+    process.exit(1);
   }
-};
 
-function calculatePrice(usdCost) {
-  let multiplier;
-  if (usdCost &lt; 10.00) multiplier = 3.2;
-  else if (usdCost &lt;= 15.00) multiplier = 2.8;
-  else if (usdCost &lt;= 22.00) multiplier = 2.5;
-  else if (usdCost &lt;= 30.00) multiplier = 2.2;
-  else if (usdCost &lt;= 60.00) multiplier = 1.9;
-  else multiplier = 1.7;
-
-  const FX_RATE = 1.4234;
-  const rawPrice = usdCost * multiplier * FX_RATE;
-  const finalPrice = Math.ceil(rawPrice) - 0.05;
-
-  return {
-    price: finalPrice.toFixed(2),
-    compareAtPrice: null
-  };
-}
-
-async function runRepricer(env) {
-  const stats = { scanned: 0, updated: 0, limitedOut: false, errors: [] };
+  console.log("🔍 Fetching Zaro usage telemetry and execution logs...\n");
 
   try {
-    const shardResponse = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/contents/shards`, {
+    // 1. Fetch usage breakdown
+    const response = await fetch(`${ZARO_API_BASE}/usage/logs?limit=100`, {
+      method: "GET",
       headers: {
-        "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
-        "User-Agent": "BargainDrop-Repricer"
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
       }
     });
 
-    if (!shardResponse.ok) {
-      throw new Error(`GitHub Shards fetch failed: ${shardResponse.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Zaro API returned status ${response.status}: ${response.statusText}`);
     }
 
-    const shardFiles = await shardResponse.json();
+    const data = await response.json();
+    const logs = data.logs || data.executions || [];
 
-    for (const file of shardFiles) {
-      if (!file.name.endsWith('.json')) continue;
+    if (logs.length === 0) {
+      console.log("ℹ️ No recent execution logs found.");
+      return;
+    }
 
-      const fileRes = await fetch(file.download_url);
-      const items = await fileRes.json();
+    // 2. Aggregate metrics by action/endpoint
+    const summary = {};
 
-      for (const item of items) {
-        if (stats.scanned &gt;= CONFIG.MAX_ITEMS_PER_RUN) {
-          stats.limitedOut = true;
-          break;
-        }
+    logs.forEach((log) =&gt; {
+      const key = log.action || log.endpoint || log.task_name || "unknown_task";
+      const credits = log.credits_used || log.cost || 1;
 
-        stats.scanned++;
-        const targetPricing = calculatePrice(item.cost_usd);
-
-        if (item.shopify_variant_id) {
-          const updated = await updateShopifyVariant(
-            env,
-            item.shopify_variant_id,
-            targetPricing.price,
-            targetPricing.compareAtPrice
-          );
-          if (updated) stats.updated++;
-        }
+      if (!summary[key]) {
+        summary[key] = { invocations: 0, totalCredits: 0, lastRun: log.timestamp || "N/A" };
       }
-      if (stats.limitedOut) break;
-    }
+
+      summary[key].invocations += 1;
+      summary[key].totalCredits += credits;
+    });
+
+    // 3. Output results sorted by top credit consumers
+    console.log("==================================================");
+    console.log(" ZARO CREDIT DRAIN AUDIT REPORT ");
+    console.log("==================================================");
+
+    const sortedTasks = Object.entries(summary).sort((a, b) =&gt; b[1].totalCredits - a[1].totalCredits);
+
+    sortedTasks.forEach(([task, stats]) =&gt; {
+      console.log(`Task / Endpoint : ${task}`);
+      console.log(`Invocations     : ${stats.invocations}`);
+      console.log(`Credits Consumed: ${stats.totalCredits}`);
+      console.log(`Last Invocation : ${stats.lastRun}`);
+      console.log("--------------------------------------------------");
+    });
+
+    // Flag top drainer
+    const [topTask, topStats] = sortedTasks[0];
+    console.log(`\n⚠️ TOP CONSUMER IDENTIFIED: [${topTask}] using ${topStats.totalCredits} credits across ${topStats.invocations} calls.`);
+
   } catch (err) {
-    stats.errors.push(err.message);
+    console.error(`❌ Audit failed: ${err.message}`);
   }
-
-  return stats;
 }
 
-async function updateShopifyVariant(env, variantId, price, compareAtPrice) {
-  const query = `
-    mutation productVariantUpdate($input: ProductVariantInput!) {
-      productVariantUpdate(input: $input) {
-        productVariant {
-          id
-          price
-          compareAtPrice
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
-
-  const response = await fetch(`https://${env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/graphql.json`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": env.SHOPIFY_ADMIN_TOKEN
-    },
-    body: JSON.stringify({
-      query,
-      variables: {
-        input: { id: variantId, price, compareAtPrice }
-      }
-    })
-  });
-
-  const resData = await response.json();
-  const userErrors = resData?.data?.productVariantUpdate?.userErrors;
-
-  if (userErrors &amp;&amp; userErrors.length &gt; 0) {
-    return false;
-  }
-
-  return true;
-}
+auditZaroUsage();
