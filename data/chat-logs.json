@@ -1,7 +1,5 @@
 {
   "version": 1,
-  "project": "Bargain Drop",
-  "console": "Architect Console",
   "messages": [
     {
       "role": "user",
@@ -11,12 +9,28 @@
     },
     {
       "role": "assistant",
-      "content": "Here is the rule to append to your existing system instructions or project guidelines so you and future AI instances maintain strict alignment with the Bargain Drop architecture and pipeline:\n\n```markdown\n## Additional Connection Rule: Pipeline & Environment Integrity\n\n1. **Pipeline Authority (CIP)**: \n   - All code changes flow strictly through `Cloudflare Pages → GitHub → Zaro`. \n   - Never bypass this pipeline. Any production deployment must be verified against the Cloudflare Pages build logs and Zaro synchronization status.\n\n2. **Secret Isolation**: \n   - Never output, log, or hardcode API keys, tokens, or credentials (Shopify Admin tokens, Cloudflare API tokens, Zaro webhooks, etc.). \n   - Always reference them via Wrangler/Cloudflare environment bindings (e.g., `env.SHOPIFY_API_KEY`, `process.env.SECRET_NAME`).\n\n3. **Pricing Determinism**: \n   - Any script, webhook handler, or automation dealing with product pricing must strictly enforce the locked Bargain Drop pricing formula:\n     `price = ceil(USD_cost × multiplier × 1.4234) − 0.05` (always ending in `.95`, `compare_at_price: null`).\n     - `<$10`: 3.2×\n     - `$10–15`: 2.8×\n     - `$15.01–22`: 2.5×\n     - `$22.01–30`: 2.2×\n     - `$30–60`: 1.9×\n     - `>$60`: 1.7×\n\n4. **Execution Standard**: \n   - When requested to fix, add, change, or patch code, provide a concise implementation plan followed by the exact, production-ready code block with zero placeholders or hand-waving.\n```",
+      "content": "Here is the rule to append to your existing system instructions or project guidelines so you and future AI instances maintain strict alignment with the Bargain Drop architecture and pipeline:\n\n```markdown\n## Additional Connection Rule: Pipeline & Environment Integrity\n\n1. **Pipeline Authority (CIP)**: \n   - All code changes flow strictly through `Cloudflare Pages â GitHub â Zaro`. \n   - Never bypass this pipeline. Any production deployment must be verified against the Cloudflare Pages build logs and Zaro synchronization status.\n\n2. **Secret Isolation**: \n   - Never output, log, or hardcode API keys, tokens, or credentials (Shopify Admin tokens, Cloudflare API tokens, Zaro webhooks, etc.). \n   - Always reference them via Wrangler/Cloudflare environment bindings (e.g., `env.SHOPIFY_API_KEY`, `process.env.SECRET_NAME`).\n\n3. **Pricing Determinism**: \n   - Any script, webhook handler, or automation dealing with product pricing must strictly enforce the locked Bargain Drop pricing formula:\n     `price = ceil(USD_cost Ã multiplier Ã 1.4234) â 0.05` (always ending in `.95`, `compare_at_price: null`).\n     - `<$10`: 3.2Ã\n     - `$10â15`: 2.8Ã\n     - `$15.01â22`: 2.5Ã\n     - `$22.01â30`: 2.2Ã\n     - `$30â60`: 1.9Ã\n     - `>$60`: 1.7Ã\n\n4. **Execution Standard**: \n   - When requested to fix, add, change, or patch code, provide a concise implementation plan followed by the exact, production-ready code block with zero placeholders or hand-waving.\n```",
       "model": "gemini-3.5-flash-lite",
       "ts": "2026-10-15T19:58:32.320Z",
       "act": true,
       "delegationId": "wo-mv9yok1m-h5t3iy"
+    },
+    {
+      "role": "user",
+      "content": "Stop with the markups please",
+      "ts": "2026-10-15T19:59:11.560Z",
+      "act": true
+    },
+    {
+      "role": "assistant",
+      "content": "Understood. Ready when you are. What needs to be done?",
+      "model": "gemini-3.5-flash-lite",
+      "ts": "2026-10-15T19:59:11.560Z",
+      "act": true,
+      "delegationId": "wo-mv9ype71-as09h8"
     }
   ],
-  "updatedAt": "2026-10-15T19:58:32.662Z"
+  "project": "Bargain Drop",
+  "console": "Architect Console",
+  "updatedAt": "2026-10-15T19:59:11.931Z"
 }
