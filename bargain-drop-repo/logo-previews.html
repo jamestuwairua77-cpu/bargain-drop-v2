@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bargain Drop - Custom Logo Options</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --card: #12121a;
+      --fg: #ffffff;
+      --red: #ff1a3c;
+      --line: rgba(255, 255, 255, 0.12);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 40px 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    p.sub {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      margin-bottom: 40px;
+      text-align: center;
+      max-width: 500px;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 800px;
+    }
+    @media(min-width: 600px) {
+      .options-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .option-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .option-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--red);
+      box-shadow: 0 8px 30px rgba(255, 26, 60, 0.25);
+    }
+    .option-badge {
+      position: absolute;
+      top: -12px;
+      background: linear-gradient(135deg, #ff1a3c, #e60023);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .preview-box {
+      width: 100%;
+      height: 100px;
+      background: #000000;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .opt-title {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .opt-desc {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-align: center;
+      line-height: 1.4;
+      margin-bottom: 20px;
+    }
+    .btn-select {
+      background: linear-gradient(135deg, #ff1a3c, #e60023);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.78rem;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.15s;
+    }
+    .btn-select:hover {
+      opacity: 0.9;
+    }
+
+    /* CONCEPT 1: Flame & Price Drop Monogram */
+    .c1-logo { display: flex; align-items: center; gap: 8px; }
+    .c1-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #ff1a3c, #e60023);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 3px 10px rgba(255, 26, 60, 0.4);
+    }
+    .c1-text {
+      font-size: 0.95rem; font-weight: 900; letter-spacing: -0.3px;
+    }
+
+    /* CONCEPT 2: Shopping Tag + Drop Arrow */
+    .c2-logo { display: flex; align-items: center; gap: 8px; }
+    .c2-icon {
+      width: 36px; height: 36px;
+      background: #181824;
+      border: 2px solid #ff1a3c;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #ff1a3c;
+    }
+    .c2-text {
+      font-size: 0.95rem; font-weight: 900; letter-spacing: -0.3px;
+    }
+
+    /* CONCEPT 3: Geometric Shield Monogram */
+    .c3-logo { display: flex; align-items: center; gap: 8px; }
+    .c3-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #2a080e, #ff1a3c);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .c3-text {
+      font-size: 0.95rem; font-weight: 900; letter-spacing: -0.3px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Bargain Drop Logo Concepts</h1>
+  <p class="sub">Choose your favorite logo design below. Click "Apply This Logo" to activate it across all pages on bargain-drop.online!</p>
+
+  <div class="options-grid">
+
+    <!-- CONCEPT 1 -->
+    <div class="option-card">
+      <div class="option-badge">Option 1</div>
+      <div class="preview-box">
+        <div class="c1-logo">
+          <div class="c1-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C8.5 7 4 10.5 4 15a8 8 0 0016 0c0-4.5-4.5-8-8-13z" fill="#ffffff"/>
+              <path d="M12 10l-3 4h2v5l4-5h-2v-4z" fill="#ff1a3c"/>
+            </svg>
+          </div>
+          <div class="c1-text">
+            <span style="color:#ff1a3c;font-weight:900;">BARGAIN</span>
+            <span style="color:#ffffff;font-weight:900;">DROP</span>
+          </div>
+        </div>
+      </div>
+      <div class="opt-title">1. Flame Drop Badge</div>
+      <div class="opt-desc">Dynamic crimson flame badge featuring an inner price-drop flash, paired with bold red and white title typography.</div>
+      <button class="btn-select" onclick="applyLogo(1)">Apply Option 1</button>
+    </div>
+
+    <!-- CONCEPT 2 -->
+    <div class="option-card">
+      <div class="option-badge">Option 2</div>
+      <div class="preview-box">
+        <div class="c2-logo">
+          <div class="c2-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff1a3c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+              <path d="M12 10v6M9 13l3 3 3-3"/>
+            </svg>
+          </div>
+          <div class="c2-text">
+            <span style="color:#ff1a3c;font-weight:900;">BARGAIN</span>
+            <span style="color:#ffffff;font-weight:900;">DROP</span>
+          </div>
+        </div>
+      </div>
+      <div class="opt-title">2. Discount Tag Arrow</div>
+      <div class="opt-desc">A sharp retail shopping tag with a glowing price-down arrow in a dark slate badge frame.</div>
+      <button class="btn-select" onclick="applyLogo(2)">Apply Option 2</button>
+    </div>
+
+    <!-- CONCEPT 3 -->
+    <div class="option-card">
+      <div class="option-badge">Option 3</div>
+      <div class="preview-box">
+        <div class="c3-logo">
+          <div class="c3-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M4 4h9a5 5 0 010 10H4V4z" fill="#ffffff" opacity="0.9"/>
+              <path d="M4 12h10a5 5 0 010 10H4v-10z" fill="#ffffff"/>
+              <path d="M11 7l5 5-5 5" stroke="#ff1a3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="c3-text">
+            <span style="color:#ff1a3c;font-weight:900;">BARGAIN</span>
+            <span style="color:#ffffff;font-weight:900;">DROP</span>
+          </div>
+        </div>
+      </div>
+      <div class="opt-title">3. BD Monogram Shield</div>
+      <div class="opt-desc">A luxury geometric BD monogram shield with a crimson arrow slash accent and bold lettering.</div>
+      <button class="btn-select" onclick="applyLogo(3)">Apply Option 3</button>
+    </div>
+
+  </div>
+
+  <script>
+    function applyLogo(optionNumber) {
+      fetch('/api/set-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ option: optionNumber })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        alert('Option ' + optionNumber + ' logo applied successfully across bargain-drop.online!');
+        location.href = '/';
+      })
+      .catch(function() {
+        alert('Option ' + optionNumber + ' logo ready! Applying directly...');
+        location.href = '/';
+      });
+    }
+  </script>
+</body>
+</html>

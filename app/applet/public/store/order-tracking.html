@@ -181,11 +181,49 @@
   
   <div class="track-container">
     <div class="track-hero">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <span style="font-size: 0.85rem; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-weight: 600;">Shopify + Track123 Live Sync</span>
+        <button onclick="openTrackingSettings()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">⚙️ Tracking Settings</button>
+      </div>
       <h1>Track123 Order Tracking</h1>
       <p>Enter your tracking number or order ID below to get real-time shipment updates.</p>
       <div class="track-form">
         <input type="text" id="track-input" class="track-input" placeholder="e.g. TRK123987654 or #1001">
         <button id="track-submit" class="track-btn" onclick="lookupTracking()">Track Package</button>
+      </div>
+    </div>
+
+    <!-- Tracking Settings Modal -->
+    <div id="tracking-settings-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+      <div style="background: white; color: #111; width: 100%; max-width: 500px; border-radius: 16px; padding: 30px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); position: relative; margin: 20px;">
+        <button onclick="closeTrackingSettings()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #666;">✕</button>
+        <h2 style="margin: 0 0 8px 0; font-size: 1.25rem; font-weight: 700;">Track123 Settings</h2>
+        <p style="margin: 0 0 20px 0; color: #666; font-size: 0.9rem;">Configure your Track123 API integration and Shopify store sync settings.</p>
+        
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Track123 API Key / Token</label>
+          <input type="password" id="t123-api-key" placeholder="Enter Track123 API Key" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95px; outline: none; font-size: 0.95rem;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Shopify Store Domain</label>
+          <input type="text" id="t123-shop-domain" value="bargain-drop.online" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Default Carrier</label>
+          <select id="t123-carrier" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; background: white;">
+            <option value="track123">Track123 Global Logistics</option>
+            <option value="cj">CJ Dropshipping Packet</option>
+            <option value="4px">4PX Express</option>
+            <option value="dhl">DHL Express</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button onclick="closeTrackingSettings()" style="background: #f3f4f6; color: #374151; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancel</button>
+          <button onclick="saveTrackingSettings()" style="background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">Save Changes</button>
+        </div>
       </div>
     </div>
 
@@ -263,7 +301,38 @@
         document.getElementById('track-input').value = code;
         lookupTracking(code);
       }
+      
+      // Load saved settings if any
+      const savedKey = localStorage.getItem('track123_api_key');
+      if (savedKey) {
+        document.getElementById('t123-api-key').value = savedKey;
+      }
+      const savedDomain = localStorage.getItem('track123_shop_domain');
+      if (savedDomain) {
+        document.getElementById('t123-shop-domain').value = savedDomain;
+      }
     });
+
+    function openTrackingSettings() {
+      document.getElementById('tracking-settings-modal').style.display = 'flex';
+    }
+
+    function closeTrackingSettings() {
+      document.getElementById('tracking-settings-modal').style.display = 'none';
+    }
+
+    function saveTrackingSettings() {
+      const apiKey = document.getElementById('t123-api-key').value;
+      const domain = document.getElementById('t123-shop-domain').value;
+      const carrier = document.getElementById('t123-carrier').value;
+      
+      localStorage.setItem('track123_api_key', apiKey);
+      localStorage.setItem('track123_shop_domain', domain);
+      localStorage.setItem('track123_carrier', carrier);
+      
+      alert('Track123 settings saved successfully for ' + (domain || 'bargain-drop.online') + '!');
+      closeTrackingSettings();
+    }
   </script>
 </body>
 </html>

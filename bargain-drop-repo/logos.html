@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bargain Drop — Custom Logo Concepts & Selector</title>
+  <meta name="description" content="Explore custom logo designs for Bargain Drop and select your favorite logo to apply site-wide.">
+  <link rel="stylesheet" href="/css/shared.css">
+  <link rel="stylesheet" href="/homepage.css">
+  <style>
+    :root {
+      --bg: #09090b;
+      --fg: #ffffff;
+      --card-bg: #111116;
+      --card-border: rgba(255, 255, 255, 0.12);
+      --red: #ff1a3c;
+      --red-hover: #ff003b;
+    }
+    
+    body {
+      background-color: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .hero-header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .hero-header h1 {
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 40%, var(--red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-header p {
+      color: #94a3b8;
+      font-size: 1.1rem;
+      max-width: 650px;
+      margin: 0 auto 24px;
+      line-height: 1.6;
+    }
+
+    .active-badge-info {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 26, 60, 0.15);
+      border: 1px solid rgba(255, 26, 60, 0.3);
+      color: #ff4d6d;
+      padding: 8px 18px;
+      border-radius: 99px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .grid-logos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 28px;
+      margin-bottom: 60px;
+    }
+
+    .logo-card {
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 16px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-card:hover {
+      border-color: rgba(255, 26, 60, 0.5);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 26, 60, 0.15);
+    }
+
+    .logo-card.selected {
+      border-color: var(--red);
+      background: linear-gradient(180deg, #161219 0%, #111116 100%);
+      box-shadow: 0 0 30px rgba(255, 26, 60, 0.25);
+    }
+
+    .selected-tag {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: var(--red);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: none;
+    }
+
+    .logo-card.selected .selected-tag {
+      display: block;
+    }
+
+    .logo-preview-box {
+      background: #09090b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      padding: 20px;
+      position: relative;
+    }
+
+    .logo-card-info h3 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin: 0 0 6px;
+      color: #ffffff;
+    }
+
+    .logo-card-info p {
+      font-size: 0.88rem;
+      color: #94a3b8;
+      margin: 0 0 20px;
+      line-height: 1.5;
+    }
+
+    .logo-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-apply {
+      flex: 1;
+      background: var(--red);
+      color: #ffffff;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-apply:hover {
+      background: var(--red-hover);
+      box-shadow: 0 4px 14px rgba(255, 26, 60, 0.4);
+    }
+
+    .btn-preview {
+      background: rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-preview:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+
+    /* Live Header Preview Banner */
+    .live-preview-banner {
+      background: #111116;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 40px;
+    }
+
+    .live-preview-banner h2 {
+      font-size: 1.4rem;
+      margin-top: 0;
+      margin-bottom: 16px;
+      color: #ffffff;
+    }
+
+    .navbar-preview {
+      background: #09090b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-mock-items {
+      display: flex;
+      gap: 20px;
+      color: #94a3b8;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    /* SVG LOGO STYLES */
+    .bd-logo-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    /* Option 1: Liquid Price Drop */
+    .opt1-icon {
+      width: 38px;
+      height: 38px;
+      filter: drop-shadow(0 2px 8px rgba(255, 26, 60, 0.4));
+    }
+
+    .opt1-text {
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .opt1-text .red { color: #ff1a3c; }
+    .opt1-text .white { color: #ffffff; }
+
+    /* Option 2: Cyber BD Monogram */
+    .opt2-icon {
+      width: 40px;
+      height: 40px;
+    }
+    .opt2-text {
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: #ffffff;
+    }
+    .opt2-text span { color: #ff1a3c; }
+
+    /* Option 3: Flash Speed Tag */
+    .opt3-icon {
+      width: 36px;
+      height: 36px;
+    }
+    .opt3-text {
+      font-size: 1.2rem;
+      font-weight: 900;
+      font-style: italic;
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+      color: #ffffff;
+    }
+    .opt3-text span { color: #ff1a3c; }
+
+    /* Option 4: Minimal Flame Drop */
+    .opt4-icon {
+      width: 34px;
+      height: 34px;
+    }
+    .opt4-text {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      text-transform: uppercase;
+    }
+    .opt4-text .tag-red {
+      background: #ff1a3c;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 4px;
+    }
+    .opt4-text .white { color: #ffffff; }
+
+    /* Option 5: Universal Retail Bag */
+    .opt5-icon {
+      width: 36px;
+      height: 36px;
+    }
+    .opt5-text {
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: -0.3px;
+      text-transform: uppercase;
+      color: #ffffff;
+    }
+    .opt5-text span { color: #ff1a3c; }
+
+    .toast-msg {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #ff1a3c;
+      color: #ffffff;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-weight: 700;
+      box-shadow: 0 10px 30px rgba(255, 26, 60, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999;
+    }
+
+    .toast-msg.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header style="background:#09090b; border-bottom:1px solid rgba(255,255,255,0.1); padding:14px 24px;">
+    <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;">
+      <a href="/" class="nav-logo" id="site-header-logo" aria-label="Bargain Drop Home">
+        <div class="logo-icon">BD</div>
+        <div class="logo-text"><span class="bd-red">BARGAIN</span> <span class="bd-white">DROP</span></div>
+      </a>
+      <div style="display:flex; gap:16px;">
+        <a href="/" style="color:#ffffff; text-decoration:none; font-weight:600; font-size:0.9rem;">← Back to Home</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="hero-header">
+      <h1>Custom Logos for Bargain Drop</h1>
+      <p>Choose from 5 custom vector logo designs crafted specifically for Bargain Drop. Preview how each logo looks live, and click <strong>Apply Logo</strong> to activate it across the entire website!</p>
+      <div class="active-badge-info" id="active-logo-info">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Current Active Logo: <span id="current-logo-name">Option 1 (Liquid Price Drop)</span>
+      </div>
+    </div>
+
+    <div class="grid-logos">
+
+      <!-- LOGO OPTION 1 -->
+      <div class="logo-card selected" id="card-opt1">
+        <div class="selected-tag">Active Logo</div>
+        <div>
+          <div class="logo-preview-box">
+            <!-- SVG Logo 1 -->
+            <div class="bd-logo-mark">
+              <svg class="opt1-icon" viewBox="0 0 40 40" fill="none">
+                <defs>
+                  <linearGradient id="opt1-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ff1a3c"/>
+                    <stop offset="100%" stop-color="#e11d48"/>
+                  </linearGradient>
+                </defs>
+                <path d="M20 3 C12 14, 6 22, 6 28 A14 14 0 0 0 34 28 C34 22, 28 14, 20 3 Z" fill="url(#opt1-grad)"/>
+                <!-- Percent cut out -->
+                <circle cx="16" cy="22" r="2.5" fill="#ffffff"/>
+                <circle cx="24" cy="30" r="2.5" fill="#ffffff"/>
+                <line x1="25" y1="20" x2="15" y2="32" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+              <div class="opt1-text">
+                <span class="red">BARGAIN</span> <span class="white">DROP</span>
+              </div>
+            </div>
+          </div>
+          <div class="logo-card-info">
+            <h3>1. Liquid Price Drop</h3>
+            <p>A crimson liquid teardrop containing a precision discount percentage tag. Dynamic, clean, and high-energy e-commerce branding.</p>
+          </div>
+        </div>
+        <div class="logo-actions">
+          <button class="btn-apply" onclick="selectLogo('opt1', 'Option 1 (Liquid Price Drop)')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply Logo
+          </button>
+        </div>
+      </div>
+
+      <!-- LOGO OPTION 2 -->
+      <div class="logo-card" id="card-opt2">
+        <div class="selected-tag">Active Logo</div>
+        <div>
+          <div class="logo-preview-box">
+            <!-- SVG Logo 2 -->
+            <div class="bd-logo-mark">
+              <svg class="opt2-icon" viewBox="0 0 40 40" fill="none">
+                <rect x="2" y="2" width="36" height="36" rx="10" fill="#18181b" stroke="rgba(255,26,60,0.4)" stroke-width="2"/>
+                <path d="M11 10 H22 C26 10, 28 12, 28 15 C28 17.5, 26 19, 23 19.5 C27 20, 29 22, 29 25 C29 28.5, 26 30, 21 30 H11 V10 Z" stroke="#ffffff" stroke-width="3" fill="none" stroke-linejoin="round"/>
+                <path d="M21 16 L21 24 M17 20 L21 24 L25 20" stroke="#ff1a3c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div class="opt2-text">
+                <span>BARGAIN</span> DROP
+              </div>
+            </div>
+          </div>
+          <div class="logo-card-info">
+            <h3>2. Cyber BD Monogram</h3>
+            <p>A geometric BD shield with an integrated downward price drop arrow. Sharp, trustworthy, and tech-forward.</p>
+          </div>
+        </div>
+        <div class="logo-actions">
+          <button class="btn-apply" onclick="selectLogo('opt2', 'Option 2 (Cyber BD Monogram)')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply Logo
+          </button>
+        </div>
+      </div>
+
+      <!-- LOGO OPTION 3 -->
+      <div class="logo-card" id="card-opt3">
+        <div class="selected-tag">Active Logo</div>
+        <div>
+          <div class="logo-preview-box">
+            <!-- SVG Logo 3 -->
+            <div class="bd-logo-mark">
+              <svg class="opt3-icon" viewBox="0 0 40 40" fill="none">
+                <path d="M6 8 L24 4 L36 16 L18 34 L6 22 Z" fill="#ff1a3c"/>
+                <circle cx="14" cy="12" r="3" fill="#09090b"/>
+                <path d="M24 10 L18 20 H23 L17 30 L26 18 H21 L24 10 Z" fill="#ffffff"/>
+              </svg>
+              <div class="opt3-text">
+                <span>BARGAIN</span> DROP
+              </div>
+            </div>
+          </div>
+          <div class="logo-card-info">
+            <h3>3. Speed Tag Flash</h3>
+            <p>A slanted crimson deal tag with a white lightning bolt cut-out. Perfect for urgent flash sales and high-speed deals.</p>
+          </div>
+        </div>
+        <div class="logo-actions">
+          <button class="btn-apply" onclick="selectLogo('opt3', 'Option 3 (Speed Tag Flash)')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply Logo
+          </button>
+        </div>
+      </div>
+
+      <!-- LOGO OPTION 4 -->
+      <div class="logo-card" id="card-opt4">
+        <div class="selected-tag">Active Logo</div>
+        <div>
+          <div class="logo-preview-box">
+            <!-- SVG Logo 4 -->
+            <div class="bd-logo-mark">
+              <svg class="opt4-icon" viewBox="0 0 40 40" fill="none">
+                <path d="M20 4 C28 16 34 22 34 28 A14 14 0 0 1 6 28 C6 22 12 16 20 4 Z" stroke="#ff1a3c" stroke-width="3" fill="none"/>
+                <path d="M20 12 C24 20 28 24 28 28 A8 8 0 0 1 12 28 C12 24 16 20 20 12 Z" fill="#ff1a3c"/>
+              </svg>
+              <div class="opt4-text">
+                <span class="tag-red">BARGAIN</span><span class="white">DROP</span>
+              </div>
+            </div>
+          </div>
+          <div class="logo-card-info">
+            <h3>4. Minimalist Flame Drop</h3>
+            <p>Dual geometric drop outlines in fiery crimson red with a pill-style BARGAIN badge. Modern luxury retail aesthetic.</p>
+          </div>
+        </div>
+        <div class="logo-actions">
+          <button class="btn-apply" onclick="selectLogo('opt4', 'Option 4 (Minimalist Flame Drop)')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply Logo
+          </button>
+        </div>
+      </div>
+
+      <!-- LOGO OPTION 5 -->
+      <div class="logo-card" id="card-opt5">
+        <div class="selected-tag">Active Logo</div>
+        <div>
+          <div class="logo-preview-box">
+            <!-- SVG Logo 5 -->
+            <div class="bd-logo-mark">
+              <svg class="opt5-icon" viewBox="0 0 40 40" fill="none">
+                <path d="M10 14 H30 V32 C30 34 28 36 26 36 H14 C12 36 10 34 10 32 V14 Z" fill="#18181b" stroke="#ff1a3c" stroke-width="2.5"/>
+                <path d="M15 14 C15 9 25 9 25 14" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                <path d="M20 20 C16 26 14 28 14 30 A6 6 0 0 0 26 30 C26 28 24 26 20 20 Z" fill="#ff1a3c"/>
+              </svg>
+              <div class="opt5-text">
+                <span>BARGAIN</span> DROP
+              </div>
+            </div>
+          </div>
+          <div class="logo-card-info">
+            <h3>5. Universal Retail Bag</h3>
+            <p>A sleek retail shopping bag incorporating a central red drop. Universal, approachable, and classic retail design.</p>
+          </div>
+        </div>
+        <div class="logo-actions">
+          <button class="btn-apply" onclick="selectLogo('opt5', 'Option 5 (Universal Retail Bag)')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply Logo
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Live Preview Banner -->
+    <div class="live-preview-banner">
+      <h2>Live Store Header Preview</h2>
+      <p style="color:#94a3b8; font-size:0.92rem; margin-top:-10px; margin-bottom:16px;">This preview demonstrates how your chosen logo renders inside the dark site header:</p>
+      <div class="navbar-preview">
+        <div id="live-navbar-logo">
+          <!-- Dynamically Injected -->
+        </div>
+        <div class="nav-mock-items">
+          <span>Categories</span>
+          <span>Deals</span>
+          <span>Search</span>
+          <span style="color:#ff1a3c;">Cart (3)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-msg" id="toast">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toast-text">Logo activated site-wide!</span>
+  </div>
+
+  <script src="/js/logo-handler.js"></script>
+  <script>
+    const LOGO_NAMES = {
+      'opt1': 'Option 1 (Liquid Price Drop)',
+      'opt2': 'Option 2 (Cyber BD Monogram)',
+      'opt3': 'Option 3 (Speed Tag Flash)',
+      'opt4': 'Option 4 (Minimalist Flame Drop)',
+      'opt5': 'Option 5 (Universal Retail Bag)'
+    };
+
+    function updateCardUI(selectedOpt) {
+      document.querySelectorAll('.logo-card').forEach(card => card.classList.remove('selected'));
+      const activeCard = document.getElementById('card-' + selectedOpt);
+      if (activeCard) {
+        activeCard.classList.add('selected');
+      }
+      document.getElementById('current-logo-name').textContent = LOGO_NAMES[selectedOpt] || selectedOpt;
+
+      // Update live navbar preview
+      const previewContainer = document.getElementById('live-navbar-logo');
+      const cardPreviewMark = activeCard ? activeCard.querySelector('.bd-logo-mark').cloneNode(true) : null;
+      if (previewContainer && cardPreviewMark) {
+        previewContainer.innerHTML = '';
+        previewContainer.appendChild(cardPreviewMark);
+      }
+    }
+
+    function selectLogo(optKey, name) {
+      localStorage.setItem('bd_selected_logo', optKey);
+      updateCardUI(optKey);
+      if (window.BargainDropLogo) {
+        window.BargainDropLogo.applyLogo(optKey);
+      }
+
+      // Also trigger backend file persist request if backend is listening
+      fetch('/api/apply-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logoId: optKey })
+      }).catch(() => {});
+
+      // Show toast
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = name + ' activated across site!';
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Initialize UI on load
+    document.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('bd_selected_logo') || 'opt1';
+      updateCardUI(saved);
+    });
+  </script>
+</body>
+</html>
