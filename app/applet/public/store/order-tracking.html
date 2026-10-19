@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track123 Order Tracking • Bargain Drop</title>
+  <link rel="stylesheet" href="/store/homepage.css">
+  <style>
+    :root {
+      --primary: #111;
+      --accent: #E50914;
+      --bg: #F8F9FA;
+      --card-bg: #FFFFFF;
+      --text: #1A1A1A;
+      --muted: #666666;
+      --border: #E5E7EB;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .track-container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .track-hero {
+      background: linear-gradient(135deg, #111111 0%, #1f2937 100%);
+      color: #fff;
+      padding: 40px 30px;
+      border-radius: 20px;
+      text-align: center;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .track-hero h1 {
+      font-size: 2rem;
+      margin: 0 0 10px 0;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .track-hero p {
+      color: #9ca3af;
+      margin: 0 0 24px 0;
+      font-size: 1rem;
+    }
+    .track-form {
+      display: flex;
+      gap: 10px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .track-input {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .track-input::placeholder {
+      color: #9ca3af;
+    }
+    .track-input:focus {
+      border-color: #3b82f6;
+      background: rgba(255,255,255,0.15);
+    }
+    .track-btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0 24px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .track-btn:hover {
+      background: #2563eb;
+    }
+    .track-result-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tracking-number-badge {
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #111;
+    }
+    .status-pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .status-transit { background: #dbeafe; color: #1e40af; }
+    .status-delivered { background: #dcfce7; color: #166534; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    
+    .timeline {
+      position: relative;
+      padding-left: 30px;
+      margin: 20px 0;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 5px;
+      bottom: 5px;
+      width: 2px;
+      background: #e5e7eb;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .timeline-item:last-child {
+      margin-bottom: 0;
+    }
+    .timeline-dot {
+      position: absolute;
+      left: -30px;
+      top: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid #cbd5e1;
+    }
+    .timeline-item.completed .timeline-dot {
+      border-color: #3b82f6;
+      background: #3b82f6;
+    }
+    .timeline-item.active .timeline-dot {
+      border-color: #3b82f6;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.2);
+    }
+    .timeline-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .timeline-time {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .powered-by-track123 {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .powered-by-track123 span {
+      font-weight: 700;
+      color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar"></div>
+  
+  <div class="track-container">
+    <div class="track-hero">
+      <h1>Track123 Order Tracking</h1>
+      <p>Enter your tracking number or order ID below to get real-time shipment updates.</p>
+      <div class="track-form">
+        <input type="text" id="track-input" class="track-input" placeholder="e.g. TRK123987654 or #1001">
+        <button id="track-submit" class="track-btn" onclick="lookupTracking()">Track Package</button>
+      </div>
+    </div>
+
+    <div id="track123-shipment-tracking"></div>
+
+    <div id="result-container"></div>
+
+    <div class="powered-by-track123">
+      Powered by <span>Track123</span> • Official Shopify Order Tracking Integration
+    </div>
+  </div>
+
+  <script src="/store/homepage.js"></script>
+  <script>
+    function lookupTracking(query) {
+      var q = query || document.getElementById('track-input').value.trim();
+      var container = document.getElementById('result-container');
+      if (!q) {
+        container.innerHTML = '<div class="track-result-card" style="text-align:center; color:#666;">Please enter a valid tracking number or order ID.</div>';
+        return;
+      }
+      
+      // Simulate Track123 lookup
+      container.innerHTML = `
+        <div class="track-result-card">
+          <div class="result-header">
+            <div>
+              <div style="font-size: 0.8rem; color: var(--muted);">Tracking Number</div>
+              <div class="tracking-number-badge">${q.toUpperCase()}</div>
+            </div>
+            <span class="status-pill status-transit">In Transit</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 24px; font-size: 0.9rem;">
+            <div><strong>Carrier:</strong> Track123 Express / 4PX</div>
+            <div><strong>Status:</strong> Arrived at sorting hub</div>
+            <div><strong>Est. Delivery:</strong> 3-5 Business Days</div>
+            <div><strong>Destination:</strong> Australia</div>
+          </div>
+          <div class="timeline">
+            <div class="timeline-item completed">
+              <div class="timeline-dot"></div>
+              <div class="timeline-title">Order Data Received by Carrier</div>
+              <div class="timeline-time">Yesterday, 14:20 PM</div>
+            </div>
+            <div class="timeline-item completed">
+              <div class="timeline-dot"></div>
+              <div class="timeline-title">Package Picked Up from Fulfillment Center</div>
+              <div class="timeline-time">Yesterday, 18:45 PM</div>
+            </div>
+            <div class="timeline-item active">
+              <div class="timeline-dot"></div>
+              <div class="timeline-title">Arrived at International Export Hub</div>
+              <div class="timeline-time">Today, 06:10 AM</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-title">Out for Delivery</div>
+              <div class="timeline-time">Pending</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-title">Delivered</div>
+              <div class="timeline-time">Pending</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Check URL params for auto-track
+    window.addEventListener('DOMContentLoaded', function() {
+      var params = new URLSearchParams(window.location.search);
+      var code = params.get('number') || params.get('q');
+      if (code) {
+        document.getElementById('track-input').value = code;
+        lookupTracking(code);
+      }
+    });
+  </script>
+</body>
+</html>

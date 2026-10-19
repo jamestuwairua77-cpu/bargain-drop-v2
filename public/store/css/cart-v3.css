@@ -1,0 +1,80 @@
+/* Bargain Drop — Cart V3 (Homepage Theme) */
+:root {
+  --bg: #09090b;
+  --f: #ffffff;
+  --m: #a1a1aa;
+  --l: rgba(255, 255, 255, 0.25);
+  --l2: rgba(255, 255, 255, 0.15);
+  --r: #ff1a3c;
+  --y: #ffd600;
+  --g: #ffd600;
+  --t: #ff1a3c;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--f);
+  padding: 16px;
+  padding-bottom: 90px;
+}
+.ci {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #0e0e14;
+  border: 2px solid var(--l);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+  margin-bottom: 12px;
+}
+.ciimg {
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  background: #000;
+  border: 1px solid var(--l);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.ciimg img { width: 100%; height: 100%; object-fit: cover; }
+.cititle { font-size: 0.85rem; font-weight: 800; color: #ffffff; }
+.cipp { font-size: 1rem; font-weight: 900; color: var(--r); font-family: monospace; }
+.cipo { font-size: 0.75rem; color: var(--m); text-decoration: line-through; }
+.qbtn {
+  width: 32px;
+  height: 30px;
+  border-radius: 8px;
+  border: 2px solid var(--l);
+  background: #000000;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+.qv { font-size: 0.85rem; font-weight: 900; color: var(--y); }
+.sc {
+  background: #0e0e14;
+  border-radius: 16px;
+  padding: 18px;
+  border: 2px solid var(--l);
+  margin-top: 16px;
+}
+.sr { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.8rem; }
+.srm { color: var(--m); font-weight: 600; }
+.st { font-size: 1.1rem; font-weight: 900; display: flex; justify-content: space-between; border-top: 1px solid var(--l); padding-top: 10px; margin-top: 6px; }
+.stv { color: var(--r); font-family: monospace; }
+.cc {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin-top: 14px;
+  background: var(--r);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(255, 26, 60, 0.4);
+}
