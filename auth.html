@@ -89,6 +89,75 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .nav-logo .bd-red, .nlogo .bd-red, .logo-text .bd-red, .lt .bd-red { color: #ff1a3c !important; font-weight: 900; }
 .nav-logo .bd-white, .nlogo .bd-white, .logo-text .bd-white, .lt .bd-white { color: #ffffff !important; font-weight: 900; }
 
+
+/* === 2026-04-21 GLOBAL STOREFRONT LAYOUT & SLIDE-MENU CONTAINMENT === */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.slide-menu {
+  display: none !important;
+}
+.slide-menu.open {
+  display: block !important;
+}
+.product-grid, .related-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+@media (max-width: 640px) {
+  .product-grid, .related-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+.product-card, .rel-card {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.product-card .card-img, .rel-card .rc-img {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+}
+.product-card .card-img img, .rel-card .rc-img img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+.product-card .card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  justify-content: space-between !important;
+  min-width: 0 !important;
+}
+.product-card .card-title, .rel-card .rc-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  min-height: 2.7em !important;
+  word-break: break-word !important;
+}
+.desc-body, #desc-body, .desc-overview, .pdesc {
+  overflow-x: hidden !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+}
+.desc-body *, #desc-body *, .pdesc * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 </style>
 
 <style id="bd-rwb-theme">
@@ -581,10 +650,11 @@ input::placeholder, textarea::placeholder {
   <div id="signin-view">
     <h1>Welcome Back</h1>
     <p class="sub">Sign in to your account</p>
-    <label for="email" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Email</label><input id="email" type="email" id="signin-email" placeholder="Email" autocomplete="email">
-    <label for="signin-password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Password</label><span class="pw-wrap"><input id="signin-password" type="password" placeholder="Password" autocomplete="current-password"><button type="button" class="pw-eye" onclick="togglePw('signin-password',this)" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span>
+    <label for="signin-email" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#dedede">Email</label><input type="email" id="signin-email" placeholder="Email" autocomplete="email">
+    <label for="signin-password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#dedede">Password</label><span class="pw-wrap"><input id="signin-password" type="password" placeholder="Password" autocomplete="current-password"><button type="button" class="pw-eye" onclick="togglePw('signin-password',this)" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span>
     <div class="error-msg" id="signin-error"></div>
     <button class="primary-btn" id="signin-btn" onclick="handleSignIn()">Sign In</button>
+    <div style="text-align:right;margin-top:8px;"><a href="forgot-password.html" style="font-size:.75rem;color:#FACC15;text-decoration:none;font-weight:700;">Forgot password?</a></div>
     <div class="separator">or</div>
     <button class="google-btn" id="google-btn-signin" onclick="handleGoogleSignIn()"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.95 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.88-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Sign in with Google</button>
     <p class="toggle-msg">Don't have an account? <a href="#" onclick="toggleView('register')">Register</a></p>
@@ -594,8 +664,8 @@ input::placeholder, textarea::placeholder {
     <h1>Create Account</h1>
     <p class="sub">Join Bargain Drop today</p>
     <input type="text" id="reg-username" placeholder="Username" autocomplete="username">
-    <label for="email" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Email</label><input id="email" type="email" id="reg-email" placeholder="Email" autocomplete="email">
-    <label for="reg-password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#333">Password</label><span class="pw-wrap"><input id="reg-password" type="password" placeholder="Password" autocomplete="new-password"><button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span>
+    <label for="reg-email" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#dedede">Email</label><input type="email" id="reg-email" placeholder="Email" autocomplete="email">
+    <label for="reg-password" style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#dedede">Password</label><span class="pw-wrap"><input id="reg-password" type="password" placeholder="Password" autocomplete="new-password"><button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span>
     <div class="error-msg" id="reg-error"></div>
     <button class="primary-btn" id="reg-btn" onclick="handleRegister()">Create Account</button>
     <div class="separator">or</div>
@@ -606,18 +676,32 @@ input::placeholder, textarea::placeholder {
   <div id="profile-view" style="display:none">
     <h1>My Account</h1>
     <div class="profile-box"><img id="profile-pic" src="" alt="Profile" onerror="this.style.display='none'"><div class="name" id="profile-name"></div><div class="email" id="profile-email"></div><button class="logout-btn" onclick="handleLogout()">Sign Out</button></div>
-    <p style="margin-top:14px"><a href="/">← Back to Home</a></p>
+    <p style="margin-top:14px"><a href="/profile.html">Go to My Account Dashboard →</a></p>
   </div>
 
   <p style="margin-top:12px"><a href="/">← Back to Home</a></p>
 </div>
 
 <script>
-var API_BASE = 'https://bargain-drop.online';
+var API_BASE = '';
 var GOOGLE_CLIENT_ID = '489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googleusercontent.com';
 (function(){
   if(location.hash.includes('google-auth=')){
-    try { var raw = location.hash.split('google-auth=')[1]; var user = JSON.parse(decodeURIComponent(raw)); finishLogin(user); history.replaceState(null,null,location.pathname); } catch(e){ console.error('Google auth parse error',e) }
+    try {
+      var raw = location.hash.split('google-auth=')[1];
+      var user = JSON.parse(decodeURIComponent(raw));
+      history.replaceState(null,null,location.pathname + location.search);
+      finishLogin(user);
+      return;
+    } catch(e){ console.error('Google auth hash parse error',e) }
+  }
+  var qParams = new URLSearchParams(location.search);
+  if(qParams.get('google_auth')){
+    try {
+      var user2 = JSON.parse(atob(qParams.get('google_auth')));
+      finishLogin(user2);
+      return;
+    } catch(e){ console.error('Google auth query parse error',e) }
   }
   var sess = JSON.parse(localStorage.getItem('bd_session')||'null');
   if(sess && sess.email){ showProfile(sess) }
@@ -635,12 +719,18 @@ function togglePw(id,btn){
 
 function toggleView(v){ document.getElementById('signin-view').style.display = v==='register'?'none':''; document.getElementById('register-view').style.display = v==='register'?'':'none'; document.getElementById('profile-view').style.display='none'; history.replaceState(null,null,v==='register'?'register.html':'sign-in.html'); }
 function showError(view,msg){ var el = document.getElementById(view+'-error'); el.textContent=msg;el.style.display=msg?'block':'none'; }
-function setBtnLoading(id,loading){ var btn=document.getElementById(id); if(loading){btn.disabled=true;btn.dataset.orig=btn.textContent;btn.innerHTML='<span class="loading-dots"><span></span><span></span><span></span></span>'} else{btn.disabled=false;btn.textContent=btn.dataset.orig||btn.textContent} }
-function saveSession(user){ localStorage.setItem('bd_session',JSON.stringify(user)); localStorage.setItem('bd_user_name',user.name||''); localStorage.setItem('bd_user_email',user.email||''); localStorage.setItem('bd_user_pic',user.picture||''); }
-function redirectTarget(){ try { var m = location.search.match(/[?&]redirect=([^&]+)/); if (m) { var url = decodeURIComponent(m[1]); if (url.charAt(0)==='/' && url.indexOf('//')!==0) return url; } } catch(e){} return null; }
+function setBtnLoading(id,loading){ var btn=document.getElementById(id); if(!btn)return; if(loading){btn.disabled=true;btn.dataset.orig=btn.textContent;btn.innerHTML='Loading...'} else{btn.disabled=false;btn.textContent=btn.dataset.orig||btn.textContent} }
+function saveSession(user){
+  localStorage.setItem('bd_session',JSON.stringify(user));
+  localStorage.setItem('bd_user_name',user.name||user.fullName||user.username||'');
+  localStorage.setItem('bd_user_username',user.username||user.name||'');
+  localStorage.setItem('bd_user_email',user.email||'');
+  localStorage.setItem('bd_user_pic',user.picture||user.avatar||'');
+}
+function redirectTarget(){ try { var m = location.search.match(/[?&]redirect=([^&#]+)/); if (m) { var url = decodeURIComponent(m[1]); if (url.charAt(0)==='/' && url.indexOf('//')!==0) return url; } } catch(e){} return '/profile.html'; }
 function finishLogin(user){ saveSession(user); var to = redirectTarget(); if (to) { location.href = to; return; } showProfile(user); }
 function showProfile(user){ document.getElementById('signin-view').style.display='none'; document.getElementById('register-view').style.display='none'; document.getElementById('profile-view').style.display=''; document.getElementById('profile-name').textContent=user.name||'User'; document.getElementById('profile-email').textContent=user.email||''; if(user.picture) document.getElementById('profile-pic').src=user.picture; }
-function handleLogout(){ ['bd_session','bd_user_name','bd_user_email','bd_user_pic'].forEach(function(k){try{localStorage.removeItem(k)}catch(e){}}); fetch(API_BASE+'/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signout'})}).then(function(){ location.href='/sign-in.html'; }).catch(function(){ location.href='/sign-in.html'; }); }
+function handleLogout(){ ['bd_session','bd_user_name','bd_user_username','bd_user_email','bd_user_pic'].forEach(function(k){try{localStorage.removeItem(k)}catch(e){}}); fetch(API_BASE+'/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signout'})}).then(function(){ location.href='/sign-in.html'; }).catch(function(){ location.href='/sign-in.html'; }); }
 function handleSignIn(){
   var email=document.getElementById('signin-email').value.trim();
   var pass=document.getElementById('signin-password').value;
@@ -661,7 +751,8 @@ function handleRegister(){
 }
 function handleGoogleSignIn(){
   setBtnLoading('google-btn-signin',true); setBtnLoading('google-btn-reg',true);
-  var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 'client_id=' + encodeURIComponent('489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googleusercontent.com') + '&redirect_uri=' + encodeURIComponent('https://bargain-drop.online/api/google-callback') + '&response_type=code' + '&scope=' + encodeURIComponent('openid email profile') + '&access_type=offline' + '&prompt=select_account' + '&state=' + encodeURIComponent('https://bargain-drop.online/profile.html');
+  var baseOrigin = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? window.location.origin : 'https://bargain-drop.online';
+  var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 'client_id=' + encodeURIComponent('489382559871-vp4q2enpqf5f8avj8hadjabatn27la7k.apps.googleusercontent.com') + '&redirect_uri=' + encodeURIComponent(baseOrigin + '/api/google-callback') + '&response_type=code' + '&scope=' + encodeURIComponent('openid email profile') + '&access_type=online' + '&prompt=select_account' + '&state=' + encodeURIComponent(redirectTarget() || '/profile.html');
   window.location.href = authUrl;
 }
 </script>
@@ -700,8 +791,8 @@ function handleGoogleSignIn(){
 })();
 </script>
 <script src="/js/notifications.js?v=f8b0c71eed"></script>
-<script src="/js/icon-library.js?v=4e663589a2"></script>
-<script src="/js/slide-icons.js?v=1a760e6595"></script>
+<script src="/js/icon-library.js?v=8ebc04a2fb"></script>
+<script src="/js/slide-icons.js?v=4ef2e99c17"></script>
 <script src="/js/auto-iconify.js?v=49867b897b"></script>
   <script src="/js/logo-handler.js?v=8c0763c579"></script>
 </body>
