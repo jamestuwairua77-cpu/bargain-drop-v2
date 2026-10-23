@@ -1,0 +1,592 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"><title>Cart - Bargain Drop</title><link rel="stylesheet" href="/css/cart-v3.css?v=77eaa8eecf"><style id="bd-rwb-theme">
+/* === BARGAIN DROP: BLACK UI KIT 2.0 (RAGING RED & OBSIDIAN EDITION) === */
+:root {
+  --bg: #121515 !important;
+  --b: #121515 !important;
+  --fg: #ffffff !important;
+  --f: #ffffff !important;
+  --surface: #08090a !important;
+  --surface-2: #121515 !important;
+  --paper: #08090a !important;
+  --card: #08090a !important;
+  --card-bg: #08090a !important;
+  --white: #08090a !important;
+  --dark: #060708 !important;
+  --black: #060708 !important;
+  --muted: #dedede !important;
+  --m: #dedede !important;
+  --meta: #818181 !important;
+  --line: #222425 !important;
+  --line2: #202223 !important;
+  --line-2: #202223 !important;
+  --l: #222425 !important;
+  --l2: #202223 !important;
+  --accent: #fe3442 !important;
+  --red: #fe3442 !important;
+  --r: #fe3442 !important;
+  --lilac: #fe3442 !important;
+  --li: #fe3442 !important;
+  --a: #fe3442 !important;
+  --gold: #fe3442 !important;
+  --teal: #49a66a !important;
+  --t: #49a66a !important;
+  --radius: 8px !important;
+}
+
+html, body {
+  background-color: #121515 !important;
+  background-image: radial-gradient(950px 440px at 88% -6%, rgba(254, 52, 66, 0.16), transparent 65%), radial-gradient(800px 420px at 10% 15%, rgba(211, 43, 63, 0.08), transparent 60%) !important;
+  color: #ffffff !important;
+}
+
+/* Promo Strip: Obsidian Strip with Raging Red #FE3442 Accent */
+.promo-strip, .ps {
+  background: #070809 !important;
+  color: #dedede !important;
+  border-bottom: 1px solid #222425 !important;
+}
+.promo-strip b, .ps b {
+  color: #fe3442 !important;
+}
+
+/* Top Navigation & Headers: Pitch Obsidian with Raging Red PSD Header Splatter Texture */
+.navbar, .nb, .top-bar, .tb, header.navbar, .header, .site-header {
+  background-color: rgba(8, 9, 10, 0.96) !important;
+  background-image: url('/bui-hero-texture.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: right -40px top -30px !important;
+  background-size: 260px auto !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid #222425 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65) !important;
+}
+
+.nav-logo .logo-text, .nlogo .lt, .logo-text {
+  color: #ffffff !important;
+}
+.nav-logo .logo-text span:last-child, .nlogo .lt span:last-child {
+  color: #ffffff !important;
+}
+
+/* Black UI Kit 2.0 Tactile Obsidian Icon Buttons in Navbar */
+.nav-btn, .nbtn, .hamburger-btn, .nav-back {
+  color: #fe3442 !important;
+  background: #060708 !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+  margin-left: 5px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.18s ease !important;
+}
+.nav-btn:hover, .nbtn:hover, .hamburger-btn:hover, .nav-back:hover {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 4px 14px rgba(254, 52, 66, 0.45) !important;
+}
+.nav-badge {
+  background: #fe3442 !important;
+  color: #ffffff !important;
+  border: 1px solid #08090a !important;
+  box-shadow: 0 0 8px rgba(254, 52, 66, 0.6) !important;
+}
+.top-bar a, .tb a {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+/* Recessed PSD Search Bar in Header */
+.nav-search {
+  background: #222425 !important;
+  border: 1px solid #363636 !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55) !important;
+}
+.nav-search input {
+  color: #ffffff !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Trust Ribbon & Badges */
+.trust-ribbon, .tr {
+  background: #08090a !important;
+  color: #dedede !important;
+  border-top: 1px solid #202223 !important;
+  border-bottom: 1px solid #202223 !important;
+  padding: 12px 16px !important;
+}
+.trust-item {
+  color: #dedede !important;
+  font-weight: 700 !important;
+  background: #121515 !important;
+  border: 1px solid #222425 !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+.trust-accent {
+  color: #fe3442 !important;
+  font-weight: 800 !important;
+}
+
+/* Section Headers with Structural Bottom Dividers */
+.section-title, .page-header, .hdr {
+  border-bottom: 1px solid #222425 !important;
+  padding-bottom: 10px !important;
+  margin-bottom: 16px !important;
+}
+.section-title h3, .page-header h1, .hdr h1, .dashboard-title, h1, h2, h3, h4 {
+  color: #ffffff !important;
+}
+.section-title a {
+  color: #ffffff !important;
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  border: 1px solid #fe3442 !important;
+  padding: 5px 12px !important;
+  border-radius: 6px !important;
+  font-weight: 800 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 4px 12px rgba(254, 52, 66, 0.35) !important;
+}
+.section-title a:hover {
+  background: linear-gradient(180deg, #ff4754 0%, #e7254e 100%) !important;
+}
+
+/* Every Card, Box, Panel & Container: Black UI Kit 2.0 Pitch Obsidian + Raging Red Splatter Accent */
+.cat-card, .product-card, .card, .card-list, .dash-card, .menu-list, .cit, .sc, .es,
+.form-card, .summary-card, .checkout-card, .wishlist-item, .order-card, .addr-card,
+.setting-card, .faq-item, .auth-card, .panel, .box, .modal-sheet, .pp-dialog, .search-box, .sobox {
+  background-color: #08090a !important;
+  background-image: url('/bui-card-texture.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: right -30px top -25px !important;
+  background-size: 190px auto !important;
+  color: #ffffff !important;
+  border: 1px solid #222425 !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 32px rgba(0, 0, 0, 0.65) !important;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.cat-card:hover, .product-card:hover, .dash-card:hover, .cit:hover, .order-card:hover {
+  border-color: #fe3442 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 36px rgba(254, 52, 66, 0.24) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Black UI Kit 2.0 Product Card Header, Recessed Image Well & Segmented 3-Cell Footer */
+.bui-card-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 12px 8px !important;
+  gap: 6px !important;
+}
+.bui-card-cat {
+  font-size: 0.64rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: #dedede !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.bui-card-pill, .prod-badge {
+  background: #fe3442 !important;
+  color: #ffffff !important;
+  font-size: 0.62rem !important;
+  font-weight: 800 !important;
+  padding: 2px 8px !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 8px rgba(254, 52, 66, 0.5) !important;
+  flex-shrink: 0 !important;
+}
+
+.prod-img-wrap, .cat-card-img-wrap, .ciimg, .wishlist-img, .order-thumb, .gallery, .modal-item-img {
+  background: #121515 !important;
+  border: 1px solid #202223 !important;
+  border-radius: 6px !important;
+}
+.product-card .prod-img-wrap {
+  margin: 0 10px !important;
+  border-radius: 6px !important;
+}
+.product-card > img, .product-card > .prod-placeholder {
+  width: calc(100% - 20px) !important;
+  margin: 10px 10px 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: cover !important;
+  border-radius: 6px !important;
+  border: 1px solid #202223 !important;
+  background: #121515 !important;
+}
+
+.product-info {
+  padding: 10px 12px !important;
+}
+.bui-card-foot {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1.8fr !important;
+  border-top: 1px solid #202223 !important;
+  background: #060708 !important;
+}
+.bui-foot-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  padding: 9px 6px !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  color: #dedede !important;
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid #202223 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+.bui-foot-btn svg {
+  color: #fe3442 !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0 !important;
+}
+.bui-foot-btn:hover, .bui-foot-btn.liked {
+  background: #121515 !important;
+  color: #fe3442 !important;
+}
+.bui-foot-add {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  padding: 9px 8px !important;
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  border: none !important;
+  cursor: pointer !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  transition: all 0.15s ease !important;
+}
+.bui-foot-add:hover {
+  background: linear-gradient(180deg, #ff4754 0%, #e7254e 100%) !important;
+}
+
+/* Card Typography & Prices */
+.cat-card-label, .product-title, .cititle, .p-title, .wishlist-title, .mi-label, .mi-title, .dc-label, .sect-title, .sect-title .val {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+.product-price, .cipp, .promo-price, .wishlist-price, .stv, .cat-card-shop, .product-stars {
+  color: #fe3442 !important;
+  font-weight: 800 !important;
+}
+.prod-compare, .cipo, .original-price {
+  color: #818181 !important;
+}
+
+/* Floating Action Buttons on Cards */
+.wishlist-btn, .quick-add {
+  background: #060708 !important;
+  color: #fe3442 !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6) !important;
+}
+.wishlist-btn:hover, .wishlist-btn.liked, .quick-add:hover {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+}
+
+/* List Rows & Dividers (Modeled on PSD Weather & Settings Rows) */
+.list-row, .menu-item, .summary-row, .sr, .modal-item {
+  border-bottom: 1px solid #202223 !important;
+  color: #dedede !important;
+}
+.list-row:last-child, .menu-item:last-child, .modal-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Inputs, Selects & Textareas: Recessed #222425 Wells Modeled on PSD Sign Up Form */
+.search-box input, .sobox input, .pf input, .promo-row input, .form-group input, .form-group select,
+input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], input[type="search"], select, textarea {
+  background: #222425 !important;
+  color: #ffffff !important;
+  border: 1px solid #363636 !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #fe3442 !important;
+  outline: none !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(254, 52, 66, 0.25) !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #818181 !important;
+}
+
+/* Primary & Secondary Buttons Modeled on Black UI Kit 2.0 */
+.btn, .btn-primary, .cc, .pay-btn, .promo-apply, .pf button, .es a, .hero-cta, .newsletter-form button {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #fe3442 !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 6px 18px rgba(254, 52, 66, 0.38) !important;
+  font-weight: 800 !important;
+  transition: all 0.18s ease !important;
+}
+.btn:hover, .btn-primary:hover, .cc:hover, .promo-apply:hover, .hero-cta:hover {
+  background: linear-gradient(180deg, #ff4754 0%, #e7254e 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+.btn-secondary, .qbtn, .pagination button, .currency-pill, .pbb {
+  background: #121515 !important;
+  color: #dedede !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+  font-weight: 800 !important;
+}
+.pagination button.active, .currency-pill.active, .qbtn:hover, .pagination button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+}
+.qv, .st {
+  color: #ffffff !important;
+}
+
+/* Slide-Out Menu & Bottom Navigation */
+* {
+  box-sizing: border-box;
+}
+.slide-menu {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 500 !important;
+  pointer-events: none !important;
+}
+.slide-menu.open {
+  pointer-events: auto !important;
+}
+.slide-backdrop {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.55) !important;
+  opacity: 0 !important;
+  transition: opacity 0.25s ease !important;
+}
+.slide-menu.open .slide-backdrop {
+  opacity: 1 !important;
+}
+.slide-panel, .nm {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 280px !important;
+  max-width: 85vw !important;
+  height: 100% !important;
+  padding: 68px 0 24px !important;
+  transform: translateX(100%) !important;
+  transition: transform 0.25s ease !important;
+  overflow-y: auto !important;
+  background-color: #08090a !important;
+  background-image: url('/bui-card-texture.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: right top !important;
+  background-size: 240px auto !important;
+  color: #ffffff !important;
+  border-left: 1px solid #222425 !important;
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.7) !important;
+}
+.slide-menu.open .slide-panel {
+  transform: translateX(0) !important;
+}
+.slide-item, .nm a {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 13px 22px !important;
+  font-size: 0.85rem !important;
+  text-decoration: none !important;
+  color: #dedede !important;
+  border-bottom: 1px solid #202223 !important;
+  font-weight: 700 !important;
+  transition: all 0.15s ease !important;
+}
+.slide-item:hover, .nm a:hover {
+  background: #121515 !important;
+  color: #fe3442 !important;
+  padding-left: 26px !important;
+}
+.slide-ico {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 9px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  color: #ffffff !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  background: #121515 !important;
+  border: 1px solid #222425 !important;
+}
+.slide-heading, .nm h3 {
+  font-size: 0.65rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  padding: 14px 22px 6px !important;
+  color: #fe3442 !important;
+  font-weight: 900 !important;
+}
+.slide-divider {
+  background: #202223 !important;
+  height: 1px !important;
+  margin: 8px 0 !important;
+}
+.slide-close, .nmc {
+  position: absolute !important;
+  top: 16px !important;
+  right: 16px !important;
+  width: 34px !important;
+  height: 34px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  font-size: 1.2rem !important;
+  color: #fe3442 !important;
+  background: #121515 !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+}
+.slide-close:hover, .nmc:hover {
+  background: #fe3442 !important;
+  color: #ffffff !important;
+}
+
+.bottom-nav {
+  background: #08090a !important;
+  color: #dedede !important;
+  border-top: 1px solid #222425 !important;
+}
+.bottom-nav a {
+  color: #818181 !important;
+  font-weight: 700 !important;
+}
+.bottom-nav a.active, .bottom-nav a:hover {
+  color: #fe3442 !important;
+}
+
+/* Hero Banner */
+.hero {
+  background: #08090a !important;
+  border-bottom: 1px solid #222425 !important;
+}
+.hero-content h2 {
+  color: #ffffff !important;
+}
+.hero-badge {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #fe3442 !important;
+  border-radius: 6px !important;
+}
+
+/* Footer: Obsidian with Raging Red Top Border */
+.site-footer {
+  background: #070809 !important;
+  color: #dedede !important;
+  border-top: 2px solid #fe3442 !important;
+}
+.site-footer h4, .site-footer h5 {
+  color: #ffffff !important;
+}
+.site-footer a, .site-footer p, .footer-payments, .footer-legal {
+  color: #818181 !important;
+}
+.site-footer a:hover {
+  color: #fe3442 !important;
+}
+.newsletter-form input {
+  background: #222425 !important;
+  color: #ffffff !important;
+  border: 1px solid #363636 !important;
+  border-radius: 6px !important;
+}
+</style></head><body><div class="ps"><span>Free Shipping A$29+<span class="sp"></span>SSL Encrypted<span class="sp"></span>Verified Seller<span class="sp"></span>30-Day Returns</span></div><nav class="nb" id="nb">
+    <a href="/" class="nav-logo" aria-label="Bargain Drop Home" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;margin-right:auto;"><img src="/official-logo.jpg" alt="Bargain Drop Logo" style="width:36px;height:36px;object-fit:contain;border-radius:8px;flex-shrink:0;filter:drop-shadow(0 2px 8px rgba(255,26,60,0.45));" /><div class="logo-text" style="font-size:1.12rem;font-weight:900;letter-spacing:-0.4px;text-transform:uppercase;font-family:system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:#ffffff;"><span style="color:#ff1a3c!important;font-weight:900;">BARGAIN</span> <span style="color:#ffffff!important;font-weight:900;">DROP</span></div></a>
+    <div class="na">
+      <button class="nbtn" onclick="so()" aria-label="Search">
+        <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+      <a href="wishlist.html" class="nbtn" aria-label="Wishlist">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </a>
+      <a href="cart.html" class="nbtn" aria-label="Cart">
+        <svg width="20" height="20" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span class="nbadge" id="ncb" style="display:none">0</span>
+      </a>
+      <a href="notification-center.html" class="nbtn" aria-label="Notifications">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="nbadge" id="nav-notif-count" style="display:none">0</span>
+      </a>
+      <button class="nbtn hamburger-btn" onclick="document.getElementById('slide-menu').classList.toggle('open')" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+
+    </div>
+  </nav>
+<!-- SEARCH OVERLAY -->
+<div class="so" id="so" onclick="this.classList.remove('on')"><div class="sobox" onclick="event.stopPropagation()"><input id="sinput" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
+<div class="slide-menu" id="slide-menu">
+  <div class="slide-backdrop" onclick="document.getElementById('slide-menu').classList.remove('open')"></div>
+  <div class="slide-panel">
+    <button class="slide-close" onclick="document.getElementById('slide-menu').classList.remove('open')">&times;</button>
+    <div class="slide-heading">Shop</div>
+    <a href="/" class="slide-item"><span class="slide-ico">H</span>Home</a>
+    <a href="category.html" class="slide-item"><span class="slide-ico">C</span>All Categories</a>
+    <a href="wishlist.html" class="slide-item"><span class="slide-ico">W</span>Wishlist</a>
+    <a href="cart.html" class="slide-item"><span class="slide-ico">C</span>Cart</a>
+    <div class="slide-divider"></div>
+    <div class="slide-heading">Account</div>
+    <div id="bd-slide-auth"></div>
+    <div id="bd-slide-guest"></div>
+    <div class="slide-divider"></div>
+    <div class="slide-heading">Support</div>
+    <a href="customer-service.html" class="slide-item"><span class="slide-ico">S</span>Customer Service</a>
+    <a href="policy.html" class="slide-item"><span class="slide-ico">P</span>Privacy Policy</a>
+    <a href="/logos.html" class="slide-item"><span class="slide-ico" style="background:linear-gradient(135deg,#ff1a3c,#e60023);color:#fff;">🎨</span>Custom Logos</a>
+  </div>
+</div>
+<div class="tb"><a href="products.html">&larr; Continue Shopping</a><div>Free Shipping A$29+</div></div><div class="w"><div class="bc"><a href="products.html">Shop</a> &rarr; Cart</div><div class="hdr"><h1>&#x1f6d2; Cart</h1><span class="badge" id="ccb"></span></div><p class="sub" id="cic">0 items</p><div id="fs-bar" style="display:none;margin-bottom:14px;padding:11px 14px;background:#08090a;border:1px solid #222425;border-radius:8px;font-size:0.78rem;font-weight:700;color:#dedede;"></div><div class="ci" id="ci"></div><div class="es" id="es"><div class="ic">&#x1f6d2;</div><h2>Your cart is empty</h2><p>Start shopping and add items to your cart</p><a href="products.html">Browse Products</a></div><div class="ss" id="ss"><div class="sh">&#x1f4b0; Order Summary</div><button class="pt" onclick="tp()">&#x1f3ab; Have a promo code?</button><div class="pf" id="pf"><input id="pi" placeholder="Enter code (e.g. BARGAIN26)" type="text"><button onclick="ap()">Apply</button></div><div class="pa" id="pa"><span>&#x1f3ab; <span id="pcn"></span></span><span id="psv"></span><button onclick="rp()">&#x2715;</button></div><div class="sc"><div class="sr srm"><span>Subtotal</span><span id="ssb">A$0.00</span></div><div class="sr srs"><span>&#x1f69a; Shipping</span><span id="ssh">Calculated at checkout</span></div><div class="sr srm" id="pl" style="display:none"><span>Discount</span><span id="sdi" style="color:var(--g)"></span></div><hr class="sd"><div class="st"><span>Total</span><span class="stv" id="sto">A$0.00</span></div></div><a href="checkout.html" class="cc">&#x1f512; Proceed to Secure Checkout</a><a href="products.html" class="cl">&larr; Continue Shopping</a><div class="pb"><div class="pbb">VISA</div><div class="pbb">MC</div><div class="pbb">AMEX</div><div class="pbb">PayPal</div></div><div class="tr"><span>&#x1f512; Secure 256-bit SSL</span><span>&#x1f504; Free 30-Day Returns</span><span>&#x2705; Verified Seller</span></div><a href="customer-service.html" class="sl">&#x1f4ac; Need help? Contact Support</a></div></div><div class="to" id="to"></div><script src="/js/wishlist.js?v=62082f1254"></script><script src="/js/cart-v3.js?v=d61c690bce"></script><script>var _nl=0;window.addEventListener("scroll",function(){var n=document.getElementById("nb"),s=window.scrollY;if(!n)return;if(s<_nl||s<100)n.classList.remove("hi");else if(s>_nl&&s>200)n.classList.add("hi");_nl=s},{passive:true});function so(){var o=document.getElementById("so"),i=document.getElementById("sinput");if(!o)return;o.classList.add("on");if(i)setTimeout(function(){i.focus()},50)}function tm(){var m=document.getElementById("nm"),o=document.getElementById("nmo");if(!m||!o)return;m.classList.toggle("on");o.classList.toggle("on");document.body.style.overflow=m.classList.contains("on")?"hidden":""}</script><script>(function(){try{var sess=null;try{sess=JSON.parse(localStorage.getItem('bd_session')||'null');}catch(e){}var signedIn=!!(sess&&sess.email)||!!localStorage.getItem('bd_user_email');var A=document.getElementById('bd-slide-auth');var G=document.getElementById('bd-slide-guest');if(!A||!G)return;function mi(href,letter,label,bg){return '<a href="'+href+'" class="slide-item"><span class="slide-ico" style="'+(bg||'')+'">'+letter+'</span>'+label+'</a>';}var owned=[["profile.html","P","My Account"],["orders.html","O","Orders"],["account-info.html","I","Profile Info"],["addresses.html","A","Addresses"],["payment-methods.html","P","Payment Methods"],["returns.html","R","Returns"],["wallet.html","W","Wallet"],["gift-cards.html","G","Gift Cards"]];if(signedIn){A.innerHTML=owned.map(function(o){return mi(o[0],o[1],o[2]);}).join('')+mi('#','S','Sign Out','background:#e60023;color:#fff');G.style.display='none';var so=A.querySelector('a[href="#"]');if(so){so.onclick=function(e){e.preventDefault();var ks=[];for(var i=0;i<localStorage.length;i++)ks.push(localStorage.key(i));ks.forEach(function(k){if(k.indexOf('bd_')===0&&k!=='bd_cart')localStorage.removeItem(k);});fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signout'})}).catch(function(){});location.href='/';};}}else{A.style.display='none';G.innerHTML=mi('sign-in.html','S','Sign In')+mi('register.html','C','Create Account');}}catch(e){}})();if(window.BDIconifySlide){window.BDIconifySlide.iconify();}</script><script>
+(function(){try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("ncb");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}})();
+</script>
+
+<!-- Bargain Drop Support Widget -->
+<script>
+(function(w,d){
+  w.BD_CHAT = w.BD_CHAT || { config: { api: (w.location && w.location.origin) || "https://bargain-drop.online" } };
+  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css?v=c24b56a615"; d.head.appendChild(c);
+  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js?v=8c6808c9c4"; d.body.appendChild(j);
+})(window,document);
+</script><script src="/js/notifications.js?v=f8b0c71eed"></script>
+<script src="/js/icon-library.js?v=4e663589a2"></script>
+<script src="/js/slide-icons.js?v=1a760e6595"></script>
+<script src="/js/auto-iconify.js?v=49867b897b"></script>
+  <script src="/js/logo-handler.js?v=8c0763c579"></script>
+</body></html>
