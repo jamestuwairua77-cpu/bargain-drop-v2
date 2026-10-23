@@ -1,0 +1,95 @@
+[
+  {
+    "id": "u_seed_001",
+    "email": "admin@bargain-drop.online",
+    "name": "Store Admin",
+    "provider": "email",
+    "created_at": "2026-07-01T00:00:00.000Z",
+    "last_login_at": "2026-07-27T00:00:00.000Z",
+    "login_count": 12,
+    "ip": "127.0.0.1"
+  },
+  {
+    "id": "u-1786218108962",
+    "email": "customer@bargaindrop.com",
+    "name": "Sarah Connor",
+    "password": "02502538fc1e095d07b315bbce634fceae5846577eeeca1d2a02d8c3109060e65503b88eedfdbb7e270949a4298a5dc150a78764ca4dd00ae759e19a27b64e8c:0475a9e77ebf3db8569b49ae0836ffed",
+    "provider": "email",
+    "emailVerified": false,
+    "phone": "+61 400 000 000",
+    "addresses": [
+      {
+        "name": "Sarah Connor",
+        "line1": "42 Wallaby Way",
+        "city": "Sydney",
+        "state": "NSW",
+        "zip": "2000",
+        "country": "AU",
+        "phone": "+61400000000",
+        "isDefault": true
+      }
+    ],
+    "picture": null,
+    "createdAt": "2026-08-08T19:41:48.962Z"
+  },
+  {
+    "id": "u-1788031010359",
+    "email": "Jamestuwairua78@gmail.com",
+    "name": "Heemi",
+    "first_name": null,
+    "last_name": null,
+    "phone": null,
+    "addresses": null,
+    "password": "2187a3145aa06498b4088e36701168ecab0268639ee6ac15869be029305c1e7e33db20bba0387cba01f47aaf24a9aa6bef5ca1aaa0b4c4028f4b30f8ed638086:95569790a7b4f6e669b34572d03a4384",
+    "provider": "email",
+    "credits": 0,
+    "createdAt": "2026-08-29T19:16:50.359Z"
+  },
+  {
+    "id": "u-1786218341200",
+    "email": "jamestuwairua77@gmail.com",
+    "name": "James Tuwairua",
+    "password": "c354b331b70a03e218af2d5f29380ec17503541e5ec33da93ee11628d35647d80fabd91b4fc38f0f4afe25a87150c9ea876c64ede8fe08a504529cdaa76e194e:5f8bf8b7ed07948e6a008e1ce774678a",
+    "provider": "email",
+    "emailVerified": false,
+    "verificationCode": "297968",
+    "createdAt": "2026-08-08T19:45:41.200Z",
+    "updatedAt": "2026-09-05T09:50:00Z",
+    "picture": "https://lh3.googleusercontent.com/a/ACg8ocLL5F-_IlONkYb3P80iULI4sDS66NcYMNzce_xlE1qzfuEvkg=s96-c",
+    "first_name": "James",
+    "last_name": "Tuwairua",
+    "google_id": "u-1788039424572",
+    "username": "Heeworrior",
+    "credits": 0,
+    "phone": "+61460507911"
+  },
+  {
+    "id": "u-1788554071533",
+    "email": "shaegrant685@gmail.com",
+    "name": "Shae Grant",
+    "username": "shae",
+    "picture": null,
+    "first_name": null,
+    "last_name": null,
+    "phone": null,
+    "addresses": null,
+    "password": "56b530c72893afe8ad81bd3d4b4220cd0b608aaa831a4fa6bdf37b624526ff2a52c6d057958c5faaf6427531265a8a0e4093c8db924c22234f381a7f951c711a:09c4ee87a594b9d3b5691df63ff2741e",
+    "provider": "email",
+    "credits": 0,
+    "createdAt": "2026-09-04T20:34:31.533Z"
+  },
+  {
+    "id": "u-1789229889537",
+    "email": "heemituwairua4@gmail.com",
+    "name": null,
+    "username": "Heemi Tuwairua",
+    "picture": "https://lh3.googleusercontent.com/a/ACg8ocJevXXu-tdDlEy3wpt6u0lULhUg6yYSoMQgFMUwuh7CSy5d5Q=s96-c",
+    "first_name": "Heemi",
+    "last_name": "Tuwairua",
+    "phone": null,
+    "addresses": null,
+    "provider": "google",
+    "credits": 0,
+    "createdAt": "2026-09-12T16:18:09.537Z"
+  }
+]
