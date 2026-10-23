@@ -156,6 +156,19 @@ export async function onRequest(context) {
   const email = body.email ? String(body.email).trim().toLowerCase() : '';
   const cleanUsername = (username || name || (email ? email.split('@')[0] : '')).trim();
 
+  if (action === 'me') {
+    const userId = await verifySessionCookie(parseCookies(request)[COOKIE_NAME], env);
+    if (!userId) return json({ ok: false, user: null });
+    try {
+      const { users } = await loadUsersWithSha(env);
+      const u = users.find((x) => x.id === userId);
+      if (!u) return json({ ok: false, user: null });
+      return json({ ok: true, user: safeUser(u) });
+    } catch {
+      return json({ ok: false, user: null });
+    }
+  }
+
   if (action === 'signout') {
     return new Response(JSON.stringify({ success: true }), {
       headers: {
