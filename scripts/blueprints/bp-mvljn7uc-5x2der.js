@@ -1,0 +1,7 @@
+name = "bargain-drop"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[limits]
+subrequests = 1000
+cpu_ms = 300000
