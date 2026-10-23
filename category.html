@@ -63,6 +63,75 @@
 .nav-logo .bd-red, .nlogo .bd-red, .logo-text .bd-red, .lt .bd-red { color: #ff1a3c !important; font-weight: 900; }
 .nav-logo .bd-white, .nlogo .bd-white, .logo-text .bd-white, .lt .bd-white { color: #ffffff !important; font-weight: 900; }
 
+
+/* === 2026-04-21 GLOBAL STOREFRONT LAYOUT & SLIDE-MENU CONTAINMENT === */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.slide-menu {
+  display: none !important;
+}
+.slide-menu.open {
+  display: block !important;
+}
+.product-grid, .related-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+@media (max-width: 640px) {
+  .product-grid, .related-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+.product-card, .rel-card {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.product-card .card-img, .rel-card .rc-img {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+}
+.product-card .card-img img, .rel-card .rc-img img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+.product-card .card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  justify-content: space-between !important;
+  min-width: 0 !important;
+}
+.product-card .card-title, .rel-card .rc-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  min-height: 2.7em !important;
+  word-break: break-word !important;
+}
+.desc-body, #desc-body, .desc-overview, .pdesc {
+  overflow-x: hidden !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+}
+.desc-body *, #desc-body *, .pdesc * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 </style><script src="/js/currency.js?v=282a4853cc"></script><style>
 :root{--nav-h:54px;--promo-h:28px;--lilac: #ff1a3c;--teal: #ffd600;--accent: #ff1a3c;--dark: #000000;--pill:9999px}
 body{padding-top:calc(var(--nav-h) + var(--promo-h))}
@@ -997,8 +1066,8 @@ function collapseSearch(e){
 })();
 </script>
 <script src="/js/notifications.js?v=f8b0c71eed"></script>
-<script src="/js/icon-library.js?v=4e663589a2"></script>
-<script src="/js/slide-icons.js?v=1a760e6595"></script>
+<script src="/js/icon-library.js?v=8ebc04a2fb"></script>
+<script src="/js/slide-icons.js?v=4ef2e99c17"></script>
 <script src="/js/auto-iconify.js?v=49867b897b"></script>
   <script src="/js/logo-handler.js?v=8c0763c579"></script>
 </body></html>
