@@ -361,7 +361,7 @@ Tap "Shop Now" before this drop sells out!
         </div>
 
         
-        <!-- 1-Click Cloudflare www.bargain-drop.online DNS Fixer -->
+        <!-- 1-Click Cloudflare bargain-drop.online DNS Fixer -->
         <div class="obsidian-card p-6 border-[#facc15]/40">
           <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#22262a]">
             <div>
@@ -369,10 +369,10 @@ Tap "Shop Now" before this drop sells out!
                 <span>🌐 Domain &amp; Subdomain Status</span>
               </div>
               <h3 class="text-lg font-extrabold text-white font-display">
-                Live at <a href="https://bargain-drop.online/adpulse" class="text-[#22c55e] underline">https://bargain-drop.online/adpulse</a> · Enable <code class="text-[#facc15]">www.bargain-drop.online</code>
+                Live at <a href="https://bargain-drop.online/adpulse" class="text-[#22c55e] underline">https://bargain-drop.online/adpulse</a> · Enable <code class="text-[#facc15]">bargain-drop.online</code>
               </h3>
               <p class="text-xs text-[#9ca3af] mt-1">
-                Your root domain <strong class="text-white">https://bargain-drop.online/adpulse</strong> is live (HTTP 200). Currently, <code class="text-[#facc15]">www.bargain-drop.online</code> has no CNAME record in Cloudflare DNS (Zone <code class="text-white">557180fc0420b27f1e5216df26702e55</code>). Paste a Cloudflare API Token below to automatically create the <code class="text-white">www &rarr; bargain-drop.online</code> DNS record, or add a CNAME record for <code class="text-white">www</code> in your Cloudflare Dashboard.
+                Your root domain <strong class="text-white">https://bargain-drop.online/adpulse</strong> is live (HTTP 200). Currently, <code class="text-[#facc15]">bargain-drop.online</code> has no CNAME record in Cloudflare DNS (Zone <code class="text-white">557180fc0420b27f1e5216df26702e55</code>). Paste a Cloudflare API Token below to automatically create the <code class="text-white">www &rarr; bargain-drop.online</code> DNS record, or add a CNAME record for <code class="text-white">www</code> in your Cloudflare Dashboard.
               </p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
@@ -875,7 +875,7 @@ Meet the ${title} — now locked at just ${price} AUD on Bargain Drop! 🇦🇺
         const d = await r.json().catch(() => ({}));
         if (r.ok && d.ok) {
           statusEl.textContent = "✅ " + d.message;
-          showToast("✅ www.bargain-drop.online DNS record created!");
+          showToast("✅ bargain-drop.online DNS record created!");
         } else {
           statusEl.textContent = "⚠️ " + (d.error || "Failed to create DNS record. In Cloudflare Dashboard -> DNS, add CNAME www -> bargain-drop.online.");
         }
