@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AdPulse — AI Ad Campaign &amp; Growth Engine | Bargain Drop</title>
-  <meta name="description" content="AdPulse AI Marketing, Ad Creative Studio, ROAS Analytics & Source Deployment Hub at www.bargain-drop.online/adpulse" />
+  <meta name="description" content="AdPulse AI Marketing, Ad Creative Studio, ROAS Analytics & Source Deployment Hub at bargain-drop.online/adpulse" />
   <link rel="icon" type="image/jpeg" href="/official-logo.jpg" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -85,7 +85,7 @@
                 LIVE ENGINE
               </span>
             </div>
-            <p class="text-[10px] text-[#818181] font-mono-code truncate">www.bargain-drop.online/adpulse</p>
+            <p class="text-[10px] text-[#818181] font-mono-code truncate">bargain-drop.online/adpulse</p>
           </div>
         </a>
       </div>
@@ -346,7 +346,7 @@ Tap "Shop Now" before this drop sells out!
               Source URL: <span class="text-[#facc15] font-mono-code text-sm sm:text-base break-all">https://ais-dev-wrs5hmf4cczk23rjbcfxrw-128115771016.asia-east1.run.app/</span>
             </h2>
             <p class="text-xs text-[#9aa0a6] mt-1 max-w-3xl">
-              Because <code class="text-white">ais-dev-wrs5hmf4cczk23rjbcfxrw-128115771016.asia-east1.run.app</code> is a private Google AI Studio dev container gated by your browser login cookie, you can either launch/connect to it below OR drop its exported HTML/source files here to overwrite <code class="text-[#facc15]">www.bargain-drop.online/adpulse</code> in one click.
+              Because <code class="text-white">ais-dev-wrs5hmf4cczk23rjbcfxrw-128115771016.asia-east1.run.app</code> is a private Google AI Studio dev container gated by your browser login cookie, you can either launch/connect to it below OR drop its exported HTML/source files here to overwrite <code class="text-[#facc15]">bargain-drop.online/adpulse</code> in one click.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0">
@@ -360,11 +360,37 @@ Tap "Shop Now" before this drop sells out!
           </div>
         </div>
 
-        <!-- 1-Click Custom HTML / Source Publisher to www.bargain-drop.online/adpulse -->
+        
+        <!-- 1-Click Cloudflare www.bargain-drop.online DNS Fixer -->
+        <div class="obsidian-card p-6 border-[#facc15]/40">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#22262a]">
+            <div>
+              <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#facc15] mb-1">
+                <span>🌐 Domain &amp; Subdomain Status</span>
+              </div>
+              <h3 class="text-lg font-extrabold text-white font-display">
+                Live at <a href="https://bargain-drop.online/adpulse" class="text-[#22c55e] underline">https://bargain-drop.online/adpulse</a> · Enable <code class="text-[#facc15]">www.bargain-drop.online</code>
+              </h3>
+              <p class="text-xs text-[#9ca3af] mt-1">
+                Your root domain <strong class="text-white">https://bargain-drop.online/adpulse</strong> is live (HTTP 200). Currently, <code class="text-[#facc15]">www.bargain-drop.online</code> has no CNAME record in Cloudflare DNS (Zone <code class="text-white">557180fc0420b27f1e5216df26702e55</code>). Paste a Cloudflare API Token below to automatically create the <code class="text-white">www &rarr; bargain-drop.online</code> DNS record, or add a CNAME record for <code class="text-white">www</code> in your Cloudflare Dashboard.
+              </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <input id="cf-dns-token" type="password" placeholder="Cloudflare API Token (Zone.DNS)"
+                class="bg-[#0b0d0f] border border-[#262a30] rounded-lg px-3 py-2 text-xs text-white focus:border-[#facc15] focus:outline-none w-56" />
+              <button onclick="provisionWwwDns()" id="btn-www-dns" class="px-4 py-2 rounded-lg text-xs font-extrabold bg-[#facc15] text-[#08090a] hover:bg-[#fde047] transition-all">
+                ⚡ Fix www DNS
+              </button>
+            </div>
+          </div>
+          <div id="www-dns-status" class="hidden mt-3 p-3 rounded-lg bg-[#0b0d0f] border border-[#262a30] text-xs font-mono-code text-[#22c55e]"></div>
+        </div>
+
+        <!-- 1-Click Custom HTML / Source Publisher to bargain-drop.online/adpulse -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
           <div class="lg:col-span-6 space-y-3">
             <h3 class="font-display text-base font-extrabold text-white">
-              🚀 Publish Custom Source Code Directly to <span class="text-[#fe3442]">www.bargain-drop.online/adpulse</span>
+              🚀 Publish Custom Source Code Directly to <span class="text-[#fe3442]">bargain-drop.online/adpulse</span>
             </h3>
             <p class="text-xs text-[#818181]">
               Upload an <code class="text-white">index.html</code> file or paste the HTML/JS code from your source app below, enter your Admin PIN (<code class="text-white">03091996</code>), and click <strong>Deploy Live to /adpulse</strong>.
@@ -374,14 +400,14 @@ Tap "Shop Now" before this drop sells out!
               <input type="file" id="source-file-input" accept=".html,.htm,.txt,.js,.tsx" class="text-xs text-[#9aa0a6] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-extrabold file:bg-[#171a1d] file:text-white hover:file:bg-[#fe3442]" onchange="loadUploadedSourceFile(this)" />
             </div>
 
-            <textarea id="custom-adpulse-html" rows="10" placeholder="Paste full <!DOCTYPE html>... code from your source app here to replace www.bargain-drop.online/adpulse..."
+            <textarea id="custom-adpulse-html" rows="10" placeholder="Paste full <!DOCTYPE html>... code from your source app here to replace bargain-drop.online/adpulse..."
               class="w-full bg-[#08090a] border border-[#22262a] focus:border-[#facc15] rounded-xl p-3 font-mono-code text-xs text-white outline-none"></textarea>
 
             <div class="flex flex-wrap items-center gap-3">
               <input id="deploy-pin" type="password" value="03091996" placeholder="Admin PIN (03091996)"
                 class="bg-[#08090a] border border-[#22262a] rounded-lg px-3 py-2 text-xs text-white font-mono-code w-44 outline-none" />
               <button onclick="deployCustomAdPulseLive()" id="deploy-live-btn" class="px-5 py-2.5 rounded-lg text-xs font-extrabold btn-red">
-                ⚡ Deploy Live to www.bargain-drop.online/adpulse
+                ⚡ Deploy Live to bargain-drop.online/adpulse
               </button>
             </div>
             <div id="deploy-status-msg" class="text-xs font-bold text-[#22c55e] hidden"></div>
@@ -615,7 +641,7 @@ Tap "Shop Now" before this drop sells out!
       box.textContent = 'Generating high-converting hooks, ad copy, and targeting for ' + title + '...';
 
       try {
-        const prompt = `Create a high-converting ${platform} ad creative pack for Bargain Drop (www.bargain-drop.online).
+        const prompt = `Create a high-converting ${platform} ad creative pack for Bargain Drop (bargain-drop.online).
 Product: ${title}
 Price: ${price} AUD
 Angle: ${angle}
@@ -667,7 +693,7 @@ Meet the ${title} — now locked at just ${price} AUD on Bargain Drop! 🇦🇺
 🎯 ${angle}
 ✅ Free Express Shipping on orders over A$29 AUD
 ✅ 30-Day Money-Back Guarantee
-👉 Tap "Shop Now" at www.bargain-drop.online before stock runs out!
+👉 Tap "Shop Now" at bargain-drop.online before stock runs out!
 
 🎯 HIGH-CTR HEADLINES:
 • ${title} — Only ${price} AUD Today
@@ -785,7 +811,7 @@ Meet the ${title} — now locked at just ${price} AUD on Bargain Drop! 🇦🇺
       }
 
       btn.disabled = true;
-      btn.textContent = '⏳ Deploying to www.bargain-drop.online/adpulse...';
+      btn.textContent = '⏳ Deploying to bargain-drop.online/adpulse...';
       statusEl.classList.remove('hidden');
       statusEl.textContent = 'Pushing to live repository & Cloudflare edge...';
 
@@ -801,8 +827,8 @@ Meet the ${title} — now locked at just ${price} AUD on Bargain Drop! 🇦🇺
         });
         const d = await res.json().catch(() => ({}));
         if (res.ok && d.repoApplied) {
-          statusEl.textContent = '✅ Deployed live to www.bargain-drop.online/adpulse (Commit: ' + (d.commitSha || 'applied').slice(0, 8) + ')!';
-          showToast('✅ Published live to www.bargain-drop.online/adpulse!');
+          statusEl.textContent = '✅ Deployed live to bargain-drop.online/adpulse (Commit: ' + (d.commitSha || 'applied').slice(0, 8) + ')!';
+          showToast('✅ Published live to bargain-drop.online/adpulse!');
         } else {
           // Try local server endpoint fallback
           const localRes = await fetch('/api/adpulse/deploy', {
@@ -812,7 +838,7 @@ Meet the ${title} — now locked at just ${price} AUD on Bargain Drop! 🇦🇺
           });
           const localData = await localRes.json().catch(() => ({}));
           if (localRes.ok && localData.ok) {
-            statusEl.textContent = '✅ Deployed to local & live www.bargain-drop.online/adpulse!';
+            statusEl.textContent = '✅ Deployed to local & live bargain-drop.online/adpulse!';
             showToast('✅ Deployed live!');
           } else {
             throw new Error(d.error || localData.error || 'Deploy failed');
@@ -822,11 +848,45 @@ Meet the ${title} — now locked at just ${price} AUD on Bargain Drop! 🇦🇺
         statusEl.textContent = '⚠️ Error: ' + e.message;
       } finally {
         btn.disabled = false;
-        btn.textContent = '⚡ Deploy Live to www.bargain-drop.online/adpulse';
+        btn.textContent = '⚡ Deploy Live to bargain-drop.online/adpulse';
       }
     }
 
     // Sync real store orders revenue if available
+    
+    async function provisionWwwDns() {
+      const token = document.getElementById("cf-dns-token").value.trim();
+      const statusEl = document.getElementById("www-dns-status");
+      const btn = document.getElementById("btn-www-dns");
+      statusEl.classList.remove("hidden");
+      if (!token) {
+        statusEl.textContent = "⚠️ Enter a Cloudflare API Token (or in Cloudflare Dashboard -> DNS -> Records, add: Type CNAME, Name www, Target bargain-drop.online, Proxied ON).";
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "⏳ Configuring DNS...";
+      statusEl.textContent = "Creating CNAME www -> bargain-drop.online on Cloudflare Zone 557180fc0420b27f1e5216df26702e55...";
+      try {
+        const r = await fetch("/api/adpulse/setup-www-dns", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cloudflareToken: token })
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d.ok) {
+          statusEl.textContent = "✅ " + d.message;
+          showToast("✅ www.bargain-drop.online DNS record created!");
+        } else {
+          statusEl.textContent = "⚠️ " + (d.error || "Failed to create DNS record. In Cloudflare Dashboard -> DNS, add CNAME www -> bargain-drop.online.");
+        }
+      } catch (e) {
+        statusEl.textContent = "⚠️ " + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "⚡ Fix www DNS";
+      }
+    }
+
     async function syncLiveOrdersMetrics() {
       try {
         const r = await fetch('/api/admin/orders?pin=03091996');
