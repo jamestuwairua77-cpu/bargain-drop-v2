@@ -63,20 +63,20 @@
     opt55: `<svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="34" height="34" rx="8" stroke="#ff1a3c" stroke-width="2.5" fill="#0a0a0f"/><path d="M11 6.5H17.5C21.5 6.5 24.5 9 24.5 12.5C24.5 15 22.5 16.8 19.5 17.3C23.5 18 25.5 21 25.5 24.5C25.5 28.5 22.5 31H11Z" fill="none" stroke="#ff1a3c" stroke-width="10.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M11 6.5H17.5C21.5 6.5 24.5 9 24.5 12.5C24.5 15 22.5 16.8 19.5 17.3C23.5 18 25.5 21 25.5 24.5C25.5 28.5 22.5 31H11Z" fill="none" stroke="#0a0a0f" stroke-width="5.4" stroke-linejoin="round" stroke-linecap="round"/><path d="M11 6.5H17.5C21.5 6.5 24.5 9 24.5 12.5C24.5 15 22.5 16.8 19.5 17.3C23.5 18 25.5 21 25.5 24.5C25.5 28.5 22.5 31H11Z" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/><path d="M12 20L20 28L28 20V14L20 22L12 14V20Z" fill="#ffd600" stroke="#0a0a0f" stroke-width="1"/></svg>`
   };
 
-  const TITLE_HTML = `<div class="logo-text" style="font-size:0.92rem;font-weight:900;letter-spacing:-0.4px;text-transform:uppercase;font-family:system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:#0a0a0a;"><span style="color:#ff1a3c!important;font-weight:900;">BARGAIN</span> <span style="color:#ffffff!important;font-weight:900;">DROP</span></div>`;
+  const TITLE_HTML = `<div class="logo-text" style="font-size:0.84rem;font-weight:900;letter-spacing:-0.4px;text-transform:uppercase;font-family:system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;color:#0a0a0a;"><span style="color:#ff1a3c!important;font-weight:900;">BARGAIN</span> <span style="color:#ffffff!important;font-weight:900;">DROP</span></div>`;
 
   function applyLogo(logoKey) {
     const key = LOGO_TEMPLATES[logoKey] ? logoKey : "opt_official";
     let template = LOGO_TEMPLATES[key];
     if (!template.includes("logo-text")) {
-      template = `<div style="width:30px;height:30px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;">${template}</div>${TITLE_HTML}`;
+      template = `<div style="width:28px;height:28px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;">${template}</div>${TITLE_HTML}`;
     }
-    localStorage.setItem("bd_selected_logo", key);
+    try { localStorage.setItem("bd_selected_logo", key); } catch (e) {}
     document.querySelectorAll(".nav-logo, .nlogo, .bd-logo-custom, #nav-logo-container").forEach((el) => {
       if (el) {
         el.style.display = "inline-flex";
         el.style.alignItems = "center";
-        el.style.gap = "6px";
+        el.style.gap = "5px";
         el.style.textDecoration = "none";
         el.innerHTML = template;
       }
@@ -88,7 +88,9 @@
     getCurrent: () => "opt_official"
   };
 
-  document.addEventListener("DOMContentLoaded", () => {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => applyLogo("opt_official"));
+  } else {
     applyLogo("opt_official");
-  });
+  }
 })();
