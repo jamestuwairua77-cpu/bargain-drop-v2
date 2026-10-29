@@ -190,5 +190,17 @@
   Cache-Control: no-cache, no-store, must-revalidate
 /wishlist
   Cache-Control: no-cache, no-store, must-revalidate
+/admin-orders.html
+  Cache-Control: private, no-cache, no-store, must-revalidate
+  Vary: Cookie, Authorization
+/admin-orders
+  Cache-Control: private, no-cache, no-store, must-revalidate
+  Vary: Cookie, Authorization
+/api/*
+  Cache-Control: private, no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Vary: Cookie, Authorization
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
 /
   Cache-Control: no-cache, no-store, must-revalidate
