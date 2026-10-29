@@ -341,3 +341,155 @@ img, video, iframe, table { max-width: 100%; height: auto; }
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+
+/* === RESPONSIVE NAVBAR ICON BUTTONS FIT FIX === */
+.navbar, .nb, header.navbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 54px !important;
+  padding: 0 10px !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  box-sizing: border-box !important;
+}
+.nav-logo, .nlogo {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  flex-shrink: 1 !important;
+  margin-right: 6px !important;
+}
+.nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li {
+  width: 28px !important;
+  height: 28px !important;
+  flex-shrink: 0 !important;
+}
+.nav-logo .logo-text, .nlogo .lt {
+  font-size: 0.86rem !important;
+  gap: 3px !important;
+}
+.nav-actions, .nact, .na, .nav-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+.nav-btn, .nbtn, .hamburger-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.nav-btn svg, .nbtn svg, .hamburger-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+@media (min-width: 640px) {
+  .navbar, .nb, header.navbar {
+    padding: 0 16px !important;
+  }
+  .nav-logo, .nlogo {
+    gap: 8px !important;
+  }
+  .nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .nav-logo .logo-text, .nlogo .lt {
+    font-size: 1.05rem !important;
+    gap: 5px !important;
+  }
+  .nav-actions, .nact, .na, .nav-right {
+    gap: 6px !important;
+  }
+  .nav-btn, .nbtn, .hamburger-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+  .nav-btn svg, .nbtn svg, .hamburger-btn svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
+
+/* === MODULE 1: FLUID WRAPPERS (320px+) & 44x44px BUTTON INFRASTRUCTURE === */
+.bd-container, .container-fluid-safe {
+  width: min(100% - 2rem, 1280px);
+  margin-inline: auto;
+}
+
+@media (min-width: 640px) {
+  .bd-container, .container-fluid-safe {
+    width: min(100% - 3rem, 1280px);
+  }
+}
+
+.bd-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .bd-grid-responsive {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .bd-grid-responsive {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+button, a.btn, .bd-btn, .cta-btn, .checkout-btn, .submit-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bd-btn, a.bd-btn, button.bd-btn, .cta-btn, .checkout-btn, .submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 0.625rem 1.125rem;
+  border-radius: var(--radius);
+  font-size: clamp(0.8125rem, 1.8vw, 0.9375rem);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.bd-btn:active:not(:disabled),
+.cta-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.bd-btn:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
