@@ -600,6 +600,93 @@ input::placeholder, textarea::placeholder {
   border: 1px solid #363636 !important;
   border-radius: 6px !important;
 }
+</style><style id="bd-nav-fit-fix">
+/* Responsive Navbar Icon Buttons & Hamburger Menu Fit Fix */
+.navbar, .nb, header.navbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 54px !important;
+  padding: 0 10px !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  box-sizing: border-box !important;
+  background: rgba(8, 9, 10, 0.96) !important;
+  border-bottom: 1px solid #222425 !important;
+}
+.nav-logo, .nlogo {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  flex-shrink: 1 !important;
+  margin-right: 6px !important;
+  text-decoration: none !important;
+}
+.nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li {
+  width: 28px !important;
+  height: 28px !important;
+  flex-shrink: 0 !important;
+  border-radius: 6px !important;
+}
+.nav-logo .logo-text, .nlogo .lt {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 0.86rem !important;
+  font-weight: 900 !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+}
+.nav-logo .logo-red, .nlogo .lr { color: #FE3442 !important; }
+.nav-logo .logo-white, .nlogo .lw { color: #FFFFFF !important; }
+.nav-actions, .nact, .na, .nav-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+.nav-btn, .nbtn, .hamburger-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  background: #111827 !important;
+  border: 1px solid #222425 !important;
+  color: #FFFFFF !important;
+  cursor: pointer !important;
+  position: relative !important;
+  text-decoration: none !important;
+}
+.hamburger-btn {
+  border-color: #DC2626 !important;
+  color: #FACC15 !important;
+  font-size: 1.1rem !important;
+}
+.nav-btn:hover, .nbtn:hover, .hamburger-btn:hover {
+  background: #DC2626 !important;
+  border-color: #FE3442 !important;
+  color: #FFFFFF !important;
+}
+.nav-btn svg, .nbtn svg, .hamburger-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+@media (min-width: 640px) {
+  .navbar, .nb, header.navbar { padding: 0 16px !important; }
+  .nav-logo, .nlogo { gap: 8px !important; }
+  .nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li { width: 34px !important; height: 34px !important; }
+  .nav-logo .logo-text, .nlogo .lt { font-size: 1.05rem !important; gap: 5px !important; }
+  .nav-actions, .nact, .na, .nav-right { gap: 6px !important; }
+  .nav-btn, .nbtn, .hamburger-btn { width: 36px !important; height: 36px !important; min-width: 36px !important; }
+  .nav-btn svg, .nbtn svg, .hamburger-btn svg { width: 18px !important; height: 18px !important; }
+}
 </style></head><body>
 <div class="promo-strip"><span>🎉 30% OFF SITEWIDE — USE CODE <b>BARGAIN26</b> AT CHECKOUT &middot; Free Shipping A$29+ &middot; SSL Encrypted &middot; Verified Seller &middot; 30-Day Returns</span></div>
 <nav class="navbar">
@@ -892,8 +979,9 @@ function currentUser(){
 
 function renderSlideMenu(){
   var u = currentUser();
-  var authBox = document.getElementById("slide-auth-items");
-  var guestBox = document.getElementById("slide-guest-items");
+  var authBox = document.getElementById("slide-auth-items") || document.getElementById("bd-slide-auth");
+  var guestBox = document.getElementById("slide-guest-items") || document.getElementById("bd-slide-guest");
+  if (!authBox || !guestBox) return;
   var owned = [
     { href:"orders.html", label:"Orders", bg:"#F5A623", ch:"O" },
     { href:"profile.html", label:"My Account", bg:"#B8A9E8", ch:"A" },
@@ -905,15 +993,22 @@ function renderSlideMenu(){
     { href:"gift-cards.html", label:"Gift Cards", bg:"#B8A9E8", ch:"G" }
   ];
   if (u) {
-    var h = '';
-    owned.forEach(function(it){ h += '<a href="'+it.href+'" class="slide-item"><span class="slide-ico" style="background:'+it.bg+'">'+it.ch+'</span>'+it.label+'</a>'; });
-    h += '<a href="#" class="slide-item" onclick="event.preventDefault();signOut();"><span class="slide-ico" style="background:#9b978f">X</span>Sign Out</a>';
+    var h = "";
+    owned.forEach(function(it){ h += '<a href="'+it.href+'" class="slide-item"><span class="slide-ico"></span>'+it.label+'</a>'; });
+    h += '<a href="#" class="slide-item" onclick="event.preventDefault();signOut();"><span class="slide-ico"></span>Sign Out</a>';
+    authBox.style.display = "";
     authBox.innerHTML = h;
-    guestBox.innerHTML = '';
+    guestBox.style.display = "none";
+    guestBox.innerHTML = "";
   } else {
-    authBox.innerHTML = '';
-    guestBox.innerHTML = '<a href="sign-in.html" class="slide-item"><span class="slide-ico" style="#ffd600;color:#000">S</span>Sign In</a>' +
-      '<a href="register.html" class="slide-item"><span class="slide-ico" style="#000000;border:1px solid #ffd600">R</span>Create Account</a>';
+    authBox.style.display = "none";
+    authBox.innerHTML = "";
+    guestBox.style.display = "";
+    guestBox.innerHTML = '<a href="sign-in.html" class="slide-item"><span class="slide-ico"></span>Sign In</a>' +
+      '<a href="register.html" class="slide-item"><span class="slide-ico"></span>Create Account</a>';
+  }
+  if (window.BDIconifySlide && window.BDIconifySlide.svgIconsOnly) {
+    window.BDIconifySlide.svgIconsOnly();
   }
 }
 
