@@ -67,17 +67,22 @@
       var st = document.createElement("style");
       st.id = "bd-slide-menu-core-css";
       st.textContent =
-        ".navbar,.nb,header.navbar{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:54px!important;width:100%!important;max-width:100vw!important;box-sizing:border-box!important;padding:0 8px!important;gap:4px!important;overflow:visible!important;}" +
-        ".nav-logo,.nlogo{display:inline-flex!important;align-items:center!important;gap:5px!important;min-width:0!important;flex-shrink:1!important;margin-right:4px!important;text-decoration:none!important;}" +
-        ".nav-logo img,.nlogo img,.nav-logo .logo-svg,.nav-logo .logo-icon{width:28px!important;height:28px!important;min-width:28px!important;border-radius:6px!important;object-fit:contain!important;flex-shrink:0!important;display:block!important;}" +
-        ".nav-logo .logo-text,.nlogo .lt{font-size:0.78rem!important;font-weight:900!important;letter-spacing:-0.4px!important;display:inline-flex!important;align-items:center!important;gap:3px!important;white-space:nowrap!important;line-height:1!important;}" +
-        ".nav-actions,.nact,.na,.nav-right{display:flex!important;align-items:center!important;gap:4px!important;flex-shrink:0!important;margin-left:auto!important;}" +
-        ".nav-btn,.nbtn,.hamburger-btn{width:31px!important;height:31px!important;min-width:31px!important;max-width:31px!important;padding:0!important;margin:0!important;margin-left:0!important;flex-shrink:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:8px!important;cursor:pointer!important;visibility:visible!important;opacity:1!important;position:relative!important;box-sizing:border-box!important;}" +
-        ".nav-btn svg,.nbtn svg,.hamburger-btn svg{width:16px!important;height:16px!important;display:block!important;pointer-events:none!important;flex-shrink:0!important;}" +
+        ".navbar,.nb,header.navbar{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:54px!important;width:100%!important;max-width:100vw!important;box-sizing:border-box!important;padding:0 6px!important;gap:2px!important;overflow:visible!important;}" +
+        ".nav-logo,.nlogo{display:inline-flex!important;align-items:center!important;gap:4px!important;min-width:0!important;flex-shrink:1!important;margin-right:auto!important;text-decoration:none!important;}" +
+        ".nav-logo img,.nlogo img,.nav-logo .logo-svg,.nav-logo .logo-icon{width:25px!important;height:25px!important;min-width:25px!important;border-radius:6px!important;object-fit:contain!important;flex-shrink:0!important;display:block!important;}" +
+        ".nav-logo .logo-text,.nlogo .lt{font-size:0.70rem!important;font-weight:900!important;letter-spacing:-0.4px!important;display:inline-flex!important;align-items:center!important;gap:3px!important;white-space:nowrap!important;line-height:1!important;}" +
+        ".nav-search-wrap{flex:0 1 auto!important;margin:0 2px!important;max-width:28px!important;}" +
+        ".nav-search-wrap:has(.nav-search.expanded){flex:1 1 auto!important;max-width:170px!important;}" +
+        ".nav-search{max-width:28px!important;height:28px!important;padding:0 6px!important;}" +
+        ".nav-search.expanded{max-width:170px!important;padding:0 10px!important;}" +
+        ".nav-actions,.nact,.na,.nav-right{display:flex!important;align-items:center!important;gap:2px!important;flex-shrink:0!important;margin-left:0!important;}" +
+        ".nav-btn,.nbtn,.hamburger-btn{width:28px!important;height:28px!important;min-width:28px!important;max-width:28px!important;padding:0!important;margin:0!important;margin-left:0!important;flex-shrink:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:7px!important;cursor:pointer!important;visibility:visible!important;opacity:1!important;position:relative!important;box-sizing:border-box!important;}" +
+        ".nav-btn svg,.nbtn svg,.hamburger-btn svg{width:15px!important;height:15px!important;display:block!important;pointer-events:none!important;flex-shrink:0!important;}" +
+        ".nav-badge,.badge,.bdg{position:absolute!important;top:-3px!important;right:-3px!important;min-width:14px!important;height:14px!important;font-size:0.5rem!important;padding:0 3px!important;border-radius:999px!important;line-height:14px!important;z-index:2!important;}" +
         ".hamburger-btn{background:#111827!important;border:1px solid #DC2626!important;color:#FACC15!important;font-size:1.05rem!important;}" +
         ".hamburger-btn:hover{background:#DC2626!important;color:#ffffff!important;}" +
-        "@media(min-width:400px){.navbar,.nb,header.navbar{padding:0 10px!important;}.nav-logo img,.nlogo img,.nav-logo .logo-svg{width:30px!important;height:30px!important;min-width:30px!important;}.nav-logo .logo-text,.nlogo .lt{font-size:0.84rem!important;gap:4px!important;}.nav-btn,.nbtn,.hamburger-btn{width:33px!important;height:33px!important;min-width:33px!important;max-width:33px!important;}.nav-btn svg,.nbtn svg,.hamburger-btn svg{width:17px!important;height:17px!important;}}" +
-        "@media(min-width:640px){.navbar,.nb,header.navbar{padding:0 16px!important;}.nav-logo img,.nlogo img,.nav-logo .logo-svg{width:34px!important;height:34px!important;min-width:34px!important;}.nav-logo .logo-text,.nlogo .lt{font-size:1.02rem!important;gap:5px!important;}.nav-actions,.nact,.na,.nav-right{gap:6px!important;}.nav-btn,.nbtn,.hamburger-btn{width:36px!important;height:36px!important;min-width:36px!important;max-width:36px!important;}.nav-btn svg,.nbtn svg,.hamburger-btn svg{width:18px!important;height:18px!important;}}" +
+        "@media(min-width:400px){.navbar,.nb,header.navbar{padding:0 10px!important;}.nav-logo img,.nlogo img,.nav-logo .logo-svg{width:29px!important;height:29px!important;min-width:29px!important;}.nav-logo .logo-text,.nlogo .lt{font-size:0.82rem!important;gap:4px!important;}.nav-btn,.nbtn,.hamburger-btn{width:32px!important;height:32px!important;min-width:32px!important;max-width:32px!important;}.nav-btn svg,.nbtn svg,.hamburger-btn svg{width:16px!important;height:16px!important;}}" +
+        "@media(min-width:640px){.navbar,.nb,header.navbar{padding:0 16px!important;}.nav-logo img,.nlogo img,.nav-logo .logo-svg{width:34px!important;height:34px!important;min-width:34px!important;}.nav-logo .logo-text,.nlogo .lt{font-size:1.02rem!important;gap:5px!important;}.nav-search-wrap{max-width:280px!important;margin:0 8px!important;}.nav-search{max-width:36px!important;height:36px!important;}.nav-search.expanded{max-width:280px!important;}.nav-actions,.nact,.na,.nav-right{gap:6px!important;}.nav-btn,.nbtn,.hamburger-btn{width:36px!important;height:36px!important;min-width:36px!important;max-width:36px!important;}.nav-btn svg,.nbtn svg,.hamburger-btn svg{width:18px!important;height:18px!important;}}" +
         ".slide-menu{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;pointer-events:none!important;display:none!important;}" +
         ".slide-menu.open{pointer-events:auto!important;display:block!important;}" +
         ".slide-backdrop{position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,0.68)!important;opacity:0!important;transition:opacity .25s ease!important;}" +
@@ -120,7 +125,7 @@
             }
           } else if (!lg.querySelector("svg")) {
             lg.innerHTML =
-              "<img src=\"" + OFFICIAL_LOGO_DATA_URI + "\" alt=\"Bargain Drop Logo\" style=\"width:30px;height:30px;object-fit:contain;border-radius:6px;flex-shrink:0;border:1.5px solid #0a0a0a;background:#0a0a0a;\" />" +
+              "<img src=\"" + OFFICIAL_LOGO_DATA_URI + "\" alt=\"Bargain Drop Logo\" style=\"width:28px;height:28px;object-fit:contain;border-radius:6px;flex-shrink:0;border:1.5px solid #0a0a0a;background:#0a0a0a;\" />" +
               "<div class=\"logo-text\"><span style=\"color:#ff1a3c!important;font-weight:900;\">BARGAIN</span> <span style=\"color:#ffffff!important;font-weight:900;\">DROP</span></div>";
           }
         }
@@ -147,20 +152,60 @@
           if (btn.style && btn.style.display === "none") {
             btn.style.display = "inline-flex";
           }
+          btn.style.marginLeft = "0px";
           if (!btn.classList.contains("nav-btn") && !btn.classList.contains("nbtn")) {
             btn.classList.add("nav-btn");
+          }
+          var bdg = btn.querySelector(".nav-badge, .badge, .bdg");
+          if (bdg && bdg.style) {
+            bdg.style.position = "absolute";
+          }
+        }
+
+        // Ensure Notification Bell button exists for signed-in and guest users if missing
+        var hasBell = act.querySelector("[aria-label=\"Notifications\"], [href*=\"notification\"]");
+        var existingHamburger = act.querySelector(".hamburger-btn, [aria-label=\"Open menu\"], [aria-label=\"Menu\"], [onclick*=\"slide-menu\"]");
+        if (!hasBell) {
+          var bellLink = document.createElement("a");
+          bellLink.href = "notification-center.html";
+          bellLink.className = "nav-btn";
+          bellLink.setAttribute("aria-label", "Notifications");
+          bellLink.innerHTML =
+            (global.BDIcon && global.BDIcon.svg ? global.BDIcon.svg("notifications", { size: 16 }) : "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><path d=\"M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9\"/><path d=\"M13.73 21a2 2 0 0 1-3.46 0\"/></svg>") +
+            "<span class=\"nav-badge\" id=\"nav-notif-count\" style=\"display:none;position:absolute\">0</span>";
+          if (existingHamburger) {
+            act.insertBefore(bellLink, existingHamburger);
+          } else {
+            act.appendChild(bellLink);
+          }
+        }
+
+        // Ensure Profile / Account icon button exists in .nav-actions on mobile & desktop
+        var hasProfileBtn = act.querySelector("[aria-label=\"Account\"], [aria-label=\"Profile\"], [href=\"profile.html\"]");
+        if (!hasProfileBtn) {
+          var profLink = document.createElement("a");
+          profLink.href = "profile.html";
+          profLink.className = "nav-btn";
+          profLink.setAttribute("aria-label", "Account");
+          profLink.innerHTML =
+            global.BDIcon && global.BDIcon.svg
+              ? global.BDIcon.svg("account", { size: 16 })
+              : "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 20c0-4 4-6 8-6s8 2 8 6\"/></svg>";
+          if (existingHamburger) {
+            act.insertBefore(profLink, existingHamburger);
+          } else {
+            act.appendChild(profLink);
           }
         }
 
         // Ensure Hamburger Menu button exists at the end of .nav-actions
-        var existingHamburger = act.querySelector(".hamburger-btn, [aria-label=\"Open menu\"], [onclick*=\"slide-menu\"]");
         if (!existingHamburger) {
           var hBtn = document.createElement("button");
           hBtn.className = "nav-btn hamburger-btn";
           hBtn.setAttribute("aria-label", "Open menu");
-          hBtn.setAttribute("onclick", "document.getElementById('slide-menu').classList.add('open')");
+          hBtn.setAttribute("onclick", "document.getElementById('slide-menu').classList.toggle('open')");
           if (global.BDIcon && global.BDIcon.svg) {
-            hBtn.innerHTML = global.BDIcon.svg("menu", { size: 18 });
+            hBtn.innerHTML = global.BDIcon.svg("menu", { size: 17 });
             hBtn.setAttribute("data-bd-iconified", "menu");
           } else {
             hBtn.innerHTML = "&#9776;";
@@ -168,8 +213,9 @@
           act.appendChild(hBtn);
         } else {
           existingHamburger.classList.add("nav-btn", "hamburger-btn");
+          existingHamburger.style.display = "inline-flex";
           if (global.BDIcon && global.BDIcon.svg && !existingHamburger.querySelector("svg")) {
-            existingHamburger.innerHTML = global.BDIcon.svg("menu", { size: 18 });
+            existingHamburger.innerHTML = global.BDIcon.svg("menu", { size: 17 });
             existingHamburger.setAttribute("data-bd-iconified", "menu");
           }
         }
@@ -189,9 +235,9 @@
             else if (aria.indexOf("menu") >= 0 || b.classList.contains("hamburger-btn")) ic = "menu";
             else if (aria.indexOf("profile") >= 0 || aria.indexOf("account") >= 0) ic = "account";
             if (ic) {
-              var badge = b.querySelector(".badge, .bdg");
+              var badge = b.querySelector(".nav-badge, .badge, .bdg");
               var badgeHtml = badge ? badge.outerHTML : "";
-              b.innerHTML = global.BDIcon.svg(ic, { size: 18 }) + badgeHtml;
+              b.innerHTML = global.BDIcon.svg(ic, { size: 16 }) + badgeHtml;
               b.setAttribute("data-bd-iconified", ic);
             }
           }
@@ -242,9 +288,10 @@
           "<div id=\"slide-auth-items\"></div>" +
           "<div id=\"slide-guest-items\"></div>" +
           "<div class=\"slide-divider\"></div>" +
-          "<div class=\"slide-heading\">Support</div>" +
+          "<div class=\"slide-heading\">Support &amp; Admin</div>" +
           "<a href=\"customer-service.html\" class=\"slide-item\"><span class=\"slide-ico\"></span>Customer Support</a>" +
-          "<a href=\"policy.html\" class=\"slide-item\"><span class=\"slide-ico\"></span>Privacy Policy</a>";
+          "<a href=\"policy.html\" class=\"slide-item\"><span class=\"slide-ico\"></span>Privacy Policy</a>" +
+          "<a href=\"admin-orders.html\" class=\"slide-item\"><span class=\"slide-ico\"></span>Store Orders (PIN)</a>";
       }
 
       var A = document.getElementById("slide-auth-items") || document.getElementById("bd-slide-auth");
@@ -263,7 +310,8 @@
           ["payment-methods.html", "Saved Cards & Wallet"],
           ["wallet.html", "Store Credit & Wallet"],
           ["returns.html", "Returns & Exchanges"],
-          ["gift-cards.html", "Gift Cards"]
+          ["gift-cards.html", "Gift Cards"],
+          ["admin-orders.html", "Admin Orders (PIN)"]
         ];
         if (signedIn) {
           A.style.display = "";
