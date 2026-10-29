@@ -104,6 +104,75 @@ a{color:inherit;text-decoration:none}
 .nav-logo .bd-red, .nlogo .bd-red, .logo-text .bd-red, .lt .bd-red { color: #ff1a3c !important; font-weight: 900; }
 .nav-logo .bd-white, .nlogo .bd-white, .logo-text .bd-white, .lt .bd-white { color: #ffffff !important; font-weight: 900; }
 
+
+/* === 2026-04-21 GLOBAL STOREFRONT LAYOUT & SLIDE-MENU CONTAINMENT === */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.slide-menu {
+  display: none !important;
+}
+.slide-menu.open {
+  display: block !important;
+}
+.product-grid, .related-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+@media (max-width: 640px) {
+  .product-grid, .related-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+.product-card, .rel-card {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.product-card .card-img, .rel-card .rc-img {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+}
+.product-card .card-img img, .rel-card .rc-img img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+.product-card .card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  justify-content: space-between !important;
+  min-width: 0 !important;
+}
+.product-card .card-title, .rel-card .rc-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  min-height: 2.7em !important;
+  word-break: break-word !important;
+}
+.desc-body, #desc-body, .desc-overview, .pdesc {
+  overflow-x: hidden !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+}
+.desc-body *, #desc-body *, .pdesc * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 </style>
 <style>
 :root{--nav-h:54px;--promo-h:28px;--lilac: #ff1a3c;--teal: #ffd600;--accent: #ff1a3c;--dark: #000000;--pill:9999px}
@@ -593,6 +662,93 @@ input::placeholder, textarea::placeholder {
   border: 1px solid #363636 !important;
   border-radius: 6px !important;
 }
+</style><style id="bd-nav-fit-fix">
+/* Responsive Navbar Icon Buttons & Hamburger Menu Fit Fix */
+.navbar, .nb, header.navbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 54px !important;
+  padding: 0 10px !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  box-sizing: border-box !important;
+  background: rgba(8, 9, 10, 0.96) !important;
+  border-bottom: 1px solid #222425 !important;
+}
+.nav-logo, .nlogo {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  flex-shrink: 1 !important;
+  margin-right: 6px !important;
+  text-decoration: none !important;
+}
+.nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li {
+  width: 28px !important;
+  height: 28px !important;
+  flex-shrink: 0 !important;
+  border-radius: 6px !important;
+}
+.nav-logo .logo-text, .nlogo .lt {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 0.86rem !important;
+  font-weight: 900 !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+}
+.nav-logo .logo-red, .nlogo .lr { color: #FE3442 !important; }
+.nav-logo .logo-white, .nlogo .lw { color: #FFFFFF !important; }
+.nav-actions, .nact, .na, .nav-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+.nav-btn, .nbtn, .hamburger-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  background: #111827 !important;
+  border: 1px solid #222425 !important;
+  color: #FFFFFF !important;
+  cursor: pointer !important;
+  position: relative !important;
+  text-decoration: none !important;
+}
+.hamburger-btn {
+  border-color: #DC2626 !important;
+  color: #FACC15 !important;
+  font-size: 1.1rem !important;
+}
+.nav-btn:hover, .nbtn:hover, .hamburger-btn:hover {
+  background: #DC2626 !important;
+  border-color: #FE3442 !important;
+  color: #FFFFFF !important;
+}
+.nav-btn svg, .nbtn svg, .hamburger-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+@media (min-width: 640px) {
+  .navbar, .nb, header.navbar { padding: 0 16px !important; }
+  .nav-logo, .nlogo { gap: 8px !important; }
+  .nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li { width: 34px !important; height: 34px !important; }
+  .nav-logo .logo-text, .nlogo .lt { font-size: 1.05rem !important; gap: 5px !important; }
+  .nav-actions, .nact, .na, .nav-right { gap: 6px !important; }
+  .nav-btn, .nbtn, .hamburger-btn { width: 36px !important; height: 36px !important; min-width: 36px !important; }
+  .nav-btn svg, .nbtn svg, .hamburger-btn svg { width: 18px !important; height: 18px !important; }
+}
 </style></head>
 <body>
 <!-- PROMO STRIP -->
@@ -898,8 +1054,8 @@ function collapseSearch(e){
 })();
 </script>
 <script src="/js/notifications.js?v=f8b0c71eed"></script>
-<script src="/js/icon-library.js?v=4e663589a2"></script>
-<script src="/js/slide-icons.js?v=1a760e6595"></script>
+<script src="/js/icon-library.js?v=8ebc04a2fb"></script>
+<script src="/js/slide-icons.js?v=4ef2e99c17"></script>
 <script src="/js/auto-iconify.js?v=49867b897b"></script>
   <script src="/js/logo-handler.js?v=8c0763c579"></script>
 </body>
