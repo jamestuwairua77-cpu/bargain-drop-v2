@@ -1,641 +1,637 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BargainDrop AI — Gemini 3.8 Flash Autonomous Agent</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            gblue: '#4285F4',
-            gred: '#EA4335',
-            gyellow: '#FBBC05',
-            ggreen: '#34A853',
-            ink: '#0e1117',
-            panel: '#131722',
-            panel2: '#161b22',
-            edge: '#2d333b',
-          },
-          fontFamily: {
-            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
-            sans: ['Inter', 'Google Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    :root { color-scheme: dark; }
-    body { background: #0e1117; color: #e8eaed; }
-    .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-    .scrollbar-thin::-webkit-scrollbar-thumb { background: #2d333b; border-radius: 8px; }
-    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #4285F4; }
-    .google-glow { box-shadow: 0 0 0 1px rgba(66,133,244,0.35), 0 8px 32px -8px rgba(66,133,244,0.45); }
-    @keyframes pulse-dot { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
-    .typing-dot { animation: pulse-dot 1.2s infinite ease-in-out; }
-    .typing-dot:nth-child(2){ animation-delay:.15s }
-    .typing-dot:nth-child(3){ animation-delay:.3s }
-    .fade-in { animation: fadeIn .25s ease; }
-    @keyframes fadeIn { from { opacity:0; transform: translateY(5px) } to { opacity:1; transform:none } }
-    .spinner { width: 14px; height: 14px; border: 2px solid rgba(66,133,244,.25); border-top-color: #4285F4; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .chat-attach-img { max-width: 16rem; max-height: 12rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,.15); object-fit: cover; margin-top: 0.5rem; }
-  </style>
-</head>
-<body class="bg-ink text-[#e8eaed] font-sans antialiased h-screen flex flex-col overflow-hidden">
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>404 — Bargain Drop</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f6f1ea;color:#1A1A1A;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}.card{max-width:400px}h1{font-size:4rem;font-weight:800;margin-bottom:8px}p{font-size:1rem;color:#6B6B6B;margin-bottom:24px}a{display:inline-block;padding:12px 24px;background:#1A1A1A;color:#fff;border-radius:999px;text-decoration:none;font-weight:600;font-size:.85rem}
+/* STANDARDIZED RED-WHITE BARGAIN DROP LOGO TITLE */
+.nav-logo, .nlogo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; flex-shrink: 0; }
+.nav-logo .logo-icon, .nav-logo .li, .nlogo .logo-icon, .nlogo .li { width: 32px; height: 32px; background: linear-gradient(135deg, #ff1a3c, #e60023); color: #ffffff!important; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 900; letter-spacing: -0.5px; box-shadow: 0 2px 8px rgba(255, 26, 60, 0.4); border: 1px solid rgba(255, 255, 255, 0.2); }
+.nav-logo .logo-text, .nav-logo .lt, .nlogo .logo-text, .nlogo .lt { font-size: 0.92rem; font-weight: 900; letter-spacing: -0.3px; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: #ffffff; }
+.nav-logo .bd-red, .nlogo .bd-red, .logo-text .bd-red, .lt .bd-red { color: #ff1a3c !important; font-weight: 900; }
+.nav-logo .bd-white, .nlogo .bd-white, .logo-text .bd-white, .lt .bd-white { color: #ffffff !important; font-weight: 900; }
 
-  <!-- 1. ICONIC 4-COLOR GOOGLE ACCENT BAR -->
-  <div class="h-1 w-full flex shrink-0">
-    <div class="w-1/4 h-full bg-[#4285F4]"></div>
-    <div class="w-1/4 h-full bg-[#EA4335]"></div>
-    <div class="w-1/4 h-full bg-[#FBBC05]"></div>
-    <div class="w-1/4 h-full bg-[#34A853]"></div>
-  </div>
 
-  <!-- 2. HEADER -->
-  <header class="flex items-center justify-between px-4 py-2.5 border-b border-edge bg-panel shrink-0 gap-3">
-    <div class="flex items-center gap-3 min-w-0">
-      <div class="h-9 w-9 rounded-xl bg-panel2 border border-[#3c4043] flex items-center justify-center google-glow shrink-0 relative">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <defs>
-            <linearGradient id="gStar" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#4285F4"/>
-              <stop offset="35%" stop-color="#EA4335"/>
-              <stop offset="70%" stop-color="#FBBC05"/>
-              <stop offset="100%" stop-color="#34A853"/>
-            </linearGradient>
-          </defs>
-          <path d="M12 2C12 7.52 16.48 12 22 12C16.48 12 12 16.48 12 22C12 16.48 7.52 12 2 12C7.52 12 12 7.52 12 2Z" fill="url(#gStar)"/>
-        </svg>
-        <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#34A853] border-2 border-panel"></span>
-      </div>
-      <div class="min-w-0">
-        <div class="flex items-center gap-2">
-          <h1 class="text-sm font-bold tracking-tight text-white truncate">BargainDrop AI</h1>
-          <span id="model-badge" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#4285F4]/15 text-[#8ab4f8] border border-[#4285F4]/40">gemini-3.8-flash</span>
-          <span class="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#34A853]/15 text-[#81c995] border border-[#34A853]/40">∞ No Token Limit</span>
-        </div>
-        <p class="text-[11px] text-[#9aa0a6] truncate">bargain-drop.online/bargaindrop-ai · Full Agent Permissions · Multimodal · Web Browser &amp; Live Preview</p>
-      </div>
+/* === 2026-04-21 GLOBAL STOREFRONT LAYOUT & SLIDE-MENU CONTAINMENT === */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.slide-menu {
+  display: none !important;
+}
+.slide-menu.open {
+  display: block !important;
+}
+.product-grid, .related-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+@media (max-width: 640px) {
+  .product-grid, .related-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+.product-card, .rel-card {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.product-card .card-img, .rel-card .rc-img {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+}
+.product-card .card-img img, .rel-card .rc-img img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+.product-card .card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  justify-content: space-between !important;
+  min-width: 0 !important;
+}
+.product-card .card-title, .rel-card .rc-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  min-height: 2.7em !important;
+  word-break: break-word !important;
+}
+.desc-body, #desc-body, .desc-overview, .pdesc {
+  overflow-x: hidden !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+}
+.desc-body *, #desc-body *, .pdesc * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+</style><style id="bd-rwb-theme">
+/* === BARGAIN DROP: BLACK UI KIT 2.0 (RAGING RED & OBSIDIAN EDITION) === */
+:root {
+  --bg: #121515 !important;
+  --b: #121515 !important;
+  --fg: #ffffff !important;
+  --f: #ffffff !important;
+  --surface: #08090a !important;
+  --surface-2: #121515 !important;
+  --paper: #08090a !important;
+  --card: #08090a !important;
+  --card-bg: #08090a !important;
+  --white: #08090a !important;
+  --dark: #060708 !important;
+  --black: #060708 !important;
+  --muted: #dedede !important;
+  --m: #dedede !important;
+  --meta: #818181 !important;
+  --line: #222425 !important;
+  --line2: #202223 !important;
+  --line-2: #202223 !important;
+  --l: #222425 !important;
+  --l2: #202223 !important;
+  --accent: #fe3442 !important;
+  --red: #fe3442 !important;
+  --r: #fe3442 !important;
+  --lilac: #fe3442 !important;
+  --li: #fe3442 !important;
+  --a: #fe3442 !important;
+  --gold: #fe3442 !important;
+  --teal: #49a66a !important;
+  --t: #49a66a !important;
+  --radius: 8px !important;
+}
+
+html, body {
+  background-color: #121515 !important;
+  background-image: radial-gradient(950px 440px at 88% -6%, rgba(254, 52, 66, 0.16), transparent 65%), radial-gradient(800px 420px at 10% 15%, rgba(211, 43, 63, 0.08), transparent 60%) !important;
+  color: #ffffff !important;
+}
+
+/* Promo Strip: Obsidian Strip with Raging Red #FE3442 Accent */
+.promo-strip, .ps {
+  background: #070809 !important;
+  color: #dedede !important;
+  border-bottom: 1px solid #222425 !important;
+}
+.promo-strip b, .ps b {
+  color: #fe3442 !important;
+}
+
+/* Top Navigation & Headers: Pitch Obsidian with Raging Red PSD Header Splatter Texture */
+.navbar, .nb, .top-bar, .tb, header.navbar, .header, .site-header {
+  background-color: rgba(8, 9, 10, 0.96) !important;
+  background-image: url('/bui-hero-texture.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: right -40px top -30px !important;
+  background-size: 260px auto !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid #222425 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65) !important;
+}
+
+.nav-logo .logo-text, .nlogo .lt, .logo-text {
+  color: #ffffff !important;
+}
+.nav-logo .logo-text span:last-child, .nlogo .lt span:last-child {
+  color: #ffffff !important;
+}
+
+/* Black UI Kit 2.0 Tactile Obsidian Icon Buttons in Navbar */
+.nav-btn, .nbtn, .hamburger-btn, .nav-back {
+  color: #fe3442 !important;
+  background: #060708 !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+  margin-left: 5px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.18s ease !important;
+}
+.nav-btn:hover, .nbtn:hover, .hamburger-btn:hover, .nav-back:hover {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 4px 14px rgba(254, 52, 66, 0.45) !important;
+}
+.nav-badge {
+  background: #fe3442 !important;
+  color: #ffffff !important;
+  border: 1px solid #08090a !important;
+  box-shadow: 0 0 8px rgba(254, 52, 66, 0.6) !important;
+}
+.top-bar a, .tb a {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+/* Recessed PSD Search Bar in Header */
+.nav-search {
+  background: #222425 !important;
+  border: 1px solid #363636 !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55) !important;
+}
+.nav-search input {
+  color: #ffffff !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Trust Ribbon & Badges */
+.trust-ribbon, .tr {
+  background: #08090a !important;
+  color: #dedede !important;
+  border-top: 1px solid #202223 !important;
+  border-bottom: 1px solid #202223 !important;
+  padding: 12px 16px !important;
+}
+.trust-item {
+  color: #dedede !important;
+  font-weight: 700 !important;
+  background: #121515 !important;
+  border: 1px solid #222425 !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+.trust-accent {
+  color: #fe3442 !important;
+  font-weight: 800 !important;
+}
+
+/* Section Headers with Structural Bottom Dividers */
+.section-title, .page-header, .hdr {
+  border-bottom: 1px solid #222425 !important;
+  padding-bottom: 10px !important;
+  margin-bottom: 16px !important;
+}
+.section-title h3, .page-header h1, .hdr h1, .dashboard-title, h1, h2, h3, h4 {
+  color: #ffffff !important;
+}
+.section-title a {
+  color: #ffffff !important;
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  border: 1px solid #fe3442 !important;
+  padding: 5px 12px !important;
+  border-radius: 6px !important;
+  font-weight: 800 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 4px 12px rgba(254, 52, 66, 0.35) !important;
+}
+.section-title a:hover {
+  background: linear-gradient(180deg, #ff4754 0%, #e7254e 100%) !important;
+}
+
+/* Every Card, Box, Panel & Container: Black UI Kit 2.0 Pitch Obsidian + Raging Red Splatter Accent */
+.cat-card, .product-card, .card, .card-list, .dash-card, .menu-list, .cit, .sc, .es,
+.form-card, .summary-card, .checkout-card, .wishlist-item, .order-card, .addr-card,
+.setting-card, .faq-item, .auth-card, .panel, .box, .modal-sheet, .pp-dialog, .search-box, .sobox {
+  background-color: #08090a !important;
+  background-image: url('/bui-card-texture.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: right -30px top -25px !important;
+  background-size: 190px auto !important;
+  color: #ffffff !important;
+  border: 1px solid #222425 !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 32px rgba(0, 0, 0, 0.65) !important;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.cat-card:hover, .product-card:hover, .dash-card:hover, .cit:hover, .order-card:hover {
+  border-color: #fe3442 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 36px rgba(254, 52, 66, 0.24) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Black UI Kit 2.0 Product Card Header, Recessed Image Well & Segmented 3-Cell Footer */
+.bui-card-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 12px 8px !important;
+  gap: 6px !important;
+}
+.bui-card-cat {
+  font-size: 0.64rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: #dedede !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.bui-card-pill, .prod-badge {
+  background: #fe3442 !important;
+  color: #ffffff !important;
+  font-size: 0.62rem !important;
+  font-weight: 800 !important;
+  padding: 2px 8px !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 8px rgba(254, 52, 66, 0.5) !important;
+  flex-shrink: 0 !important;
+}
+
+.prod-img-wrap, .cat-card-img-wrap, .ciimg, .wishlist-img, .order-thumb, .gallery, .modal-item-img {
+  background: #121515 !important;
+  border: 1px solid #202223 !important;
+  border-radius: 6px !important;
+}
+.product-card .prod-img-wrap {
+  margin: 0 10px !important;
+  border-radius: 6px !important;
+}
+.product-card > img, .product-card > .prod-placeholder {
+  width: calc(100% - 20px) !important;
+  margin: 10px 10px 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: cover !important;
+  border-radius: 6px !important;
+  border: 1px solid #202223 !important;
+  background: #121515 !important;
+}
+
+.product-info {
+  padding: 10px 12px !important;
+}
+.bui-card-foot {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1.8fr !important;
+  border-top: 1px solid #202223 !important;
+  background: #060708 !important;
+}
+.bui-foot-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  padding: 9px 6px !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  color: #dedede !important;
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid #202223 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+.bui-foot-btn svg {
+  color: #fe3442 !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0 !important;
+}
+.bui-foot-btn:hover, .bui-foot-btn.liked {
+  background: #121515 !important;
+  color: #fe3442 !important;
+}
+.bui-foot-add {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  padding: 9px 8px !important;
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  border: none !important;
+  cursor: pointer !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  transition: all 0.15s ease !important;
+}
+.bui-foot-add:hover {
+  background: linear-gradient(180deg, #ff4754 0%, #e7254e 100%) !important;
+}
+
+/* Card Typography & Prices */
+.cat-card-label, .product-title, .cititle, .p-title, .wishlist-title, .mi-label, .mi-title, .dc-label, .sect-title, .sect-title .val {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+.product-price, .cipp, .promo-price, .wishlist-price, .stv, .cat-card-shop, .product-stars {
+  color: #fe3442 !important;
+  font-weight: 800 !important;
+}
+.prod-compare, .cipo, .original-price {
+  color: #818181 !important;
+}
+
+/* Floating Action Buttons on Cards */
+.wishlist-btn, .quick-add {
+  background: #060708 !important;
+  color: #fe3442 !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6) !important;
+}
+.wishlist-btn:hover, .wishlist-btn.liked, .quick-add:hover {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+}
+
+/* List Rows & Dividers (Modeled on PSD Weather & Settings Rows) */
+.list-row, .menu-item, .summary-row, .sr, .modal-item {
+  border-bottom: 1px solid #202223 !important;
+  color: #dedede !important;
+}
+.list-row:last-child, .menu-item:last-child, .modal-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Inputs, Selects & Textareas: Recessed #222425 Wells Modeled on PSD Sign Up Form */
+.search-box input, .sobox input, .pf input, .promo-row input, .form-group input, .form-group select,
+input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], input[type="search"], select, textarea {
+  background: #222425 !important;
+  color: #ffffff !important;
+  border: 1px solid #363636 !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #fe3442 !important;
+  outline: none !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(254, 52, 66, 0.25) !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #818181 !important;
+}
+
+/* Primary & Secondary Buttons Modeled on Black UI Kit 2.0 */
+.btn, .btn-primary, .cc, .pay-btn, .promo-apply, .pf button, .es a, .hero-cta, .newsletter-form button {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #fe3442 !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 6px 18px rgba(254, 52, 66, 0.38) !important;
+  font-weight: 800 !important;
+  transition: all 0.18s ease !important;
+}
+.btn:hover, .btn-primary:hover, .cc:hover, .promo-apply:hover, .hero-cta:hover {
+  background: linear-gradient(180deg, #ff4754 0%, #e7254e 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+.btn-secondary, .qbtn, .pagination button, .currency-pill, .pbb {
+  background: #121515 !important;
+  color: #dedede !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+  font-weight: 800 !important;
+}
+.pagination button.active, .currency-pill.active, .qbtn:hover, .pagination button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+}
+.qv, .st {
+  color: #ffffff !important;
+}
+
+/* Slide-Out Menu & Bottom Navigation */
+.slide-panel, .nm {
+  background-color: #08090a !important;
+  background-image: url('/bui-card-texture.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: right top !important;
+  background-size: 240px auto !important;
+  color: #ffffff !important;
+  border-left: 1px solid #222425 !important;
+}
+.slide-item, .nm a {
+  color: #dedede !important;
+  border-bottom: 1px solid #202223 !important;
+  font-weight: 700 !important;
+}
+.slide-item:hover, .nm a:hover {
+  background: #121515 !important;
+  color: #fe3442 !important;
+}
+.slide-heading, .nm h3 {
+  color: #fe3442 !important;
+  font-weight: 900 !important;
+}
+.slide-divider {
+  background: #202223 !important;
+  height: 1px !important;
+}
+.slide-close, .nmc {
+  color: #fe3442 !important;
+  background: #121515 !important;
+  border: 1px solid #222425 !important;
+  border-radius: 6px !important;
+}
+
+.bottom-nav {
+  background: #08090a !important;
+  color: #dedede !important;
+  border-top: 1px solid #222425 !important;
+}
+.bottom-nav a {
+  color: #818181 !important;
+  font-weight: 700 !important;
+}
+.bottom-nav a.active, .bottom-nav a:hover {
+  color: #fe3442 !important;
+}
+
+/* Hero Banner */
+.hero {
+  background: #08090a !important;
+  border-bottom: 1px solid #222425 !important;
+}
+.hero-content h2 {
+  color: #ffffff !important;
+}
+.hero-badge {
+  background: linear-gradient(180deg, #fe3442 0%, #d32b3f 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #fe3442 !important;
+  border-radius: 6px !important;
+}
+
+/* Footer: Obsidian with Raging Red Top Border */
+.site-footer {
+  background: #070809 !important;
+  color: #dedede !important;
+  border-top: 2px solid #fe3442 !important;
+}
+.site-footer h4, .site-footer h5 {
+  color: #ffffff !important;
+}
+.site-footer a, .site-footer p, .footer-payments, .footer-legal {
+  color: #818181 !important;
+}
+.site-footer a:hover {
+  color: #fe3442 !important;
+}
+.newsletter-form input {
+  background: #222425 !important;
+  color: #ffffff !important;
+  border: 1px solid #363636 !important;
+  border-radius: 6px !important;
+}
+</style><style id="bd-nav-fit-fix">
+/* Responsive Navbar Icon Buttons & Hamburger Menu Fit Fix */
+.navbar, .nb, header.navbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 54px !important;
+  padding: 0 10px !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  box-sizing: border-box !important;
+  background: rgba(8, 9, 10, 0.96) !important;
+  border-bottom: 1px solid #222425 !important;
+}
+.nav-logo, .nlogo {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  flex-shrink: 1 !important;
+  margin-right: 6px !important;
+  text-decoration: none !important;
+}
+.nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li {
+  width: 28px !important;
+  height: 28px !important;
+  flex-shrink: 0 !important;
+  border-radius: 6px !important;
+}
+.nav-logo .logo-text, .nlogo .lt {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 0.86rem !important;
+  font-weight: 900 !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+}
+.nav-logo .logo-red, .nlogo .lr { color: #FE3442 !important; }
+.nav-logo .logo-white, .nlogo .lw { color: #FFFFFF !important; }
+.nav-actions, .nact, .na, .nav-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+.nav-btn, .nbtn, .hamburger-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  background: #111827 !important;
+  border: 1px solid #222425 !important;
+  color: #FFFFFF !important;
+  cursor: pointer !important;
+  position: relative !important;
+  text-decoration: none !important;
+}
+.hamburger-btn {
+  border-color: #DC2626 !important;
+  color: #FACC15 !important;
+  font-size: 1.1rem !important;
+}
+.nav-btn:hover, .nbtn:hover, .hamburger-btn:hover {
+  background: #DC2626 !important;
+  border-color: #FE3442 !important;
+  color: #FFFFFF !important;
+}
+.nav-btn svg, .nbtn svg, .hamburger-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+@media (min-width: 640px) {
+  .navbar, .nb, header.navbar { padding: 0 16px !important; }
+  .nav-logo, .nlogo { gap: 8px !important; }
+  .nav-logo img, .nlogo img, .nav-logo .logo-svg, .nav-logo .logo-icon, .nlogo .li { width: 34px !important; height: 34px !important; }
+  .nav-logo .logo-text, .nlogo .lt { font-size: 1.05rem !important; gap: 5px !important; }
+  .nav-actions, .nact, .na, .nav-right { gap: 6px !important; }
+  .nav-btn, .nbtn, .hamburger-btn { width: 36px !important; height: 36px !important; min-width: 36px !important; }
+  .nav-btn svg, .nbtn svg, .hamburger-btn svg { width: 18px !important; height: 18px !important; }
+}
+</style></head><body>
+  <nav class="navbar">
+    <a href="/" class="nav-logo" aria-label="Bargain Drop Home" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;"><img src="data:image/jpeg;base64,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" alt="Bargain Drop Logo" style="width:36px;height:36px;object-fit:contain;border-radius:8px;flex-shrink:0;filter:drop-shadow(0 2px 8px rgba(255,26,60,0.45));" /><div class="logo-text" style="font-size:1.12rem;font-weight:900;letter-spacing:-0.4px;text-transform:uppercase;font-family:system-ui,-apple-system,sans-serif;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:#ffffff;"><span style="color:#ff1a3c!important;font-weight:900;">BARGAIN</span> <span style="color:#ffffff!important;font-weight:900;">DROP</span></div></a>
+    <div class="nav-actions">
+      <a href="wishlist.html" class="nav-btn" aria-label="Wishlist">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </a>
+      <a href="cart.html" class="nav-btn" aria-label="Cart">
+        <svg width="20" height="20" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span class="nav-badge" id="nav-cart-count" style="display:none">0</span>
+      </a>
+      <a href="profile.html" class="nav-btn" aria-label="Account">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </a>
     </div>
-
-    <!-- Center Mode Tabs -->
-    <div class="flex items-center bg-ink p-1 rounded-xl border border-edge text-xs shrink-0">
-      <button onclick="setWorkspaceView('split-preview')" id="tab-split-preview" class="px-3 py-1.5 rounded-lg font-semibold bg-[#4285F4] text-white transition">💬+👁️ Chat + Preview</button>
-      <button onclick="setWorkspaceView('split-browser')" id="tab-split-browser" class="px-3 py-1.5 rounded-lg font-semibold text-[#9aa0a6] hover:text-white transition">💬+🌐 Chat + Browser</button>
-      <button onclick="setWorkspaceView('chat')" id="tab-chat" class="px-3 py-1.5 rounded-lg font-semibold text-[#9aa0a6] hover:text-white transition">Chat</button>
-      <button onclick="setWorkspaceView('browser')" id="tab-browser" class="px-3 py-1.5 rounded-lg font-semibold text-[#9aa0a6] hover:text-white transition">🌐 Browser</button>
-      <button onclick="setWorkspaceView('preview')" id="tab-preview" class="px-3 py-1.5 rounded-lg font-semibold text-[#9aa0a6] hover:text-white transition">👁️ Preview</button>
-    </div>
-
-    <!-- Right Controls -->
-    <div class="flex items-center gap-2 shrink-0">
-      <button id="takeover-btn" onclick="toggleBrowserTakeover()" class="text-xs px-3 py-1.5 rounded-lg font-bold border border-[#3c4043] bg-panel2 text-white hover:border-[#FBBC05] transition">
-        🖐️ Takeover Browser
-      </button>
-      <button id="clear-btn" class="text-xs px-2.5 py-1.5 rounded-lg border border-edge hover:bg-panel2 transition text-[#9aa0a6] hover:text-white">Clear</button>
-      <button id="export-btn" class="text-xs px-2.5 py-1.5 rounded-lg border border-edge hover:bg-panel2 transition text-[#9aa0a6] hover:text-white hidden md:inline-block">Export JSON</button>
-    </div>
-  </header>
-
-  <!-- 3. MAIN WORKSPACE -->
-  <div class="flex-1 flex overflow-hidden">
-    <!-- LEFT: CHAT CONSOLE -->
-    <div id="pane-chat" class="w-full lg:w-[52%] flex flex-col h-full border-r border-edge bg-ink">
-      <main id="chat-scroll" class="flex-1 overflow-y-auto scrollbar-thin px-4 py-5">
-        <div id="chat" class="max-w-3xl mx-auto flex flex-col gap-4"></div>
-      </main>
-
-      <footer class="px-4 pb-3 pt-2 border-t border-edge bg-panel">
-        <form id="composer" class="max-w-3xl mx-auto">
-          <div id="previews" class="hidden flex-wrap gap-2 mb-2 p-2 rounded-xl bg-ink border border-edge"></div>
-          <input id="file-input" type="file" multiple accept="image/*,.csv,.json,.xlsx,.xls,.txt,.md,.html,.js,.ts,.py,.pdf" class="hidden" />
-
-          <div class="flex items-end gap-2 bg-ink border-2 border-[#3c4043] focus-within:border-[#4285F4] rounded-2xl px-3 py-2.5 transition shadow-lg">
-            <button type="button" id="attach-btn" title="Attach pictures or files"
-              class="h-9 w-9 shrink-0 rounded-xl bg-panel2 hover:bg-[#2d3548] flex items-center justify-center text-[#8ab4f8] transition">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 0 1 5.66 5.66l-8.57 8.57a2 2 0 0 1-2.83-2.83l8.4-8.4"/></svg>
-            </button>
-
-            <textarea id="input" rows="1" placeholder="Ask Gemini 3.8 Flash to edit files, search the web, browse URLs, or audit Bargain Drop…"
-              class="flex-1 bg-transparent resize-none outline-none text-sm text-white placeholder-[#9aa0a6] leading-relaxed max-h-40 py-1"></textarea>
-
-            <button type="submit" id="send-btn" class="h-9 px-4 shrink-0 rounded-xl bg-[#4285F4] hover:bg-[#1a73e8] text-white font-bold text-xs flex items-center gap-1.5 transition disabled:opacity-40">
-              <span>Send</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m3 3 18 9-18 9 4-9z"/><path d="M7 12h14"/></svg>
-            </button>
-          </div>
-          <div class="flex items-center justify-between text-[10px] text-[#9aa0a6] mt-1.5 px-1">
-            <span class="text-[#81c995]">● Tools Active: Web Search · Browser · File R/W · Repricer · Zaro</span>
-            <span>Model: <strong class="text-[#8ab4f8] font-mono">gemini-3.8-flash</strong> · Attach or Paste Images/Files</span>
-          </div>
-        </form>
-      </footer>
-    </div>
-
-    <!-- RIGHT A: AGENT BROWSER WITH USER TAKEOVER -->
-    <div id="pane-browser" class="hidden flex-1 flex-col h-full bg-panel overflow-hidden">
-      <div id="browser-bar" class="px-3 py-2 border-b border-edge bg-panel2 flex flex-col gap-2">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <span id="browser-mode-badge" class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-[#34A853] text-black">🤖 AGENT BROWSER</span>
-            <span id="browser-mode-desc" class="text-[11px] text-[#9aa0a6]">Gemini 3.8 Flash automatically browses &amp; searches here.</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <button type="button" onclick="toggleBrowserTakeover()" id="browser-takeover-inner-btn" class="px-3 py-1 rounded-lg text-xs font-bold bg-[#FBBC05] text-black border border-white">
-              🖐️ Takeover Browser Now
-            </button>
-            <button type="button" onclick="sendBrowserContextToChat()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#4285F4] text-white">
-              📤 Send Page to Chat
-            </button>
-          </div>
-        </div>
-        <form onsubmit="event.preventDefault(); navigateAgentBrowser(document.getElementById('browser-url-input').value);" class="flex items-center gap-1.5">
-          <input id="browser-url-input" type="text" value="/store/index.html" placeholder="Enter URL or web search query…"
-            class="flex-1 bg-ink border border-[#3c4043] focus:border-[#4285F4] rounded-lg px-3 py-1.5 text-xs font-mono text-white outline-none" />
-          <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#4285F4] text-white text-xs font-bold">Go</button>
-        </form>
-      </div>
-      <iframe id="browser-iframe" src="/store/index.html" class="w-full flex-1 border-0 bg-white"></iframe>
-    </div>
-
-    <!-- RIGHT B: LIVE STOREFRONT PREVIEW TAB -->
-    <div id="pane-preview" class="flex-1 flex flex-col h-full bg-panel overflow-hidden">
-      <div class="px-3 py-2 border-b border-edge bg-panel2 flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#34A853]"></span>
-          <span class="text-xs font-bold text-white">Live Store Preview</span>
-          <select id="preview-route-select" onchange="document.getElementById('preview-iframe').src = this.value"
-            class="bg-ink border border-[#3c4043] rounded-lg px-2.5 py-1 text-xs text-[#8ab4f8] font-mono outline-none">
-            <option value="/store/index.html">Homepage (/store/index.html)</option>
-            <option value="/store/products.html">Products (/store/products.html)</option>
-            <option value="/store/categories.html">Categories (/store/categories.html)</option>
-            <option value="/store/logos.html">Logos (/store/logos.html)</option>
-            <option value="/store/admin.html">Admin (/store/admin.html)</option>
-          </select>
-        </div>
-        <button onclick="reloadPreview()" class="px-2.5 py-1 rounded-lg bg-ink hover:bg-panel2 border border-[#3c4043] text-xs text-white">↻ Reload</button>
-      </div>
-      <div class="flex-1 bg-black p-2 flex items-center justify-center overflow-hidden">
-        <iframe id="preview-iframe" src="/store/index.html" class="w-full h-full rounded-xl border border-[#3c4043] bg-white"></iframe>
-      </div>
-    </div>
-  </div>
-
-  <!-- EXECUTE MODAL -->
-  <div id="exec-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeExec()"></div>
-    <div class="relative bg-panel border border-edge rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col fade-in">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-edge">
-        <h2 class="text-sm font-semibold text-white">Execute via Zaro</h2>
-        <button onclick="closeExec()" class="text-slate-400 hover:text-white text-lg leading-none">×</button>
-      </div>
-      <div class="px-5 py-3 text-xs text-[#9aa0a6] bg-panel2 border-b border-edge">
-        This blueprint will be applied to <span class="font-mono text-[#8ab4f8]">/scripts/catalog-repricer.fixed.js</span>, then a live test loop runs across the 24 shards + Shopify.
-      </div>
-      <div id="exec-stream" class="hidden px-5 py-3 border-b border-edge bg-ink/60 max-h-40 overflow-y-auto scrollbar-thin space-y-1.5"></div>
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-5">
-        <pre id="exec-code" class="text-xs font-mono whitespace-pre-wrap text-slate-300 bg-ink border border-edge rounded-lg p-4 max-h-[38vh] overflow-auto"></pre>
-      </div>
-      <div class="px-5 py-3 border-t border-edge flex items-center justify-between gap-3">
-        <div class="flex flex-col gap-1">
-          <div id="exec-status" class="text-xs text-[#9aa0a6]">Authenticate with admin PIN to execute.</div>
-          <input id="exec-pin" type="password" placeholder="Admin PIN" class="hidden text-xs bg-panel2 border border-edge rounded-md px-3 py-1.5 outline-none focus:border-[#4285F4] w-48">
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="closeExec()" class="text-xs px-3 py-2 rounded-md border border-edge hover:bg-panel2 transition">Cancel</button>
-          <button id="exec-confirm" onclick="confirmExec()" class="text-xs px-4 py-2 rounded-md bg-[#4285F4] hover:bg-[#1a73e8] text-white font-bold transition">Confirm &amp; Execute</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-<script>
-const CONFIG = {
-  AGENT_STREAM: '/api/agent/stream',
-  ARCHITECT_BASE: '/api/architect',
-};
-
-let pendingAttachments = [];
-let pendingExec = null;
-let browserTakeover = false;
-
-function setWorkspaceView(mode) {
-  const chat = document.getElementById('pane-chat');
-  const browser = document.getElementById('pane-browser');
-  const preview = document.getElementById('pane-preview');
-  const tabs = ['split-preview', 'split-browser', 'chat', 'browser', 'preview'];
-  tabs.forEach(t => {
-    const el = document.getElementById('tab-' + t);
-    if (el) el.className = 'px-3 py-1.5 rounded-lg font-semibold transition ' + (t === mode ? 'bg-[#4285F4] text-white' : 'text-[#9aa0a6] hover:text-white');
-  });
-
-  chat.classList.add('hidden');
-  browser.classList.add('hidden');
-  preview.classList.add('hidden');
-  chat.classList.remove('lg:w-[52%]', 'w-full');
-
-  if (mode === 'split-preview') {
-    chat.classList.remove('hidden'); chat.classList.add('w-full', 'lg:w-[52%]');
-    preview.classList.remove('hidden'); preview.classList.add('flex');
-  } else if (mode === 'split-browser') {
-    chat.classList.remove('hidden'); chat.classList.add('w-full', 'lg:w-[52%]');
-    browser.classList.remove('hidden'); browser.classList.add('flex');
-  } else if (mode === 'chat') {
-    chat.classList.remove('hidden'); chat.classList.add('w-full');
-  } else if (mode === 'browser') {
-    browser.classList.remove('hidden'); browser.classList.add('flex');
-  } else if (mode === 'preview') {
-    preview.classList.remove('hidden'); preview.classList.add('flex');
-  }
-}
-
-function toggleBrowserTakeover() {
-  browserTakeover = !browserTakeover;
-  const topBtn = document.getElementById('takeover-btn');
-  const innerBtn = document.getElementById('browser-takeover-inner-btn');
-  const badge = document.getElementById('browser-mode-badge');
-  const desc = document.getElementById('browser-mode-desc');
-
-  if (browserTakeover) {
-    topBtn.textContent = '🎮 Browser Takeover: ON';
-    topBtn.className = 'text-xs px-3 py-1.5 rounded-lg font-bold border border-white bg-[#FBBC05] text-black shadow';
-    innerBtn.textContent = '✓ Release Control to Agent';
-    innerBtn.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-[#34A853] text-black border border-white';
-    badge.textContent = '🎮 USER TAKEOVER ACTIVE';
-    badge.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase bg-[#FBBC05] text-black';
-    desc.textContent = 'Manual control active — browse any page and click "Send Page to Chat".';
-    setWorkspaceView('split-browser');
-  } else {
-    topBtn.textContent = '🖐️ Takeover Browser';
-    topBtn.className = 'text-xs px-3 py-1.5 rounded-lg font-bold border border-[#3c4043] bg-panel2 text-white hover:border-[#FBBC05] transition';
-    innerBtn.textContent = '🖐️ Takeover Browser Now';
-    innerBtn.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-[#FBBC05] text-black border border-white';
-    badge.textContent = '🤖 AGENT BROWSER';
-    badge.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase bg-[#34A853] text-black';
-    desc.textContent = 'Gemini 3.8 Flash automatically browses & searches here.';
-  }
-}
-
-function navigateAgentBrowser(raw) {
-  const val = String(raw || '').trim();
-  if (!val) return;
-  const iframe = document.getElementById('browser-iframe');
-  const input = document.getElementById('browser-url-input');
-  let target = val;
-  if (!val.startsWith('/') && !val.startsWith('http://') && !val.startsWith('https://')) {
-    target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(val);
-  }
-  input.value = val;
-  iframe.src = target;
-}
-
-function sendBrowserContextToChat() {
-  const url = document.getElementById('browser-url-input').value;
-  const input = document.getElementById('input');
-  input.value = `Please inspect the current page open in the Agent Browser (${url}) and help me update or optimize it.`;
-  document.getElementById('composer').requestSubmit();
-}
-
-function reloadPreview() {
-  const iframe = document.getElementById('preview-iframe');
-  iframe.src = iframe.src.split('?')[0] + '?t=' + Date.now();
-}
-
-function escapeHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function renderMarkdown(text) {
-  let out = escapeHtml(text);
-  const codeBlocks = [];
-  out = out.replace(/```([\s\S]*?)```/g, (m, code) => {
-    const idx = codeBlocks.length;
-    codeBlocks.push(code.replace(/^\s*[\r\n]+/, '').replace(/\s+$/,''));
-    return `\u0000CODE${idx}\u0000`;
-  });
-  out = out.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-black/40 text-[#8ab4f8] font-mono text-[12px]">$1</code>');
-  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-bold">$1</strong>');
-  out = out.replace(/\n/g, '<br/>');
-  codeBlocks.forEach((code, idx) => {
-    out = out.replace(`\u0000CODE${idx}\u0000`,
-      `<div class="code-block relative mt-2 mb-1">
-         <pre class="bg-[#090b10] border border-edge rounded-xl p-3 overflow-x-auto text-[12px] leading-relaxed text-[#e8eaed]"><code>${code}</code></pre>
-         <button class="exec-btn mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-[#4285F4] hover:bg-[#1a73e8] text-white transition"
-                 data-code="${encodeURIComponent(code)}">
-           ⚡ Execute via Zaro
-         </button>
-       </div>`);
-  });
-  return out;
-}
-
-const chatEl = document.getElementById('chat');
-const scrollEl = document.getElementById('chat-scroll');
-const CHAT_STORAGE_KEY = 'bargaindrop_ai_standalone_chat_v1';
-let savedMessages = [];
-
-function saveChatState() {
-  try {
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(savedMessages));
-  } catch (e) {
-    try {
-      const compact = savedMessages.map(m => ({ ...m, attachments: (m.attachments || []).map(a => ({ ...a, url: a.kind === 'image' && a.url && a.url.length > 50000 ? '' : a.url })) }));
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(compact));
-    } catch (_) {}
-  }
-}
-
-function scrollBottom() { requestAnimationFrame(() => { scrollEl.scrollTop = scrollEl.scrollHeight; }); }
-
-function addBubble(role, content, opts = {}) {
-  const isUser = role === 'user';
-  const wrapper = document.createElement('div');
-  wrapper.className = 'fade-in flex ' + (isUser ? 'justify-end' : 'justify-start');
-  const bubble = document.createElement('div');
-  bubble.className = 'max-w-[90%] px-4 py-3 rounded-2xl text-sm leading-relaxed ' +
-    (isUser ? 'bg-[#1a73e8] text-white rounded-br-sm shadow-lg'
-            : 'bg-panel2 border border-edge text-[#e8eaed] rounded-bl-sm shadow');
-  bubble.innerHTML = opts.raw ? escapeHtml(content).replace(/\n/g,'<br/>') : renderMarkdown(content);
-
-  if (opts.attachments && opts.attachments.length) {
-    const attWrap = document.createElement('div');
-    attWrap.className = 'flex flex-wrap gap-2 mt-2';
-    for (const att of opts.attachments) {
-      if (att.kind === 'image' && att.url) {
-        const img = document.createElement('img');
-        img.src = att.url; img.alt = att.name || 'image';
-        img.className = 'chat-attach-img';
-        attWrap.appendChild(img);
-      } else {
-        const chip = document.createElement('span');
-        chip.className = 'inline-flex items-center gap-1.5 text-xs rounded-md border border-white/15 bg-white/5 px-2.5 py-1.5 font-mono';
-        chip.textContent = '📄 ' + (att.name || 'file');
-        attWrap.appendChild(chip);
-      }
-    }
-    bubble.appendChild(attWrap);
-  }
-
-  if (!opts.skipSave) {
-    savedMessages.push({ role, content, attachments: opts.attachments || [], ts: new Date().toISOString() });
-    saveChatState();
-  }
-
-  wrapper.appendChild(bubble);
-  chatEl.appendChild(wrapper);
-  scrollBottom();
-  return bubble;
-}
-
-const fileInput = document.getElementById('file-input');
-const attachBtn = document.getElementById('attach-btn');
-const previewsEl = document.getElementById('previews');
-
-attachBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-  const files = Array.from(fileInput.files || []);
-  fileInput.value = '';
-  for (const f of files) addAttachment(f);
-});
-
-window.addEventListener('paste', (e) => {
-  const items = e.clipboardData && e.clipboardData.items;
-  if (!items) return;
-  for (let i = 0; i < items.length; i++) {
-    if (items[i].kind === 'file') {
-      const f = items[i].getAsFile();
-      if (f) addAttachment(f);
-    }
-  }
-});
-
-function guessMime(name) {
-  const ext = (name || '').split('.').pop().toLowerCase();
-  const map = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', svg:'image/svg+xml', csv:'text/csv', json:'application/json', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls:'application/vnd.ms-excel', txt:'text/plain', md:'text/markdown', html:'text/html', js:'text/javascript', ts:'text/plain' };
-  return map[ext] || 'text/plain';
-}
-
-function addAttachment(file) {
-  const id = 'att-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-  const mime = file.type || guessMime(file.name);
-  const kind = mime.startsWith('image/') ? 'image' : 'document';
-  const reader = new FileReader();
-  reader.onload = () => {
-    const dataB64 = String(reader.result || '');
-    const entry = { id, kind, mime, name: file.name, dataB64 };
-    pendingAttachments.push(entry);
-    const card = document.createElement('div');
-    card.className = 'relative group shrink-0 rounded-lg overflow-hidden border border-edge bg-panel2';
-    if (kind === 'image') {
-      card.innerHTML = `<img src="${dataB64}" class="h-14 w-14 object-cover" />`;
-    } else {
-      card.innerHTML = `<div class="h-14 w-36 px-2.5 flex flex-col justify-center"><span class="text-[11px] font-bold text-white truncate">📄 ${escapeHtml(file.name)}</span><span class="text-[9px] text-[#9aa0a6] uppercase">${escapeHtml(mime.split('/').pop())}</span></div>`;
-    }
-    const rm = document.createElement('button');
-    rm.type = 'button';
-    rm.className = 'absolute top-1 right-1 h-4 w-4 rounded-full bg-black/80 text-white text-[10px] flex items-center justify-center hover:bg-[#EA4335]';
-    rm.textContent = '×';
-    rm.onclick = () => {
-      card.remove();
-      pendingAttachments = pendingAttachments.filter(a => a.id !== id);
-      if (!pendingAttachments.length) previewsEl.classList.add('hidden');
-    };
-    card.appendChild(rm);
-    previewsEl.appendChild(card);
-    previewsEl.classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
-}
-
-const form = document.getElementById('composer');
-const input = document.getElementById('input');
-const sendBtn = document.getElementById('send-btn');
-
-input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 160) + 'px'; });
-input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const text = input.value.trim();
-  const attachments = pendingAttachments.map(a => ({ mime: a.mime, name: a.name, data: a.dataB64 }));
-  if (!text && attachments.length === 0) return;
-
-  input.value = ''; input.style.height = 'auto';
-  const localAttach = pendingAttachments.map(a => ({ kind: a.kind, mime: a.mime, name: a.name, url: a.dataB64 }));
-  addBubble('user', text || '(Attachment)', { attachments: localAttach });
-
-  pendingAttachments = [];
-  previewsEl.innerHTML = '';
-  previewsEl.classList.add('hidden');
-  sendBtn.disabled = true;
-
-  // Create live streaming assistant bubble
-  const streamBubble = addBubble('assistant', '⏳ Connecting to Gemini 3.8 Flash…', { skipSave: true });
-  let accumulatedText = '';
-  let phaseLogs = [];
-
-  try {
-    const res = await fetch(CONFIG.ARCHITECT_BASE + '/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ stream: true, message: text, attachments }),
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx;
-      while ((idx = buf.indexOf('\n\n')) >= 0) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        let ev = 'message', data = '';
-        for (const ln of frame.split('\n')) {
-          if (ln.startsWith('event:')) ev = ln.slice(6).trim();
-          else if (ln.startsWith('data:')) data += ln.slice(5).trim();
-        }
-        let parsed; try { parsed = JSON.parse(data); } catch { continue; }
-
-        if (ev === 'phase') {
-          phaseLogs.push(`${parsed.icon || '⚙️'} ${parsed.text || ''}`);
-          if (!accumulatedText) {
-            streamBubble.innerHTML = `<div class="text-xs font-mono text-[#8ab4f8] space-y-1">${phaseLogs.map(escapeHtml).join('<br/>')}</div>`;
-          }
-        } else if (ev === 'token') {
-          accumulatedText += (parsed.text || '');
-          streamBubble.innerHTML = renderMarkdown(accumulatedText);
-          scrollBottom();
-        } else if (ev === 'browser_navigate' && !browserTakeover && parsed.url) {
-          navigateAgentBrowser(parsed.url);
-        } else if (ev === 'preview_refresh') {
-          reloadPreview();
-        } else if (ev === 'done') {
-          const finalReply = accumulatedText || parsed.reply || '';
-          streamBubble.innerHTML = renderMarkdown(finalReply);
-          document.getElementById('model-badge').textContent = parsed.model || 'gemini-3.8-flash';
-          savedMessages.push({ role: 'assistant', content: finalReply, ts: new Date().toISOString() });
-          saveChatState();
-          bindExecButtons();
-        } else if (ev === 'error') {
-          throw new Error(parsed.error || 'Stream error');
-        }
-      }
-    }
-  } catch (err) {
-    const errMsg = `⚠️ **Error:** ${err.message}`;
-    streamBubble.innerHTML = `⚠️ <strong>Error:</strong> ${escapeHtml(err.message)}`;
-    savedMessages.push({ role: 'assistant', content: errMsg, ts: new Date().toISOString() });
-    saveChatState();
-  } finally {
-    sendBtn.disabled = false;
-    input.focus();
-  }
-});
-
-function bindExecButtons() {
-  document.querySelectorAll('.exec-btn').forEach(btn => {
-    if (btn.dataset.bound) return;
-    btn.dataset.bound = '1';
-    btn.addEventListener('click', () => openExec(decodeURIComponent(btn.dataset.code)));
-  });
-}
-
-function openExec(code) {
-  pendingExec = code;
-  document.getElementById('exec-code').textContent = code;
-  document.getElementById('exec-pin').classList.remove('hidden');
-  document.getElementById('exec-modal').classList.remove('hidden');
-}
-function closeExec() { pendingExec = null; document.getElementById('exec-modal').classList.add('hidden'); }
-
-async function confirmExec() {
-  if (!pendingExec) return;
-  const pin = document.getElementById('exec-pin').value.trim();
-  const statusEl = document.getElementById('exec-status');
-  statusEl.textContent = 'Applying blueprint + running live test loop…';
-  try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (pin) headers['X-Admin-Pin'] = pin;
-    const res = await fetch(CONFIG.ARCHITECT_BASE + '/exec', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ blueprint: pendingExec }),
-    });
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.error || 'Exec failed');
-    statusEl.textContent = 'Applied ✓';
-    addBubble('assistant', `### ✅ Executed via Zaro\n- **Blueprint**: \`${d.stagePath || d.target}\``);
-    setTimeout(closeExec, 1200);
-  } catch (e) {
-    statusEl.textContent = 'Failed: ' + e.message;
-  }
-}
-
-document.getElementById('clear-btn').addEventListener('click', () => {
-  savedMessages = [];
-  try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch (_) {}
-  chatEl.innerHTML = '';
-  renderWelcome();
-});
-
-function renderWelcome() {
-  addBubble('assistant',
-`### ✨ Gemini 3.8 Flash — Bargain Drop Autonomous Agent
-
-Welcome to **BargainDrop AI** (\`bargain-drop.online/bargaindrop-ai\`). I am running **Gemini 3.8 Flash** with **unrestricted agent permissions**, **Google colors**, **real-time streaming**, **no token limit**, **multimodal image/file attachments**, **live web search & browser takeover**, and **integrated live preview**.`, { skipSave: true });
-}
-
-function initChatFromStorage() {
-  try {
-    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        savedMessages = parsed;
-        renderWelcome();
-        for (const msg of savedMessages) {
-          addBubble(msg.role, msg.content, { attachments: msg.attachments, skipSave: true });
-        }
-        bindExecButtons();
-        return;
-      }
-    }
-  } catch (e) {}
-  renderWelcome();
-}
-
-function initLiveDomainRoutes() {
-  if (window.location.hostname === 'bargain-drop.online' || !window.location.pathname.startsWith('/store/')) {
-    const sel = document.getElementById('preview-route-select');
-    const prevIframe = document.getElementById('preview-iframe');
-    const browIframe = document.getElementById('browser-iframe');
-    const browInput = document.getElementById('browser-url-input');
-    if (sel && window.location.hostname === 'bargain-drop.online') {
-      Array.from(sel.options).forEach(opt => {
-        opt.value = opt.value.replace(/^\/store\//, '/');
-        opt.textContent = opt.textContent.replace('/store/', '/');
-      });
-      if (prevIframe) prevIframe.src = '/index.html';
-      if (browIframe) browIframe.src = '/index.html';
-      if (browInput) browInput.value = '/index.html';
-    }
-  }
-}
-
-initLiveDomainRoutes();
-initChatFromStorage();
+  </nav>
+  <div class="card"><h1>404</h1><p>Sorry, the page you're looking for doesn't exist.</p><a href="/">Back to Home</a></div><script>
+(function(){try{var c=JSON.parse(localStorage.getItem("bd_cart")||"[]"),n=c.reduce(function(s,i){return s+(i.qty||1)},0),b=document.getElementById("nav-cart-count");if(b&&n>0){b.textContent=n;b.style.display=""}}catch(e){}})();
 </script>
-  <script src="/js/logo-handler.js"></script>
-</body>
-</html>
+
+  <script src="/js/logo-handler.js?v=bd20261029v4"></script>
+
+<script src="js/icon-library.js"></script>
+<script src="js/icon-map.js"></script>
+<script src="js/nav-icons.js"></script>
+<script src="js/slide-icons.js"></script>
+</body></html>
