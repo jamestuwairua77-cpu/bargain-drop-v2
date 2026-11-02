@@ -410,20 +410,13 @@ const worker = {
     const cleanRoutePath = url.pathname.startsWith("/cpagrip-v2") ? "/cpagrip-v2" : "/cpagrip";
     const campaignToken = url.searchParams.get("c");
 
-    if (isCpagripPath && campaignToken && env.CPAGRIP_CAMPAIGNS) {
-      // Filter out automated data-centre crawlers to protect metrics integrity
-      const spiderCheck = request.headers.get("user-agent") || "";
-      const isBot = /bot|crawler|spider|slurp|crawl|lighthouse/i.test(spiderCheck);
-      if (isBot) {
-        return Response.redirect(`${url.origin}/`, 302);
-      }
-
+    // Outbound real human click redirector (increments clicks, deducts CPC, redirects to locker)
+    if ((url.pathname === "/cpagrip-v2/out" || url.pathname === "/cpagrip/out") && campaignToken && env.CPAGRIP_CAMPAIGNS) {
       const rawItem = await env.CPAGRIP_CAMPAIGNS.get(campaignToken);
       if (rawItem) {
         const item = JSON.parse(rawItem);
         if (item.status === "active") {
           item.clicks = (parseInt(item.clicks, 10) || 0) + 1;
-          item.views = (parseInt(item.views, 10) || 0) + 1;
 
           if (item.type === "paid") {
             const costRate = parseFloat(item.cpc) || 0.01;
@@ -442,6 +435,40 @@ const worker = {
             await savePromise;
           }
 
+          let dest = String(item.targetUrl || "").trim() || `${url.origin}/`;
+          if (!/^https?:\/\//i.test(dest)) {
+            dest = "https://" + dest;
+          }
+          return Response.redirect(dest, 302);
+        }
+      }
+      return Response.redirect(`${url.origin}/`, 302);
+    }
+
+    if (isCpagripPath && campaignToken && env.CPAGRIP_CAMPAIGNS) {
+      // Filter out automated data-centre crawlers to protect metrics integrity
+      const spiderCheck = request.headers.get("user-agent") || "";
+      const isBot = /bot|crawler|spider|slurp|crawl|lighthouse/i.test(spiderCheck);
+      if (isBot) {
+        return Response.redirect(`${url.origin}/`, 302);
+      }
+
+      const rawItem = await env.CPAGRIP_CAMPAIGNS.get(campaignToken);
+      if (rawItem) {
+        const item = JSON.parse(rawItem);
+        if (item.status === "active") {
+          // Record real human page impression/view
+          item.views = (parseInt(item.views, 10) || 0) + 1;
+
+          const savePromise = env.CPAGRIP_CAMPAIGNS.put(campaignToken, JSON.stringify(item));
+          if (ctx && typeof ctx.waitUntil === "function") {
+            ctx.waitUntil(savePromise);
+          } else {
+            await savePromise;
+          }
+
+          const outboundClickUrl = `${url.origin}${cleanRoutePath}/out?c=${encodeURIComponent(campaignToken)}`;
+
           return new Response(`<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -458,7 +485,7 @@ const worker = {
             <body>
                 <div class="ad-card">
                     ${item.imageAsset ? `<img class="ad-media" src="${escapeHtml(item.imageAsset)}" alt="Campaign Design">` : ""}
-                    <a class="ad-action-btn" href="${escapeHtml(item.targetUrl || "#")}">${escapeHtml(item.buttonText || "🔒 Complete Verification To Download")}</a>
+                    <a class="ad-action-btn" href="${escapeHtml(outboundClickUrl)}" rel="no-referrer-when-downgrade">${escapeHtml(item.buttonText || "🔒 Complete Verification To Download")}</a>
                 </div>
             </body>
             </html>`, {
