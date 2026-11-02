@@ -124,17 +124,13 @@ const worker = {
                 <style>
                     body { background: #0b0b0c; color: #fff; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
                     .ad-card { background: #131316; border: 1px solid #222227; max-width: 450px; width: 100%; border-radius: 12px; padding: 24px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-                    .ad-head { font-size: 1.3rem; font-weight: bold; color: #ffdd67; margin-bottom: 14px; line-height: 1.35; }
-                    .ad-banner { width: 100%; border-radius: 8px; border: 1px solid #2d2d35; margin-bottom: 14px; max-height: 320px; object-fit: cover; display: block; }
-                    .ad-foot { color: #a1a1aa; font-size: 0.95rem; margin-bottom: 20px; line-height: 1.5; }
+                    .ad-banner { width: 100%; border-radius: 8px; border: 1px solid #2d2d35; margin-bottom: 18px; max-height: 320px; object-fit: cover; display: block; }
                     .ad-btn { display: inline-block; background: #00ffcc; color: #0b0b0c; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; }
                 </style>
             </head>
             <body>
                 <div class="ad-card">
-                    <div class="ad-head">${escapeHtml(campaign.topText || "Exclusive Offer Found!")}</div>
                     <img class="ad-banner" src="${escapeHtml(bannerSrc)}" alt="Ad Asset">
-                    <div class="ad-foot">${escapeHtml(campaign.bottomText || "Click the verify button below to immediately access your files.")}</div>
                     <a class="ad-btn" href="${escapeHtml(campaign.targetUrl || "#")}">🔒 Access Gated Resource</a>
                 </div>
             </body>
@@ -223,8 +219,6 @@ const worker = {
 
             // LOCK IN THE EXACT PREVIEW CREATIVES ACROSS ALL MIRRORED INSTANCES
             const lockedImageAsset = String(body.imageAsset || "").trim();
-            const lockedTopText = String(body.topText || "").trim() || "Exclusive Offer Found!";
-            const lockedBottomText = String(body.bottomText || "").trim() || "Click the verify button below to immediately access your files.";
 
             for (let i = 0; i < bulkInstances; i++) {
               const sequenceSuffix = bulkInstances > 1 ? `_${i + 1}` : "";
@@ -247,9 +241,7 @@ const worker = {
                 aiStatus: "live",
                 createdAt: Date.now(),
                 // MIRROR AND LOCK THE EXACT PREVIEW CREATIVES ACROSS ALL BATCHES
-                imageAsset: lockedImageAsset,
-                topText: lockedTopText,
-                bottomText: lockedBottomText
+                imageAsset: lockedImageAsset
               };
 
               await CAMPAIGNS_KV.put(targetInstanceId, JSON.stringify(newCampaignObject));
@@ -305,14 +297,11 @@ const worker = {
           globalClicks += (parseInt(item.clicks, 10) || 0);
           globalLeads += (parseInt(item.leads, 10) || 0);
 
-          const hasLockedCreative = Boolean(item.imageAsset || item.topText || item.bottomText);
+          const hasLockedCreative = Boolean(item.imageAsset);
           const creativeBadgeHtml = hasLockedCreative ? `
             <div style="background:#131316; border:1px dashed #2d2d35; border-radius:8px; padding:10px; margin-bottom:12px; display:flex; gap:10px; align-items:center;">
-              ${item.imageAsset ? `<img src="${escapeHtml(item.imageAsset)}" alt="Locked Asset" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #323239; flex-shrink:0;">` : ""}
-              <div style="font-size:0.75rem; font-family:monospace; overflow:hidden;">
-                <div style="color:#ffdd67; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🤖 Bot 1: ${escapeHtml(item.topText || "Exclusive Offer Found!")}</div>
-                <div style="color:#9ca3af; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🤖 Bot 2: ${escapeHtml(item.bottomText || "Click the verify button below to immediately access your files.")}</div>
-              </div>
+              <img src="${escapeHtml(item.imageAsset)}" alt="Locked Asset" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #323239; flex-shrink:0;">
+              <div style="font-size:0.75rem; font-family:monospace; color:#00ffcc;">🔒 Locked Creative Banner Asset</div>
             </div>
           ` : "";
 
@@ -514,32 +503,13 @@ const worker = {
                 <button type="button" onclick="clearCreativeImage()" style="background:#222227; color:#a1a1aa; border:1px solid #323239; border-radius:8px; padding:0 12px; font-size:0.75rem; font-weight:bold; cursor:pointer;">Clear</button>
             </div>
 
-            <!-- 2. DUAL AI BOT GENERATION PLACEHOLDERS (BOT 1 & BOT 2 DATA SOCKETS) -->
-            <div class="bot-socket-card">
-                <div class="bot-socket-header">
-                    <span>🤖 BOT 1 MODULE: TOP HEADLINE SOCKET</span>
-                    <button type="button" class="btn-bot-gen" onclick="triggerAiBotSocket('bot1')">⚡ Generate Top Headline</button>
-                </div>
-                <input type="text" id="bot1-top-input" class="textbox-input" style="margin-bottom:0;" placeholder="Bot 1 Top Headline (e.g., Exclusive Offer Found!)" oninput="syncBotTextToPreview()">
-            </div>
-
-            <div class="bot-socket-card">
-                <div class="bot-socket-header">
-                    <span>🤖 BOT 2 MODULE: BOTTOM CONTEXT SOCKET</span>
-                    <button type="button" class="btn-bot-gen" onclick="triggerAiBotSocket('bot2')">⚡ Generate Bottom Hook</button>
-                </div>
-                <input type="text" id="bot2-bottom-input" class="textbox-input" style="margin-bottom:0;" placeholder="Bot 2 Bottom Context Hook..." oninput="syncBotTextToPreview()">
-            </div>
-
             <!-- LIVE RESPONSIVE VISUAL CARD PREVIEW -->
             <div class="preview-mockup-frame" id="active-preview-container">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <span style="font-size:0.72rem; font-family:monospace; color:#9ca3af; text-transform:uppercase; letter-spacing:1px;">Live Responsive Interstitial Card Preview</span>
                     <span id="preview-lock-status" style="font-size:0.7rem; font-family:monospace; color:#00ffcc;">🔒 Mirror Ready</span>
                 </div>
-                <div id="preview-top-text" class="preview-bot-text">Exclusive Offer Found!</div>
                 <img id="preview-banner-img" class="preview-banner-asset" src="" alt="Live Creative Asset Preview">
-                <div id="preview-bottom-text" class="preview-bot-text" style="color:#a1a1aa;">Click the verify button below to immediately access your files.</div>
                 <div style="margin-top:12px;">
                     <span style="display:inline-block; background:#00ffcc; color:#0b0b0c; padding:8px 18px; border-radius:6px; font-weight:bold; font-size:0.8rem;">🔒 Access Gated Resource</span>
                 </div>
@@ -600,29 +570,21 @@ const worker = {
         // LOCAL STORAGE KEYS FOR PERSISTENT PREVIEW & MULTI-INSTANCE MIRRORING
         var LS_IMAGE_KEY = "cpagrip_preview_image_asset";
         var LS_META_KEY = "cpagrip_preview_image_meta";
-        var LS_TOP_KEY = "cpagrip_preview_bot1_top";
-        var LS_BOTTOM_KEY = "cpagrip_preview_bot2_bottom";
 
         var activePreviewState = {
             imageAsset: "",
-            imageMeta: { name: "", width: 0, height: 0, hasImage: false },
-            topText: "Exclusive Offer Found!",
-            bottomText: "Click the verify button below to immediately access your files."
+            imageMeta: { name: "", width: 0, height: 0, hasImage: false }
         };
 
         function loadPreviewStateFromStorage() {
             try {
                 var savedImg = localStorage.getItem(LS_IMAGE_KEY);
                 var savedMeta = localStorage.getItem(LS_META_KEY);
-                var savedTop = localStorage.getItem(LS_TOP_KEY);
-                var savedBottom = localStorage.getItem(LS_BOTTOM_KEY);
 
                 if (savedImg) activePreviewState.imageAsset = savedImg;
                 if (savedMeta) {
                     try { activePreviewState.imageMeta = JSON.parse(savedMeta); } catch (_e) {}
                 }
-                if (savedTop) activePreviewState.topText = savedTop;
-                if (savedBottom) activePreviewState.bottomText = savedBottom;
             } catch (_err) {}
             renderActivePreviewContainer();
         }
@@ -631,33 +593,15 @@ const worker = {
             try {
                 localStorage.setItem(LS_IMAGE_KEY, activePreviewState.imageAsset || "");
                 localStorage.setItem(LS_META_KEY, JSON.stringify(activePreviewState.imageMeta || {}));
-                localStorage.setItem(LS_TOP_KEY, activePreviewState.topText || "");
-                localStorage.setItem(LS_BOTTOM_KEY, activePreviewState.bottomText || "");
             } catch (_err) {}
         }
 
         function renderActivePreviewContainer() {
-            var topInput = document.getElementById("bot1-top-input");
-            var bottomInput = document.getElementById("bot2-bottom-input");
             var urlInput = document.getElementById("creative-image-url");
-            var topPreview = document.getElementById("preview-top-text");
-            var bottomPreview = document.getElementById("preview-bottom-text");
             var bannerImg = document.getElementById("preview-banner-img");
 
-            if (topInput && document.activeElement !== topInput) {
-                topInput.value = activePreviewState.topText;
-            }
-            if (bottomInput && document.activeElement !== bottomInput) {
-                bottomInput.value = activePreviewState.bottomText;
-            }
             if (urlInput && document.activeElement !== urlInput && activePreviewState.imageAsset && !activePreviewState.imageAsset.startsWith("data:")) {
                 urlInput.value = activePreviewState.imageAsset;
-            }
-            if (topPreview) {
-                topPreview.innerText = activePreviewState.topText || "Exclusive Offer Found!";
-            }
-            if (bottomPreview) {
-                bottomPreview.innerText = activePreviewState.bottomText || "Click the verify button below to immediately access your files.";
             }
             if (bannerImg) {
                 if (activePreviewState.imageAsset) {
@@ -668,19 +612,6 @@ const worker = {
                     bannerImg.style.display = "none";
                 }
             }
-        }
-
-        function syncBotTextToPreview() {
-            var topInput = document.getElementById("bot1-top-input");
-            var bottomInput = document.getElementById("bot2-bottom-input");
-            if (topInput) {
-                activePreviewState.topText = topInput.value.trim() || "Exclusive Offer Found!";
-            }
-            if (bottomInput) {
-                activePreviewState.bottomText = bottomInput.value.trim() || "Click the verify button below to immediately access your files.";
-            }
-            savePreviewStateToStorage();
-            renderActivePreviewContainer();
         }
 
         function handleImageFileUpload(event) {
@@ -716,8 +647,6 @@ const worker = {
                     };
                     savePreviewStateToStorage();
                     renderActivePreviewContainer();
-                    // Automatically trigger Dual AI Bot context sync when a new image is uploaded
-                    triggerAiBotSocket("both");
                 };
                 img.src = rawDataUrl;
             };
@@ -746,41 +675,6 @@ const worker = {
             if (urlInput) urlInput.value = "";
             savePreviewStateToStorage();
             renderActivePreviewContainer();
-        }
-
-        async function triggerAiBotSocket(botSlot) {
-            var nameEl = document.getElementById("campaign-tag");
-            var urlEl = document.getElementById("cpagrip-url");
-            var statusEl = document.getElementById("preview-lock-status");
-            if (statusEl) statusEl.innerText = "⚡ Syncing Bot Socket...";
-
-            try {
-                var res = await fetch(window.location.pathname || "/cpagrip", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        action: "ai_generate",
-                        botSlot: botSlot || "both",
-                        campaignName: nameEl ? nameEl.value : "",
-                        targetUrl: urlEl ? urlEl.value : "",
-                        imageMeta: activePreviewState.imageMeta
-                    })
-                });
-                var data = await res.json();
-                if (res.ok && data.success) {
-                    if (botSlot === "bot1" || botSlot === "both") {
-                        activePreviewState.topText = data.topText;
-                    }
-                    if (botSlot === "bot2" || botSlot === "both") {
-                        activePreviewState.bottomText = data.bottomText;
-                    }
-                    savePreviewStateToStorage();
-                    renderActivePreviewContainer();
-                    if (statusEl) statusEl.innerText = "🔒 Bot Copy Locked";
-                }
-            } catch (_e) {
-                if (statusEl) statusEl.innerText = "🔒 Mirror Ready";
-            }
         }
 
         function formatElapsedDuration(ms) {
@@ -912,8 +806,6 @@ const worker = {
                 return;
             }
 
-            syncBotTextToPreview();
-
             var payloadId = nameVal.trim().toLowerCase().replace(/\\s+/g, '_');
             var budgetVal = (modeVal === 'paid') ? document.getElementById('campaign-budget').value : 0;
             var cpcVal = (modeVal === 'paid') ? document.getElementById('cpc-slider').value : 0;
@@ -931,9 +823,7 @@ const worker = {
                     cpc: cpcVal,
                     quantity: qtyVal,
                     // LOCK IN ACTIVE PREVIEW CREATIVES ACROSS ALL MIRRORED INSTANCES
-                    imageAsset: activePreviewState.imageAsset || "",
-                    topText: activePreviewState.topText || "Exclusive Offer Found!",
-                    bottomText: activePreviewState.bottomText || "Click the verify button below to immediately access your files."
+                    imageAsset: activePreviewState.imageAsset || ""
                 })
             });
             var data = await res.json().catch(function() { return {}; });
