@@ -736,7 +736,7 @@ const worker = {
 
           const itemRevenue = parseFloat(item.revenue || 0).toFixed(2);
           const layoutTemplate = `
-            <div style="background:#1c1c21; border:1px solid #2d2d35; padding:16px; border-radius:12px; margin-bottom:12px; text-align:left;">
+            <div class="campaign-item-card" data-campaign-id="${escapeHtml(item.id)}" data-campaign-status="${escapeHtml(item.status || "active")}" style="background:#1c1c21; border:1px solid #2d2d35; padding:16px; border-radius:12px; margin-bottom:12px; text-align:left;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <div>
                   <span style="font-weight:bold; font-size:1.05rem; color:#fff;">${escapeHtml(item.name)}</span>
@@ -843,6 +843,32 @@ const worker = {
         /* PREVIEW CONTAINER STYLINGS */
         .preview-mockup-frame { background: #1c1c21; border: 1px solid #323239; border-radius: 10px; padding: 16px; margin-top: 14px; text-align: center; }
         .preview-banner-asset { width: 100%; border-radius: 6px; border: 1px solid #2d2d35; margin-top: 10px; margin-bottom: 10px; display: none; max-height: 260px; object-fit: cover; }
+
+        /* CAMPAIGN ACTIVE/INACTIVE SWITCH */
+        .campaign-switch-container { display: flex; background: #1c1c21; border: 1px solid #2d2d35; border-radius: 10px; padding: 4px; margin-top: 24px; margin-bottom: 16px; gap: 4px; }
+        .campaign-switch-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #9ca3af; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; outline: none; }
+        .campaign-switch-btn:hover { color: #fff; background: #25252c; }
+        .campaign-switch-btn.active { background: #131316; color: #ffffff; border-color: #3b3b44; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+        .campaign-switch-btn#tab-btn-active.active { border-color: rgba(0, 255, 204, 0.4); }
+        .campaign-switch-btn#tab-btn-inactive.active { border-color: rgba(255, 74, 74, 0.4); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.green { background: #00ffcc; box-shadow: 0 0 6px rgba(0, 255, 204, 0.5); }
+        .status-dot.red { background: #ff4a4a; box-shadow: 0 0 6px rgba(255, 74, 74, 0.5); }
+        .tab-badge { font-size: 0.75rem; font-family: monospace; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+        .tab-badge.green { background: rgba(0, 255, 204, 0.12); color: #00ffcc; }
+        .tab-badge.red { background: rgba(255, 74, 74, 0.12); color: #ff4a4a; }
+
+        /* 20 PER PAGE PAGINATION */
+        .pagination-bar { display: none; flex-direction: column; gap: 10px; margin-top: 14px; margin-bottom: 20px; padding: 12px 14px; background: #19191f; border: 1px solid #26262e; border-radius: 10px; }
+        .pagination-controls { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pagination-btn { background: #222227; color: #ffffff; border: 1px solid #323239; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; outline: none; }
+        .pagination-btn:hover:not(:disabled) { background: #2d2d35; border-color: #ffdd67; color: #ffdd67; }
+        .pagination-btn:disabled { opacity: 0.35; cursor: not-allowed; border-color: #222227; }
+        .pagination-pages { display: flex; gap: 6px; align-items: center; }
+        .page-number-btn { min-width: 32px; height: 32px; padding: 0 6px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #323239; background: #1c1c21; color: #a1a1aa; font-family: monospace; font-size: 0.82rem; font-weight: 700; cursor: pointer; outline: none; }
+        .page-number-btn:hover { color: #fff; border-color: #ffdd67; }
+        .page-number-btn.active { background: #ffdd67; color: #0b0b0c; border-color: #ffdd67; font-weight: bold; }
+        .pagination-summary { font-size: 0.78rem; color: #9ca3af; font-family: monospace; text-align: center; }
     </style>
 </head>
 <body>
@@ -887,11 +913,11 @@ const worker = {
                     <div>Total Loops</div>
                     <div class="counter-val">${totalLoops}</div>
                 </div>
-                <div class="counter-box">
+                <div class="counter-box" onclick="switchCampaignTab('active')" style="cursor:pointer;" title="Click to view Active Campaigns">
                     <div>Active Loops</div>
                     <div class="counter-val" style="color:#00ffcc;">${activeLoops}</div>
                 </div>
-                <div class="counter-box">
+                <div class="counter-box" onclick="switchCampaignTab('inactive')" style="cursor:pointer;" title="Click to view Inactive Campaigns">
                     <div>Inactive</div>
                     <div class="counter-val" style="color:#ff4a4a;">${inactiveLoops}</div>
                 </div>
@@ -971,17 +997,35 @@ const worker = {
             <button class="btn-test" onclick="runSystemDiagnostic()">🔍 Run Live System &amp; Stripe Diagnostic</button>
             <div id="diagnostic-banner" style="display:none; margin-top:10px; padding:10px; border-radius:8px; font-family:monospace; font-size:0.8rem; text-align:center; background:#0b0b0c; border:1px solid #00ffcc; color:#00ffcc;"></div>
 
-            <div class="section-header">
-                <span>🟢 Active Campaigns</span>
-                <span style="color:#00ffcc; font-family:monospace;">(${activeLoops})</span>
+            <!-- SWITCH BETWEEN ACTIVE AND INACTIVE CAMPAIGNS -->
+            <div class="campaign-switch-container">
+                <button type="button" class="campaign-switch-btn active" id="tab-btn-active" onclick="switchCampaignTab('active')">
+                    <span class="status-dot green"></span>
+                    <span class="tab-label">Active Campaigns</span>
+                    <span class="tab-badge green" id="badge-active-count">${activeLoops}</span>
+                </button>
+                <button type="button" class="campaign-switch-btn" id="tab-btn-inactive" onclick="switchCampaignTab('inactive')">
+                    <span class="status-dot red"></span>
+                    <span class="tab-label">Inactive Campaigns</span>
+                    <span class="tab-badge red" id="badge-inactive-count">${inactiveLoops}</span>
+                </button>
             </div>
-            <div>${activeRowsHtml || '<div class="empty-box">No active loops deployed.</div>'}</div>
 
-            <div class="section-header">
-                <span>🔴 Inactive Campaigns</span>
-                <span style="color:#ff4a4a; font-family:monospace;">(${inactiveLoops})</span>
+            <!-- ACTIVE CAMPAIGNS PANEL (20 PER PAGE) -->
+            <div id="active-campaigns-section" class="campaign-tab-panel">
+                <div id="active-campaigns-list">
+                    ${activeRowsHtml || '<div class="empty-box">No active campaigns deployed.</div>'}
+                </div>
+                <div id="active-pagination-bar" class="pagination-bar"></div>
             </div>
-            <div>${inactiveRowsHtml || '<div class="empty-box">No inactive or paused items.</div>'}</div>
+
+            <!-- INACTIVE CAMPAIGNS PANEL (20 PER PAGE) -->
+            <div id="inactive-campaigns-section" class="campaign-tab-panel" style="display:none;">
+                <div id="inactive-campaigns-list">
+                    ${inactiveRowsHtml || '<div class="empty-box">No inactive or paused campaigns.</div>'}
+                </div>
+                <div id="inactive-pagination-bar" class="pagination-bar"></div>
+            </div>
         </div>
 
         <!-- LIVE STRIPE CHECKOUT BILLING MODAL -->
@@ -1182,10 +1226,161 @@ const worker = {
             document.getElementById('keypad-screen').value = "";
         }
 
+        var PAGE_SIZE = 20;
+        var campaignPageState = {
+            active: 1,
+            inactive: 1
+        };
+        var currentCampaignTab = "active";
+
+        function switchCampaignTab(tab) {
+            currentCampaignTab = (tab === "inactive") ? "inactive" : "active";
+            try {
+                localStorage.setItem("cpagrip_active_tab", currentCampaignTab);
+            } catch (_e) {}
+
+            var activeBtn = document.getElementById("tab-btn-active");
+            var inactiveBtn = document.getElementById("tab-btn-inactive");
+            var activeSec = document.getElementById("active-campaigns-section");
+            var inactiveSec = document.getElementById("inactive-campaigns-section");
+
+            if (activeBtn && inactiveBtn) {
+                if (currentCampaignTab === "active") {
+                    activeBtn.classList.add("active");
+                    inactiveBtn.classList.remove("active");
+                } else {
+                    inactiveBtn.classList.add("active");
+                    activeBtn.classList.remove("active");
+                }
+            }
+
+            if (activeSec && inactiveSec) {
+                activeSec.style.display = (currentCampaignTab === "active") ? "block" : "none";
+                inactiveSec.style.display = (currentCampaignTab === "inactive") ? "block" : "none";
+            }
+
+            renderTabPagination(currentCampaignTab);
+        }
+
+        function changeCampaignPage(tab, targetPage) {
+            campaignPageState[tab] = Math.max(1, parseInt(targetPage, 10) || 1);
+            try {
+                sessionStorage.setItem("cpagrip_page_" + tab, String(campaignPageState[tab]));
+            } catch (_e) {}
+            renderTabPagination(tab);
+
+            var switchEl = document.querySelector(".campaign-switch-container");
+            if (switchEl) {
+                switchEl.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+
+        function renderTabPagination(tab) {
+            var container = document.getElementById(tab + "-campaigns-list");
+            var bar = document.getElementById(tab + "-pagination-bar");
+            if (!container || !bar) return;
+
+            var cards = container.querySelectorAll(".campaign-item-card");
+            var totalItems = cards.length;
+            var totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+
+            if (campaignPageState[tab] > totalPages) {
+                campaignPageState[tab] = totalPages;
+            }
+            var currentPage = campaignPageState[tab];
+
+            var startIndex = (currentPage - 1) * PAGE_SIZE;
+            var endIndex = startIndex + PAGE_SIZE;
+
+            for (var i = 0; i < totalItems; i++) {
+                if (i >= startIndex && i < endIndex) {
+                    cards[i].style.display = "block";
+                } else {
+                    cards[i].style.display = "none";
+                }
+            }
+
+            if (totalItems === 0) {
+                bar.innerHTML = "";
+                bar.style.display = "none";
+                return;
+            }
+
+            bar.style.display = "flex";
+
+            var showingStart = Math.min(startIndex + 1, totalItems);
+            var showingEnd = Math.min(endIndex, totalItems);
+
+            var summaryHtml = '<div class="pagination-summary">Showing ' + showingStart + '–' + showingEnd + ' of ' + totalItems + ' campaigns (' + PAGE_SIZE + ' per page)</div>';
+
+            if (totalPages <= 1) {
+                bar.innerHTML = summaryHtml;
+                return;
+            }
+
+            var prevDisabled = currentPage <= 1 ? "disabled" : "";
+            var nextDisabled = currentPage >= totalPages ? "disabled" : "";
+
+            var pagesHtml = '<div class="pagination-pages">';
+            var maxVisibleButtons = 5;
+            var startBtn = Math.max(1, currentPage - 2);
+            var endBtn = Math.min(totalPages, startBtn + maxVisibleButtons - 1);
+            if (endBtn - startBtn + 1 < maxVisibleButtons) {
+                startBtn = Math.max(1, endBtn - maxVisibleButtons + 1);
+            }
+
+            if (startBtn > 1) {
+                pagesHtml += '<button type="button" class="page-number-btn" onclick="changeCampaignPage(\'' + tab + '\', 1)">1</button>';
+                if (startBtn > 2) {
+                    pagesHtml += '<span style="color:#6b7280; font-family:monospace; padding:0 2px;">…</span>';
+                }
+            }
+
+            for (var p = startBtn; p <= endBtn; p++) {
+                var activeClass = (p === currentPage) ? " active" : "";
+                pagesHtml += '<button type="button" class="page-number-btn' + activeClass + '" onclick="changeCampaignPage(\'' + tab + '\', ' + p + ')">' + p + '</button>';
+            }
+
+            if (endBtn < totalPages) {
+                if (endBtn < totalPages - 1) {
+                    pagesHtml += '<span style="color:#6b7280; font-family:monospace; padding:0 2px;">…</span>';
+                }
+                pagesHtml += '<button type="button" class="page-number-btn" onclick="changeCampaignPage(\'' + tab + '\', ' + totalPages + ')">' + totalPages + '</button>';
+            }
+
+            pagesHtml += '</div>';
+
+            var controlsHtml = '<div class="pagination-controls">' +
+                '<button type="button" class="pagination-btn" ' + prevDisabled + ' onclick="changeCampaignPage(\'' + tab + '\', ' + (currentPage - 1) + ')">◀ Previous</button>' +
+                pagesHtml +
+                '<button type="button" class="pagination-btn" ' + nextDisabled + ' onclick="changeCampaignPage(\'' + tab + '\', ' + (currentPage + 1) + ')">Next ▶</button>' +
+                '</div>';
+
+            bar.innerHTML = summaryHtml + controlsHtml;
+        }
+
+        function initCampaignSwitchAndPagination() {
+            try {
+                var savedTab = localStorage.getItem("cpagrip_active_tab");
+                if (savedTab === "inactive" || savedTab === "active") {
+                    currentCampaignTab = savedTab;
+                }
+                var savedPageActive = parseInt(sessionStorage.getItem("cpagrip_page_active"), 10);
+                if (savedPageActive && savedPageActive > 0) campaignPageState.active = savedPageActive;
+                var savedPageInactive = parseInt(sessionStorage.getItem("cpagrip_page_inactive"), 10);
+                if (savedPageInactive && savedPageInactive > 0) campaignPageState.inactive = savedPageInactive;
+            } catch (_e) {}
+
+            switchCampaignTab(currentCampaignTab);
+            renderTabPagination("active");
+            renderTabPagination("inactive");
+        }
+
         function unlockDashboardView() {
             var injectDashboard = document.getElementById('master-control-dashboard').innerHTML;
             document.body.innerHTML = injectDashboard;
             loadPreviewStateFromStorage();
+            initCampaignSwitchAndPagination();
             startHardwareClocks();
         }
 
