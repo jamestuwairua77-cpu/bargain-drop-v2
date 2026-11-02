@@ -45,12 +45,12 @@ jobs:
           if [ -d scripts ]; then mkdir -p /tmp/cf-site/scripts && cp -r scripts/* /tmp/cf-site/scripts/ || true; fi
           rm -rf /tmp/cf-site/.github
 
-      - name: Probe Cloudflare Worker Permissions
+      - name: Deploy bargain-drop-cpagrip Worker
         working-directory: /tmp/cf-site
         env:
-          ALL_SECRETS: ${{ toJson(secrets) }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
         run: python3 scripts/deploy_cpagrip_worker.py || true
 
       - name: Cache-bust assets (regenerate ?v= hashes + _headers)
