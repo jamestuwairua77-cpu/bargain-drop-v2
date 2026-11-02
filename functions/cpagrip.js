@@ -1215,15 +1215,34 @@ const worker = {
         }
 
         function pressKey(digit) {
-            if (inputBuffer.length < 8) {
-                inputBuffer += digit;
-                document.getElementById('keypad-screen').value = "*".repeat(inputBuffer.length);
+            if (inputBuffer.length < 16) {
+                inputBuffer += String(digit);
+                var screen = document.getElementById('keypad-screen');
+                if (screen) screen.value = "*".repeat(inputBuffer.length);
+                var err = document.getElementById('alert-msg');
+                if (err) err.style.display = "none";
+                if (inputBuffer.length === 8) {
+                    submitGatePass();
+                }
+            }
+        }
+
+        function deleteKey() {
+            if (inputBuffer.length > 0) {
+                inputBuffer = inputBuffer.slice(0, -1);
+                var screen = document.getElementById('keypad-screen');
+                if (screen) screen.value = inputBuffer.length ? "*".repeat(inputBuffer.length) : "";
+                var err = document.getElementById('alert-msg');
+                if (err) err.style.display = "none";
             }
         }
 
         function clearKeys() {
             inputBuffer = "";
-            document.getElementById('keypad-screen').value = "";
+            var screen = document.getElementById('keypad-screen');
+            if (screen) screen.value = "";
+            var err = document.getElementById('alert-msg');
+            if (err) err.style.display = "none";
         }
 
         var PAGE_SIZE = 20;
@@ -1330,7 +1349,7 @@ const worker = {
             }
 
             if (startBtn > 1) {
-                pagesHtml += '<button type="button" class="page-number-btn" onclick="changeCampaignPage(\'' + tab + '\', 1)">1</button>';
+                pagesHtml += '<button type="button" class="page-number-btn" onclick="changeCampaignPage(currentCampaignTab, 1)">1</button>';
                 if (startBtn > 2) {
                     pagesHtml += '<span style="color:#6b7280; font-family:monospace; padding:0 2px;">…</span>';
                 }
@@ -1338,22 +1357,22 @@ const worker = {
 
             for (var p = startBtn; p <= endBtn; p++) {
                 var activeClass = (p === currentPage) ? " active" : "";
-                pagesHtml += '<button type="button" class="page-number-btn' + activeClass + '" onclick="changeCampaignPage(\'' + tab + '\', ' + p + ')">' + p + '</button>';
+                pagesHtml += '<button type="button" class="page-number-btn' + activeClass + '" onclick="changeCampaignPage(currentCampaignTab, ' + p + ')">' + p + '</button>';
             }
 
             if (endBtn < totalPages) {
                 if (endBtn < totalPages - 1) {
                     pagesHtml += '<span style="color:#6b7280; font-family:monospace; padding:0 2px;">…</span>';
                 }
-                pagesHtml += '<button type="button" class="page-number-btn" onclick="changeCampaignPage(\'' + tab + '\', ' + totalPages + ')">' + totalPages + '</button>';
+                pagesHtml += '<button type="button" class="page-number-btn" onclick="changeCampaignPage(currentCampaignTab, ' + totalPages + ')">' + totalPages + '</button>';
             }
 
             pagesHtml += '</div>';
 
             var controlsHtml = '<div class="pagination-controls">' +
-                '<button type="button" class="pagination-btn" ' + prevDisabled + ' onclick="changeCampaignPage(\'' + tab + '\', ' + (currentPage - 1) + ')">◀ Previous</button>' +
+                '<button type="button" class="pagination-btn" ' + prevDisabled + ' onclick="changeCampaignPage(currentCampaignTab, ' + (currentPage - 1) + ')">◀ Previous</button>' +
                 pagesHtml +
-                '<button type="button" class="pagination-btn" ' + nextDisabled + ' onclick="changeCampaignPage(\'' + tab + '\', ' + (currentPage + 1) + ')">Next ▶</button>' +
+                '<button type="button" class="pagination-btn" ' + nextDisabled + ' onclick="changeCampaignPage(currentCampaignTab, ' + (currentPage + 1) + ')">Next ▶</button>' +
                 '</div>';
 
             bar.innerHTML = summaryHtml + controlsHtml;
@@ -1386,6 +1405,7 @@ const worker = {
 
         async function submitGatePass() {
             var errorAlert = document.getElementById('alert-msg');
+            if (!inputBuffer) return;
             try {
                 var res = await fetch(getBaseRoutePath(), {
                     method: "POST",
@@ -1394,7 +1414,7 @@ const worker = {
                 });
                 var data = await res.json().catch(function() { return {}; });
                 if (res.ok && data.success) {
-                    errorAlert.style.display = "none";
+                    if (errorAlert) errorAlert.style.display = "none";
                     try {
                         sessionStorage.setItem("cpagrip_unlocked", "1");
                         sessionStorage.setItem(SESSION_PIN_KEY, inputBuffer);
@@ -1403,7 +1423,7 @@ const worker = {
                     return;
                 }
             } catch (_e) {}
-            errorAlert.style.display = "block";
+            if (errorAlert) errorAlert.style.display = "block";
             clearKeys();
         }
 
@@ -1421,7 +1441,9 @@ const worker = {
             if (!document.getElementById('gate-card')) return;
             if (e.key >= '0' && e.key <= '9') {
                 pressKey(e.key);
-            } else if (e.key === 'Backspace' || e.key === 'Escape') {
+            } else if (e.key === 'Backspace') {
+                deleteKey();
+            } else if (e.key === 'Escape') {
                 clearKeys();
             } else if (e.key === 'Enter') {
                 submitGatePass();
