@@ -76,7 +76,9 @@ const worker = {
 
     // 1. DYNAMIC ROUTING ENGINE WITH MULTI-ASSET AD SERVING
     const trackingParam = url.searchParams.get("c");
-    if (url.pathname === "/cpagrip" && trackingParam) {
+    const isCpagripPath = url.pathname === "/cpagrip" || url.pathname === "/cpagrip/" || url.pathname === "/cpagrip-v2" || url.pathname === "/cpagrip-v2/";
+    const cleanRoutePath = url.pathname.startsWith("/cpagrip-v2") ? "/cpagrip-v2" : "/cpagrip";
+    if (isCpagripPath && trackingParam) {
       const userAgent = request.headers.get("user-agent") || "";
       const isBotProfile = /bot|crawler|spider|slurp|crawl|mediapartners|headless|lighthouse/i.test(userAgent);
 
@@ -145,7 +147,7 @@ const worker = {
     }
 
     // 2. BACKEND CONTROL GATEWAY INTERFACE
-    if (url.pathname === "/cpagrip" || url.pathname === "/cpagrip/") {
+    if (isCpagripPath) {
       if (request.method === "POST") {
         try {
           const body = await request.json();
@@ -348,7 +350,7 @@ const worker = {
                 <button style="flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:0.85rem; background:#222227; color:#a1a1aa; border:1px solid #323239; cursor:pointer;" onclick="deleteCampaign('${escapeHtml(item.id)}')">🗑️ Delete</button>
               </div>
               <div style="margin-top:10px; font-size:0.75rem; color:#6b7280; font-family:monospace; word-break:break-all;">
-                Link: <a href="${url.origin}/cpagrip?c=${encodeURIComponent(item.id)}" target="_blank" style="color:#00ffcc; text-decoration:none;">${url.origin}/cpagrip?c=${escapeHtml(item.id)}</a>
+                Link: <a href="${url.origin}${cleanRoutePath}?c=${encodeURIComponent(item.id)}" target="_blank" style="color:#00ffcc; text-decoration:none;">${url.origin}${cleanRoutePath}?c=${escapeHtml(item.id)}</a>
               </div>
             </div>
           `;
@@ -753,7 +755,7 @@ const worker = {
             if (statusEl) statusEl.innerText = "⚡ Syncing Bot Socket...";
 
             try {
-                var res = await fetch("/cpagrip", {
+                var res = await fetch(window.location.pathname || "/cpagrip", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -873,7 +875,7 @@ const worker = {
         async function runSystemDiagnostic() {
             var banner = document.getElementById('diagnostic-banner');
             try {
-                var res = await fetch("/cpagrip", {
+                var res = await fetch(window.location.pathname || "/cpagrip", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "health_check" })
@@ -916,7 +918,7 @@ const worker = {
             var budgetVal = (modeVal === 'paid') ? document.getElementById('campaign-budget').value : 0;
             var cpcVal = (modeVal === 'paid') ? document.getElementById('cpc-slider').value : 0;
 
-            var res = await fetch("/cpagrip", {
+            var res = await fetch(window.location.pathname || "/cpagrip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -948,7 +950,7 @@ const worker = {
         }
 
         async function toggleCampaign(id, status) {
-            var res = await fetch("/cpagrip", {
+            var res = await fetch(window.location.pathname || "/cpagrip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "toggle", id: id, status: status })
@@ -957,7 +959,7 @@ const worker = {
         }
 
         async function deleteCampaign(id) {
-            var res = await fetch("/cpagrip", {
+            var res = await fetch(window.location.pathname || "/cpagrip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "delete", id: id })
@@ -967,7 +969,7 @@ const worker = {
 
         async function processTopUp(method) {
             var amt = document.getElementById('topup-amount').value;
-            var res = await fetch("/cpagrip", {
+            var res = await fetch(window.location.pathname || "/cpagrip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "topup", amount: amt, method: method })
