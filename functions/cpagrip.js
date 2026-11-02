@@ -458,7 +458,7 @@ const worker = {
             <body>
                 <div class="ad-card">
                     ${item.imageAsset ? `<img class="ad-media" src="${escapeHtml(item.imageAsset)}" alt="Campaign Design">` : ""}
-                    <a class="ad-action-btn" href="${escapeHtml(item.targetUrl || "#")}">🔒 Complete Verification To Download</a>
+                    <a class="ad-action-btn" href="${escapeHtml(item.targetUrl || "#")}">${escapeHtml(item.buttonText || "🔒 Complete Verification To Download")}</a>
                 </div>
             </body>
             </html>`, {
@@ -613,6 +613,7 @@ const worker = {
             }
 
             const lockedImageAsset = String(body.imageAsset || "").trim();
+            const lockedButtonText = String(body.buttonText || "").trim() || "🔒 Complete Verification To Download";
             const batchEntries = [];
             const nowTs = Date.now();
 
@@ -636,7 +637,8 @@ const worker = {
                 status: "active",
                 aiStatus: "live",
                 createdAt: nowTs,
-                imageAsset: lockedImageAsset
+                imageAsset: lockedImageAsset,
+                buttonText: lockedButtonText
               };
 
               batchEntries.push([targetInstanceId, newCampaignObject]);
@@ -694,11 +696,14 @@ const worker = {
           globalLeads += (parseInt(item.leads, 10) || 0);
           globalRevenue += (parseFloat(item.revenue) || 0);
 
-          const hasLockedCreative = Boolean(item.imageAsset);
+          const hasLockedCreative = Boolean(item.imageAsset || item.buttonText);
           const creativeBadgeHtml = hasLockedCreative ? `
             <div style="background:#131316; border:1px dashed #2d2d35; border-radius:8px; padding:10px; margin-bottom:12px; display:flex; gap:10px; align-items:center;">
-              <img src="${escapeHtml(item.imageAsset)}" alt="Locked Asset" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #323239; flex-shrink:0;">
-              <div style="font-size:0.75rem; font-family:monospace; color:#00ffcc;">🔒 Locked Creative Banner Asset</div>
+              ${item.imageAsset ? `<img src="${escapeHtml(item.imageAsset)}" alt="Locked Asset" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #323239; flex-shrink:0;">` : ""}
+              <div style="font-size:0.75rem; font-family:monospace; color:#00ffcc;">
+                <div>🔒 Locked Creative Banner</div>
+                <div style="color:#ffdd67; margin-top:3px; word-break:break-word;">Button: ${escapeHtml(item.buttonText || "🔒 Complete Verification To Download")}</div>
+              </div>
             </div>
           ` : "";
 
@@ -904,6 +909,10 @@ const worker = {
                 <button type="button" onclick="clearCreativeImage()" style="background:#222227; color:#a1a1aa; border:1px solid #323239; border-radius:8px; padding:0 12px; font-size:0.75rem; font-weight:bold; cursor:pointer;">Clear</button>
             </div>
 
+            <!-- CUSTOM ACTION BUTTON TEXT CONFIGURATION -->
+            <label>Action Button Text (Edit "Complete Verification To Download"):</label>
+            <input type="text" id="action-btn-text" class="textbox-input" placeholder="e.g. 🔒 Complete Verification To Download" value="🔒 Complete Verification To Download" oninput="handleButtonTextInput(this.value)">
+
             <!-- LIVE RESPONSIVE VISUAL CARD PREVIEW -->
             <div class="preview-mockup-frame" id="active-preview-container">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -912,7 +921,7 @@ const worker = {
                 </div>
                 <img id="preview-banner-img" class="preview-banner-asset" src="" alt="Live Creative Asset Preview">
                 <div style="margin-top:12px;">
-                    <span style="display:inline-block; background:#00ffcc; color:#0b0b0c; padding:8px 18px; border-radius:6px; font-weight:bold; font-size:0.8rem;">🔒 Complete Verification To Download</span>
+                    <span id="preview-action-btn-label" style="display:inline-block; background:#00ffcc; color:#0b0b0c; padding:8px 18px; border-radius:6px; font-weight:bold; font-size:0.8rem;">🔒 Complete Verification To Download</span>
                 </div>
             </div>
 
@@ -970,11 +979,13 @@ const worker = {
 
         var LS_IMAGE_KEY = "cpagrip_preview_image_asset";
         var LS_META_KEY = "cpagrip_preview_image_meta";
+        var LS_BUTTON_TEXT_KEY = "cpagrip_preview_button_text";
         var SESSION_PIN_KEY = "cpagrip_admin_pin";
 
         var activePreviewState = {
             imageAsset: "",
-            imageMeta: { name: "", width: 0, height: 0, hasImage: false }
+            imageMeta: { name: "", width: 0, height: 0, hasImage: false },
+            buttonText: "🔒 Complete Verification To Download"
         };
 
         function getBaseRoutePath() {
@@ -989,11 +1000,13 @@ const worker = {
             try {
                 var savedImg = localStorage.getItem(LS_IMAGE_KEY);
                 var savedMeta = localStorage.getItem(LS_META_KEY);
+                var savedBtn = localStorage.getItem(LS_BUTTON_TEXT_KEY);
 
                 if (savedImg) activePreviewState.imageAsset = savedImg;
                 if (savedMeta) {
                     try { activePreviewState.imageMeta = JSON.parse(savedMeta); } catch (_e) {}
                 }
+                if (savedBtn) activePreviewState.buttonText = savedBtn;
             } catch (_err) {}
             renderActivePreviewContainer();
         }
@@ -1002,15 +1015,30 @@ const worker = {
             try {
                 localStorage.setItem(LS_IMAGE_KEY, activePreviewState.imageAsset || "");
                 localStorage.setItem(LS_META_KEY, JSON.stringify(activePreviewState.imageMeta || {}));
+                localStorage.setItem(LS_BUTTON_TEXT_KEY, activePreviewState.buttonText || "");
             } catch (_err) {}
+        }
+
+        function handleButtonTextInput(val) {
+            activePreviewState.buttonText = String(val || "").trim() || "🔒 Complete Verification To Download";
+            savePreviewStateToStorage();
+            renderActivePreviewContainer();
         }
 
         function renderActivePreviewContainer() {
             var urlInput = document.getElementById("creative-image-url");
             var bannerImg = document.getElementById("preview-banner-img");
+            var btnInput = document.getElementById("action-btn-text");
+            var previewBtn = document.getElementById("preview-action-btn-label");
 
             if (urlInput && document.activeElement !== urlInput && activePreviewState.imageAsset && !activePreviewState.imageAsset.startsWith("data:")) {
                 urlInput.value = activePreviewState.imageAsset;
+            }
+            if (btnInput && document.activeElement !== btnInput) {
+                btnInput.value = activePreviewState.buttonText || "🔒 Complete Verification To Download";
+            }
+            if (previewBtn) {
+                previewBtn.innerText = activePreviewState.buttonText || "🔒 Complete Verification To Download";
             }
             if (bannerImg) {
                 if (activePreviewState.imageAsset) {
@@ -1241,6 +1269,9 @@ const worker = {
             var budgetVal = (modeVal === 'paid') ? document.getElementById('campaign-budget').value : 0;
             var cpcVal = (modeVal === 'paid') ? document.getElementById('cpc-slider').value : 0;
 
+            var btnTextEl = document.getElementById('action-btn-text');
+            var customBtnText = (btnTextEl && btnTextEl.value.trim()) || activePreviewState.buttonText || "🔒 Complete Verification To Download";
+
             var res = await fetch(getBaseRoutePath(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-Admin-Pin": getStoredPin() },
@@ -1253,7 +1284,8 @@ const worker = {
                     budget: budgetVal,
                     cpc: cpcVal,
                     quantity: qtyVal,
-                    imageAsset: activePreviewState.imageAsset || ""
+                    imageAsset: activePreviewState.imageAsset || "",
+                    buttonText: customBtnText
                 })
             });
             var data = await res.json().catch(function() { return {}; });
