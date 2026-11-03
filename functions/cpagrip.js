@@ -118,37 +118,180 @@ async function savePersistentState(env) {
   } catch (_e) {}
 }
 
+async function ensureD1Tables(env) {
+  if (env && env.DB && typeof env.DB.prepare === "function") {
+    try {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS wallets (
+            id TEXT PRIMARY KEY,
+            balance REAL DEFAULT 0.00,
+            last_updated INTEGER
+        );
+      `).run();
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS campaigns (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            target_url TEXT,
+            traffic_type TEXT,
+            budget REAL,
+            cpc REAL,
+            budget_left REAL,
+            spent REAL,
+            views INTEGER DEFAULT 0,
+            clicks INTEGER DEFAULT 0,
+            leads INTEGER DEFAULT 0,
+            revenue REAL DEFAULT 0.00,
+            status TEXT,
+            ai_status TEXT,
+            created_at INTEGER,
+            image_asset TEXT,
+            button_text TEXT
+        );
+      `).run();
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS processed_payments (
+            payment_id TEXT PRIMARY KEY,
+            status TEXT,
+            amount REAL,
+            timestamp INTEGER
+        );
+      `).run();
+      await env.DB.prepare("INSERT OR IGNORE INTO wallets (id, balance, last_updated) VALUES ('master_wallet', 0.00, ?)")
+        .bind(Date.now())
+        .run();
+    } catch (_e) {}
+  }
+}
+
 function createRealStores(env) {
+  const hasD1 = Boolean(env && env.DB && typeof env.DB.prepare === "function");
   const hasNativeCampaignsKv = Boolean(env && env.CPAGRIP_CAMPAIGNS && typeof env.CPAGRIP_CAMPAIGNS.get === "function");
   const hasNativeBalanceKv = Boolean(env && env.CPAGRIP_BALANCE && typeof env.CPAGRIP_BALANCE.get === "function");
 
-  const campaigns = hasNativeCampaignsKv ? env.CPAGRIP_CAMPAIGNS : {
-    async get(k) {
-      const state = await loadPersistentState(env);
-      const item = state.campaigns[String(k)];
-      if (!item) return null;
-      const hydrated = Object.assign({}, item);
-      if (hydrated.assetRef && state.assets[hydrated.assetRef]) {
-        hydrated.imageAsset = state.assets[hydrated.assetRef];
+  let campaigns;
+  let balance;
+
+  if (hasD1) {
+    campaigns = {
+      async get(k) {
+        try {
+          await ensureD1Tables(env);
+          const row = await env.DB.prepare("SELECT * FROM campaigns WHERE id = ?").bind(String(k)).first();
+          if (!row) return null;
+          return JSON.stringify({
+            id: row.id,
+            name: row.name,
+            targetUrl: row.target_url,
+            type: row.traffic_type,
+            budget: row.budget,
+            cpc: row.cpc,
+            budgetLeft: row.budget_left,
+            spent: row.spent,
+            views: row.views,
+            clicks: row.clicks,
+            leads: row.leads,
+            revenue: row.revenue,
+            status: row.status,
+            aiStatus: row.ai_status,
+            createdAt: row.created_at,
+            imageAsset: row.image_asset,
+            buttonText: row.button_text
+          });
+        } catch (_e) { return null; }
+      },
+      async put(k, v) {
+        try {
+          await ensureD1Tables(env);
+          const parsed = typeof v === "string" ? JSON.parse(v) : Object.assign({}, v);
+          await env.DB.prepare(`
+            INSERT OR REPLACE INTO campaigns (id, name, target_url, traffic_type, budget, cpc, budget_left, spent, views, clicks, leads, revenue, status, ai_status, created_at, image_asset, button_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            String(k),
+            parsed.name || String(k),
+            parsed.targetUrl || "",
+            parsed.type || "organic",
+            parseFloat(parsed.budget) || 0,
+            parseFloat(parsed.cpc) || 0,
+            parseFloat(parsed.budgetLeft) || 0,
+            parseFloat(parsed.spent) || 0,
+            parseInt(parsed.views, 10) || 0,
+            parseInt(parsed.clicks, 10) || 0,
+            parseInt(parsed.leads, 10) || 0,
+            parseFloat(parsed.revenue) || 0,
+            parsed.status || "active",
+            parsed.aiStatus || "live",
+            parsed.createdAt || Date.now(),
+            parsed.imageAsset || "",
+            parsed.buttonText || ""
+          ).run();
+        } catch (_e) {}
+      },
+      async putBatch(entries) {
+        for (const [k, rawObj] of entries) {
+          await this.put(k, rawObj);
+        }
+      },
+      async delete(k) {
+        try {
+          await ensureD1Tables(env);
+          await env.DB.prepare("DELETE FROM campaigns WHERE id = ?").bind(String(k)).run();
+        } catch (_e) {}
+      },
+      async list() {
+        try {
+          await ensureD1Tables(env);
+          const res = await env.DB.prepare("SELECT id FROM campaigns").all();
+          const keys = ((res && res.results) || []).map((r) => ({ name: r.id }));
+          return { keys };
+        } catch (_e) { return { keys: [] }; }
       }
-      return JSON.stringify(hydrated);
-    },
-    async put(k, v) {
-      const state = await loadPersistentState(env);
-      const parsed = typeof v === "string" ? JSON.parse(v) : Object.assign({}, v);
-      if (parsed.imageAsset && parsed.imageAsset.length > 256) {
-        const ref = hashAssetKey(parsed.imageAsset);
-        state.assets[ref] = parsed.imageAsset;
-        parsed.assetRef = ref;
-        delete parsed.imageAsset;
+    };
+
+    balance = {
+      async get(k) {
+        try {
+          await ensureD1Tables(env);
+          if (k === "master_wallet") {
+            const row = await env.DB.prepare("SELECT balance FROM wallets WHERE id = 'master_wallet'").first();
+            return row ? String(row.balance ?? "0.00") : "0.00";
+          }
+          const pRow = await env.DB.prepare("SELECT status FROM processed_payments WHERE payment_id = ?").bind(String(k)).first();
+          return pRow ? pRow.status : null;
+        } catch (_e) { return k === "master_wallet" ? "0.00" : null; }
+      },
+      async put(k, v) {
+        try {
+          await ensureD1Tables(env);
+          if (k === "master_wallet") {
+            const val = parseFloat(v) || 0.00;
+            await env.DB.prepare("UPDATE wallets SET balance = ?, last_updated = ? WHERE id = 'master_wallet'")
+              .bind(val, Date.now())
+              .run();
+          } else {
+            await env.DB.prepare("INSERT OR REPLACE INTO processed_payments (payment_id, status, timestamp) VALUES (?, ?, ?)")
+              .bind(String(k), String(v), Date.now())
+              .run();
+          }
+        } catch (_e) {}
       }
-      state.campaigns[String(k)] = parsed;
-      await savePersistentState(env);
-    },
-    async putBatch(entries) {
-      const state = await loadPersistentState(env);
-      for (const [k, rawObj] of entries) {
-        const parsed = typeof rawObj === "string" ? JSON.parse(rawObj) : Object.assign({}, rawObj);
+    };
+  } else {
+    campaigns = hasNativeCampaignsKv ? env.CPAGRIP_CAMPAIGNS : {
+      async get(k) {
+        const state = await loadPersistentState(env);
+        const item = state.campaigns[String(k)];
+        if (!item) return null;
+        const hydrated = Object.assign({}, item);
+        if (hydrated.assetRef && state.assets[hydrated.assetRef]) {
+          hydrated.imageAsset = state.assets[hydrated.assetRef];
+        }
+        return JSON.stringify(hydrated);
+      },
+      async put(k, v) {
+        const state = await loadPersistentState(env);
+        const parsed = typeof v === "string" ? JSON.parse(v) : Object.assign({}, v);
         if (parsed.imageAsset && parsed.imageAsset.length > 256) {
           const ref = hashAssetKey(parsed.imageAsset);
           state.assets[ref] = parsed.imageAsset;
@@ -156,36 +299,50 @@ function createRealStores(env) {
           delete parsed.imageAsset;
         }
         state.campaigns[String(k)] = parsed;
+        await savePersistentState(env);
+      },
+      async putBatch(entries) {
+        const state = await loadPersistentState(env);
+        for (const [k, rawObj] of entries) {
+          const parsed = typeof rawObj === "string" ? JSON.parse(rawObj) : Object.assign({}, rawObj);
+          if (parsed.imageAsset && parsed.imageAsset.length > 256) {
+            const ref = hashAssetKey(parsed.imageAsset);
+            state.assets[ref] = parsed.imageAsset;
+            parsed.assetRef = ref;
+            delete parsed.imageAsset;
+          }
+          state.campaigns[String(k)] = parsed;
+        }
+        await savePersistentState(env);
+      },
+      async delete(k) {
+        const state = await loadPersistentState(env);
+        delete state.campaigns[String(k)];
+        await savePersistentState(env);
+      },
+      async list() {
+        const state = await loadPersistentState(env);
+        return { keys: Object.keys(state.campaigns).map((name) => ({ name })) };
       }
-      await savePersistentState(env);
-    },
-    async delete(k) {
-      const state = await loadPersistentState(env);
-      delete state.campaigns[String(k)];
-      await savePersistentState(env);
-    },
-    async list() {
-      const state = await loadPersistentState(env);
-      return { keys: Object.keys(state.campaigns).map((name) => ({ name })) };
-    }
-  };
+    };
 
-  const balance = hasNativeBalanceKv ? env.CPAGRIP_BALANCE : {
-    async get(k) {
-      const state = await loadPersistentState(env);
-      if (k === "master_wallet") return String(state.wallet || "0.00");
-      return state.processedPayments[String(k)] || null;
-    },
-    async put(k, v) {
-      const state = await loadPersistentState(env);
-      if (k === "master_wallet") {
-        state.wallet = String(v);
-      } else {
-        state.processedPayments[String(k)] = String(v);
+    balance = hasNativeBalanceKv ? env.CPAGRIP_BALANCE : {
+      async get(k) {
+        const state = await loadPersistentState(env);
+        if (k === "master_wallet") return String(state.wallet || "0.00");
+        return state.processedPayments[String(k)] || null;
+      },
+      async put(k, v) {
+        const state = await loadPersistentState(env);
+        if (k === "master_wallet") {
+          state.wallet = String(v);
+        } else {
+          state.processedPayments[String(k)] = String(v);
+        }
+        await savePersistentState(env);
       }
-      await savePersistentState(env);
-    }
-  };
+    };
+  }
 
   return { campaigns, balance };
 }
@@ -443,10 +600,12 @@ const worker = {
     }
 
     if (isCpagripPath && campaignToken && CPAGRIP_CAMPAIGNS) {
-      // Filter out automated data-centre crawlers to protect metrics integrity
+      // Filter out automated data-centre crawlers & server farm ASNs to protect metrics integrity
       const spiderCheck = request.headers.get("user-agent") || "";
-      const isBot = /bot|crawler|spider|slurp|crawl|lighthouse/i.test(spiderCheck);
-      if (isBot) {
+      const isBot = /bot|crawler|spider|slurp|crawl|lighthouse|headless|selenium|puppeteer/i.test(spiderCheck);
+      const serverAsns = [16509, 15169, 14061, 20473, 63949];
+      const clientAsn = request.cf && request.cf.asn;
+      if (isBot || (clientAsn && serverAsns.includes(clientAsn))) {
         return Response.redirect(`${url.origin}/`, 302);
       }
 
