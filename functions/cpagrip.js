@@ -216,10 +216,7 @@ const worker = {
     const CPAGRIP_CAMPAIGNS = stores.campaigns;
     const CPAGRIP_BALANCE = stores.balance;
 
-    const activeEnv = Object.create(env || {});
-    activeEnv.CPAGRIP_CAMPAIGNS = CPAGRIP_CAMPAIGNS;
-    activeEnv.CPAGRIP_BALANCE = CPAGRIP_BALANCE;
-    env = activeEnv;
+    try {
 
     // =========================================================================
     // 1. LIVE CPAGRIP POSTBACK WEB RECEIVER (Real Leads & Revenue Tracking)
@@ -247,8 +244,8 @@ const worker = {
 
       const conversionPayout = parseFloat(payoutRaw) || 0.00;
 
-      if (targetCampaignId && env.CPAGRIP_CAMPAIGNS) {
-        const rawProfile = await env.CPAGRIP_CAMPAIGNS.get(targetCampaignId);
+      if (targetCampaignId && CPAGRIP_CAMPAIGNS) {
+        const rawProfile = await CPAGRIP_CAMPAIGNS.get(targetCampaignId);
         if (rawProfile) {
           const campaign = JSON.parse(rawProfile);
 
@@ -257,7 +254,7 @@ const worker = {
           campaign.revenue = (parseFloat(campaign.revenue) || 0) + conversionPayout;
           campaign.lastConversionAt = Date.now();
 
-          await env.CPAGRIP_CAMPAIGNS.put(targetCampaignId, JSON.stringify(campaign));
+          await CPAGRIP_CAMPAIGNS.put(targetCampaignId, JSON.stringify(campaign));
           return new Response("Postback Logged Successfully", {
             status: 200,
             headers: { "Content-Type": "text/plain; charset=utf-8" }
@@ -364,13 +361,13 @@ const worker = {
         const stripeIntent = await stripeResponse.json();
 
         if (stripeIntent.id) {
-          let walletBalance = parseFloat(await env.CPAGRIP_BALANCE.get("master_wallet")) || 0.00;
+          let walletBalance = parseFloat(await CPAGRIP_BALANCE.get("master_wallet")) || 0.00;
           if (stripeIntent.status === "succeeded") {
-            const alreadyProcessed = await env.CPAGRIP_BALANCE.get(`pi_${stripeIntent.id}`);
+            const alreadyProcessed = await CPAGRIP_BALANCE.get(`pi_${stripeIntent.id}`);
             if (!alreadyProcessed) {
               walletBalance += depositAmount;
-              await env.CPAGRIP_BALANCE.put(`pi_${stripeIntent.id}`, "paid");
-              await env.CPAGRIP_BALANCE.put("master_wallet", walletBalance.toString());
+              await CPAGRIP_BALANCE.put(`pi_${stripeIntent.id}`, "paid");
+              await CPAGRIP_BALANCE.put("master_wallet", walletBalance.toString());
             }
           }
 
@@ -411,8 +408,8 @@ const worker = {
     const campaignToken = url.searchParams.get("c");
 
     // Outbound real human click redirector (increments clicks, deducts CPC, redirects to locker)
-    if ((url.pathname === "/cpagrip-v2/out" || url.pathname === "/cpagrip/out") && campaignToken && env.CPAGRIP_CAMPAIGNS) {
-      const rawItem = await env.CPAGRIP_CAMPAIGNS.get(campaignToken);
+    if ((url.pathname === "/cpagrip-v2/out" || url.pathname === "/cpagrip/out") && campaignToken && CPAGRIP_CAMPAIGNS) {
+      const rawItem = await CPAGRIP_CAMPAIGNS.get(campaignToken);
       if (rawItem) {
         const item = JSON.parse(rawItem);
         if (item.status === "active") {
@@ -428,7 +425,7 @@ const worker = {
             }
           }
 
-          const savePromise = env.CPAGRIP_CAMPAIGNS.put(campaignToken, JSON.stringify(item));
+          const savePromise = CPAGRIP_CAMPAIGNS.put(campaignToken, JSON.stringify(item));
           if (ctx && typeof ctx.waitUntil === "function") {
             ctx.waitUntil(savePromise);
           } else {
@@ -445,7 +442,7 @@ const worker = {
       return Response.redirect(`${url.origin}/`, 302);
     }
 
-    if (isCpagripPath && campaignToken && env.CPAGRIP_CAMPAIGNS) {
+    if (isCpagripPath && campaignToken && CPAGRIP_CAMPAIGNS) {
       // Filter out automated data-centre crawlers to protect metrics integrity
       const spiderCheck = request.headers.get("user-agent") || "";
       const isBot = /bot|crawler|spider|slurp|crawl|lighthouse/i.test(spiderCheck);
@@ -453,14 +450,14 @@ const worker = {
         return Response.redirect(`${url.origin}/`, 302);
       }
 
-      const rawItem = await env.CPAGRIP_CAMPAIGNS.get(campaignToken);
+      const rawItem = await CPAGRIP_CAMPAIGNS.get(campaignToken);
       if (rawItem) {
         const item = JSON.parse(rawItem);
         if (item.status === "active") {
           // Record real human page impression/view
           item.views = (parseInt(item.views, 10) || 0) + 1;
 
-          const savePromise = env.CPAGRIP_CAMPAIGNS.put(campaignToken, JSON.stringify(item));
+          const savePromise = CPAGRIP_CAMPAIGNS.put(campaignToken, JSON.stringify(item));
           if (ctx && typeof ctx.waitUntil === "function") {
             ctx.waitUntil(savePromise);
           } else {
@@ -512,13 +509,13 @@ const worker = {
           const sessionObj = await verifyRes.json();
           if (verifyRes.ok && sessionObj && sessionObj.payment_status === "paid") {
             const lockKey = `cs_${sessionObj.id}`;
-            const alreadyCredited = await env.CPAGRIP_BALANCE.get(lockKey);
+            const alreadyCredited = await CPAGRIP_BALANCE.get(lockKey);
             const paidUsd = (parseInt(sessionObj.amount_total, 10) || 0) / 100;
             if (!alreadyCredited && paidUsd > 0) {
-              let currentWallet = parseFloat(await env.CPAGRIP_BALANCE.get("master_wallet")) || 0.00;
+              let currentWallet = parseFloat(await CPAGRIP_BALANCE.get("master_wallet")) || 0.00;
               currentWallet += paidUsd;
-              await env.CPAGRIP_BALANCE.put(lockKey, String(Date.now()));
-              await env.CPAGRIP_BALANCE.put("master_wallet", currentWallet.toString());
+              await CPAGRIP_BALANCE.put(lockKey, String(Date.now()));
+              await CPAGRIP_BALANCE.put("master_wallet", currentWallet.toString());
               stripeFlashBanner = `✅ Stripe Payment Verified ($${paidUsd.toFixed(2)} USD) — Master Wallet Credited!`;
             } else {
               stripeFlashBanner = `✅ Stripe Session ${sessionObj.id.slice(0, 14)}... Already Credited.`;
@@ -549,7 +546,7 @@ const worker = {
             const t0 = Date.now();
             // 1. Real storage read/write verification
             await loadPersistentState(env, true);
-            const listObj = await env.CPAGRIP_CAMPAIGNS.list();
+            const listObj = await CPAGRIP_CAMPAIGNS.list();
             const campaignCount = (listObj && listObj.keys) ? listObj.keys.length : 0;
 
             // 2. Real Stripe API live balance check
@@ -598,14 +595,14 @@ const worker = {
           }
 
           if (body.action === "toggle") {
-            const currentData = await env.CPAGRIP_CAMPAIGNS.get(body.id);
+            const currentData = await CPAGRIP_CAMPAIGNS.get(body.id);
             if (currentData) {
               const profile = JSON.parse(currentData);
               profile.status = body.status;
               if (body.status === "active") {
                 profile.createdAt = Date.now();
               }
-              await env.CPAGRIP_CAMPAIGNS.put(body.id, JSON.stringify(profile));
+              await CPAGRIP_CAMPAIGNS.put(body.id, JSON.stringify(profile));
               return new Response(JSON.stringify({ success: true }), {
                 headers: { "Content-Type": "application/json" }
               });
@@ -617,7 +614,7 @@ const worker = {
           }
 
           if (body.action === "delete") {
-            await env.CPAGRIP_CAMPAIGNS.delete(body.id);
+            await CPAGRIP_CAMPAIGNS.delete(body.id);
             return new Response(JSON.stringify({ success: true }), {
               headers: { "Content-Type": "application/json" }
             });
@@ -625,7 +622,7 @@ const worker = {
 
           if (body.action === "create") {
             const bulkInstances = Math.max(1, parseInt(body.quantity, 10) || 1);
-            let currentWallet = parseFloat(await env.CPAGRIP_BALANCE.get("master_wallet")) || 0.00;
+            let currentWallet = parseFloat(await CPAGRIP_BALANCE.get("master_wallet")) || 0.00;
             const perLoopBudget = parseFloat(body.budget) || 0;
             const totalRequiredBudget = (body.type === "paid") ? (perLoopBudget * bulkInstances) : 0;
 
@@ -671,17 +668,17 @@ const worker = {
               batchEntries.push([targetInstanceId, newCampaignObject]);
             }
 
-            if (typeof env.CPAGRIP_CAMPAIGNS.putBatch === "function") {
-              await env.CPAGRIP_CAMPAIGNS.putBatch(batchEntries);
+            if (typeof CPAGRIP_CAMPAIGNS.putBatch === "function") {
+              await CPAGRIP_CAMPAIGNS.putBatch(batchEntries);
             } else {
               for (const [k, obj] of batchEntries) {
-                await env.CPAGRIP_CAMPAIGNS.put(k, JSON.stringify(obj));
+                await CPAGRIP_CAMPAIGNS.put(k, JSON.stringify(obj));
               }
             }
 
             if (body.type === "paid") {
               currentWallet = Math.max(0, currentWallet - totalRequiredBudget);
-              await env.CPAGRIP_BALANCE.put("master_wallet", currentWallet.toString());
+              await CPAGRIP_BALANCE.put("master_wallet", currentWallet.toString());
             }
 
             return new Response(JSON.stringify({ success: true, created: bulkInstances }), {
@@ -712,12 +709,12 @@ const worker = {
 
       try {
         await loadPersistentState(env, true);
-        walletBalance = (await env.CPAGRIP_BALANCE.get("master_wallet")) || "0.00";
+        walletBalance = (await CPAGRIP_BALANCE.get("master_wallet")) || "0.00";
 
-        const list = await env.CPAGRIP_CAMPAIGNS.list();
+        const list = await CPAGRIP_CAMPAIGNS.list();
         for (const key of (list.keys || [])) {
           try {
-            const rawItem = await env.CPAGRIP_CAMPAIGNS.get(key.name);
+            const rawItem = await CPAGRIP_CAMPAIGNS.get(key.name);
             if (rawItem) {
               const item = typeof rawItem === "object" ? rawItem : JSON.parse(rawItem);
               if (!item || typeof item !== "object") continue;
