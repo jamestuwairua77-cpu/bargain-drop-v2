@@ -216,10 +216,10 @@ const worker = {
     const CPAGRIP_CAMPAIGNS = stores.campaigns;
     const CPAGRIP_BALANCE = stores.balance;
 
-    env = Object.assign({}, env, {
-      CPAGRIP_CAMPAIGNS,
-      CPAGRIP_BALANCE
-    });
+    const activeEnv = Object.create(env || {});
+    activeEnv.CPAGRIP_CAMPAIGNS = CPAGRIP_CAMPAIGNS;
+    activeEnv.CPAGRIP_BALANCE = CPAGRIP_BALANCE;
+    env = activeEnv;
 
     // =========================================================================
     // 1. LIVE CPAGRIP POSTBACK WEB RECEIVER (Real Leads & Revenue Tracking)
@@ -697,8 +697,7 @@ const worker = {
       }
 
       // Read values from storage partitions to build UI panels
-      await loadPersistentState(env, true);
-      let walletBalance = (await env.CPAGRIP_BALANCE.get("master_wallet")) || "0.00";
+      let walletBalance = "0.00";
       let activeRowsHtml = "";
       let inactiveRowsHtml = "";
 
@@ -711,86 +710,93 @@ const worker = {
       let globalLeads = 0;
       let globalRevenue = 0;
 
-      const list = await env.CPAGRIP_CAMPAIGNS.list();
-      for (const key of (list.keys || [])) {
-        try {
-          const rawItem = await env.CPAGRIP_CAMPAIGNS.get(key.name);
-          if (rawItem) {
-            const item = typeof rawItem === "object" ? rawItem : JSON.parse(rawItem);
-            if (!item || typeof item !== "object") continue;
-            totalLoops++;
+      try {
+        await loadPersistentState(env, true);
+        walletBalance = (await env.CPAGRIP_BALANCE.get("master_wallet")) || "0.00";
 
-            globalViews += (parseInt(item.views, 10) || 0);
-            globalClicks += (parseInt(item.clicks, 10) || 0);
-            globalLeads += (parseInt(item.leads, 10) || 0);
-            globalRevenue += (parseFloat(item.revenue) || 0);
+        const list = await env.CPAGRIP_CAMPAIGNS.list();
+        for (const key of (list.keys || [])) {
+          try {
+            const rawItem = await env.CPAGRIP_CAMPAIGNS.get(key.name);
+            if (rawItem) {
+              const item = typeof rawItem === "object" ? rawItem : JSON.parse(rawItem);
+              if (!item || typeof item !== "object") continue;
+              totalLoops++;
 
-            const hasLockedCreative = Boolean(item.imageAsset || item.buttonText);
-            const creativeBadgeHtml = hasLockedCreative ? `
-              <div style="background:#131316; border:1px dashed #2d2d35; border-radius:8px; padding:10px; margin-bottom:12px; display:flex; gap:10px; align-items:center;">
-                ${item.imageAsset ? `<img src="${escapeHtml(item.imageAsset)}" alt="Locked Asset" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #323239; flex-shrink:0;">` : ""}
-                <div style="font-size:0.75rem; font-family:monospace; color:#00ffcc;">
-                  <div>🔒 Locked Creative Banner</div>
-                  <div style="color:#ffdd67; margin-top:3px; word-break:break-word;">Button: ${escapeHtml(item.buttonText || "🔒 Complete Verification To Download")}</div>
-                </div>
-              </div>
-            ` : "";
+              globalViews += (parseInt(item.views, 10) || 0);
+              globalClicks += (parseInt(item.clicks, 10) || 0);
+              globalLeads += (parseInt(item.leads, 10) || 0);
+              globalRevenue += (parseFloat(item.revenue) || 0);
 
-            const itemRevenue = parseFloat(item.revenue || 0).toFixed(2);
-            const layoutTemplate = `
-              <div class="campaign-item-card" data-campaign-id="${escapeHtml(item.id)}" data-campaign-status="${escapeHtml(item.status || "active")}" style="background:#1c1c21; border:1px solid #2d2d35; padding:16px; border-radius:12px; margin-bottom:12px; text-align:left;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <div>
-                    <span style="font-weight:bold; font-size:1.05rem; color:#fff;">${escapeHtml(item.name || item.id || "Campaign")}</span>
-                    <span style="font-size:0.75rem; font-weight:bold; padding:3px 8px; border-radius:4px; margin-left:8px; text-transform:uppercase; background:${item.type === "organic" ? "#22272e" : "#2b2214"}; color:${item.type === "organic" ? "#58a6ff" : "#ffdd67"};">scale_mode: ${escapeHtml(item.type || "free")}</span>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="width:8px; height:8px; border-radius:50%; background:${item.aiStatus === "live" ? "#00ffcc" : "#ffdd67"};"></span>
-                    <span style="font-size:0.8rem; color:#a1a1aa; font-style:italic; text-transform:capitalize;">${escapeHtml(item.aiStatus || "live")}</span>
+              const hasLockedCreative = Boolean(item.imageAsset || item.buttonText);
+              const creativeBadgeHtml = hasLockedCreative ? `
+                <div style="background:#131316; border:1px dashed #2d2d35; border-radius:8px; padding:10px; margin-bottom:12px; display:flex; gap:10px; align-items:center;">
+                  ${item.imageAsset ? `<img src="${escapeHtml(item.imageAsset)}" alt="Locked Asset" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #323239; flex-shrink:0;">` : ""}
+                  <div style="font-size:0.75rem; font-family:monospace; color:#00ffcc;">
+                    <div>🔒 Locked Creative Banner</div>
+                    <div style="color:#ffdd67; margin-top:3px; word-break:break-word;">Button: ${escapeHtml(item.buttonText || "🔒 Complete Verification To Download")}</div>
                   </div>
                 </div>
+              ` : "";
 
-                <div style="font-size:0.8rem; color:#ffdd67; font-family:monospace; margin-bottom:12px;" data-start-time="${item.createdAt || Date.now()}" data-status="${escapeHtml(item.status || "active")}" class="campaign-timer-node">
-                  ⏱️ Active duration: Calculating runtime...
-                </div>
+              const itemRevenue = parseFloat(item.revenue || 0).toFixed(2);
+              const layoutTemplate = `
+                <div class="campaign-item-card" data-campaign-id="${escapeHtml(item.id)}" data-campaign-status="${escapeHtml(item.status || "active")}" style="background:#1c1c21; border:1px solid #2d2d35; padding:16px; border-radius:12px; margin-bottom:12px; text-align:left;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div>
+                      <span style="font-weight:bold; font-size:1.05rem; color:#fff;">${escapeHtml(item.name || item.id || "Campaign")}</span>
+                      <span style="font-size:0.75rem; font-weight:bold; padding:3px 8px; border-radius:4px; margin-left:8px; text-transform:uppercase; background:${item.type === "organic" ? "#22272e" : "#2b2214"}; color:${item.type === "organic" ? "#58a6ff" : "#ffdd67"};">scale_mode: ${escapeHtml(item.type || "free")}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="width:8px; height:8px; border-radius:50%; background:${item.aiStatus === "live" ? "#00ffcc" : "#ffdd67"};"></span>
+                      <span style="font-size:0.8rem; color:#a1a1aa; font-style:italic; text-transform:capitalize;">${escapeHtml(item.aiStatus || "live")}</span>
+                    </div>
+                  </div>
 
-                ${creativeBadgeHtml}
+                  <div style="font-size:0.8rem; color:#ffdd67; font-family:monospace; margin-bottom:12px;" data-start-time="${item.createdAt || Date.now()}" data-status="${escapeHtml(item.status || "active")}" class="campaign-timer-node">
+                    ⏱️ Active duration: Calculating runtime...
+                  </div>
 
-                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; font-family:monospace; font-size:0.78rem; background:#0b0b0c; padding:10px; border-radius:6px; margin-bottom:12px;">
-                  <div><span style="color:#6b7280;">Views:</span> <span style="color:#fff;">${parseInt(item.views, 10) || 0}</span></div>
-                  <div><span style="color:#6b7280;">Clicks:</span> <span style="color:#00ffcc;">${parseInt(item.clicks, 10) || 0}</span></div>
-                  <div><span style="color:#6b7280;">Leads:</span> <span style="color:#ffdd67;">${parseInt(item.leads, 10) || 0}</span></div>
-                  <div><span style="color:#6b7280;">Rev:</span> <span style="color:#00ffcc;">$${itemRevenue}</span></div>
-                  <div style="grid-column: span 4;"><span style="color:#6b7280;">${item.type === "paid" ? "Spent: $" + parseFloat(item.spent || 0).toFixed(2) + " | Left: $" + parseFloat(item.budgetLeft || 0).toFixed(2) : "Cost: Free"}</span></div>
-                </div>
+                  ${creativeBadgeHtml}
 
-                <div style="display:flex; gap:10px;">
-                  ${item.status === "active"
-                    ? `<button style="flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:0.85rem; background:#222227; color:#ff4a4a; border:1px solid #ff4a4a; cursor:pointer;" onclick="toggleCampaign('${escapeHtml(item.id)}', 'inactive')">⏸️ Stop</button>`
-                    : `<button style="flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:0.85rem; background:#222227; color:#00ffcc; border:1px solid #00ffcc; cursor:pointer;" onclick="toggleCampaign('${escapeHtml(item.id)}', 'active')">▶️ Start</button>`
-                  }
-                  <button style="flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:0.85rem; background:#222227; color:#a1a1aa; border:1px solid #323239; cursor:pointer;" onclick="deleteCampaign('${escapeHtml(item.id)}')">🗑️ Delete</button>
-                </div>
-                <div style="margin-top:10px; font-size:0.75rem; color:#6b7280; font-family:monospace; word-break:break-all;">
-                  Link: <a href="${url.origin}${cleanRoutePath}?c=${encodeURIComponent(item.id)}" target="_blank" style="color:#00ffcc; text-decoration:none;">${url.origin}${cleanRoutePath}?c=${escapeHtml(item.id)}</a>
-                </div>
-                <div style="margin-top:4px; font-size:0.72rem; color:#6b7280; font-family:monospace; word-break:break-all;">
-                  Postback: <span style="color:#ffdd67;">${url.origin}${cleanRoutePath}/postback?c=${escapeHtml(item.id)}&amp;payout={payout}</span>
-                </div>
-              </div>
-            `;
+                  <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; font-family:monospace; font-size:0.78rem; background:#0b0b0c; padding:10px; border-radius:6px; margin-bottom:12px;">
+                    <div><span style="color:#6b7280;">Views:</span> <span style="color:#fff;">${parseInt(item.views, 10) || 0}</span></div>
+                    <div><span style="color:#6b7280;">Clicks:</span> <span style="color:#00ffcc;">${parseInt(item.clicks, 10) || 0}</span></div>
+                    <div><span style="color:#6b7280;">Leads:</span> <span style="color:#ffdd67;">${parseInt(item.leads, 10) || 0}</span></div>
+                    <div><span style="color:#6b7280;">Rev:</span> <span style="color:#00ffcc;">$${itemRevenue}</span></div>
+                    <div style="grid-column: span 4;"><span style="color:#6b7280;">${item.type === "paid" ? "Spent: $" + parseFloat(item.spent || 0).toFixed(2) + " | Left: $" + parseFloat(item.budgetLeft || 0).toFixed(2) : "Cost: Free"}</span></div>
+                  </div>
 
-            if (item.status === "active") {
-              activeRowsHtml += layoutTemplate;
-              activeLoops++;
-            } else {
-              inactiveRowsHtml += layoutTemplate;
-              inactiveLoops++;
+                  <div style="display:flex; gap:10px;">
+                    ${item.status === "active"
+                      ? `<button style="flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:0.85rem; background:#222227; color:#ff4a4a; border:1px solid #ff4a4a; cursor:pointer;" onclick="toggleCampaign('${escapeHtml(item.id)}', 'inactive')">⏸️ Stop</button>`
+                      : `<button style="flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:0.85rem; background:#222227; color:#00ffcc; border:1px solid #00ffcc; cursor:pointer;" onclick="toggleCampaign('${escapeHtml(item.id)}', 'active')">▶️ Start</button>`
+                    }
+                    <button style="flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:0.85rem; background:#222227; color:#a1a1aa; border:1px solid #323239; cursor:pointer;" onclick="deleteCampaign('${escapeHtml(item.id)}')">🗑️ Delete</button>
+                  </div>
+                  <div style="margin-top:10px; font-size:0.75rem; color:#6b7280; font-family:monospace; word-break:break-all;">
+                    Link: <a href="${url.origin}${cleanRoutePath}?c=${encodeURIComponent(item.id)}" target="_blank" style="color:#00ffcc; text-decoration:none;">${url.origin}${cleanRoutePath}?c=${escapeHtml(item.id)}</a>
+                  </div>
+                  <div style="margin-top:4px; font-size:0.72rem; color:#6b7280; font-family:monospace; word-break:break-all;">
+                    Postback: <span style="color:#ffdd67;">${url.origin}${cleanRoutePath}/postback?c=${escapeHtml(item.id)}&amp;payout={payout}</span>
+                  </div>
+                </div>
+              `;
+
+              if (item.status === "active") {
+                activeRowsHtml += layoutTemplate;
+                activeLoops++;
+              } else {
+                inactiveRowsHtml += layoutTemplate;
+                inactiveLoops++;
+              }
             }
+          } catch (_loopItemErr) {
+            console.error("Error rendering campaign item:", key.name, _loopItemErr);
           }
-        } catch (_loopItemErr) {
-          console.error("Error rendering campaign item:", key.name, _loopItemErr);
         }
+      } catch (loadErr) {
+        console.error("Portal data loading error:", loadErr);
       }
 
       const checkLowBalance = parseFloat(walletBalance) < 10.00;
@@ -1614,34 +1620,5 @@ const worker = {
 export default worker;
 
 export async function onRequest(context) {
-  try {
-    return await worker.fetch(context.request, context.env || {}, context);
-  } catch (err) {
-    console.error("Cloudflare Gateway caught exception:", err);
-    return new Response(`<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Bargain Drop | Gateway Recovery</title>
-        <style>
-            body { background: #0b0b0c; color: #fff; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; text-align: center; }
-            .card { background: #131316; border: 1px solid #323239; max-width: 440px; width: 100%; border-radius: 12px; padding: 28px; }
-            h2 { font-size: 1.25rem; color: #ffdd67; margin-bottom: 12px; }
-            p { color: #a1a1aa; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.5; }
-            .btn { display: inline-block; background: #00ffcc; color: #0b0b0c; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; }
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <h2>Gateway Auto-Recovery</h2>
-            <p>The gateway recovered from a temporary edge exception without interruption.</p>
-            <a class="btn" href="/cpagrip-v2">Reload Master Gateway</a>
-        </div>
-    </body>
-    </html>`, {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }
-    });
-  }
+  return worker.fetch(context.request, context.env || {}, context);
 }
