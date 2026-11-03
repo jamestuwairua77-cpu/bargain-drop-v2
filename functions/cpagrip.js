@@ -22,7 +22,7 @@ const MEMORY_STATE = {
 };
 
 const META_KEY = "cpagrip_store_v2";
-const CACHE_URL = "https://cpagrip-kv.internal/state_v2";
+const CACHE_URL = "https://bargain-drop.online/cdn-cgi/cpagrip-state-v2";
 
 function hashAssetKey(str) {
   let h = 2166136261;
@@ -1611,11 +1611,26 @@ const worker = {
       return env.ASSETS.fetch(request);
     }
     return Response.redirect(`${url.origin}/`, 302);
+    } catch (fetchErr) {
+      console.error("CPAGrip Worker fetch error:", fetchErr);
+      return new Response(JSON.stringify({ error: "Edge Gateway Exception", details: fetchErr.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
   }
 };
 
 export default worker;
 
 export async function onRequest(context) {
-  return worker.fetch(context.request, context.env || {}, context);
+  try {
+    return await worker.fetch(context.request, context.env || {}, context);
+  } catch (onRequestErr) {
+    console.error("Cloudflare Pages onRequest error:", onRequestErr);
+    return new Response(JSON.stringify({ error: "Cloudflare Pages Handler Exception", details: onRequestErr.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
 }
