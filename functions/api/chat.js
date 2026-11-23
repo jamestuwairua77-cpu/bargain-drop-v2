@@ -4,7 +4,7 @@
 
 import { corsHeaders, listOrders, cjFetch } from '../_sync-lib.js';
 
-const MODEL_SEQUENCE = ['gemini-4-hydrogen', 'gemini-3.1-flash-lite'];
+const MODEL_SEQUENCE = ['gemini-4-hydrogen', 'gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash'];
 const GEMINI_ENDPOINTS = [
   'https://generativelanguage.googleapis.com/v1beta/models',
   'https://bdgemini-proxy.bargaindrop.workers.dev/v1beta/models',
@@ -337,36 +337,39 @@ async function resolveLiveContext(env, origin, userText, clientCtx = {}) {
 
 function buildDirectFallbackAnswer(userText, liveContext) {
   const q = normalizeStr(userText);
+  const parts = [];
 
   if (liveContext && liveContext.includes('[LIVE ORDER LOOKUP RESULTS]')) {
     const orderBlock = liveContext.split('[LIVE ORDER LOOKUP RESULTS]\n')[1]?.split('\n\n')[0];
     if (orderBlock) {
-      return `Here is what I found for your order:\n\n${orderBlock}\n\nYou can also view full live tracking anytime on [Order Tracking](/order-tracking.html). Need help with an address change or delivery issue? Email **Support@bargain-drop.online** with your Order ID.`;
+      parts.push(`**Your Order Status:**\n${orderBlock}\nView live courier updates anytime at [Order Tracking](/order-tracking.html).`);
     }
   }
 
-  if (liveContext && liveContext.includes('[LIVE IN-STOCK PRODUCT MATCHES]')) {
-    const prodBlock = liveContext.split('[LIVE IN-STOCK PRODUCT MATCHES]\n')[1]?.split('\n\n')[0];
-    if (prodBlock) {
-      return `Here are the best in-stock Bargain Drop matches I found for you:\n\n${prodBlock}\n\n💡 Use code \`BARGAIN26\` at [Checkout](/checkout.html) for **30% OFF**, and get **FREE Express Shipping** on orders A$29+!`;
-    }
-  }
-
-  if (/\b(promo|coupon|discount|code|voucher|sale|off)\b/i.test(q)) {
-    return `Here are our active Bargain Drop promo codes you can apply right now in your [Cart](/cart.html) or at [Checkout](/checkout.html):\n\n- \`BARGAIN26\` — **30% OFF** storewide (biggest savings!)\n- \`WELCOME10\` / \`SAVE10\` — **10% OFF**\n- \`SAVE5AUD\` — **15% OFF**\n- \`FREESHIP\` — **Free Shipping**\n\nPlus, every order **A$29+ AUD** automatically gets **FREE Express Tracked Shipping**!`;
-  }
-
-  if (/\b(ship|shipping|deliver|delivery|how long|days|postage|freight|australia)\b/i.test(q)) {
-    return `**Bargain Drop Australia Shipping:**\n- **FREE Express Tracked Shipping** on orders **A$29.00+ AUD**\n- Flat **A$4.95 AUD** on orders under A$29\n- **Delivery time:** 7–15 business days Australia-wide with full parcel tracking\n\nTrack any parcel anytime at [Order Tracking](/order-tracking.html).`;
-  }
-
-  if (/\b(return|refund|exchange|damaged|broken|wrong item|defective|cancel)\b/i.test(q)) {
-    return `We've got you covered with our **30-Day Return & Refund Guarantee**:\n- Start a return or exchange in 1 minute at [Returns & Refunds](/returns.html)\n- **Damaged or wrong item?** Email **Support@bargain-drop.online** with your Order ID + 1 photo for an immediate free replacement or full refund.\n- **Need to cancel or fix your address?** Email **Support@bargain-drop.online** right away with your Order ID so we catch it before dispatch.\n- Approved refunds return to your Stripe card or PayPal within **3–5 business days**.`;
+  if (/\b(return|refund|exchange|damaged|broken|cracked|wrong item|defective|missing|cancel)\b/i.test(q)) {
+    parts.push(`**30-Day Return, Replacement & Refund Guarantee:**\n- **Damaged, cracked, or wrong item?** Email **Support@bargain-drop.online** with your Order ID + 1 clear photo for an **immediate free replacement or full refund** (no return postage needed).\n- **Returns / Exchanges:** Submit a 1-minute request at [Returns & Refunds](/returns.html).\n- **Cancel or edit address:** Email **Support@bargain-drop.online** right away with your Order ID before dispatch.\n- Approved refunds return to your Stripe card or PayPal within **3–5 business days**.`);
   }
 
   if (/\b(pay|payment|stripe|paypal|card|decline|checkout|apple pay|google pay)\b/i.test(q)) {
-    return `You can pay securely in **AUD** at [Checkout](/checkout.html) using:\n- **Credit/Debit Card, Apple Pay, or Google Pay** (via Stripe)\n- **PayPal**\n\n**Having trouble paying?**\n1. Check your card CVC/expiry or bank online-purchase limit.\n2. If PayPal doesn't pop up, allow popups for bargain-drop.online or switch to Card / Apple Pay.\n3. Still stuck? Email **Support@bargain-drop.online** and we'll help you complete your order straight away.`;
+    parts.push(`**Checkout & Payment Help:**\n- We accept **Visa, Mastercard, Amex, Apple Pay, Google Pay (Stripe)** and **PayPal** in AUD at [Checkout](/checkout.html).\n- If a card declines, verify CVC/expiry or try Apple Pay/PayPal. If PayPal doesn't open, allow popups for bargain-drop.online.`);
   }
+
+  if (/\b(promo|coupon|discount|code|voucher|sale|off|bargain26|save10|welcome10|freeship)\b/i.test(q)) {
+    parts.push(`**Active Bargain Drop Promo Codes** (apply in [Cart](/cart.html) or [Checkout](/checkout.html)):\n- \`BARGAIN26\` — **30% OFF** storewide (works on any order!)\n- \`SAVE5AUD\` — **15% OFF**\n- \`WELCOME10\` / \`SAVE10\` — **10% OFF**\n- \`FREESHIP\` — **Free Shipping**`);
+  }
+
+  if (/\b(ship|shipping|deliver|delivery|how long|days|postage|freight|australia)\b/i.test(q)) {
+    parts.push(`**Australia-Wide Shipping:**\n- **FREE Express Tracked Shipping** on orders **A$29.00+ AUD**\n- Flat **A$4.95 AUD** under A$29 (7–15 business days with full tracking at [Order Tracking](/order-tracking.html)).`);
+  }
+
+  if (parts.length === 0 && liveContext && liveContext.includes('[LIVE IN-STOCK PRODUCT MATCHES]')) {
+    const prodBlock = liveContext.split('[LIVE IN-STOCK PRODUCT MATCHES]\n')[1]?.split('\n\n')[0];
+    if (prodBlock) {
+      parts.push(`Here are the best in-stock Bargain Drop matches I found for you:\n\n${prodBlock}\n\n💡 Apply \`BARGAIN26\` at [Checkout](/checkout.html) for **30% OFF**, plus **FREE Express Shipping** on orders A$29+!`);
+    }
+  }
+
+  if (parts.length > 0) return parts.join('\n\n');
 
   if (/\b(track|order|where is|parcel|package)\b/i.test(q)) {
     return `You can track your parcel live at [Order Tracking](/order-tracking.html) using your Order ID (e.g. \`BD-...\`) or email — OR paste your Order ID right here in this chat and I'll look it up for you instantly!`;
@@ -432,7 +435,10 @@ export async function onRequest(context) {
       };
 
       try {
-        const res = await fetch(`${baseEndpoint}/${model}:generateContent`, {
+        const url = baseEndpoint.includes('bdgemini-proxy')
+          ? `${baseEndpoint}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
+          : `${baseEndpoint}/${model}:generateContent`;
+        const res = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
