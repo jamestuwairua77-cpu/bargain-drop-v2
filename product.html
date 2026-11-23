@@ -801,7 +801,11 @@ input::placeholder, textarea::placeholder {
   .nav-btn, .nbtn, .hamburger-btn { width: 36px !important; height: 36px !important; min-width: 36px !important; }
   .nav-btn svg, .nbtn svg, .hamburger-btn svg { width: 18px !important; height: 18px !important; }
 }
-</style></head>
+</style>  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/bd-design-system.css?v=20261122">
+</head>
 <body>
 <nav class="navbar">
   <button class="nav-back" onclick="history.back()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -1326,6 +1330,7 @@ function toggleWishlist(){
 /* ============ ADD TO CART ============ */
 function addToCart(){
   if(!product){toast('Product loading…');return}
+  if(product.visible===false||product.deleted===true){toast('This product is currently unavailable');return}
   var sz=getSizeVals();
   if(sz.length&&!selectedOpts[getSizeOptName()]){toast('Please select a size');return}
   var colorOpt=getNameOfColorOpt();
@@ -1472,6 +1477,9 @@ function renderProduct(raw){
     if(o2.length)p.options.push({name:nameFor(o2)||'Select',values:o2});
     if(o3.length)p.options.push({name:nameFor(o3)||'Select',values:o3});
   }
+  p.visible = raw.visible !== false;
+  p.deleted = raw.deleted === true;
+  p.hiddenReason = raw.hiddenReason || '';
   product=p;
   document.title=p.title+' — Bargain Drop';
   document.getElementById('p-title').textContent=p.title;
@@ -1488,7 +1496,25 @@ function renderProduct(raw){
   // reveal content
   document.getElementById('loading-skel').classList.add('hidden');
   document.getElementById('pdp-content').classList.remove('hidden');
-  document.getElementById('bottom-bar').style.display='flex';
+  var isUnavail = (p.visible === false || p.deleted === true);
+  if (isUnavail) {
+    var existingNotice = document.getElementById('bd-unavail-notice');
+    if (!existingNotice) {
+      var notice = document.createElement('div');
+      notice.id = 'bd-unavail-notice';
+      notice.style.cssText = 'margin:16px 0;padding:18px;border-radius:12px;background:rgba(254,52,66,0.12);border:1px solid rgba(254,52,66,0.45);color:#ffffff;';
+      notice.innerHTML = '<div style="font-weight:800;font-size:1rem;margin-bottom:6px;color:#ff6b78;">Product No Longer Available</div>' +
+        '<p style="font-size:.86rem;line-height:1.5;color:#e5e7eb;margin-bottom:14px;">This item was automatically hidden because it is out of stock or has been discontinued by the supplier.</p>' +
+        '<a href="/products.html" style="display:inline-flex;align-items:center;gap:6px;background:#fe3442;color:#ffffff;font-weight:700;font-size:.84rem;padding:10px 18px;border-radius:8px;text-decoration:none;">Browse Active Products →</a>';
+      var titleEl = document.getElementById('p-title');
+      if (titleEl && titleEl.parentNode) titleEl.parentNode.insertBefore(notice, titleEl.nextSibling);
+    }
+    var bb = document.getElementById('bottom-bar');
+    if (bb) bb.style.display = 'none';
+    document.querySelectorAll('.atc-btn,.buy-btn,#atc-btn,#buy-now-btn').forEach(function(b){ b.disabled = true; b.style.opacity = '0.45'; b.style.pointerEvents = 'none'; });
+  } else {
+    document.getElementById('bottom-bar').style.display='flex';
+  }
 }
 
 /* ============ LOAD ============ */
@@ -1561,8 +1587,8 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
 <script>
 (function(w,d){
   w.BD_CHAT = w.BD_CHAT || { config: { api: (w.location && w.location.origin) || "https://bargain-drop.online" } };
-  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css?v=0438bd327b"; d.head.appendChild(c);
-  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js?v=b75f42de9c"; d.body.appendChild(j);
+  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css?v=20261123"; d.head.appendChild(c);
+  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js?v=20261123"; d.body.appendChild(j);
 })(window,document);
 </script><script>if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',setupReviewName)}else{setupReviewName()}</script>
 

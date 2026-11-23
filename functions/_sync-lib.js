@@ -644,6 +644,43 @@ function b64Encode(bytes) {
   return btoa(bin);
 }
 
+export function b64DecodeUtf8(b64) {
+  const clean = String(b64 || '').replace(/\s+/g, '');
+  if (!clean) return '';
+  const bin = atob(clean);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+}
+
+export async function readShardedCatalog(env) {
+  // 1. Try reading sharded catalog from GitHub raw (with token if available)
+  try {
+    const ghCat = await readCatalogFromGithub(env);
+    if (Array.isArray(ghCat) && ghCat.length > 0) return ghCat;
+  } catch {}
+  // 2. Fallback: fetch public sharded catalog from storefront origin
+  try {
+    const origin = String((env && env.PUBLIC_STORE_ORIGIN) || 'https://bargain-drop.online').replace(/\/+$/, '');
+    const mr = await fetch(`${origin}/all-products.json`);
+    if (!mr.ok) return [];
+    const manifest = await mr.json();
+    if (Array.isArray(manifest)) return manifest;
+    const n = manifest && manifest.shards ? Number(manifest.shards) : 0;
+    if (!n) return [];
+    const jobs = [];
+    for (let i = 0; i < n; i++) {
+      jobs.push(fetch(`${origin}/all-products-${i}.json`).then((r) => (r.ok ? r.json() : [])));
+    }
+    const shards = await Promise.all(jobs);
+    const out = [];
+    for (const shard of shards) if (Array.isArray(shard)) out.push(...shard);
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 export async function ghWriteLarge(env, path, content, msg) {
   let lastErr = null;
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -706,34 +743,46 @@ export async function ghWrite(env, path, content, msg, existingSha) {
   if (bytes.length > 900 * 1024) {
     return ghWriteLarge(env, path, content, msg);
   }
-  let sha = existingSha;
-  if (!sha) {
-    try {
-      const cur = await ghRead(env, path);
-      if (cur && cur.sha) sha = cur.sha;
-    } catch { }
-  }
   const base64 = b64Encode(bytes);
-  const body = {
-    message: msg,
-    content: base64,
-    branch: 'main',
-  };
-  if (sha) body.sha = sha;
-  const r = await fetch(GHAPI + '/contents/' + path, {
-    method: 'PUT',
-    headers: {
-      'Authorization': 'Bearer ' + GH_TOKEN_FN(env),
-      'Content-Type': 'application/json',
-      'User-Agent': 'bargain-drop-cloudflare',
-    },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
+  let sha = existingSha;
+  let lastErr = null;
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (!sha || attempt > 0) {
+      try {
+        const cur = await ghRead(env, path);
+        if (cur && cur.sha) sha = cur.sha;
+      } catch {}
+    }
+    const body = {
+      message: msg,
+      content: base64,
+      branch: 'main',
+    };
+    if (sha) body.sha = sha;
+    const r = await fetch(GHAPI + '/contents/' + path, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + GH_TOKEN_FN(env),
+        'Content-Type': 'application/json',
+        'User-Agent': 'bargain-drop-cloudflare',
+      },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) {
+      return await r.json();
+    }
     const d = await r.text();
-    throw new Error('GH write ' + r.status + ': ' + d.slice(0, 200));
+    lastErr = new Error('GH write ' + r.status + ': ' + d.slice(0, 200));
+    // Retry on 409 SHA conflict or 429 rate limit
+    if (r.status === 409 || r.status === 429 || r.status >= 500) {
+      sha = null;
+      await new Promise((res) => setTimeout(res, 350 * (attempt + 1)));
+      continue;
+    }
+    throw lastErr;
   }
-  return await r.json();
+  throw lastErr || new Error('GH write failed after retries');
 }
 
 // ─── Sync log via GitHub (no /tmp in Cloudflare) ─────────────────────────
@@ -795,25 +844,49 @@ export async function appendSyncLog(env, entry) {
   }
 }
 
-// ─── Durable order ledger (GitHub-backed, same mechanism as sync log) ────
+// ─── Durable order ledger (Cloudflare KV primary if bound + GitHub mirror) ───
+function getOrdersKv(env) {
+  return (env && (env.ORDERS_KV || env.BD_KV)) || null;
+}
+
 export async function listOrders(env) {
+  const kv = getOrdersKv(env);
+  if (kv) {
+    try {
+      const rawKv = await kv.get('orders_ledger_v1');
+      if (rawKv) {
+        const parsed = JSON.parse(rawKv);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+  }
   const existing = await ghRead(env, ORDERS_PATH);
   if (!existing || !existing.content) return [];
   try {
-    return JSON.parse(atob(existing.content.replace(/\s+/g, '')));
+    const parsed = JSON.parse(b64DecodeUtf8(existing.content));
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
 export async function saveOrderRecord(env, order) {
-  const existing = await ghRead(env, ORDERS_PATH);
+  const kv = getOrdersKv(env);
+  const existing = await ghRead(env, ORDERS_PATH).catch(() => null);
   let orders = [];
-  if (existing && existing.content) {
+  if (kv) {
     try {
-      orders = JSON.parse(atob(existing.content.replace(/\s+/g, '')));
-    } catch {
-      orders = [];
+      const rawKv = await kv.get('orders_ledger_v1');
+      if (rawKv) orders = JSON.parse(rawKv);
+    } catch {}
+  }
+  if (!Array.isArray(orders) || !orders.length) {
+    if (existing && existing.content) {
+      try {
+        orders = JSON.parse(b64DecodeUtf8(existing.content));
+      } catch {
+        orders = [];
+      }
     }
   }
   if (!Array.isArray(orders)) orders = [];
@@ -838,24 +911,45 @@ export async function saveOrderRecord(env, order) {
   } else {
     orders.push(record);
   }
-  await ghWrite(
-    env,
-    ORDERS_PATH,
-    JSON.stringify(orders, null, 2),
-    'orders: save ' + (record.id || ''),
-    existing && existing.sha
-  );
+  const serialized = JSON.stringify(orders, null, 2);
+  let kvSaved = false;
+  if (kv) {
+    try {
+      await kv.put('orders_ledger_v1', serialized);
+      kvSaved = true;
+    } catch {}
+  }
+  try {
+    await ghWrite(
+      env,
+      ORDERS_PATH,
+      serialized,
+      'orders: save ' + (record.id || ''),
+      existing && existing.sha
+    );
+  } catch (ghErr) {
+    if (!kvSaved) throw ghErr;
+  }
   return record;
 }
 
 export async function updateOrderStatus(env, orderId, statusOrPatch, extra) {
-  const existing = await ghRead(env, ORDERS_PATH);
+  const kv = getOrdersKv(env);
+  const existing = await ghRead(env, ORDERS_PATH).catch(() => null);
   let orders = [];
-  if (existing && existing.content) {
+  if (kv) {
     try {
-      orders = JSON.parse(atob(existing.content.replace(/\s+/g, '')));
-    } catch {
-      orders = [];
+      const rawKv = await kv.get('orders_ledger_v1');
+      if (rawKv) orders = JSON.parse(rawKv);
+    } catch {}
+  }
+  if (!Array.isArray(orders) || !orders.length) {
+    if (existing && existing.content) {
+      try {
+        orders = JSON.parse(b64DecodeUtf8(existing.content));
+      } catch {
+        orders = [];
+      }
     }
   }
   if (!Array.isArray(orders)) return null;
@@ -874,20 +968,33 @@ export async function updateOrderStatus(env, orderId, statusOrPatch, extra) {
     ...patchObj,
     updatedAt: new Date().toISOString(),
   };
-  await ghWrite(
-    env,
-    ORDERS_PATH,
-    JSON.stringify(orders, null, 2),
-    'orders: ' + (orders[idx].status || 'update') + ' ' + orderId,
-    existing && existing.sha
-  );
+  const serialized = JSON.stringify(orders, null, 2);
+  let kvSaved = false;
+  if (kv) {
+    try {
+      await kv.put('orders_ledger_v1', serialized);
+      kvSaved = true;
+    } catch {}
+  }
+  try {
+    await ghWrite(
+      env,
+      ORDERS_PATH,
+      serialized,
+      'orders: ' + (orders[idx].status || 'update') + ' ' + orderId,
+      existing && existing.sha
+    );
+  } catch (ghErr) {
+    if (!kvSaved) throw ghErr;
+  }
   return orders[idx];
 }
 
 // ─── E.164 Phone Normalization (Required by CJ Dropshipping createOrderV2) ───
+// Never silently substitutes a fake phone number; returns '' when invalid/missing.
 export function normalizePhoneE164(rawPhone, countryCode = 'AU') {
   const cleaned = String(rawPhone || '').replace(/[^\d+]/g, '');
-  if (!cleaned) return '+61400000000';
+  if (!cleaned) return '';
   if (/^\+[1-9]\d{6,14}$/.test(cleaned)) return cleaned;
   const digits = cleaned.replace(/\D/g, '');
   const cc = String(countryCode || 'AU').toUpperCase();
@@ -906,7 +1013,7 @@ export function normalizePhoneE164(rawPhone, countryCode = 'AU') {
     if (digits.startsWith('0')) return '+44' + digits.slice(1);
   }
   if (digits.length >= 8 && digits.length <= 15) return '+' + digits;
-  return '+61400000000';
+  return '';
 }
 
 // ─── Atomic Inventory Row Lock & Stock Verification (Module 3) ───────────────
@@ -918,10 +1025,7 @@ export async function lockAndVerifyInventory(env, items, orderId) {
 
   let catalog = [];
   try {
-    const prods = await ghRead(env, 'all-products.json');
-    if (prods && prods.content) {
-      catalog = JSON.parse(atob(prods.content.replace(/\s+/g, '')));
-    }
+    catalog = await readShardedCatalog(env);
   } catch {
     catalog = [];
   }
@@ -963,6 +1067,17 @@ export async function lockAndVerifyInventory(env, items, orderId) {
           }
         }
       }
+    }
+
+    if (matchedProd && (matchedProd.visible === false || matchedProd.deleted === true)) {
+      return {
+        ok: false,
+        code: 'PRODUCT_UNAVAILABLE',
+        product_id: prodId || String(matchedProd.id),
+        sku: sku || (matchedVar && matchedVar.sku) || null,
+        title: item.title || matchedProd.title || 'Item',
+        message: `"${item.title || matchedProd.title || 'Item'}" is no longer available and has been removed from our catalog.`,
+      };
     }
 
     if (matchedVar) {
@@ -1091,11 +1206,13 @@ export function buildCjOrderFromBody(body) {
     shippingZip: String(sa.zip || sa.postal_code || sa.postalZipCode || ''),
     shippingPhone: normalizedPhone,
     shippingCustomerName: fullName,
-    shippingAddress: streetAddress || '100 George Street',
+    shippingAddress: streetAddress,
     email: body.customer_email || body.email || sa.email || '',
     remark: body.remark || ('BD order ' + orderNumber),
     platform: 'shopify',
-    payType: 1,
+    // payType 3 = Create order cleanly without requiring CJ wallet balance;
+    // pushOrderToCj upgrades to wallet payBalance automatically if CJ wallet is funded.
+    payType: body.payType != null ? Number(body.payType) : 3,
     fromCountryCode: 'CN',
     logisticName: body.logisticName || 'CJPacket Ordinary',
     products,
@@ -1143,33 +1260,30 @@ export async function resolveCjVid(env, sku, vid, productId = null) {
     return String(vid).trim();
   }
 
-  // 2. Check local catalog (all-products.json) for a mapped variant SKU or cj_vid
+  // 2. Check sharded catalog (all-products-0..N.json) for a mapped variant SKU or cj_vid
   let resolvedSku = sku ? String(sku).trim() : '';
   let resolvedPid = productId ? String(productId).trim() : '';
   if (!resolvedSku && (productId || vid)) {
     try {
-      const prods = await ghRead(env, 'all-products.json');
-      if (prods && prods.content) {
-        const catalog = JSON.parse(atob(prods.content.replace(/\s+/g, '')));
-        if (Array.isArray(catalog)) {
-          for (const p of catalog) {
-            if (resolvedPid && String(p.id) === resolvedPid) {
-              if (p.cj_pid) resolvedPid = String(p.cj_pid);
-              const v = (p.variants || []).find(
-                (vr) => (vid && String(vr.id) === String(vid)) || vr.sku
-              );
-              if (v) {
-                if (v.cj_vid || v.vid) return String(v.cj_vid || v.vid);
-                if (v.sku) resolvedSku = String(v.sku);
-              }
-              break;
+      const catalog = await readShardedCatalog(env);
+      if (Array.isArray(catalog)) {
+        for (const p of catalog) {
+          if (resolvedPid && String(p.id) === resolvedPid) {
+            if (p.cj_pid) resolvedPid = String(p.cj_pid);
+            const v = (p.variants || []).find(
+              (vr) => (vid && String(vr.id) === String(vid)) || vr.sku
+            );
+            if (v) {
+              if (v.cj_vid || v.vid) return String(v.cj_vid || v.vid);
+              if (v.sku) resolvedSku = String(v.sku);
             }
-            for (const vr of p.variants || []) {
-              if (vid && String(vr.id) === String(vid)) {
-                if (vr.cj_vid || vr.vid) return String(vr.cj_vid || vr.vid);
-                if (vr.sku) resolvedSku = String(vr.sku);
-                break;
-              }
+            break;
+          }
+          for (const vr of p.variants || []) {
+            if (vid && String(vr.id) === String(vid)) {
+              if (vr.cj_vid || vr.vid) return String(vr.cj_vid || vr.vid);
+              if (vr.sku) resolvedSku = String(vr.sku);
+              break;
             }
           }
         }
@@ -1208,6 +1322,9 @@ export async function resolveCjVid(env, sku, vid, productId = null) {
 
 export async function pushOrderToCj(env, order) {
   const items = order.items || [];
+  if (!items.length) {
+    throw new Error('Cannot push empty order to CJ Dropshipping');
+  }
   const products = [];
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -1217,6 +1334,9 @@ export async function pushOrderToCj(env, order) {
       it.cj_variant_id || it.vid || it.variant_id || null,
       it.product_id || it.id || null
     );
+    if (!resolvedVid) {
+      throw new Error(`Could not resolve CJ variant ID for "${it.title || it.sku || it.product_id || 'item'}"`);
+    }
     products.push({
       vid: resolvedVid,
       cj_variant_id: resolvedVid,
@@ -1224,7 +1344,7 @@ export async function pushOrderToCj(env, order) {
       storeLineItemId: order.id + '-' + i,
     });
   }
-  const ship = order.shipping || order.shippingAddress || {};
+  const ship = { ...(order.shipping || order.shippingAddress || {}) };
   if (!ship.phone && order.phone) ship.phone = order.phone;
   if (!ship.fullName && order.name) ship.fullName = order.name;
 
@@ -1234,7 +1354,17 @@ export async function pushOrderToCj(env, order) {
     customer_phone: ship.phone || order.phone || '',
     shipping_address: ship,
     products,
+    payType: 3, // No-wallet-safe order creation: succeeds even at $0 CJ wallet balance
   });
+
+  if (!payload.shippingAddress || !payload.shippingCity) {
+    throw new Error('Incomplete customer shipping address — refusing to submit to CJ');
+  }
+  if (!payload.shippingPhone) {
+    throw new Error('Missing valid customer phone number (E.164) for courier dispatch');
+  }
+
+  // Create order cleanly on CJ via payType=3 (does not require CJ wallet balance)
   const cjRes = await cjFetchMulti(env, '/shopping/order/createOrderV2', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -1243,34 +1373,80 @@ export async function pushOrderToCj(env, order) {
     (cjRes && cjRes.data && (cjRes.data.orderId || cjRes.data.cjOrderId || (typeof cjRes.data === 'string' ? cjRes.data : null))) ||
     null;
 
-  // Automatically confirm the CJ order (CREATED -> UNPAID) and attempt wallet balance payment (UNPAID -> PAID/IN_QUEUE)
+  if (!cjOrderId) {
+    return {
+      ...cjRes,
+      ok: false,
+      cjOrderId: null,
+      cjPayStatus: 'create_failed',
+      forwardedPayload: payload,
+    };
+  }
+
+  // Resolve numeric orderId + wholesale cost from CJ order detail
+  let numericOrderId = (cjRes && cjRes.data && cjRes.data.orderId && /^\d+$/.test(String(cjRes.data.orderId)))
+    ? String(cjRes.data.orderId)
+    : (/^\d+$/.test(String(cjOrderId)) ? String(cjOrderId) : '');
+  let cjOrderDetail = null;
+  try {
+    const det = await cjFetchMulti(env, '/shopping/order/getOrderDetail?orderId=' + encodeURIComponent(cjOrderId));
+    if (det && det.code === 200 && det.data) {
+      cjOrderDetail = det.data;
+      if (!numericOrderId && det.data.orderId) numericOrderId = String(det.data.orderId);
+    }
+  } catch {}
+
+  const cjTotalUsd = cjOrderDetail
+    ? Number(cjOrderDetail.orderAmount || 0) + Number(cjOrderDetail.postageAmount || 0)
+    : Number((cjRes && cjRes.data && cjRes.data.orderAmount) || 0);
+
+  const payMode = String((env && env.CJ_PAY_MODE) || 'no_wallet').toLowerCase();
+  const cjDirectPayUrl = `https://app.cjdropshipping.com/myCJ.html#/order-list?orderId=${encodeURIComponent(cjOrderId)}`;
+
   let confirmRes = null;
   let payRes = null;
-  if (cjOrderId) {
+  let cjPayStatus = 'awaiting_external_payment';
+  let walletBalanceUsd = 0;
+
+  // Always confirm order if numericOrderId exists so it moves to UNPAID (ready for card/PayPal/wallet settlement)
+  if (numericOrderId) {
     try {
-      let numericOrderId = (cjRes && cjRes.data && cjRes.data.orderId && /^\d+$/.test(String(cjRes.data.orderId)))
-        ? String(cjRes.data.orderId)
-        : (/^\d+$/.test(String(cjOrderId)) ? String(cjOrderId) : '');
-      if (!numericOrderId) {
-        const det = await cjFetchMulti(env, '/shopping/order/getOrderDetail?orderId=' + encodeURIComponent(cjOrderId));
-        if (det && det.data && det.data.orderId) numericOrderId = String(det.data.orderId);
-      }
-      if (numericOrderId) {
-        confirmRes = await cjFetchMulti(env, '/shopping/order/confirmOrder', {
-          method: 'PATCH',
-          body: JSON.stringify({ orderId: numericOrderId }),
-        });
+      confirmRes = await cjFetchMulti(env, '/shopping/order/confirmOrder', {
+        method: 'PATCH',
+        body: JSON.stringify({ orderId: numericOrderId }),
+      });
+    } catch {}
+  }
+
+  // Smart Payment Routing:
+  // - If CJ_PAY_MODE is 'auto' or 'wallet' AND wallet balance covers cost, pay automatically via balance.
+  // - Otherwise (default 'no_wallet' or $0 balance), leave cleanly created & confirmed on CJ for 1-click Card/PayPal settlement without failing!
+  if (payMode !== 'no_wallet' && numericOrderId) {
+    try {
+      const balRes = await cjFetch(env, '/shopping/pay/getBalance');
+      walletBalanceUsd = Number((balRes && balRes.data && balRes.data.amount) || 0);
+      if (walletBalanceUsd > 0 && (cjTotalUsd <= 0 || walletBalanceUsd >= cjTotalUsd)) {
         payRes = await cjFetchMulti(env, '/shopping/pay/payBalance', {
           method: 'POST',
           body: JSON.stringify({ orderId: numericOrderId }),
         });
+        if (payRes && (payRes.code === 200 || payRes.result === true)) {
+          cjPayStatus = 'paid_wallet';
+        }
       }
     } catch {}
   }
 
   return {
     ...cjRes,
+    ok: true,
     cjOrderId,
+    numericOrderId: numericOrderId || null,
+    cjPayMode: payMode,
+    cjPayStatus,
+    cjTotalUsd: Number.isFinite(cjTotalUsd) ? +cjTotalUsd.toFixed(2) : null,
+    walletBalanceUsd,
+    cjDirectPayUrl,
     confirm: confirmRes,
     pay: payRes,
     forwardedPayload: payload,
@@ -1319,6 +1495,93 @@ async function pushOrderToShopify(env, order) {
   return await shopifyFetch(env, '/orders.json', { method: 'POST', body: JSON.stringify({ order: shopOrder }) });
 }
 
+// ─── Customer Order Confirmation Email + Admin 1-Click Non-Wallet Pay Alert ───
+async function sendResendEmail(env, { to, subject, html, text }) {
+  const fromAddr =
+    (env && (env.EMAIL_FROM_ADDRESS || env.RESEND_FROM)) ||
+    'Bargain Drop <support@bargain-drop.online>';
+  if (env && env.RESEND_API_KEY) {
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + env.RESEND_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from: fromAddr, to: Array.isArray(to) ? to : [to], subject, html, text }),
+      });
+      if (r.ok) return { sent: true, provider: 'resend', to };
+    } catch {}
+  }
+  return { sent: false, provider: 'none', to };
+}
+
+export async function sendOrderConfirmationEmail(env, order) {
+  const recipientEmail = String(order?.email || order?.shipping?.email || '').trim().toLowerCase();
+  if (!recipientEmail || !recipientEmail.includes('@')) return { sent: false, reason: 'no customer email' };
+  const orderId = String(order.id || 'BD-ORDER');
+  const publicOrigin = String((env && env.PUBLIC_STORE_ORIGIN) || 'https://bargain-drop.online').replace(/\/+$/, '');
+  const trackUrl = `${publicOrigin}/order-tracking.html?order=${encodeURIComponent(orderId)}`;
+  const customerName = order.name || order.shipping?.fullName || 'Valued Customer';
+  const totalAud = Number(order.total || 0).toFixed(2);
+  const itemsHtml = (order.items || [])
+    .map(
+      (it) =>
+        `<tr><td style="padding:8px 0;border-bottom:1px solid #222425;color:#ffffff;font-size:13px;">${String(it.title || 'Item')} × ${it.qty || it.quantity || 1}</td><td style="padding:8px 0;border-bottom:1px solid #222425;color:#e4e4e7;font-size:13px;text-align:right;">A$${Number((it.price || 0) * (it.qty || it.quantity || 1)).toFixed(2)}</td></tr>`
+    )
+    .join('');
+
+  const html = `
+    <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:32px;">
+      <div style="margin-bottom:20px;"><span style="color:#fe3442;font-weight:900;font-size:20px;">BARGAIN</span> <span style="color:#ffffff;font-weight:900;font-size:20px;">DROP</span></div>
+      <h2 style="margin:0 0 10px;font-size:22px;color:#ffffff;">Order Confirmed, ${customerName}!</h2>
+      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 20px;">Thank you for shopping with Bargain Drop. We have received your payment of <strong style="color:#ffffff;">A$${totalAud}</strong> for order <strong style="color:#fe3442;">#${orderId}</strong> and queued it for dispatch.</p>
+      ${itemsHtml ? `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">${itemsHtml}</table>` : ''}
+      <a href="${trackUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 24px;border-radius:8px;">Track Order Status →</a>
+      <p style="color:#a1a1aa;font-size:12px;margin-top:24px;">We will email your carrier tracking number as soon as your package leaves the warehouse.</p>
+    </div>`;
+  return sendResendEmail(env, {
+    to: recipientEmail,
+    subject: `Order Confirmed — Bargain Drop #${orderId}`,
+    html,
+    text: `Thank you for your Bargain Drop order #${orderId} (Total: A$${totalAud}). Track your order: ${trackUrl}`,
+  });
+}
+
+export async function sendAdminOrderPayAlertEmail(env, order, cjResult) {
+  const adminEmail = String((env && (env.ADMIN_ALERT_EMAIL || env.SUPPORT_EMAIL)) || 'support@bargain-drop.online').trim();
+  if (!adminEmail || !adminEmail.includes('@')) return { sent: false };
+  const publicOrigin = String((env && env.PUBLIC_STORE_ORIGIN) || 'https://bargain-drop.online').replace(/\/+$/, '');
+  const orderId = String(order.id || 'BD-ORDER');
+  const cjId = String((cjResult && cjResult.cjOrderId) || 'PENDING');
+  const cjPayUrl = (cjResult && cjResult.cjDirectPayUrl) || 'https://app.cjdropshipping.com/myCJ.html#/order-list';
+  const adminVaultUrl = `${publicOrigin}/admin-orders.html`;
+  const customerPaidAud = Number(order.total || 0);
+  const cjCostUsd = Number((cjResult && cjResult.cjTotalUsd) || 0);
+  const estCjAud = +(cjCostUsd * 1.54).toFixed(2);
+  const estMarginAud = +(customerPaidAud - estCjAud).toFixed(2);
+
+  const html = `
+    <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:28px;">
+      <div style="color:#facc15;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">No-Wallet Auto-Fulfillment Ready</div>
+      <h2 style="margin:0 0 12px;font-size:20px;color:#ffffff;">New Paid Order #${orderId} → CJ #${cjId}</h2>
+      <p style="color:#d4d4d8;font-size:14px;line-height:1.5;margin:0 0 18px;">Order has been automatically created &amp; confirmed on CJ Dropshipping via <strong>payType=3 (No CJ Wallet)</strong>. Settle directly with Card or PayPal in 1 click:</p>
+      <div style="background:#121515;border:1px solid #222425;border-radius:8px;padding:14px;margin-bottom:18px;font-size:13px;color:#e4e4e7;">
+        <div><strong>Customer Paid:</strong> A$${customerPaidAud.toFixed(2)} (${order.method || order.payment || 'Stripe/PayPal'})</div>
+        <div><strong>CJ Wholesale + Freight:</strong> ${cjCostUsd > 0 ? ('US$' + cjCostUsd.toFixed(2) + ' (~A$' + estCjAud.toFixed(2) + ')') : 'Calculated in CJ Checkout'}</div>
+        ${cjCostUsd > 0 ? `<div style="color:#4ade80;margin-top:4px;"><strong>Est. Gross Margin:</strong> A$${estMarginAud.toFixed(2)}</div>` : ''}
+      </div>
+      <a href="${cjPayUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 22px;border-radius:8px;margin-right:10px;">Pay CJ Order (Card / PayPal) →</a>
+      <a href="${adminVaultUrl}" style="display:inline-block;background:#171a1d;border:1px solid #32373d;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:13px 18px;border-radius:8px;">Open Admin Orders</a>
+    </div>`;
+  return sendResendEmail(env, {
+    to: adminEmail,
+    subject: `[Action: 1-Click Pay] Paid Order #${orderId} Created on CJ (#${cjId})`,
+    html,
+    text: `Paid Order #${orderId} (A$${customerPaidAud.toFixed(2)}) created on CJ (#${cjId}). Pay via Card/PayPal (no CJ wallet): ${cjPayUrl}`,
+  });
+}
+
 export async function fulfillOrder(env, order) {
   const orders = await listOrders(env);
   const existing = orders.find(
@@ -1326,36 +1589,66 @@ export async function fulfillOrder(env, order) {
       o.id === order.id ||
       (order.idempotency_key && o.idempotency_key === order.idempotency_key)
   );
-  if (existing && existing.fulfillment && existing.fulfillment.done) {
-    return { skipped: true, already: true, fulfillment: existing.fulfillment, cjOrderId: existing.cjOrderId || null };
+  if (existing && existing.fulfillment && existing.fulfillment.done && existing.cjOrderId) {
+    return { skipped: true, already: true, fulfillment: existing.fulfillment, cjOrderId: existing.cjOrderId };
   }
   const mergedOrder = { ...(existing || {}), ...order };
-  const result = { done: true, at: new Date().toISOString(), cj: null, shopify: null, errors: [] };
+  const result = { done: false, at: new Date().toISOString(), cj: null, shopify: null, emails: {}, errors: [] };
   let cjOrderId = mergedOrder.cjOrderId || null;
 
+  // 1. Push order to CJ Dropshipping (No-Wallet payType=3 + auto wallet settle if funded)
   try {
     result.cj = await pushOrderToCj(env, mergedOrder);
     if (result.cj && result.cj.cjOrderId) {
       cjOrderId = result.cj.cjOrderId;
       mergedOrder.cjOrderId = cjOrderId;
+      result.done = true;
+    } else {
+      result.errors.push('cj: ' + ((result.cj && result.cj.message) || 'no cjOrderId returned'));
     }
   } catch (e) {
-    result.cj = { error: e.message };
+    result.cj = { ok: false, error: e.message };
     result.errors.push('cj: ' + e.message);
   }
 
+  // 2. Mirror order to Shopify (non-blocking — HTTP 402/billing pause will NEVER break fulfillment)
   try {
-    result.shopify = await pushOrderToShopify(env, mergedOrder);
+    const shopRes = await pushOrderToShopify(env, mergedOrder);
+    result.shopify = shopRes;
+    if (!shopRes.ok) {
+      result.errors.push(`shopify_nonfatal_${shopRes.status}`);
+    }
   } catch (e) {
-    result.shopify = { error: e.message };
-    result.errors.push('shopify: ' + e.message);
+    result.shopify = { ok: false, error: e.message };
+    result.errors.push('shopify_nonfatal: ' + e.message);
   }
 
-  await updateOrderStatus(env, mergedOrder.id, 'fulfilling', {
+  // 3. Send customer confirmation receipt + admin 1-click Card/PayPal pay alert if awaiting external settlement
+  if (!mergedOrder.confirmationEmailSent) {
+    try {
+      result.emails.customer = await sendOrderConfirmationEmail(env, mergedOrder);
+    } catch {}
+  }
+  if (cjOrderId && result.cj && result.cj.cjPayStatus === 'awaiting_external_payment' && !mergedOrder.adminPayAlertSent) {
+    try {
+      result.emails.adminPayAlert = await sendAdminOrderPayAlertEmail(env, mergedOrder, result.cj);
+    } catch {}
+  }
+
+  const nextStatus = cjOrderId
+    ? (result.cj && result.cj.cjPayStatus === 'paid_wallet' ? 'fulfilling' : 'awaiting_supplier_payment')
+    : 'paid';
+
+  await updateOrderStatus(env, mergedOrder.id, nextStatus, {
     fulfillment: result,
+    cjPayStatus: (result.cj && result.cj.cjPayStatus) || 'pending',
+    cjDirectPayUrl: (result.cj && result.cj.cjDirectPayUrl) || null,
+    cjTotalUsd: (result.cj && result.cj.cjTotalUsd) || null,
     ...(cjOrderId ? { cjOrderId } : {}),
+    ...(result.emails.customer && result.emails.customer.sent ? { confirmationEmailSent: true } : {}),
+    ...(result.emails.adminPayAlert && result.emails.adminPayAlert.sent ? { adminPayAlertSent: true } : {}),
   });
-  return { ...result, cjOrderId };
+  return { ...result, cjOrderId, status: nextStatus };
 }
 
 // ─── Transactional Dispatch Email when Order transitions to 'Shipped' (Module 4 Step B) ───
@@ -1576,12 +1869,27 @@ export async function recordShopifyTransaction(env, shopifyOrderId, tx) {
   const hash = tx.authorization || tx.hash || '';
   const amount = tx.amount != null ? String(tx.amount) : '';
   const currency = tx.currency || 'AUD';
-  const notes = [
+
+  // Preserve existing note_attributes (bd_order_id, cj_order_id) instead of overwriting them
+  let existingNotes = [];
+  try {
+    const cur = await shopifyFetch(env, `/orders/${shopifyOrderId}.json?fields=id,note_attributes`);
+    if (cur.ok && cur.body?.order?.note_attributes) {
+      existingNotes = cur.body.order.note_attributes;
+    }
+  } catch {}
+
+  const newNotes = [
     { name: 'payment_gateway', value: gateway },
     { name: 'transaction_hash', value: hash },
     { name: 'amount_paid', value: amount + ' ' + currency },
     { name: 'paid_at', value: tx.processed_at || new Date().toISOString() },
   ];
+  const mergedMap = new Map();
+  for (const n of existingNotes) if (n && n.name) mergedMap.set(n.name, n.value);
+  for (const n of newNotes) mergedMap.set(n.name, n.value);
+  const notes = [...mergedMap.entries()].map(([name, value]) => ({ name, value }));
+
   const put = await shopifyFetch(env, `/orders/${shopifyOrderId}.json`, {
     method: 'PUT',
     body: JSON.stringify({ order: { id: Number(shopifyOrderId), note_attributes: notes } }),
@@ -1601,11 +1909,18 @@ export async function backsyncFulfillment(env, shopifyOrderId, fulfillment) {
   const { body } = await shopifyFetch(env, `/orders/${shopifyOrderId}.json`);
   const shopOrder = body.order || body;
   const bdId = (shopOrder.note_attributes || []).find(a => a.name === 'bd_order_id')?.value || null;
+  const tNum = fulfillment.tracking_number || (fulfillment.tracking_numbers && fulfillment.tracking_numbers[0]) || '';
+  const tCarrier = fulfillment.tracking_company || 'CJ Packet Tracked Air';
+  const tUrl = (fulfillment.tracking_urls && fulfillment.tracking_urls[0]) || (tNum ? `https://t.17track.net/en#nums=${encodeURIComponent(tNum)}` : '');
   const tracking = {
-    tracking_company: fulfillment.tracking_company || '',
-    tracking_number: fulfillment.tracking_number || '',
-    tracking_numbers: fulfillment.tracking_numbers || [],
-    tracking_urls: fulfillment.tracking_urls || [],
+    carrier: tCarrier,
+    number: tNum,
+    url: tUrl,
+    externalUrl: tUrl,
+    tracking_company: tCarrier,
+    tracking_number: tNum,
+    tracking_numbers: fulfillment.tracking_numbers || (tNum ? [tNum] : []),
+    tracking_urls: fulfillment.tracking_urls || (tUrl ? [tUrl] : []),
     status: fulfillment.status || 'success',
     shopify_fulfillment_id: fulfillment.id,
     synced_at: new Date().toISOString(),
@@ -1613,8 +1928,14 @@ export async function backsyncFulfillment(env, shopifyOrderId, fulfillment) {
   if (!bdId) {
     return { error: 'no bd_order_id on Shopify order ' + shopifyOrderId, tracking };
   }
-  const updated = await updateOrderStatus(env, bdId, 'fulfilled', { tracking });
-  await appendSyncLog(env, { action: 'back-sync-fulfillment', shopifyOrderId, bdId, tracking_number: tracking.tracking_number });
+  const updated = await updateOrderStatus(env, bdId, 'shipped', {
+    tracking,
+    trackingNumber: tNum,
+    carrierName: tCarrier,
+    tracking_number: tNum,
+    tracking_company: tCarrier,
+  });
+  await appendSyncLog(env, { action: 'back-sync-fulfillment', shopifyOrderId, bdId, tracking_number: tNum });
   return { ok: true, bdId, tracking, updated: !!updated };
 }
 
@@ -1657,24 +1978,31 @@ export async function backsyncInventory(env, inventoryItemId, availableOverride)
   if (available == null) available = 0;
   await appendSyncLog(env, { action: 'back-sync-inventory', inventoryItemId, sku, available });
   if (!sku) return { error: 'no sku for inventory item ' + inventoryItemId, available };
-  const prods = await ghRead(env, 'all-products.json');
-  if (!prods) return { error: 'cannot read all-products.json', sku, available };
-  let all;
-  try { all = JSON.parse(atob(prods.content.replace(/\n/g, ''))); }
-  catch { all = JSON.parse(atob(prods.content)); }
+  const all = await readShardedCatalog(env);
+  if (!Array.isArray(all) || !all.length) return { error: 'cannot read sharded catalog', sku, available };
   let hits = 0;
   for (const p of all) {
+    let prodHasStock = false;
+    let touched = false;
     for (const vr of (p.variants || [])) {
       if (vr.sku === sku) {
         vr.available = available > 0;
         vr.inventory_quantity = available;
         hits++;
+        touched = true;
       }
+      if (vr.available !== false && (typeof vr.inventory_quantity !== 'number' || vr.inventory_quantity > 0)) {
+        prodHasStock = true;
+      }
+    }
+    if (touched) {
+      p.visible = prodHasStock;
+      if (!prodHasStock) p.hiddenReason = 'out_of_stock';
+      else delete p.hiddenReason;
     }
   }
   if (hits) {
-    const shaw = (await ghRead(env, 'all-products.json'))?.sha;
-    await ghWrite(env, 'all-products.json', JSON.stringify(all, null, 2), `back-sync inventory: ${sku}=${available} (${hits} variant(s))`, shaw);
+    await writeCatalogFromGithub(env, all, `back-sync inventory: ${sku}=${available} (${hits} variant(s))`);
   }
   return { ok: true, sku, available, hits };
 }
@@ -1685,7 +2013,7 @@ const USERS_PATH = 'users-seed.json';
 export async function listUsers(env) {
   const existing = await ghRead(env, USERS_PATH);
   if (!existing || !existing.content) return [];
-  try { return JSON.parse(atob(existing.content.replace(/\s+/g, ''))); } catch { return []; }
+  try { return JSON.parse(b64DecodeUtf8(existing.content)); } catch { return []; }
 }
 
 export async function findUserByEmail(env, email) {

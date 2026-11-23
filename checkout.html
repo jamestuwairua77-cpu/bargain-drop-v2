@@ -13,7 +13,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .logo{display:flex;align-items:center;gap:6px;text-decoration:none}
 .logo-text{font-size:1.15rem;font-weight:900}
 .logo-text .bd-b{background:linear-gradient(135deg,#e60023,#ff4757);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.logo-text .bd-d{color:#111}
+.logo-text .bd-d{color:#ffffff}
 .logo-icon{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#e60023,#ff6b81);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.65rem;font-weight:900;flex-shrink:0}
 .back-link{display:flex;align-items:center;gap:4px;color:#2563eb;font-size:.75rem;font-weight:600;text-decoration:none;padding:14px 14px 0}
 .checkout-wrap{padding:16px;max-width:700px;margin:0 auto}
@@ -762,7 +762,11 @@ input::placeholder, textarea::placeholder {
   .nav-btn, .nbtn, .hamburger-btn { width: 36px !important; height: 36px !important; min-width: 36px !important; }
   .nav-btn svg, .nbtn svg, .hamburger-btn svg { width: 18px !important; height: 18px !important; }
 }
-</style></head>
+</style>  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/bd-design-system.css?v=20261122">
+</head>
 <body>
 <!-- PROMO STRIP -->
     <div class="promo-strip"><span>🎉 30% OFF SITEWIDE — USE CODE <b>BARGAIN26</b> AT CHECKOUT &nbsp;·&nbsp; Free Shipping A$29+ · SSL Encrypted · Verified Seller · 30-Day Returns</span></div>
@@ -887,21 +891,33 @@ var shippingLabel='';         // e.g. "CJPacket Ordinary · 12-50 days"
 var freightLoaded=false;
 var freightInFlight=false;
 // Discount state. Valid code BARGAIN26 = 30% off. One use per customer enforced server-side.
-var discountPct=0;         // 0 = none, 30 = 30% off
-var discountAmount=0;      // dollars off
+var discountPct=0;
+var discountAmount=0;
 var appliedCode='';
+var freeShipCode=false;
+var baseShipping=0;
 var total=subtotal+shipping;
 
 function recalcTotals(){
   renderCkItems();
   discountAmount=Math.round(subtotal*(discountPct/100)*100)/100;
-  total=Math.max(0,Math.round((subtotal+shipping-discountAmount)*100)/100);
+  var afterDisc=Math.max(0,subtotal-discountAmount);
+  var freeThreshold=(typeof BD!=='undefined'&&BD.convert)?BD.convert(29):29;
+  var qualifiesFreeShip=freeShipCode||(afterDisc>=freeThreshold&&afterDisc>0);
+  shipping=qualifiesFreeShip?0:baseShipping;
+  total=Math.max(0,Math.round((afterDisc+shipping)*100)/100);
   document.getElementById('summary-subtotal').textContent=BD.formatMoneyCompact(subtotal);
-  document.getElementById('summary-shipping').textContent=shipping===0?'FREE':(BD.formatMoneyCompact(shipping)+(shippingLabel?(' ('+shippingLabel+')'):''));
+  document.getElementById('summary-shipping').textContent=shipping===0?(qualifiesFreeShip?'FREE (A$29+ Express)':'FREE'):(BD.formatMoneyCompact(shipping)+(shippingLabel?(' ('+shippingLabel+')'):''));
   document.getElementById('summary-total').textContent=BD.formatMoneyCompact(total);
   var dr=document.getElementById('discount-row');
-  if(discountPct>0){dr.style.display='flex';document.getElementById('summary-discount').textContent='-'+BD.formatMoneyCompact(discountAmount);}
-  else{dr.style.display='none';}
+  if(discountPct>0){
+    dr.style.display='flex';
+    var lbl=dr.querySelector('span:first-child');
+    if(lbl)lbl.textContent='Discount ('+discountPct+'% — '+appliedCode+')';
+    document.getElementById('summary-discount').textContent='-'+BD.formatMoneyCompact(discountAmount);
+  }else{
+    dr.style.display='none';
+  }
 }
 
 // --- Country list (ISO code -> name) for the shipping destination select ---
@@ -952,9 +968,8 @@ function refreshShipping(){
     if(it.sku){ skus.push({ sku:it.sku, quantity:it.qty||1 }); }
   });
   if(!skus.length){
-    // No skus (legacy cart) -> fall back to old flat rule.
-    shipping = subtotal>BD.convert(41)?0:BD.convert(8.44);
-    shippingUsd = 0; shippingLabel='';
+    baseShipping = BD.convert(4.95);
+    shippingUsd = 0; shippingLabel='Tracked Express';
     recalcTotals(); return;
   }
   freightInFlight=true;
@@ -969,61 +984,69 @@ function refreshShipping(){
       freightInFlight=false;
       if(d && d.success && typeof d.shippingUsd==='number'){
         shippingUsd = d.shippingUsd;
-        // shippingConverted is already the CJ cost in the shopper's currency.
-        shipping = d.shippingConverted || 0;
+        baseShipping = d.shippingConverted || 0;
         if(d.selected && d.selected.logisticName){
           shippingLabel = d.selected.logisticName + (d.selected.logisticAging?(' · '+d.selected.logisticAging+' days'):'');
         } else { shippingLabel='Intl shipping'; }
         freightLoaded=true;
       } else {
-        // Freight failed -> fall back to old flat rule so we never strand the user.
-        shipping = subtotal>BD.convert(41)?0:BD.convert(8.44);
-        shippingUsd = 0; shippingLabel='';
+        baseShipping = BD.convert(4.95);
+        shippingUsd = 0; shippingLabel='Tracked Express';
       }
       recalcTotals();
     })
     .catch(function(){
       freightInFlight=false;
-      shipping = subtotal>BD.convert(41)?0:BD.convert(8.44);
-      shippingUsd = 0; shippingLabel='';
+      baseShipping = BD.convert(4.95);
+      shippingUsd = 0; shippingLabel='Tracked Express';
       recalcTotals();
     });
 }
 
-// Promo code handling
-function applyPromo(){
+// Promo code handling (synced with cart-v3.js & /api/create-checkout-session)
+var VALID_PROMOS={'BARGAIN26':30,'SAVE10':10,'WELCOME10':10,'COMEBACK10':10,'FREESHIP':0,'FREESHIP29':0,'SAVE5AUD':15};
+function applyPromo(explicitCode){
   var inp=document.getElementById('promo-input');
-  var code=(inp.value||'').trim().toUpperCase();
+  var code=(explicitCode||inp.value||'').trim().toUpperCase();
   var msg=document.getElementById('promo-msg');
   var btn=document.getElementById('promo-apply');
-  var valid={'BARGAIN26':30};
-  if(!code){msg.textContent='Enter a code';msg.className='promo-msg bad';msg.style.display='block';return;}
+  if(!code){msg.textContent='Enter a promo code';msg.className='promo-msg bad';msg.style.display='block';return;}
   if(code===appliedCode){msg.textContent='Code '+code+' already applied';msg.className='promo-msg ok';msg.style.display='block';return;}
-  if(valid[code]){
-    discountPct=valid[code];appliedCode=code;
-    msg.textContent='Code '+code+' applied — '+discountPct+'% off!';
+  var isValid = Object.prototype.hasOwnProperty.call(VALID_PROMOS, code) || code.indexOf('COMEBACK10')===0;
+  if(isValid){
+    discountPct = Object.prototype.hasOwnProperty.call(VALID_PROMOS, code) ? VALID_PROMOS[code] : 10;
+    freeShipCode = (code==='FREESHIP'||code==='FREESHIP29');
+    appliedCode=code;
+    try{localStorage.setItem('bd_promo',code);}catch(e){}
+    msg.textContent=freeShipCode ? ('Code '+code+' applied — Free Shipping!') : ('Code '+code+' applied — '+discountPct+'% off!');
     msg.className='promo-msg ok';msg.style.display='block';
-    inp.disabled=true;btn.textContent='Remove';btn.onclick=removePromo;
+    inp.value=code;inp.disabled=true;btn.textContent='Remove';btn.onclick=removePromo;
     recalcTotals();
   }else{
-    msg.textContent='Invalid code';msg.className='promo-msg bad';msg.style.display='block';
+    msg.textContent='Invalid code — try BARGAIN26 (30% OFF)';msg.className='promo-msg bad';msg.style.display='block';
   }
 }
 function removePromo(){
   var inp=document.getElementById('promo-input');
   var msg=document.getElementById('promo-msg');
   var btn=document.getElementById('promo-apply');
-  discountPct=0;discountAmount=0;appliedCode='';
-  inp.disabled=false;inp.value='';btn.textContent='Apply';btn.onclick=applyPromo;
+  discountPct=0;discountAmount=0;appliedCode='';freeShipCode=false;
+  try{localStorage.removeItem('bd_promo');}catch(e){}
+  inp.disabled=false;inp.value='';btn.textContent='Apply';btn.onclick=function(){applyPromo();};
   msg.style.display='none';
   recalcTotals();
 }
 
+// Auto-restore promo code saved in Cart (bd_promo)
+try {
+  var savedPromo = (localStorage.getItem('bd_promo') || '').trim().toUpperCase();
+  if (savedPromo && (Object.prototype.hasOwnProperty.call(VALID_PROMOS, savedPromo) || savedPromo.indexOf('COMEBACK10') === 0)) {
+    applyPromo(savedPromo);
+  }
+} catch(e) {}
+
 recalcTotals();
-// Init the country dropdown + kick off the first live freight calculation.
 if(typeof initCountrySelect==='function'){ initCountrySelect(); refreshShipping(); }
-// Expose promo handlers globally so the inline onclick="applyPromo()" reaches them
-// (they are defined inside the initCurrency().then() callback scope).
 window.applyPromo = applyPromo;
 window.removePromo = removePromo;
 
@@ -1055,7 +1078,7 @@ function getShippingInfo(){
 
 function normalizeCheckoutPhoneE164(raw, cc){
   var cleaned=String(raw||'').replace(/[^\d+]/g,'');
-  if(!cleaned)return '+61400000000';
+  if(!cleaned)return '';
   if(/^\+[1-9]\d{6,14}$/.test(cleaned))return cleaned;
   var digits=cleaned.replace(/\D/g,'');
   var c=String(cc||'AU').toUpperCase();
@@ -1063,14 +1086,25 @@ function normalizeCheckoutPhoneE164(raw, cc){
     if(digits.indexOf('61')===0&&digits.length>=11)return '+'+digits.slice(0,11);
     if(digits.indexOf('0')===0&&digits.length===10)return '+61'+digits.slice(1);
     if(digits.length===9&&digits.indexOf('4')===0)return '+61'+digits;
+  } else if(c==='NZ'){
+    if(digits.indexOf('64')===0)return '+'+digits;
+    if(digits.indexOf('0')===0)return '+64'+digits.slice(1);
+  } else if(c==='US'||c==='CA'){
+    if(digits.length===10)return '+1'+digits;
+    if(digits.length===11&&digits.indexOf('1')===0)return '+'+digits;
+  } else if(c==='GB'||c==='UK'){
+    if(digits.indexOf('44')===0)return '+'+digits;
+    if(digits.indexOf('0')===0)return '+44'+digits.slice(1);
   }
   if(digits.length>=8&&digits.length<=15)return '+'+digits;
-  return '+61400000000';
+  return '';
 }
 
 function validateShip(s){
-  if(!s.fname||!s.lname||!s.email||!s.addr){showError('Please fill in all shipping fields');return false}
-  if(!s.email.includes('@')){showError('Please enter a valid email address');return false}
+  if(!s.fname||!s.lname){showError('Please enter your first and last name');return false;}
+  if(!s.email||!s.email.includes('@')){showError('Please enter a valid email address');return false;}
+  if(!s.addr||!s.city||!s.zip){showError('Please enter your full street address, city, and postcode/ZIP');return false;}
+  if(!normalizeCheckoutPhoneE164(s.phone,s.country_code||'AU')){showError('Please enter a valid mobile/phone number for courier delivery updates');return false;}
   return true;
 }
 
@@ -1235,7 +1269,7 @@ async function stripeCheckout(oid,s,pm,ord){
       onClick:async function(data,actions){
         if(cart.length===0){showError('Cart is empty');return actions.reject();}
         var s=getShippingInfo();
-        if(!s.fname||!s.lname||!s.email||!s.addr){showError('Fill in shipping info');return actions.reject();}
+        if(!validateShip(s)){return actions.reject();}
         setAllBtnsDisabled(true);
         var idemKey=computeCartIdempotencyKey(s.email,'PayPal');
         var oid=window._ppOid||('BD-PP-'+Date.now().toString(36).toUpperCase());
@@ -1252,8 +1286,10 @@ async function stripeCheckout(oid,s,pm,ord){
         }
       },
       createOrder:function(data,actions){
+        // PayPal SDK is initialized with currency=AUD; always send matching AUD value to avoid CURRENCY_MISMATCH
+        var ppAmount = Math.max(0.5, Number(total || 0)).toFixed(2);
         return actions.order.create({
-          purchase_units:[{amount:{value:total.toFixed(2),currency_code:(BD.getCurrency()||'AUD')},description:'Bargain Drop Order #'+(window._ppOid||'')}]
+          purchase_units:[{amount:{value:ppAmount,currency_code:'AUD'},description:'Bargain Drop Order #'+(window._ppOid||'')}]
         });
       },
       onApprove:function(data,actions){
@@ -1270,10 +1306,15 @@ async function stripeCheckout(oid,s,pm,ord){
               gateway: 'paypal',
               hash: (details && details.id) || data.orderID || '',
               amount: total,
-              currency: (BD.getCurrency()||'AUD')
+              currency: 'AUD'
             }
           });
           try { await persistOrderServer(paidOrd); } catch(e) {}
+          try {
+            localStorage.removeItem('bd_cart');
+            localStorage.removeItem('bd_cart_items_v1');
+            localStorage.removeItem('bd_promo');
+          } catch(e) {}
           window.location.href=API_BASE+'/order-success.html?id='+(window._ppOid||'')+'&verified=1';
         });
       },
@@ -1338,8 +1379,8 @@ function collapseSearch(e){
 <script>
 (function(w,d){
   w.BD_CHAT = w.BD_CHAT || { config: { api: (w.location && w.location.origin) || "https://bargain-drop.online" } };
-  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css?v=0438bd327b"; d.head.appendChild(c);
-  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js?v=b75f42de9c"; d.body.appendChild(j);
+  var c=d.createElement("link"); c.rel="stylesheet"; c.href=w.BD_CHAT.config.api+"/chat-widget/chat.css?v=20261123"; d.head.appendChild(c);
+  var j=d.createElement("script"); j.async=true; j.src=w.BD_CHAT.config.api+"/chat-widget/chat.js?v=20261123"; d.body.appendChild(j);
 })(window,document);
 </script><script>
 (function(){

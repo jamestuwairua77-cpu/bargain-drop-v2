@@ -1,205 +1,460 @@
-// /api/chat — LLM-powered support assistant (Gemini).
-// Full conversational AI with multi-turn memory (history maintained client-side),
-// store knowledge, and live order/product lookup (with direct product-page links).
-// Falls back deterministically if the LLM is unreachable.
+// Cloudflare Pages Function: /api/chat
+// Ruby · Bargain Drop AI Concierge & Problem-Solving Support Agent
+// Uses live catalog search, live order & CJ tracking lookup, and full store knowledge.
 
-import { corsHeaders, listOrders } from '../_sync-lib.js';
+import { corsHeaders, listOrders, cjFetch } from '../_sync-lib.js';
 
-const MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
-function geminiUrl(model){ return 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'; }
-const MAX_HISTORY = 50;
-const SUPPORT_EMAIL = 'Support@bargain-drop.online';
+const MODEL_SEQUENCE = ['gemini-4-hydrogen', 'gemini-3.1-flash-lite'];
+const GEMINI_ENDPOINTS = [
+  'https://generativelanguage.googleapis.com/v1beta/models',
+  'https://bdgemini-proxy.bargaindrop.workers.dev/v1beta/models',
+];
 
-function norm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
+const DEPARTMENTS = [
+  { name: 'Women', slug: 'women', url: '/category.html?cat=women' },
+  { name: 'Men', slug: 'men', url: '/category.html?cat=men' },
+  { name: 'Home & Living', slug: 'home', url: '/category.html?cat=home' },
+  { name: 'Electronics & Tech', slug: 'electronics', url: '/category.html?cat=electronics' },
+  { name: 'Beauty & Wellness', slug: 'beauty', url: '/category.html?cat=beauty' },
+  { name: 'Pets', slug: 'pets', url: '/category.html?cat=pets' },
+  { name: 'Shoes & Footwear', slug: 'shoes', url: '/category.html?cat=shoes' },
+  { name: 'Bags & Wallets', slug: 'bags', url: '/category.html?cat=bags' },
+  { name: 'Jewelry & Watches', slug: 'jewelry', url: '/category.html?cat=jewelry' },
+  { name: 'Kids & Baby', slug: 'kids', url: '/category.html?cat=kids' },
+  { name: 'Sports & Outdoors', slug: 'sports', url: '/category.html?cat=sports' },
+  { name: 'Kitchen & Dining', slug: 'kitchen', url: '/category.html?cat=kitchen' },
+  { name: 'Automotive', slug: 'automotive', url: '/category.html?cat=automotive' },
+  { name: 'Accessories', slug: 'accessories', url: '/category.html?cat=accessories' },
+];
 
-// —————————— store context ——————————
-const STORE_POLICY = `Bargain Drop is an Australian e-commerce store selling bargain-priced fashion,
-home, beauty, electronics, jewellery, and more. Prices are in Australian dollars (A$).
-Returns: 45-day free returns on most items.
-Shipping: free on orders over A$29, otherwise A$8.44; typically 7–15 business days to Australia.
-Payment: secure card and Stripe checkout. Orders are fulfilled by our dropship supplier.`;
+const STORE_KNOWLEDGE_BASE = `You are Ruby, the official AI Support & Shopping Specialist for Bargain Drop (https://bargain-drop.online), an Australian everyday-bargains online store.
 
-// A short list of common stopwords to ignore when extracting keywords from a query.
-const STOPWORDS = new Set([
-  'a','an','the','is','are','was','were','do','does','did','have','has','had','can','could','would','should',
-  'i','you','me','my','we','our','your','it','its','they','them','that','this','these','those','for','and','or',
-  'of','in','on','at','to','with','about','how','what','where','when','why','which','much','many','price','prices',
-  'cost','costs','buy','order','ship','shipping','size','sizes','stock','available','suggest','suggestion','link',
-  'url','tell','show','find','get','give','looking','look','want','need','please','there','any','some','one','box',
-]);
+YOUR MISSION:
+Give DIRECT, ACCURATE, COMPLETE, and SOLUTION-ORIENTED answers to every customer question. Never give vague runarounds. Always solve the customer's exact problem or give them the exact link, promo code, product, or step-by-step fix immediately.
 
-// —————————— dynamic tool results (order + product) injected as live facts ——————————
-async function resolveTools(env, msg, requestUrl, context) {
-  const facts = [];
-  const base = (() => { try { return new URL(requestUrl).origin; } catch { return ''; } })();
+COMPLETE BARGAIN DROP STORE FACTS (SOURCE OF TRUTH):
+1. Currency & Pricing:
+   - All prices are in Australian Dollars (AUD, formatted like A$14.95).
+   - Bargain Drop uses locked ".95" value pricing (e.g., A$9.95, A$14.95, A$22.95) with everyday deals designed to stay ultra-affordable.
+   - GST (10%) is included in Australian retail pricing.
 
-  // 1. order tracking
-  const orderNumber = context?.order_number
-    || (msg ? (String(msg).match(/#?\b(BD-[A-Z0-9-]+)\b/i) || [])[1] : '');
-  if (orderNumber) {
-    const orders = await listOrders(env);
-    const o = orders.find(x => String(x.id).toLowerCase() === String(orderNumber).toLowerCase());
-    if (o) {
-      const statusMap = { unpaid:'payment still processing', paid:'payment confirmed, preparing dispatch',
-        fulfilling:'being prepared by our supplier', shipped:'shipped and on its way' };
-      facts.push(`ORDER ${o.id}: status "${o.status}" (${statusMap[o.status] || o.status}).`
-        + (o.fulfillment?.cj?.orderNumber ? ` Fulfillment ref ${o.fulfillment.cj.orderNumber}.` : '')
-        + (o.eta ? ` ETA ${o.eta}.` : ''));
-    } else {
-      facts.push(`Order "${orderNumber}" was NOT found in our records. Ask the customer to double-check.`);
-    }
-  }
+2. Shipping & Delivery (Australia-Wide):
+   - FREE Express Tracked Shipping on all orders A$29.00 AUD and over.
+   - Orders under A$29.00 AUD have a flat A$4.95 shipping fee (or use promo code FREESHIP / FREESHIP29 when eligible).
+   - Processing time: Orders are automatically queued for supplier fulfillment immediately after payment confirmation (typically 1–3 business days handling).
+   - Delivery estimate: 7–15 business days across Australia via tracked courier (CJ Packet Tracked Air / Australia Post last-mile).
+   - Live Tracking: Customers can track any order anytime at [Track Your Order](/order-tracking.html) using their Order ID (e.g. BD-...) or email address.
 
-  // 2. product lookup (keyword-based fuzzy match) — pulls real title/price and a direct page link
-  if (msg && base) {
-    // Extract meaningful keyword tokens from the query (strip stopwords + short tokens).
-    const tokens = norm(msg).split(' ').filter(w => w.length >= 3 && !STOPWORDS.has(w));
-    if (tokens.length >= 1) {
-      try {
-        const r = await fetch(base + '/slim-products.json');
-        if (r.ok) {
-          const prods = await r.json();
-          const entries = Array.isArray(prods) ? prods : (prods.products || Object.values(prods));
-          let best = null, bestScore = 0;
-          for (const e of entries) {
-            const t = norm(e.title || e.name || '');
-            if (!t) continue;
-            const titleTokens = t.split(' ');
-            let score = 0;
-            for (const tok of tokens) {
-              if (t.includes(tok)) score += (titleTokens.includes(tok) ? 5 : 2);
-            }
-            // bonus if the full multi-word phrase appears
-            const phrase = tokens.join(' ');
-            if (tokens.length >= 2 && t.includes(phrase)) score += 10;
-            if (score > bestScore) { bestScore = score; best = e; }
-          }
-          if (best && bestScore >= 4 && best.id) {
-            const link = `${base}/product.html?id=${encodeURIComponent(best.id)}`;
-            facts.push(`PRODUCT "${best.title}" — price A$${best.price ?? '?'}. Direct page: ${link}`);
-          }
-        }
-      } catch {}
-    }
-  }
+3. Active Promo & Discount Codes:
+   - \`BARGAIN26\` — 30% OFF storewide (best discount!)
+   - \`SAVE10\` or \`WELCOME10\` or \`COMEBACK10\` — 10% OFF
+   - \`SAVE5AUD\` — 15% OFF
+   - \`FREESHIP\` or \`FREESHIP29\` — Free Shipping
+   - How to apply: Go to [Shopping Cart](/cart.html) or [Checkout](/checkout.html), enter the code in the Promo Code box, and click Apply. Only one promo code can be used per order.
 
-  return facts;
+4. Payment Methods & Checkout Troubleshooting:
+   - Accepted payments: Credit & Debit Cards (Visa, Mastercard, Amex), Apple Pay, Google Pay via Stripe Checkout, AND PayPal (AUD).
+   - All transactions are SSL-encrypted; Bargain Drop never stores raw card numbers.
+   - If card payment declines: Verify card expiry/CVC, check bank international/online spend limit, try Apple Pay/Google Pay or PayPal as an instant alternative, or refresh [Checkout](/checkout.html).
+   - If PayPal window doesn't open: Disable popup blockers for bargain-drop.online or switch to Card / Stripe Checkout.
+   - If charged twice or stuck after payment: Do NOT reorder; check email for confirmation or look up the order at [Order Tracking](/order-tracking.html), or email Support@bargain-drop.online with your email & timestamp for an immediate refund of any duplicate charge.
+
+5. Returns, Refunds, Exchanges & Order Problems (30-Day Guarantee):
+   - 30-day hassle-free return & refund guarantee from delivery date.
+   - Start a return/exchange at [Returns & Refunds](/returns.html) or email Support@bargain-drop.online with your Order ID.
+   - Damaged / Defective / Wrong item received: Send your Order ID + 1 clear photo to Support@bargain-drop.online — we issue an immediate free replacement or full refund without making you pay return postage.
+   - Wrong size / change of mind: Submit a request at [Returns & Refunds](/returns.html) within 30 days.
+   - Cancel or change shipping address: Contact Support@bargain-drop.online immediately with your Order ID and corrected address. If the parcel hasn't shipped yet, we update or cancel it immediately.
+   - Missing parcel / tracking hasn't moved in 5+ days: Check [Order Tracking](/order-tracking.html) first; if stuck over 7 days or marked delivered but not received, contact Support@bargain-drop.online and we will open a carrier investigation and reship/refund if lost.
+   - Refund processing: Approved refunds return to your original Stripe card or PayPal account within 3–5 business days.
+
+6. All 14 Departments & Store Pages:
+   - Departments: ${DEPARTMENTS.map(d => `[${d.name}](${d.url})`).join(', ')}
+   - Browse All Categories: [All Categories](/categories.html)
+   - Browse All Products: [All Products](/products.html)
+   - Shopping Cart: [View Cart](/cart.html)
+   - Checkout: [Checkout](/checkout.html)
+   - Wishlist / Saved Items: [Saved Wishlist](/wishlist.html)
+   - Account Sign In: [Sign In](/sign-in.html) | Create Account: [Register](/register.html) | Reset Password: [Forgot Password](/forgot-password.html) | Address Book: [Saved Addresses](/addresses.html)
+   - Help Center & Contact: [Customer Service](/customer-service.html) | Privacy Policy: [Privacy Policy](/policy.html)
+   - Direct Support Email: Support@bargain-drop.online
+
+RESPONSE RULES:
+- Be warm, sharp, Australian-friendly, and concise (typically 2–6 sentences or crisp bullet points).
+- Use clickable Markdown links like [Track Your Order](/order-tracking.html) or [Product Name](/product.html?id=123) so the customer can act in 1 tap.
+- NEVER invent products, prices, or order statuses that aren't in the LIVE DATA block below.
+- If a customer asks about a specific order and no order ID/email was provided yet, tell them they can paste their Order ID (like BD-...) or email right here in chat and you'll check it instantly, AND link [Order Tracking](/order-tracking.html).
+- If the customer's cart subtotal is provided and under A$29, proactively tell them the exact dollar gap to unlock Free Shipping (and remind them about promo code \`BARGAIN26\` for 30% off!).
+- Never expose admin PINs, internal API tokens, or backend architecture to shoppers.`;
+
+function normalizeStr(s) {
+  return String(s || '').toLowerCase().trim();
 }
 
-// ————————— Gemini call ——————————
-async function callGemini(env, messages, facts) {
-  const key = env.GEMINI_API_KEY;
-  if (!key) throw new Error('no gemini key');
+function getProductPrice(p) {
+  if (p == null) return 0;
+  if (Array.isArray(p.variants) && p.variants.length && p.variants[0].price != null) {
+    return Number(p.variants[0].price) || Number(p.price) || 0;
+  }
+  return Number(p.price) || 0;
+}
 
-  const system = `You are "Ruby", the friendly, warm, knowledgeable AI shopping assistant for Bargain Drop
-Australian e-commerce store. You are the kind of assistant people enjoy chatting with — naturally warm,
-genuinely conversational, and quick with a kind word. You greet people like a friend, and you're happy to
-chit-chat about everyday things (the weather, their day, a joke, "how are you?") before smoothly steering
-back to how you can help them shop.
+function isProductActive(p) {
+  if (!p || typeof p !== 'object') return false;
+  if (p.visible === false || p.deleted === true || p.hidden === true || p.archived === true) return false;
+  if (p.status && String(p.status).toLowerCase() !== 'active') return false;
+  if (p.inStock === false || p.outOfStock === true) return false;
+  const price = getProductPrice(p);
+  return price > 0 && Boolean(p.title || p.name);
+}
 
-${STORE_POLICY}
+async function fetchLiveCatalog(origin) {
+  const sources = [
+    `${origin}/featured.json`,
+    `${origin}/products-slim-0.json`,
+    `${origin}/slim-products.json`,
+  ];
+  const byId = new Map();
+  for (const url of sources) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const raw = await r.json();
+      const list = Array.isArray(raw) ? raw : (raw?.products || raw?.items || []);
+      for (const p of list) {
+        if (!isProductActive(p)) continue;
+        const id = String(p.id || p.handle || p.sku || '');
+        if (!id || byId.has(id)) continue;
+        byId.set(id, {
+          id,
+          title: String(p.title || p.name || '').trim(),
+          price: getProductPrice(p),
+          compareAt: Number(p.compareAt || p.compare_at_price || p.originalPrice || 0) || null,
+          category: String(p.category || p.product_type || p.type || '').trim(),
+          tags: Array.isArray(p.tags) ? p.tags.join(' ') : String(p.tags || ''),
+          url: `/product.html?id=${encodeURIComponent(id)}`,
+        });
+      }
+      if (byId.size >= 400) break;
+    } catch (_) {}
+  }
+  return Array.from(byId.values());
+}
 
-${facts.length ? 'LIVE FACTS (use these when relevant; answer confidently from them):\n' + facts.map(f => '- ' + f).join('\n') : ''}
+async function lookupOrderEverywhere(env, orderIdQuery, emailQuery) {
+  const matches = [];
+  const seen = new Set();
 
-Guidelines:
-- Be conversational, warm, and intellectually capable — answer casual small talk and jokes naturally, then
-  guide the conversation toward products, gift ideas, sizing, materials, comparisons, and shopping help.
-- When you mention or recommend a specific product, ALWAYS include its direct page link from the LIVE FACTS
-  (formatted plainly, e.g. "You can see it here: <link>") so the customer can tap straight through.
-- Stay grounded: for store/policy/order/product facts and prices, use ONLY the provided information —
-  never invent prices, policies, features, or stock levels.
-- If a question is outside what you know about Bargain Drop, or the info isn't provided, be honest: say you
-  don't know, don't guess or make anything up, and offer to connect them with support at ${SUPPORT_EMAIL}.
-- Keep replies concise (2-5 sentences unless asked for detail). Use line breaks or short bullets when listing options.
-- Currency is Australian dollars (A$). Be empathetic if the user is upset; never be rude.
-- Remember the conversation context provided, and refer back to it naturally (e.g. "for your sister").`;
-
-  const contents = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] }));
-
-  const body = {
-    contents,
-    systemInstruction: { parts: [{ text: system }] },
-    generationConfig: { temperature: 0.8 },
+  const pushIfMatch = (o) => {
+    if (!o || typeof o !== 'object') return;
+    const oid = String(o.id || o.orderId || o.orderNumber || o.order_number || '').trim();
+    if (!oid || seen.has(oid)) return;
+    const oEmail = normalizeStr(o.customer?.email || o.customerEmail || o.email);
+    const idHit = orderIdQuery && oid.toUpperCase() === orderIdQuery.toUpperCase();
+    const emailHit = emailQuery && oEmail && oEmail === emailQuery.toLowerCase();
+    if (idHit || emailHit) {
+      seen.add(oid);
+      matches.push(o);
+    }
   };
 
-  let lastErr = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    for (const model of MODELS) {
-      try {
-        const r = await fetch(geminiUrl(model) + '?key=' + encodeURIComponent(key), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...body, systemInstruction: body.systemInstruction }),
-        });
-        if (!r.ok) {
-          const t = await r.text().catch(() => '');
-          lastErr = new Error('gemini ' + r.status + ' ' + t.slice(0, 160));
-          // 4xx is a hard failure (bad request) — don't retry other models on 400.
-          if (r.status >= 400 && r.status < 500) continue;
-          continue; // 5xx / 429 → try next model
-        }
-        const d = await r.json();
-        const text = d?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
-        if (text.trim()) return text.trim();
-        lastErr = new Error('gemini empty reply');
-      } catch (e) {
-        lastErr = e;
+  // 1. Primary orders list helper
+  try {
+    const orders = await listOrders(env);
+    for (const o of orders || []) pushIfMatch(o);
+  } catch (_) {}
+
+  // 2. Cloudflare KV PRODUCT_DATA fallback
+  if (env && env.PRODUCT_DATA) {
+    try {
+      const masterRaw = await env.PRODUCT_DATA.get('bargain_drop_master_orders');
+      if (masterRaw) {
+        const arr = JSON.parse(masterRaw);
+        if (Array.isArray(arr)) arr.forEach(pushIfMatch);
       }
+    } catch (_) {}
+    if (orderIdQuery) {
+      try {
+        const direct = await env.PRODUCT_DATA.get(`order:${orderIdQuery}`);
+        if (direct) pushIfMatch(JSON.parse(direct));
+      } catch (_) {}
     }
-    if (attempt < 2) await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
   }
-  throw lastErr || new Error('gemini unreachable');
+
+  // 3. Enrich first matched order with live CJ tracking if cjOrderId exists
+  const enriched = [];
+  for (const o of matches.slice(0, 3)) {
+    const oid = String(o.id || o.orderId || o.orderNumber || '');
+    const cjId = o.cjOrder?.orderId || o.cjOrderId || o.cj_order_id || '';
+    let liveTracking = o.cjOrder?.trackingNumber || o.trackingNumber || '';
+    let liveCarrier = o.cjOrder?.carrier || o.carrier || '';
+    let liveCjStatus = o.cjOrder?.status || '';
+
+    if (cjId && !String(cjId).startsWith('CJ-DISPATCH') && !liveTracking) {
+      try {
+        const cjRes = await cjFetch(env, `/shopping/order/getOrderDetail?orderId=${encodeURIComponent(cjId)}`);
+        const d = cjRes?.data || cjRes;
+        if (d) {
+          if (d.trackNumber) liveTracking = d.trackNumber;
+          if (d.logisticName) liveCarrier = d.logisticName;
+          if (d.orderStatus) liveCjStatus = d.orderStatus;
+        }
+      } catch (_) {}
+    }
+
+    enriched.push({
+      orderId: oid,
+      status: o.status || liveCjStatus || 'processing',
+      totalAud: Number(o.total ?? o.totalAmount ?? o.grandTotalAud ?? 0).toFixed(2),
+      placedAt: o.date || o.createdAt || o.placedAt || '',
+      items: (o.items || []).slice(0, 5).map(i => `${i.quantity || i.qty || 1}x ${i.title || 'Item'}`),
+      trackingNumber: liveTracking || 'Pending dispatch scan',
+      carrier: liveCarrier || 'CJ Packet Tracked Air',
+      trackingUrl: `/order-tracking.html?order=${encodeURIComponent(oid)}${liveTracking ? `&tracking=${encodeURIComponent(liveTracking)}` : ''}`,
+    });
+  }
+  return enriched;
 }
 
-// —————————— deterministic fallback ——————————
-function fallback(msg) {
-  const m = norm(msg);
-  if (/^(hi|hello|hey|yo|hiya|good (morning|afternoon|evening))\b/.test(m))
-    return { reply: "Hey there! 👋 I'm Ruby — great to chat with you. I can help you find the perfect product, suggest a gift, check sizing or stock, track an order, or sort out shipping and returns. What are you after today?", suggestions: ['Where is my order?', 'Find a gift idea', 'Returns policy', 'Shipping times'] };
-  if (!m) return { reply: "How can I help today?", suggestions: ['Where is my order?', 'Returns policy'] };
-  return { reply: `Happy to help with products, orders, shipping and returns! If I don't know something, I'll point you to our team at ${SUPPORT_EMAIL}. What would you like to know?`, suggestions: ['Where is my order?', 'Do you have my size?', 'Returns policy'] };
+function searchCatalog(catalog, queryText) {
+  const q = normalizeStr(queryText);
+  if (!catalog.length || !q) return [];
+
+  // Detect budget cap like "under $15", "under 20", "cheap", "below A$12"
+  let maxBudget = null;
+  const budgetMatch = q.match(/(?:under|below|less than|cheaper than|max|<=?)\s*(?:a?\$)?(\d+(?:\.\d+)?)/i);
+  if (budgetMatch) maxBudget = Number(budgetMatch[1]);
+  else if (/\b(cheap|cheapest|budget|affordable|bargain|lowest price)\b/i.test(q)) maxBudget = 15;
+
+  const stopWords = new Set([
+    'a','an','the','is','are','was','were','do','does','did','can','could','would','should',
+    'i','me','my','we','you','your','have','has','had','got','get','want','need','looking',
+    'look','find','show','give','tell','about','for','with','in','on','at','to','of','and',
+    'or','under','below','over','above','less','more','than','price','cost','how','much',
+    'any','some','best','good','nice','product','products','item','items','buy','shop','store',
+    'bargain','drop','aud','dollars','dollar','please','help','cheap','cheapest'
+  ]);
+
+  const keywords = q
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 2 && !stopWords.has(w));
+
+  const scored = [];
+  for (const p of catalog) {
+    if (maxBudget !== null && p.price > maxBudget) continue;
+    const titleL = p.title.toLowerCase();
+    const catL = p.category.toLowerCase();
+    const tagsL = p.tags.toLowerCase();
+
+    let score = 0;
+    if (keywords.length === 0 && maxBudget !== null) {
+      score = 10 + (maxBudget - p.price) * 0.2;
+    } else {
+      for (const kw of keywords) {
+        const stem = kw.endsWith('s') && kw.length > 3 ? kw.slice(0, -1) : kw;
+        if (titleL.includes(kw)) score += 6;
+        else if (titleL.includes(stem)) score += 4;
+        if (catL.includes(kw) || catL.includes(stem)) score += 4;
+        if (tagsL.includes(kw) || tagsL.includes(stem)) score += 2;
+      }
+    }
+    if (score > 0) scored.push({ ...p, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.price - b.price);
+  return scored.slice(0, 5);
+}
+
+async function resolveLiveContext(env, origin, userText, clientCtx = {}) {
+  const chunks = [];
+  const text = String(userText || '');
+
+  // 1. Page & Cart Context from widget
+  const ctxLines = [];
+  if (clientCtx.page) ctxLines.push(`Customer current page: ${clientCtx.page}`);
+  if (clientCtx.cartCount > 0) {
+    const sub = Number(clientCtx.cartSubtotal || 0);
+    const gap = Math.max(0, 29 - sub).toFixed(2);
+    ctxLines.push(
+      `Customer cart: ${clientCtx.cartCount} item(s), subtotal A$${sub.toFixed(2)}` +
+      (sub < 29 ? ` (needs A$${gap} more to unlock FREE Express Shipping!)` : ' (qualifies for FREE Express Shipping!)')
+    );
+  }
+  if (clientCtx.userEmail) ctxLines.push(`Signed-in email: ${clientCtx.userEmail}`);
+  if (ctxLines.length) chunks.push(`[SESSION CONTEXT]\n${ctxLines.join('\n')}`);
+
+  // 2. Order / Tracking lookup
+  const orderIdMatch = text.match(/\b(BD-[A-Z0-9-]{4,}|ORD-[A-Z0-9-]{4,})\b/i);
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const wantsOrder = Boolean(orderIdMatch) || /\b(order|track|tracking|parcel|package|where is my|shipped|delivery status|dispatch)\b/i.test(text);
+
+  if (wantsOrder && (orderIdMatch || emailMatch || clientCtx.userEmail)) {
+    const foundOrders = await lookupOrderEverywhere(
+      env,
+      orderIdMatch ? orderIdMatch[1].toUpperCase() : '',
+      emailMatch ? emailMatch[0] : (clientCtx.userEmail || '')
+    );
+    if (foundOrders.length) {
+      const formatted = foundOrders.map(o =>
+        `- Order ${o.orderId} | Status: ${o.status} | Total: A$${o.totalAud} | Items: ${o.items.join(', ') || 'N/A'} | Carrier: ${o.carrier} | Tracking: ${o.trackingNumber} | Direct Link: ${o.trackingUrl}`
+      ).join('\n');
+      chunks.push(`[LIVE ORDER LOOKUP RESULTS]\n${formatted}`);
+    } else if (orderIdMatch || emailMatch) {
+      chunks.push(
+        `[LIVE ORDER LOOKUP RESULTS]\nNo order matched "${orderIdMatch?.[1] || emailMatch?.[0]}" yet. Advise the customer to double-check the Order ID (starts with BD-...) or confirmation email, check /order-tracking.html, or email Support@bargain-drop.online with their payment receipt.`
+      );
+    }
+  }
+
+  // 3. Current Product Page Lookup OR Catalog Search
+  const wantsProduct = Boolean(clientCtx.productId) ||
+    /\b(find|search|looking for|show me|recommend|suggest|have any|sell|buy|cheap|under \$?\d+|shoes|dress|jacket|bag|watch|jewelry|pet|dog|cat|kitchen|home|tech|earbuds|charger|beauty|makeup|kids|baby|sports|car|shirt|pants|hoodie|boots|sandals|necklace|ring)\b/i.test(text);
+
+  if (wantsProduct) {
+    const catalog = await fetchLiveCatalog(origin);
+    if (clientCtx.productId) {
+      const cur = catalog.find(p => String(p.id) === String(clientCtx.productId));
+      if (cur) {
+        chunks.push(
+          `[CURRENT PRODUCT VIEWED]\nTitle: ${cur.title} | Price: A$${cur.price.toFixed(2)}` +
+          (cur.compareAt ? ` (Was A$${cur.compareAt.toFixed(2)})` : '') +
+          ` | Category: ${cur.category || 'Bargain Drop'} | Link: ${cur.url}`
+        );
+      }
+    }
+    const matches = searchCatalog(catalog, text);
+    if (matches.length) {
+      const list = matches.map(p =>
+        `- [${p.title}](${p.url}) — A$${p.price.toFixed(2)}${p.compareAt && p.compareAt > p.price ? ` (was A$${p.compareAt.toFixed(2)})` : ''} [${p.category || 'Deal'}]`
+      ).join('\n');
+      chunks.push(`[LIVE IN-STOCK PRODUCT MATCHES]\n${list}`);
+    }
+  }
+
+  return chunks.join('\n\n');
+}
+
+function buildDirectFallbackAnswer(userText, liveContext) {
+  const q = normalizeStr(userText);
+
+  if (liveContext && liveContext.includes('[LIVE ORDER LOOKUP RESULTS]')) {
+    const orderBlock = liveContext.split('[LIVE ORDER LOOKUP RESULTS]\n')[1]?.split('\n\n')[0];
+    if (orderBlock) {
+      return `Here is what I found for your order:\n\n${orderBlock}\n\nYou can also view full live tracking anytime on [Order Tracking](/order-tracking.html). Need help with an address change or delivery issue? Email **Support@bargain-drop.online** with your Order ID.`;
+    }
+  }
+
+  if (liveContext && liveContext.includes('[LIVE IN-STOCK PRODUCT MATCHES]')) {
+    const prodBlock = liveContext.split('[LIVE IN-STOCK PRODUCT MATCHES]\n')[1]?.split('\n\n')[0];
+    if (prodBlock) {
+      return `Here are the best in-stock Bargain Drop matches I found for you:\n\n${prodBlock}\n\n💡 Use code \`BARGAIN26\` at [Checkout](/checkout.html) for **30% OFF**, and get **FREE Express Shipping** on orders A$29+!`;
+    }
+  }
+
+  if (/\b(promo|coupon|discount|code|voucher|sale|off)\b/i.test(q)) {
+    return `Here are our active Bargain Drop promo codes you can apply right now in your [Cart](/cart.html) or at [Checkout](/checkout.html):\n\n- \`BARGAIN26\` — **30% OFF** storewide (biggest savings!)\n- \`WELCOME10\` / \`SAVE10\` — **10% OFF**\n- \`SAVE5AUD\` — **15% OFF**\n- \`FREESHIP\` — **Free Shipping**\n\nPlus, every order **A$29+ AUD** automatically gets **FREE Express Tracked Shipping**!`;
+  }
+
+  if (/\b(ship|shipping|deliver|delivery|how long|days|postage|freight|australia)\b/i.test(q)) {
+    return `**Bargain Drop Australia Shipping:**\n- **FREE Express Tracked Shipping** on orders **A$29.00+ AUD**\n- Flat **A$4.95 AUD** on orders under A$29\n- **Delivery time:** 7–15 business days Australia-wide with full parcel tracking\n\nTrack any parcel anytime at [Order Tracking](/order-tracking.html).`;
+  }
+
+  if (/\b(return|refund|exchange|damaged|broken|wrong item|defective|cancel)\b/i.test(q)) {
+    return `We've got you covered with our **30-Day Return & Refund Guarantee**:\n- Start a return or exchange in 1 minute at [Returns & Refunds](/returns.html)\n- **Damaged or wrong item?** Email **Support@bargain-drop.online** with your Order ID + 1 photo for an immediate free replacement or full refund.\n- **Need to cancel or fix your address?** Email **Support@bargain-drop.online** right away with your Order ID so we catch it before dispatch.\n- Approved refunds return to your Stripe card or PayPal within **3–5 business days**.`;
+  }
+
+  if (/\b(pay|payment|stripe|paypal|card|decline|checkout|apple pay|google pay)\b/i.test(q)) {
+    return `You can pay securely in **AUD** at [Checkout](/checkout.html) using:\n- **Credit/Debit Card, Apple Pay, or Google Pay** (via Stripe)\n- **PayPal**\n\n**Having trouble paying?**\n1. Check your card CVC/expiry or bank online-purchase limit.\n2. If PayPal doesn't pop up, allow popups for bargain-drop.online or switch to Card / Apple Pay.\n3. Still stuck? Email **Support@bargain-drop.online** and we'll help you complete your order straight away.`;
+  }
+
+  if (/\b(track|order|where is|parcel|package)\b/i.test(q)) {
+    return `You can track your parcel live at [Order Tracking](/order-tracking.html) using your Order ID (e.g. \`BD-...\`) or email — OR paste your Order ID right here in this chat and I'll look it up for you instantly!`;
+  }
+
+  if (/\b(password|login|sign in|account|register|address)\b/i.test(q)) {
+    return `Here are direct links to manage your Bargain Drop account:\n- [Sign In](/sign-in.html) | [Create Account](/register.html)\n- [Reset Forgotten Password](/forgot-password.html)\n- [Saved Shipping Addresses](/addresses.html) | [Saved Wishlist](/wishlist.html)`;
+  }
+
+  return `I can help you with anything on Bargain Drop! Here are the fastest shortcuts:\n- **30% OFF Promo:** Use \`BARGAIN26\` at [Checkout](/checkout.html) (Free Shipping A$29+)\n- **Track an Order:** Paste your \`BD-...\` order number here or open [Order Tracking](/order-tracking.html)\n- **Browse Deals:** [All Categories](/categories.html) or [All Products](/products.html)\n- **Returns / Refunds:** [Returns Portal](/returns.html) or **Support@bargain-drop.online**\n\nTell me what you're looking for or what issue you've hit and I'll sort it out right away!`;
 }
 
 export async function onRequest(context) {
   const { request, env } = context;
-  if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
-  if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders() });
+  const headers = { 'Content-Type': 'application/json', ...corsHeaders() };
 
-  let body = {};
-  try { body = await request.json(); } catch {}
-  const msg = String(body.message || '');
-  const ctx = body.context || {};
-
-  // Build conversation: prefer client-provided history, else single turn.
-  let history = [];
-  if (Array.isArray(body.history)) {
-    history = body.history
-      .filter(h => h && h.text)
-      .map(h => ({ role: h.role, text: String(h.text) }))
-      .slice(-MAX_HISTORY);
-  }
-  if (!history.length || history[history.length - 1].text !== msg) {
-    history.push({ role: 'user', text: msg });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'POST required' }), { status: 405, headers });
   }
 
-  // Resolve live tool facts
-  let facts = [];
-  try { facts = await resolveTools(env, msg, request.url, ctx); } catch {}
-
-  let reply, suggestions = ['Where is my order?', 'Returns policy', 'Shipping times'];
-  let llm_used = false;
-
+  let body;
   try {
-    reply = await callGemini(env, history, facts);
-    llm_used = true;
-    suggestions = ['Track my order', 'Shipping times', 'Returns policy', 'Browse products'];
-  } catch (e) {
-    const f = fallback(msg);
-    reply = f.reply;
-    if (f.suggestions) suggestions = f.suggestions;
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers });
   }
 
-  return new Response(JSON.stringify({ reply, suggestions, llm_used }), {
-    headers: { 'Content-Type': 'application/json', ...corsHeaders(), 'Cache-Control': 'no-store' },
-  });
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  if (!messages.length) {
+    return new Response(JSON.stringify({ error: 'messages required' }), { status: 400, headers });
+  }
+
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+  const userText = String(lastUserMsg?.content || '').trim();
+  const clientCtx = body.context && typeof body.context === 'object' ? body.context : {};
+  const origin = new URL(request.url).origin;
+
+  const liveContext = await resolveLiveContext(env, origin, userText, clientCtx);
+
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ reply: buildDirectFallbackAnswer(userText, liveContext), model: 'direct-knowledge-engine' }),
+      { status: 200, headers }
+    );
+  }
+
+  const systemText = STORE_KNOWLEDGE_BASE + (liveContext ? `\n\n--- LIVE STORE DATA FOR THIS CONVERSATION ---\n${liveContext}` : '');
+  const recent = messages.slice(-14).map(m => ({
+    role: m.role === 'assistant' || m.role === 'model' ? 'model' : 'user',
+    parts: [{ text: String(m.content || '').slice(0, 3000) }],
+  }));
+
+  for (const model of MODEL_SEQUENCE) {
+    for (const baseEndpoint of GEMINI_ENDPOINTS) {
+      const payload = {
+        systemInstruction: { parts: [{ text: systemText }] },
+        contents: recent,
+        generationConfig: model === 'gemini-4-hydrogen'
+          ? { maxOutputTokens: 700 }
+          : { maxOutputTokens: 700, temperature: 0.5 },
+      };
+
+      try {
+        const res = await fetch(`${baseEndpoint}/${model}:generateContent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const reply = (data?.candidates?.[0]?.content?.parts || [])
+          .map(p => p.text || '')
+          .join('')
+          .trim();
+        if (reply) {
+          return new Response(JSON.stringify({ reply, model }), { status: 200, headers });
+        }
+      } catch (_) {}
+    }
+  }
+
+  return new Response(
+    JSON.stringify({ reply: buildDirectFallbackAnswer(userText, liveContext), model: 'direct-knowledge-fallback' }),
+    { status: 200, headers }
+  );
 }

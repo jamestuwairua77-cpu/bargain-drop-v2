@@ -181,22 +181,100 @@ export async function onRequest(context) {
       );
     }
 
+    // Server-side PayPal capture verification (prevents spoofed payment_verified: true)
+    const isPayPal = String(order.method || order.payment?.gateway || '').toLowerCase() === 'paypal';
+    const wantsPaid = order.payment_verified === true || order.status === 'paid' || order.paymentStatus === 'paid';
+    let paypalServerVerified = false;
+    let paypalVerifyNote = null;
+
+    if (wantsPaid && isPayPal) {
+      const ppOrderId = String(order.payment?.hash || order.paypalOrderId || '').trim();
+      if (!ppOrderId) {
+        return new Response(
+          JSON.stringify({ error: 'Missing PayPal transaction/order ID for payment verification.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
+        );
+      }
+      const ppClientId = env.PAYPAL_CLIENT_ID || '';
+      const ppSecret = env.PAYPAL_CLIENT_SECRET || '';
+      if (ppClientId && ppSecret) {
+        try {
+          const ppBase = env.PAYPAL_SANDBOX === '1'
+            ? 'https://api-m.sandbox.paypal.com'
+            : 'https://api-m.paypal.com';
+          const tokRes = await fetch(`${ppBase}/v1/oauth2/token`, {
+            method: 'POST',
+            headers: {
+              Authorization: 'Basic ' + btoa(`${ppClientId}:${ppSecret}`),
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'grant_type=client_credentials',
+          });
+          const tokJson = await tokRes.json().catch(() => ({}));
+          if (!tokRes.ok || !tokJson.access_token) {
+            return new Response(
+              JSON.stringify({ error: 'PayPal verification auth failed' }),
+              { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
+            );
+          }
+          const ordRes = await fetch(`${ppBase}/v2/checkout/orders/${encodeURIComponent(ppOrderId)}`, {
+            headers: { Authorization: 'Bearer ' + tokJson.access_token },
+          });
+          const ordJson = await ordRes.json().catch(() => ({}));
+          if (!ordRes.ok || String(ordJson.status || '').toUpperCase() !== 'COMPLETED') {
+            return new Response(
+              JSON.stringify({
+                error: `PayPal order ${ppOrderId} is not COMPLETED (status: ${ordJson.status || ordRes.status})`,
+              }),
+              { status: 402, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
+            );
+          }
+          paypalServerVerified = true;
+          paypalVerifyNote = 'verified_via_paypal_api';
+        } catch (ve) {
+          return new Response(
+            JSON.stringify({ error: 'PayPal server verification error: ' + ve.message }),
+            { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
+          );
+        }
+      } else {
+        // Fallback when PAYPAL_CLIENT_SECRET is not yet set in CF Pages env vars:
+        // Require a valid PayPal capture ID + captured amount > 0 and log for audit.
+        paypalServerVerified = /^[A-Z0-9]{10,32}$/i.test(ppOrderId) && Number(order.payment?.amount || order.total || 0) > 0;
+        paypalVerifyNote = 'client_capture_id_checked_set_PAYPAL_CLIENT_SECRET_for_strict_api_verify';
+      }
+    } else if (wantsPaid && !isPayPal && !isAdmin(request, env)) {
+      // Non-PayPal orders (Stripe) MUST be marked paid exclusively by verified /api/stripe-webhook
+      order.status = 'pending_payment';
+      order.paymentStatus = 'unpaid';
+      order.payment_verified = false;
+    }
+
     order.inventoryLock = lockResult;
+    if (paypalVerifyNote) order.paypalVerifyNote = paypalVerifyNote;
     const saved = await saveOrderRecord(env, order);
     await appendSyncLog(env, {
       action: 'save-order',
       id: saved.id,
       status: saved.status || 'pending_payment',
+      ...(paypalVerifyNote ? { paypalVerifyNote } : {}),
     });
 
     // If PayPal capture completed with verified payment, trigger CJ fulfillment automatically
     let fulfillment = null;
-    if (
-      (order.payment_verified === true || order.status === 'paid') &&
-      String(order.method || '').toLowerCase() === 'paypal'
-    ) {
+    if (wantsPaid && isPayPal && paypalServerVerified) {
       try {
-        fulfillment = await fulfillOrder(env, saved);
+        const fulfillPromise = fulfillOrder(env, saved).catch((fe) => ({
+          done: false,
+          error: fe.message,
+        }));
+        if (typeof context.waitUntil === 'function') {
+          context.waitUntil(fulfillPromise);
+        }
+        fulfillment = await Promise.race([
+          fulfillPromise,
+          new Promise((r) => setTimeout(() => r({ status: 'started_in_background' }), 9000)),
+        ]);
       } catch (fe) {
         fulfillment = { error: fe.message };
       }
@@ -208,6 +286,7 @@ export async function onRequest(context) {
         id: saved.id,
         status: saved.status,
         inventoryLocked: true,
+        paypalServerVerified,
         fulfillment,
       }),
       {

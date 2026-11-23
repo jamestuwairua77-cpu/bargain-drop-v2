@@ -1,0 +1,89 @@
+CLOUDFLARE FULL CONFIGURATION & PERMISSIONS MANIFEST
+Target Domain: bargain-drop.online
+Project Name: bargain-drop-v2
+
+================================================================================
+1. REQUIRED CLOUDFLARE API SCOPES & PERMISSIONS
+================================================================================
+1. Cloudflare Pages: Edit (Account Scope)
+   - Allows automatic git-triggered builds and Functions deployment.
+2. Workers Scripts: Edit (Account Scope)
+   - Allows script publishing and route mapping for worker.fetch endpoints.
+3. D1 Database: Edit (Account Scope)
+   - Allows provisioning D1 SQL tables (wallets, campaigns, processed_payments).
+4. Workers KV Storage: Edit (Account Scope)
+   - Allows reading and updating state partitions (CPAGRIP_CAMPAIGNS, CPAGRIP_BALANCE).
+5. Zone Settings: Edit (Zone Scope: bargain-drop.online)
+   - Configures SSL/TLS, Caching Rules, edge headers, and security firewall rules.
+6. Cache Purge: Purge (Zone Scope: bargain-drop.online)
+   - Invalidates CDN edge cache upon campaign or storage state updates.
+
+================================================================================
+2. WRANGLER PROJECT CONFIGURATION (wrangler.json)
+================================================================================
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bargain-drop-v2",
+  "main": "public/store/functions/cpagrip.js",
+  "compatibility_date": "2026-11-02",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "transformstream_enable_standard_constructor"
+  ],
+  "pages_build_output_dir": "./public",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bargain-drop-d1",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CPAGRIP_CAMPAIGNS",
+      "id": "REPLACE_WITH_KV_CAMPAIGNS_NAMESPACE_ID"
+    },
+    {
+      "binding": "CPAGRIP_BALANCE",
+      "id": "REPLACE_WITH_KV_BALANCE_NAMESPACE_ID"
+    }
+  ],
+  "vars": {
+    "ADMIN_PIN": "03091996",
+    "PUBLIC_DOMAIN": "https://bargain-drop.online",
+    "ENVIRONMENT": "production"
+  },
+  "secrets_required": [
+    "STRIPE_SECRET_KEY",
+    "SHOPIFY_STOREFRONT_TOKEN"
+  ]
+}
+
+================================================================================
+3. PAGES ROUTE BINDINGS (_routes.json)
+================================================================================
+{
+  "version": 1,
+  "include": [
+    "/cpagrip-v2/*",
+    "/cpagrip/*",
+    "/api/*"
+  ],
+  "exclude": [
+    "/assets/*",
+    "/*.jpg",
+    "/*.png",
+    "/*.css",
+    "/*.json"
+  ]
+}
+
+================================================================================
+4. EDGE SECURITY HEADERS (_headers)
+================================================================================
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: no-referrer-when-downgrade
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload

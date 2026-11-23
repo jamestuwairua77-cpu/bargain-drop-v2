@@ -1,0 +1,265 @@
+/* ============================================================================
+   BARGAIN DROP — GLOBAL DESIGN SYSTEM, TYPOGRAPHY & WCAG AA+ CONTRAST SHIELD
+   Fonts: Outfit (Display & CTAs) · Plus Jakarta Sans (Body & UI) · JetBrains Mono (Prices & IDs)
+   ============================================================================ */
+
+:root {
+  --bd-font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bd-font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bd-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* High-Contrast Accessible Dark Palette (WCAG AA/AAA verified on #08090a / #12151b) */
+  --bd-bg: #08090a;
+  --bd-surface: #12151b;
+  --bd-surface-2: #181c24;
+  --bd-border: rgba(255, 255, 255, 0.16);
+  --bd-border-strong: rgba(255, 255, 255, 0.28);
+
+  --bd-text: #ffffff;
+  --bd-text-body: #e5e7eb;
+  --bd-text-muted: #b8c0cc;
+  --bd-accent: #fe3442;
+  --bd-accent-hover: #ff4b58;
+  --bd-gold: #ffd600;
+  --bd-emerald: #22c55e;
+
+  /* Upgrade legacy page tokens so every page inherits readable contrast automatically */
+  --fg: #ffffff;
+  --text: #ffffff;
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --muted: #c2cad6;
+  --meta: #b8c0cc;
+  --text-muted: #b8c0cc;
+}
+
+/* 1. INTENTIONAL TYPOGRAPHY HIERARCHY */
+html,
+body {
+  font-family: var(--bd-font-body) !important;
+  color: var(--bd-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6,
+.page-header h1,
+.section-title h3,
+.section-header h2,
+.hero h1,
+.cat-card-label,
+.cat-group-title,
+.p-title, #p-title,
+.nav-logo .logo-text, .nav-logo .lt, .logo-text,
+.keypad-title, .top-bar-left h1,
+.btn, .cta, .hero-cta, .checkout-btn, .pay-btn, .atc-btn, .buy-btn, .apply-btn, .cj-pay-link {
+  font-family: var(--bd-font-display) !important;
+  letter-spacing: -0.015em;
+}
+
+/* Tabular monospace numerals for prices, totals, discounts, tracking & order IDs */
+.price, .product-price, .promo-price, .original-price, .compare-price,
+.wishlist-price, .cipp, .stv, .cart-total, .summary-val,
+.amount-cell, .mono-id, .order-id, .tracking-num,
+#promo-price, #original-price, #subtotal, #grand-total, #ship-val {
+  font-family: var(--bd-font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 2. SITE-WIDE HIGH-CONTRAST TEXT & ELEMENT FIXES */
+p, li, span, label, td, th, dd, dt, summary, figcaption {
+  color: inherit;
+}
+
+/* Guarantee dark surfaces never have unreadable dark-on-dark text */
+body[class], body {
+  color: #f8fafc;
+}
+
+.logo-text .bd-d,
+.logo-text .bd-white,
+.nav-logo .logo-text,
+.nlogo .logo-text {
+  color: #ffffff !important;
+}
+
+.logo-text .bd-b,
+.logo-text .bd-red,
+.nav-logo .bd-red {
+  color: #fe3442 !important;
+}
+
+/* Fix dark-on-dark buttons & CTAs across all pages */
+.hero-cta,
+.newsletter-form button,
+.card a.btn-primary,
+button.primary,
+.btn-primary {
+  background-color: #fe3442 !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+}
+
+.hero-cta:hover,
+.newsletter-form button:hover,
+.btn-primary:hover {
+  background-color: #ff4b58 !important;
+  color: #ffffff !important;
+}
+
+/* Fix form controls across dark storefront pages */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  color: #ffffff !important;
+  background-color: #14181f;
+  border-color: rgba(255, 255, 255, 0.24);
+  font-family: var(--bd-font-body) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #b8c0cc !important;
+  opacity: 1 !important;
+}
+
+select option {
+  background-color: #12151b;
+  color: #ffffff;
+}
+
+/* Readable muted text, metadata, subtitles, breadcrumbs & footer links */
+.page-header p,
+.subtitle,
+.muted,
+.meta,
+.rc-meta,
+.footer-legal,
+.footer-newsletter p,
+.footer-bottom,
+.trust-item,
+.back-link,
+.top-bar a.back,
+.empty-msg,
+.loading-text {
+  color: #cbd5e1 !important;
+}
+
+.footer-links h4,
+.footer-links h5 {
+  color: #ffffff !important;
+  font-family: var(--bd-font-display) !important;
+}
+
+.footer-links a {
+  color: #e2e8f0 !important;
+}
+
+.footer-links a:hover {
+  color: #fe3442 !important;
+}
+
+/* Category & subcategory pills / chips — crisp dark-surface contrast */
+.cat-card {
+  background: #12151b !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cat-card:hover {
+  border-color: rgba(254, 52, 66, 0.65) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.cat-card-label {
+  color: #ffffff !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+}
+
+.cat-group-title {
+  color: #ffffff !important;
+}
+
+.subcat-chip,
+.subcat-pill {
+  background: #1a1e26 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.subcat-chip:hover,
+.subcat-chip.active,
+.subcat-pill:hover {
+  background: #fe3442 !important;
+  color: #ffffff !important;
+  border-color: #fe3442 !important;
+}
+
+/* Product cards contrast */
+.product-card,
+.product-card-z4,
+.rel-card {
+  background: #12151b !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+.product-card .product-title,
+.product-card .title,
+.product-card h3,
+.product-card h4,
+.rel-card .rc-title {
+  color: #f8fafc !important;
+  font-family: var(--bd-font-body) !important;
+}
+
+.product-price,
+.promo-price,
+#promo-price {
+  color: #ff4d5a !important;
+}
+
+.original-price,
+.compare-price,
+#original-price {
+  color: #b8c0cc !important;
+}
+
+/* Error pages (404 / 500) & standalone cards */
+.error-card,
+.err-box,
+.card {
+  color: #f8fafc;
+}
+
+.error-card h1, .error-card h2,
+.err-box h1, .err-box h2,
+.card h1, .card h2 {
+  color: #ffffff !important;
+}
+
+.error-card p,
+.err-box p,
+.card p {
+  color: #d1d5db !important;
+}
+
+/* 3. ZERO PRODUCT COUNTERS ON ALL CATEGORY BUTTONS / CARDS / PILLS */
+.cat-card-shop,
+.cat-card-badge,
+.cat-badge,
+.cat-sub-count,
+.subcat-pill-count {
+  display: none !important;
+}
+
+/* 4. ACCESSIBLE FOCUS RINGS */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #fe3442 !important;
+  outline-offset: 2px !important;
+}

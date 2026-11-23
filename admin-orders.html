@@ -387,7 +387,87 @@
     .status-paid, .status-delivered, .status-shipped { color: var(--emerald); }
     .status-processing { color: var(--gold); }
     .status-unpaid, .status-cancelled { color: var(--accent); }
+    .cj-queue-panel {
+      background: linear-gradient(180deg, rgba(254,52,66,0.08) 0%, #111315 100%);
+      border: 1px solid rgba(254,52,66,0.35);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 22px;
+    }
+    .cj-queue-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .cj-queue-head h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .cj-queue-head p {
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      margin-top: 2px;
+    }
+    .cj-queue-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 12px;
+    }
+    .cj-queue-item {
+      background: #171a1d;
+      border: 1px solid #2a2f36;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cj-pay-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: #fe3442;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 8px 12px;
+      border-radius: 7px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+    }
+    .cj-pay-link:hover { filter: brightness(1.08); }
+    .cj-retry-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #1f2429;
+      color: #f8fafc;
+      border: 1px solid #374151;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .cj-retry-btn:hover { border-color: #fe3442; }
+    .sync-status-toast {
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      margin-top: 8px;
+      min-height: 18px;
+    }
   </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/bd-design-system.css?v=20261122">
 </head>
 <body>
 
@@ -441,6 +521,7 @@
         <p id="syncTimestampText">Verified session · Real-time database records</p>
       </div>
       <div class="top-bar-actions">
+        <button type="button" class="action-btn" id="runCatalogSyncBtn">⚡ Sync Products Now</button>
         <button type="button" class="action-btn" id="refreshOrdersBtn">↻ Refresh Orders</button>
         <a href="/admin.html" class="action-btn">Full Command Center</a>
         <button type="button" class="action-btn" id="lockVaultBtn">🔒 Lock Screen</button>
@@ -460,6 +541,24 @@
         <div class="summary-label">Paid &amp; Fulfilled</div>
         <div class="summary-val" id="statPaidOrders">0</div>
       </div>
+      <div class="summary-card">
+        <div class="summary-label">Awaiting CJ Card/PayPal</div>
+        <div class="summary-val" id="statCjQueue" style="color:var(--gold);">0</div>
+      </div>
+    </div>
+
+    <div class="cj-queue-panel" id="cjQueuePanel">
+      <div class="cj-queue-head">
+        <div>
+          <h2>No-Wallet CJ Payment Queue</h2>
+          <p>Orders auto-created in CJ (no wallet balance required). Tap any order to settle directly via Card or PayPal.</p>
+        </div>
+        <button type="button" class="action-btn" id="refreshCjQueueBtn">↻ Refresh Queue</button>
+      </div>
+      <div class="cj-queue-list" id="cjQueueList">
+        <div style="font-size:0.82rem;color:#cbd5e1;">Loading CJ settlement queue...</div>
+      </div>
+      <div class="sync-status-toast" id="syncStatusToast"></div>
     </div>
 
     <div class="controls-row">
@@ -479,6 +578,7 @@
             <th>Customer Name</th>
             <th>Total Amount</th>
             <th>Status</th>
+            <th>CJ Fulfillment</th>
             <th>Order Date</th>
             <th>Shipping Address</th>
           </tr>
@@ -566,7 +666,7 @@
         if (filtered.length === 0) {
           ordersTableBody.innerHTML = `
             <tr>
-              <td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px;">
+              <td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px;">
                 No matching customer orders found.
               </td>
             </tr>
@@ -583,21 +683,105 @@
                   timeStyle: 'short',
                 })
               : '—';
+            const cjUrl = row.cjDirectPayUrl || (row.cjOrderId ? `https://app.cjdropshipping.com/myCJ.html#/order-detail/${encodeURIComponent(row.cjOrderId)}` : '');
+            const cjCell = row.cjOrderId
+              ? `<div class="mono-id" style="font-size:0.74rem;margin-bottom:4px;">${escapeHtml(row.cjOrderId)}</div>
+                 ${row.cjPaid ? '<span style="color:var(--emerald);font-size:0.74rem;font-weight:700;">Settled ✓</span>' : `<a class="cj-pay-link" href="${escapeHtml(cjUrl)}" target="_blank" rel="noopener">Pay CJ (Card/PayPal) →</a>`}`
+              : `<button type="button" class="cj-retry-btn" data-retry-order="${escapeHtml(row.order_id)}">Push to CJ</button>`;
             return `
               <tr>
                 <td class="mono-id">${escapeHtml(row.order_id)}</td>
                 <td>
                   <div style="font-weight:700;">${escapeHtml(row.customer_name)}</div>
-                  <div style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(row.customer_email || '')}</div>
+                  <div style="font-size:0.75rem;color:#b8c0cc;">${escapeHtml(row.customer_email || '')}</div>
                 </td>
                 <td class="amount-cell">A$${Number(row.total_amount || 0).toFixed(2)}</td>
                 <td><span class="status-text ${escapeHtml(statusClass)}">${escapeHtml(row.status)}</span></td>
+                <td>${cjCell}</td>
                 <td style="color:var(--text-secondary);font-size:0.8rem;">${escapeHtml(dateFormatted)}</td>
                 <td style="color:var(--text-secondary);font-size:0.8rem;">${escapeHtml(row.shipping_address || '—')}</td>
               </tr>
             `;
           })
           .join('');
+
+        ordersTableBody.querySelectorAll('[data-retry-order]').forEach((btn) => {
+          btn.addEventListener('click', () => retryCjFulfill(btn.getAttribute('data-retry-order'), btn));
+        });
+      }
+
+      async function loadCjQueue() {
+        const listEl = document.getElementById('cjQueueList');
+        const statEl = document.getElementById('statCjQueue');
+        if (!activeSessionPin || !listEl) return;
+        try {
+          const r = await fetch('/api/cj-admin?action=queue', {
+            headers: { 'X-Admin-Pin': activeSessionPin },
+          });
+          const d = await r.json().catch(() => ({}));
+          const items = Array.isArray(d.queue) ? d.queue : [];
+          if (statEl) statEl.textContent = String(items.length);
+          if (!items.length) {
+            listEl.innerHTML = '<div style="font-size:0.82rem;color:#cbd5e1;">All CJ orders are settled. Zero orders awaiting external Card/PayPal payment.</div>';
+            return;
+          }
+          listEl.innerHTML = items.map((item) => `
+            <div class="cj-queue-item">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span class="mono-id" style="font-size:0.82rem;">${escapeHtml(item.orderId)}</span>
+                <span style="font-size:0.74rem;color:var(--gold);font-weight:700;">Awaiting Card/PayPal</span>
+              </div>
+              <div style="font-size:0.8rem;color:#e5e7eb;">${escapeHtml(item.customerName || 'Customer')} · Paid A$${Number(item.customerTotalAud || 0).toFixed(2)}</div>
+              <div style="font-size:0.75rem;color:#b8c0cc;">CJ Order: <span class="mono-id">${escapeHtml(item.cjOrderId || 'Pending')}</span>${item.cjTotalUsd ? ` · Cost US$${Number(item.cjTotalUsd).toFixed(2)}` : ''}</div>
+              <a class="cj-pay-link" href="${escapeHtml(item.cjDirectPayUrl || 'https://app.cjdropshipping.com/myCJ.html#/orders')}" target="_blank" rel="noopener">Pay in CJ via Card / PayPal →</a>
+            </div>
+          `).join('');
+        } catch (err) {
+          listEl.innerHTML = '<div style="font-size:0.82rem;color:#ff6b78;">Could not load CJ queue. Check Cloudflare env variables.</div>';
+        }
+      }
+
+      async function retryCjFulfill(orderId, btn) {
+        const toast = document.getElementById('syncStatusToast');
+        if (!activeSessionPin || !orderId) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Pushing...'; }
+        if (toast) toast.textContent = `Sending ${orderId} to CJ (no-wallet mode)...`;
+        try {
+          const r = await fetch(`/api/cj-admin?action=retry_fulfill&orderId=${encodeURIComponent(orderId)}`, {
+            method: 'POST',
+            headers: { 'X-Admin-Pin': activeSessionPin },
+          });
+          const d = await r.json().catch(() => ({}));
+          if (toast) toast.textContent = d.ok ? `Order ${orderId} synced to CJ (${d.result?.cj?.cjOrderId || 'queued'}).` : `CJ sync note: ${d.error || 'Check product SKU / shipping address'}`;
+          await verifyPinAndLoadOrders(activeSessionPin);
+        } catch (err) {
+          if (toast) toast.textContent = 'Retry failed: ' + err.message;
+          if (btn) { btn.disabled = false; btn.textContent = 'Push to CJ'; }
+        }
+      }
+
+      async function runCatalogSyncNow() {
+        const btn = document.getElementById('runCatalogSyncBtn');
+        const toast = document.getElementById('syncStatusToast');
+        if (!activeSessionPin) return;
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing...'; }
+        if (toast) toast.textContent = 'Checking CJ live stock, prices & deleted items (batch of 40)...';
+        try {
+          const r = await fetch('/api/auto-catalog-sync?batch=40', {
+            method: 'POST',
+            headers: { 'X-Admin-Pin': activeSessionPin },
+          });
+          const d = await r.json().catch(() => ({}));
+          if (toast) {
+            toast.textContent = d.ok
+              ? `Auto-Sync done: checked ${d.checked || 0}, updated ${d.updated || 0}, auto-hidden deleted ${d.hiddenDeleted || 0}, auto-hidden OOS ${d.hiddenOos || 0}, restored ${d.restored || 0}.`
+              : `Auto-Sync note: ${d.error || 'Failed'}`;
+          }
+        } catch (err) {
+          if (toast) toast.textContent = 'Auto-Sync error: ' + err.message;
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = '⚡ Sync Products Now'; }
+        }
       }
 
       async function verifyPinAndLoadOrders(pinToSubmit) {
@@ -646,14 +830,26 @@
           updateDotsUI();
           pinFeedback.textContent = '';
 
+          const rawOrdersById = {};
+          (data.orders || []).forEach((o) => { if (o && o.id) rawOrdersById[o.id] = o; });
           loadedRecords = Array.isArray(data.records)
-            ? data.records
+            ? data.records.map((r) => {
+                const raw = rawOrdersById[r.order_id] || {};
+                return Object.assign({}, r, {
+                  cjOrderId: raw.cjOrderId || r.cjOrderId || '',
+                  cjPaid: !!raw.cjPaid,
+                  cjDirectPayUrl: raw.cjDirectPayUrl || '',
+                });
+              })
             : (data.orders || []).map((o) => ({
                 order_id: o.id,
                 customer_name: o.customer?.name || 'Customer',
                 customer_email: o.customer?.email || '',
                 total_amount: o.total || 0,
                 status: o.status || 'paid',
+                cjOrderId: o.cjOrderId || '',
+                cjPaid: !!o.cjPaid,
+                cjDirectPayUrl: o.cjDirectPayUrl || '',
                 created_at: o.date,
                 shipping_address: o.shipping
                   ? `${o.shipping.street1}, ${o.shipping.city} ${o.shipping.state} ${o.shipping.postcode}`
@@ -668,6 +864,7 @@
             'Verified session · Synced ' + new Date().toLocaleTimeString();
 
           renderOrdersTable(searchOrdersInput.value);
+          loadCjQueue();
 
           pinGateSection.classList.add('hidden');
           ordersDashboardSection.classList.add('unlocked');
@@ -729,6 +926,14 @@
         if (activeSessionPin) {
           verifyPinAndLoadOrders(activeSessionPin);
         }
+      });
+
+      document.getElementById('refreshCjQueueBtn')?.addEventListener('click', () => {
+        loadCjQueue();
+      });
+
+      document.getElementById('runCatalogSyncBtn')?.addEventListener('click', () => {
+        runCatalogSyncNow();
       });
 
       document.getElementById('lockVaultBtn').addEventListener('click', () => {

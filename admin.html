@@ -2,372 +2,375 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Admin &amp; Orders Command Center — Bargain Drop</title>
+<title>Bargain Drop — Master Admin, Store Hub &amp; Live Command Center</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="stylesheet" href="/css/shared.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/bd-design-system.css?v=20261122">
+<link rel="stylesheet" href="/chat-widget/chat.css?v=20261123">
 <style>
 :root{
-  --bg: #09090b;
-  --card: #121515;
-  --card2: #181b1c;
-  --fg: #ffffff;
-  --muted: #dedede;
-  --meta: #818181;
+  --bg: #08090c;
+  --surface: #0f1217;
+  --card: #13171e;
+  --card2: #1a2029;
+  --fg: #f8fafc;
+  --muted: #cbd5e1;
+  --meta: #94a3b8;
   --accent: #fe3442;
+  --accent2: #d32b3f;
   --gold: #facc15;
   --green: #22c55e;
-  --line: #222425;
-  --line2: #2d3032;
-  --radius: 8px;
+  --blue: #38bdf8;
+  --line: #232a35;
+  --line2: #334155;
+  --radius: 10px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;
+html,body{
   background:var(--bg);
   color:var(--fg);
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   -webkit-font-smoothing:antialiased;
-  height:100vh;
-  overflow:hidden;
+  min-height:100dvh;
+}
+body{
   display:flex;
   flex-direction:column;
+  height:100dvh;
+  overflow:hidden;
 }
 a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:inherit}
+h1,h2,h3,.brand-title,.metric-val{font-family:'Outfit','Plus Jakarta Sans',sans-serif}
 
-/* Keypad PIN Overlay */
-.overlay{position:fixed;inset:0;background:rgba(8,9,10,0.98);backdrop-filter:blur(16px);z-index:9999;display:flex;align-items:center;justify-content:center}
+/* ── KEYPAD PIN LOCK OVERLAY ── */
+.overlay{
+  position:fixed;inset:0;
+  background:radial-gradient(circle at top,rgba(254,52,66,0.14),rgba(8,9,12,0.98) 55%);
+  backdrop-filter:blur(16px);
+  z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
 .overlay.hidden{display:none}
-.keypad-wrap{text-align:center;max-width:320px;padding:24px;background:#0d0e10;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.8)}
-.keypad-wrap h1{font-size:1.35rem;font-weight:900;margin-bottom:4px;letter-spacing:-0.5px}
+.keypad-wrap{
+  text-align:center;width:100%;max-width:340px;padding:24px 22px;
+  background:#0f1217;border:1px solid var(--line2);border-radius:16px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.85);
+}
+.keypad-wrap h1{font-size:1.4rem;font-weight:900;margin-bottom:4px;letter-spacing:-0.4px;color:#fff}
 .keypad-wrap h1 span{color:var(--accent)}
-.keypad-wrap p{font-size:.72rem;color:var(--meta);margin-bottom:20px}
-.keypad-display{display:flex;justify-content:center;gap:10px;margin-bottom:20px}
-.keypad-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line2);background:#08090a;transition:all .15s}
-.keypad-dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(254,52,66,0.6)}
-.keypad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto 16px}
-.keypad-btn{aspect-ratio:1;border-radius:var(--radius);background:var(--card);border:1px solid var(--line);color:var(--fg);font-size:1.25rem;font-weight:700;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center}
-.keypad-btn:hover{border-color:var(--accent);color:#fff;background:var(--card2)}
-.keypad-btn:active{background:var(--accent);color:#fff;transform:scale(.95)}
-.keypad-btn.del{font-size:.85rem;background:transparent;border-color:transparent;color:var(--meta)}
-.keypad-error{font-size:.7rem;color:var(--accent);min-height:20px;margin-bottom:8px;font-weight:700}
+.keypad-wrap p{font-size:.78rem;color:var(--meta);margin-bottom:18px}
+.keypad-display{display:flex;justify-content:center;gap:9px;margin-bottom:16px}
+.keypad-dot{width:13px;height:13px;border-radius:50%;border:2px solid var(--line2);background:#08090c;transition:all .15s}
+.keypad-dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(254,52,66,0.65)}
+.keypad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:252px;margin:0 auto 14px}
+.keypad-btn{
+  aspect-ratio:1;min-height:58px;border-radius:10px;
+  background:var(--card);border:1px solid var(--line2);color:#fff;
+  font-size:1.25rem;font-weight:800;cursor:pointer;transition:all .12s;
+  display:flex;align-items:center;justify-content:center;
+}
+.keypad-btn:hover{border-color:var(--accent);background:var(--card2)}
+.keypad-btn:active{background:var(--accent);transform:scale(.95)}
+.keypad-error{font-size:.75rem;color:var(--accent);min-height:20px;margin-bottom:10px;font-weight:700}
 
-/* Header & Navigation Bar */
+/* ── REAL-TIME NEW ORDER ALERT BANNER ── */
+.order-alert-banner{
+  position:fixed;top:14px;right:14px;z-index:9500;
+  background:linear-gradient(135deg,#13171e,#290d12);
+  border:2px solid var(--accent);
+  box-shadow:0 14px 36px rgba(254,52,66,0.45),0 0 24px rgba(0,0,0,0.85);
+  border-radius:12px;padding:14px 16px;max-width:420px;width:calc(100vw - 28px);
+  display:none;align-items:center;gap:12px;animation:slideIn .25s ease-out;
+}
+.order-alert-banner.show{display:flex}
+@keyframes slideIn{from{transform:translateY(-24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.alert-icon{font-size:1.7rem;color:var(--gold);flex-shrink:0}
+.alert-content{flex:1;min-width:0}
+.alert-title{font-size:.88rem;font-weight:900;color:#fff;margin-bottom:2px}
+.alert-desc{font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert-actions{display:flex;gap:8px;margin-top:8px}
+.alert-btn{padding:6px 12px;font-size:.72rem;font-weight:800;border-radius:6px;cursor:pointer;border:none}
+.alert-btn.view{background:var(--accent);color:#fff}
+.alert-btn.close{background:var(--card2);color:var(--muted);border:1px solid var(--line2)}
+
+/* ── TOP HEADER & NAVIGATION ── */
 .admin-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 16px;
-  height:58px;
-  border-bottom:1px solid var(--line);
-  background:rgba(8,9,10,0.98);
-  flex-shrink:0;
-  gap:12px;
-}
-.brand{display:flex;align-items:center;gap:10px}
-.brand img{width:32px;height:32px;border-radius:6px;object-fit:contain;border:1px solid #363636;background:#08090a}
-.brand-title{font-size:1rem;font-weight:900;letter-spacing:-0.3px;white-space:nowrap}
-.brand-title .red{color:var(--accent)}
-
-.tabs{display:flex;align-items:center;gap:6px;background:#060708;padding:3px;border-radius:8px;border:1px solid var(--line)}
-.tab-btn{
-  background:transparent;
-  border:none;
-  color:var(--muted);
-  font-size:0.75rem;
-  font-weight:800;
-  padding:7px 14px;
-  border-radius:6px;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  transition:all .15s;
-}
-.tab-btn:hover{color:#fff}
-.tab-btn.active{
-  background:linear-gradient(180deg,#fe3442 0%,#d32b3f 100%);
-  color:#fff;
-  box-shadow:0 2px 8px rgba(254,52,66,0.35);
-}
-.tab-badge{
-  font-size:0.65rem;
-  font-weight:900;
-  padding:1px 6px;
-  border-radius:10px;
-  background:#111827;
-  color:#fff;
-  border:1px solid rgba(255,255,255,0.15);
-}
-.tab-btn.active .tab-badge{
-  background:#fff;
-  color:var(--accent);
-  border-color:#fff;
-}
-
-.header-actions{display:flex;align-items:center;gap:8px}
-.live-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font-size:0.68rem;
-  font-weight:800;
-  color:var(--green);
-  background:rgba(34,197,94,0.1);
-  border:1px solid rgba(34,197,94,0.25);
-  padding:5px 10px;
-  border-radius:999px;
-  white-space:nowrap;
-}
-.live-dot{
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 8px var(--green);
-  animation:pulse 2s infinite;
-}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}
-
-.btn{
-  height:34px;
-  padding:0 12px;
-  border-radius:6px;
-  border:1px solid var(--line);
-  background:var(--card);
-  color:var(--fg);
-  font-size:.75rem;
-  font-weight:700;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  transition:all .15s;
-  white-space:nowrap;
-}
-.btn:hover{border-color:var(--accent);color:#fff;background:var(--card2)}
-.btn.primary{background:linear-gradient(180deg,#fe3442 0%,#d32b3f 100%);border-color:var(--accent);color:#fff}
-.btn.primary:hover{opacity:.92;box-shadow:0 2px 10px rgba(254,52,66,0.4)}
-.btn.warning{background:#18130a;border-color:var(--gold);color:var(--gold)}
-.btn.warning:hover{background:var(--gold);color:#08090a}
-
-/* Metrics Banner */
-.metrics-strip{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  padding:12px 16px;
-  background:#08090a;
+  background:var(--surface);
   border-bottom:1px solid var(--line);
   flex-shrink:0;
-}
-.metric-box{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:6px;
-  padding:8px 12px;
   display:flex;
   flex-direction:column;
-  gap:2px;
 }
-.metric-lbl{font-size:.65rem;font-weight:800;color:var(--meta);text-transform:uppercase;letter-spacing:0.5px}
-.metric-val{font-size:1.1rem;font-weight:900;color:#fff}
+.header-top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;gap:10px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand img{width:34px;height:34px;border-radius:8px;object-fit:contain;border:1px solid var(--line2);background:#08090c;flex-shrink:0}
+.brand-title{font-size:1.05rem;font-weight:900;letter-spacing:-0.3px;white-space:nowrap}
+.brand-title .red{color:var(--accent)}
+.brand-sub{font-size:.68rem;color:var(--meta);font-weight:700;display:block;margin-top:-2px}
+
+.header-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.live-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:.7rem;font-weight:800;color:var(--green);
+  background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);
+  padding:5px 10px;border-radius:999px;white-space:nowrap;
+}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.82)}}
+
+.btn{
+  min-height:36px;padding:0 12px;border-radius:8px;
+  border:1px solid var(--line2);background:var(--card);color:#fff;
+  font-size:.76rem;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .15s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--accent);background:var(--card2)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.primary{background:linear-gradient(180deg,var(--accent) 0%,var(--accent2) 100%);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.06);box-shadow:0 4px 14px rgba(254,52,66,0.35)}
+.btn.warning{background:#1d1709;border-color:var(--gold);color:var(--gold)}
+.btn.warning:hover{background:var(--gold);color:#08090c}
+.btn.success{background:rgba(34,197,94,0.14);border-color:rgba(34,197,94,0.45);color:#4ade80}
+.btn.success:hover{background:#22c55e;color:#05140a}
+.btn.sm{min-height:30px;padding:0 10px;font-size:.72rem}
+
+/* ── SCROLLABLE TAB BAR (MOBILE & DESKTOP FRIENDLY) ── */
+.tab-strip{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 16px 8px;
+  background:#0a0c10;
+  border-top:1px solid var(--line);
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.tab-strip::-webkit-scrollbar{display:none}
+.tab-btn{
+  min-height:38px;padding:0 14px;border-radius:8px;
+  border:1px solid var(--line);background:var(--card);color:var(--muted);
+  font-size:.78rem;font-weight:800;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;white-space:nowrap;flex-shrink:0;
+  transition:all .15s;
+}
+.tab-btn:hover{color:#fff;border-color:var(--line2)}
+.tab-btn.active{
+  background:linear-gradient(180deg,var(--accent) 0%,var(--accent2) 100%);
+  border-color:var(--accent);color:#fff;
+  box-shadow:0 3px 12px rgba(254,52,66,0.35);
+}
+.tab-badge{
+  font-size:.66rem;font-weight:900;padding:2px 7px;border-radius:999px;
+  background:#0b0d12;color:#fff;border:1px solid rgba(255,255,255,0.18);
+}
+.tab-btn.active .tab-badge{background:#fff;color:var(--accent);border-color:#fff}
+
+/* ── VIEW CONTAINERS ── */
+.view-panel{flex:1;display:none;flex-direction:column;overflow:hidden;min-height:0}
+.view-panel.active{display:flex}
+.scroll-panel{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch}
+
+/* ── METRICS STRIP ── */
+.metrics-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0;
+}
+.metric-box{
+  background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:10px 13px;display:flex;flex-direction:column;gap:3px;
+}
+.metric-lbl{font-size:.66rem;font-weight:800;color:var(--meta);text-transform:uppercase;letter-spacing:.05em}
+.metric-val{font-size:1.2rem;font-weight:900;color:#fff}
 .metric-val.accent{color:var(--accent)}
 .metric-val.gold{color:var(--gold)}
 .metric-val.green{color:var(--green)}
+.metric-val.blue{color:var(--blue)}
 
-/* Real-Time Order Notification Toast / Alert Banner */
-.order-alert-banner{
-  position:fixed;
-  top:12px;
-  right:16px;
-  z-index:9000;
-  background:linear-gradient(135deg,#121515,#1f0c0f);
-  border:2px solid var(--accent);
-  box-shadow:0 10px 30px rgba(254,52,66,0.5),0 0 20px rgba(0,0,0,0.8);
-  border-radius:10px;
-  padding:14px 18px;
-  max-width:440px;
-  display:none;
-  align-items:center;
-  gap:12px;
-  animation:slideIn .3s ease-out;
-}
-.order-alert-banner.show{display:flex}
-@keyframes slideIn{from{transform:translateY(-30px);opacity:0}to{transform:translateY(0);opacity:1}}
-.alert-icon{font-size:1.8rem;color:var(--gold);flex-shrink:0;animation:bounce 1s infinite alternate}
-@keyframes bounce{from{transform:scale(1)}to{transform:scale(1.15)}}
-.alert-content{flex:1;min-width:0}
-.alert-title{font-size:.85rem;font-weight:900;color:#fff;margin-bottom:2px}
-.alert-desc{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.alert-actions{display:flex;gap:6px;margin-top:6px}
-.alert-btn{padding:4px 10px;font-size:.68rem;font-weight:800;border-radius:4px;cursor:pointer;border:none}
-.alert-btn.view{background:var(--accent);color:#fff}
-.alert-btn.close{background:var(--card2);color:var(--muted);border:1px solid var(--line)}
-
-/* Toolbar for Search & Filtering */
+/* ── TOOLBAR ── */
 .toolbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:8px 16px;
-  background:#08090a;
-  border-bottom:1px solid var(--line);
-  gap:10px;
-  flex-shrink:0;
-  flex-wrap:wrap;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:#0b0d12;border-bottom:1px solid var(--line);
+  gap:10px;flex-shrink:0;flex-wrap:wrap;
 }
-.search-wrap{display:flex;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:0 10px;height:32px;gap:6px;flex:1;max-width:320px}
-.search-wrap input{background:transparent;border:none;outline:none;color:#fff;font-size:.75rem;font-family:inherit;width:100%}
+.search-wrap{
+  display:flex;align-items:center;background:var(--card);border:1px solid var(--line2);
+  border-radius:8px;padding:0 11px;min-height:36px;gap:8px;flex:1;min-width:200px;max-width:360px;
+}
+.search-wrap input{background:transparent;border:none;outline:none;color:#fff;font-size:.8rem;width:100%}
 .search-wrap input::placeholder{color:var(--meta)}
-.filter-group{display:flex;align-items:center;gap:4px;overflow-x:auto}
+.filter-group{display:flex;align-items:center;gap:5px;overflow-x:auto;max-width:100%}
 .filter-btn{
-  height:28px;
-  padding:0 10px;
-  font-size:.68rem;
-  font-weight:800;
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:4px;
-  color:var(--muted);
-  cursor:pointer;
-  transition:all .15s;
-  white-space:nowrap;
+  min-height:32px;padding:0 11px;font-size:.72rem;font-weight:800;
+  background:var(--card);border:1px solid var(--line);border-radius:7px;
+  color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;
 }
 .filter-btn:hover{color:#fff;border-color:var(--accent)}
 .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.toggle-switch{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:700;color:var(--muted);cursor:pointer;user-select:none}
 
-.toggle-switch{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font-size:.7rem;
-  font-weight:700;
-  color:var(--muted);
-  cursor:pointer;
-  user-select:none;
-}
-.toggle-switch input{cursor:pointer}
+/* ── TWO-PANE WORKSPACE (ORDERS & INBOX) ── */
+.workspace{flex:1;display:flex;overflow:hidden;position:relative;min-height:0}
+.pane-list{width:380px;border-right:1px solid var(--line);overflow-y:auto;background:var(--bg);display:flex;flex-direction:column;-webkit-overflow-scrolling:touch}
+.pane-detail{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#0a0c10}
+.mobile-back-bar{display:none;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
 
-/* Two-Pane Workspace Layout */
-.workspace{flex:1;display:flex;overflow:hidden;position:relative}
-.pane-list{width:380px;border-right:1px solid var(--line);overflow-y:auto;background:var(--bg);display:flex;flex-direction:column}
-.pane-detail{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#08090a}
-
-/* Orders List Items */
+/* ── ORDER & INBOX CARDS ── */
 .order-card{
-  padding:12px 16px;
-  border-bottom:1px solid var(--line);
-  cursor:pointer;
-  transition:all .12s;
-  position:relative;
-  display:flex;
-  flex-direction:column;
-  gap:6px;
+  padding:13px 16px;border-bottom:1px solid var(--line);cursor:pointer;
+  transition:background .12s;display:flex;flex-direction:column;gap:6px;
 }
 .order-card:hover{background:var(--card)}
 .order-card.active{background:var(--card2);box-shadow:inset 3px 0 0 var(--accent)}
 .order-card.is-new{animation:flashNew 2s infinite alternate;border-left:3px solid var(--gold)}
-@keyframes flashNew{from{background:rgba(250,204,21,0.08)}to{background:rgba(254,52,66,0.12)}}
-
+@keyframes flashNew{from{background:rgba(250,204,21,0.08)}to{background:rgba(254,52,66,0.14)}}
 .order-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.order-id{font-size:.82rem;font-weight:900;color:#fff;font-family:monospace;letter-spacing:0.5px}
-.order-price{font-size:.88rem;font-weight:900;color:var(--gold)}
-
-.order-mid{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.72rem}
+.order-id{font-size:.84rem;font-weight:900;color:#fff;font-family:'JetBrains Mono',monospace}
+.order-price{font-size:.92rem;font-weight:900;color:var(--gold)}
+.order-mid{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.76rem}
 .order-customer{color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.order-date{color:var(--meta);font-size:.65rem;flex-shrink:0}
+.order-date{color:var(--meta);font-size:.69rem;flex-shrink:0}
+.order-bottom{display:flex;align-items:center;gap:7px;margin-top:2px;min-width:0}
+.order-snippet{font-size:.72rem;color:var(--meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.order-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
-.order-snippet{font-size:.68rem;color:var(--meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-/* Status Badges */
+/* ── BADGES ── */
 .badge{
-  font-size:.62rem;
-  font-weight:900;
-  padding:2px 8px;
-  border-radius:4px;
-  text-transform:uppercase;
-  letter-spacing:0.5px;
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
+  font-size:.64rem;font-weight:900;padding:3px 8px;border-radius:6px;
+  text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
 }
-.badge.paid{background:rgba(34,197,94,0.15);color:var(--green);border:1px solid rgba(34,197,94,0.3)}
-.badge.processing{background:rgba(250,204,21,0.15);color:var(--gold);border:1px solid rgba(250,204,21,0.3)}
-.badge.shipped{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)}
-.badge.unpaid{background:rgba(254,52,66,0.15);color:var(--accent);border:1px solid rgba(254,52,66,0.3)}
-.badge.cancelled{background:rgba(129,129,129,0.15);color:var(--meta);border:1px solid var(--line)}
-.badge.new-tag{background:var(--accent);color:#fff;box-shadow:0 0 6px var(--accent)}
+.badge.paid,.badge.delivered{background:rgba(34,197,94,0.16);color:#4ade80;border:1px solid rgba(34,197,94,0.35)}
+.badge.processing,.badge.pending{background:rgba(250,204,21,0.16);color:var(--gold);border:1px solid rgba(250,204,21,0.35)}
+.badge.shipped{background:rgba(56,189,248,0.16);color:var(--blue);border:1px solid rgba(56,189,248,0.35)}
+.badge.unpaid,.badge.failed{background:rgba(254,52,66,0.16);color:#ff6b76;border:1px solid rgba(254,52,66,0.35)}
+.badge.cancelled{background:rgba(148,163,184,0.16);color:var(--meta);border:1px solid var(--line2)}
+.badge.new-tag{background:var(--accent);color:#fff}
 
-/* Order Inspection Details Pane */
-.detail-scroll{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
-.detail-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--meta);font-size:.85rem;flex-direction:column;gap:8px}
-
+/* ── DETAIL INSPECTOR & CARDS ── */
+.detail-scroll{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+.detail-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--meta);font-size:.88rem;flex-direction:column;gap:10px;padding:32px;text-align:center}
 .section-card{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:8px;
-  padding:16px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:16px;display:flex;flex-direction:column;gap:12px;
 }
 .sec-title{
-  font-size:.75rem;
-  font-weight:900;
-  text-transform:uppercase;
-  letter-spacing:0.5px;
-  color:var(--accent);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
+  font-size:.78rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--accent);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
 }
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:800px){.grid-2{grid-template-columns:1fr}}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.info-row{font-size:.82rem;line-height:1.55;display:flex;flex-wrap:wrap;gap:6px}
+.info-row strong{color:#fff;min-width:96px}
+.info-row span{color:var(--muted);word-break:break-word}
 
-.info-row{font-size:.78rem;line-height:1.5}
-.info-row strong{color:#fff;display:inline-block;min-width:90px}
-.info-row span{color:var(--muted)}
-
-/* Items Table */
-.items-table{width:100%;border-collapse:collapse;font-size:.75rem}
-.items-table th{text-align:left;color:var(--meta);font-size:.65rem;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line)}
+/* ── TABLES ── */
+.table-wrap{width:100%;overflow-x:auto}
+.items-table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:440px}
+.items-table th{text-align:left;color:var(--meta);font-size:.68rem;text-transform:uppercase;padding:8px;border-bottom:1px solid var(--line2)}
 .items-table td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
-.item-thumb{width:36px;height:36px;border-radius:6px;object-fit:cover;border:1px solid var(--line);background:#08090a}
-.item-info{display:flex;align-items:center;gap:10px}
+.item-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--line2);background:#08090c}
 .item-title{font-weight:700;color:#fff}
-.item-var{font-size:.65rem;color:var(--meta)}
+.item-var{font-size:.7rem;color:var(--meta)}
 
-/* Status Bar & Toast */
+/* ── STOREFRONT CATALOG HUB (MERGED FROM PREVIEW) ── */
+.dept-bar{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.dept-chip{
+  min-height:34px;padding:0 13px;border-radius:8px;border:1px solid var(--line2);
+  background:var(--surface);color:var(--muted);font-size:.76rem;font-weight:700;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;
+}
+.dept-chip:hover{color:#fff;border-color:var(--accent)}
+.dept-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px}
+.prod-card{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,transform .15s;
+}
+.prod-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.prod-img-wrap{position:relative;aspect-ratio:1;background:#0a0c10;overflow:hidden}
+.prod-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.prod-save-tag{
+  position:absolute;top:8px;left:8px;background:var(--accent);color:#fff;
+  font-size:.66rem;font-weight:900;padding:3px 7px;border-radius:6px;
+}
+.prod-body{padding:12px;display:flex;flex-direction:column;gap:7px;flex:1}
+.prod-cat{font-size:.68rem;font-weight:800;color:var(--meta);text-transform:uppercase}
+.prod-title{font-size:.84rem;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.prod-price-row{display:flex;align-items:baseline;gap:8px;margin-top:auto}
+.prod-price{font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:900;color:var(--gold)}
+.prod-compare{font-size:.75rem;color:var(--meta);text-decoration:line-through}
+.prod-actions{display:flex;gap:6px;margin-top:4px}
+
+/* ── INPUTS & FORM CONTROLS ── */
+.field{
+  width:100%;min-height:38px;border-radius:8px;border:1px solid var(--line2);
+  background:#0a0c10;color:#fff;padding:8px 11px;font-size:.82rem;outline:none;
+}
+.field:focus{border-color:var(--accent)}
+textarea.field{min-height:110px;resize:vertical}
+
+/* ── MODALS & TOAST ── */
+.compose{
+  position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);
+  z-index:9600;display:flex;align-items:center;justify-content:center;padding:16px;
+}
+.compose.hidden{display:none}
+.compose-card{
+  width:100%;max-width:520px;background:var(--surface);border:1px solid var(--line2);
+  border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 24px 60px rgba(0,0,0,0.8);
+}
+
 .status-toast{
-  position:fixed;
-  bottom:16px;
-  left:50%;
-  transform:translateX(-50%);
-  background:var(--card2);
-  border:1px solid var(--line);
-  border-radius:8px;
-  padding:10px 18px;
-  font-size:.75rem;
-  z-index:9999;
-  display:none;
-  box-shadow:0 8px 24px rgba(0,0,0,0.8);
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:#161c26;border:1px solid var(--line2);color:#fff;
+  border-radius:10px;padding:11px 18px;font-size:.8rem;font-weight:700;
+  z-index:9800;display:none;max-width:calc(100vw - 28px);text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,0.85);
 }
 .status-toast.show{display:block}
-.status-toast.err{border-color:var(--accent);color:var(--accent)}
+.status-toast.err{border-color:var(--accent);color:#ff7b85}
 
-/* Inbox specific view */
-.inbox-view{flex:1;display:none;overflow:hidden}
-.inbox-view.active{display:flex}
-.orders-view{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.orders-view.hidden{display:none}
+.log-box{
+  background:#07090d;border:1px solid var(--line);border-radius:8px;
+  padding:12px;font-family:'JetBrains Mono',monospace;font-size:.73rem;
+  color:#cbd5e1;white-space:pre-wrap;max-height:220px;overflow-y:auto;line-height:1.5;
+}
 
-@media(max-width:768px){
+/* ── RESPONSIVE MOBILE & TABLET RULES ── */
+@media(max-width:1024px){
+  .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:860px){
+  .metrics-strip{grid-template-columns:repeat(2,1fr);padding:10px 12px;gap:8px}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
   .pane-list{width:100%;border-right:none}
   .pane-detail{display:none}
-  .pane-detail.open{display:flex;position:fixed;inset:58px 0 0 0;z-index:500}
-  .metrics-strip{grid-template-columns:1fr 1fr}
+  .pane-detail.open{
+    display:flex;position:fixed;inset:0;z-index:9100;background:#08090c;
+  }
+  .pane-detail.open .mobile-back-bar{display:flex}
+  .header-top{padding:8px 12px}
+  .tab-strip{padding:6px 12px 8px}
+  .scroll-panel{padding:12px}
+  .toolbar{padding:8px 12px}
+  .search-wrap{max-width:none;width:100%}
+  .prod-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .header-actions .hide-sm{display:none}
+}
+@media(max-width:440px){
+  .prod-grid{grid-template-columns:1fr}
+  .brand-title{font-size:.95rem}
 }
 </style>
 </head>
@@ -376,19 +379,19 @@ a{color:inherit;text-decoration:none}
 <!-- KEYPAD PIN LOCK OVERLAY -->
 <div class="overlay" id="overlay">
   <div class="keypad-wrap">
-    <div style="margin-bottom:12px;">
-      <img src="/official-logo.jpg" alt="Logo" style="width:40px;height:40px;border-radius:8px;border:1px solid #363636;">
+    <div style="margin-bottom:10px;">
+      <img src="/official-logo.jpg" onerror="this.style.display='none'" alt="Bargain Drop" style="width:46px;height:46px;border-radius:10px;border:1px solid var(--line2);object-fit:contain;background:#08090c;">
     </div>
-    <h1>Bargain Drop <span>Admin</span></h1>
-    <p>Enter Master PIN to access Store Orders &amp; Live Alerts</p>
+    <h1>Bargain Drop <span>Command</span></h1>
+    <p>Enter 8-Digit Master PIN to unlock Store Orders, CJ Queue, Catalog Hub &amp; Live Deploy</p>
     <div class="keypad-display" id="dots"></div>
     <div class="keypad-error" id="err"></div>
     <div class="keypad-grid" id="grid"></div>
-    <p style="font-size:0.65rem;color:var(--meta);margin-top:10px;">Authorized Staff &amp; Store Owner Access</p>
+    <p style="font-size:.68rem;color:var(--meta);margin-top:8px;margin-bottom:0;">Authorized Store Owner Access Only</p>
   </div>
 </div>
 
-<!-- REAL-TIME NEW ORDER NOTIFICATION BANNER -->
+<!-- REAL-TIME NEW ORDER ALERT BANNER -->
 <div class="order-alert-banner" id="orderAlertBanner">
   <div class="alert-icon">🔔</div>
   <div class="alert-content">
@@ -401,46 +404,65 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
-<!-- ADMIN HEADER -->
+<!-- UNIFIED RESPONSIVE HEADER + TAB NAVIGATION -->
 <header class="admin-header">
-  <div class="brand">
-    <a href="/" title="Open Storefront"><img src="/official-logo.jpg" alt="Bargain Drop"></a>
-    <div class="brand-title"><span class="red">BARGAIN</span> DROP <span style="font-size:0.75rem;color:var(--meta);font-weight:700;">COMMAND</span></div>
+  <div class="header-top">
+    <div class="brand">
+      <a href="/" title="Open Live Storefront">
+        <img src="/official-logo.jpg" onerror="this.style.display='none'" alt="Bargain Drop">
+      </a>
+      <div>
+        <div class="brand-title"><span class="red">BARGAIN</span> DROP <span>COMMAND</span></div>
+        <span class="brand-sub">Unified Storefront · Orders · No-Wallet CJ · Downloads · AI</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="live-pill" title="Real-time order monitor">
+        <span class="live-dot"></span>
+        <span id="liveStatusText">Live Active</span>
+      </div>
+      <button class="btn warning sm" id="testOrderBtn" title="Trigger live test order & alert">⚡ Test Alert</button>
+      <button class="btn sm" id="refreshAllBtn" title="Refresh all panels">↻ Refresh</button>
+      <a href="/cpagrip-v2" class="btn sm hide-sm" target="_blank" rel="noopener">🎯 CPAGrip v2</a>
+      <a href="/" class="btn primary sm" target="_blank" rel="noopener">Storefront ↗</a>
+    </div>
   </div>
 
-  <div class="tabs">
+  <nav class="tab-strip" role="tablist" aria-label="Admin Command Views">
     <button class="tab-btn active" id="tabOrders" onclick="switchTab('orders')">
       <span>📦 Store Orders</span>
       <span class="tab-badge" id="ordersCountBadge">0</span>
+    </button>
+    <button class="tab-btn" id="tabCj" onclick="switchTab('cj')">
+      <span>⚡ CJ Queue &amp; Sync</span>
+      <span class="tab-badge" id="cjQueueBadge">0</span>
     </button>
     <button class="tab-btn" id="tabInbox" onclick="switchTab('inbox')">
       <span>✉ Support Inbox</span>
       <span class="tab-badge" id="inboxCountBadge">0</span>
     </button>
-  </div>
-
-  <div class="header-actions">
-    <div class="live-pill" title="Connected to real-time order stream">
-      <span class="live-dot"></span>
-      <span id="liveStatusText">Live Orders Active</span>
-    </div>
-    <button class="btn warning" id="testOrderBtn" title="Creates a live test order and fires the audio chime, notification banner, and table update">⚡ Test Notification</button>
-    <button class="btn" id="refreshAllBtn" title="Refresh data">↻ Refresh</button>
-    <a href="/adpulse" class="btn primary" target="_blank" title="Open AdPulse Marketing & Ad Command Center">🎯 AdPulse &nearr;</a>
-    <a href="/" class="btn" target="_blank" title="Open Storefront in new tab">Storefront &nearr;</a>
-  </div>
+    <button class="tab-btn" id="tabCatalog" onclick="switchTab('catalog')">
+      <span>🛍️ Storefront &amp; Catalog</span>
+      <span class="tab-badge" id="catalogCountBadge">0</span>
+    </button>
+    <button class="tab-btn" id="tabDeploy" onclick="switchTab('deploy')">
+      <span>🚀 Downloads &amp; Live Deploy</span>
+    </button>
+  </nav>
 </header>
 
-<!-- ORDERS MANAGEMENT VIEW -->
-<div class="orders-view" id="ordersView">
-  <!-- Metrics Strip -->
+<!-- ====================================================================== -->
+<!-- TAB 1: STORE ORDERS (LIVE STREAM, METRICS, TWO-PANE INSPECTOR)          -->
+<!-- ====================================================================== -->
+<section class="view-panel active" id="viewOrders">
   <div class="metrics-strip">
     <div class="metric-box">
-      <span class="metric-lbl">Total Store Orders</span>
+      <span class="metric-lbl">Total Orders</span>
       <span class="metric-val" id="metricTotalOrders">0</span>
     </div>
     <div class="metric-box">
-      <span class="metric-lbl">Gross Store Volume</span>
+      <span class="metric-lbl">Gross Revenue</span>
       <span class="metric-val gold" id="metricTotalRevenue">A$0.00</span>
     </div>
     <div class="metric-box">
@@ -448,16 +470,15 @@ a{color:inherit;text-decoration:none}
       <span class="metric-val accent" id="metricTodayOrders">0</span>
     </div>
     <div class="metric-box">
-      <span class="metric-lbl">Fulfillment / Shipped</span>
+      <span class="metric-lbl">Shipped / Done</span>
       <span class="metric-val green" id="metricShippedOrders">0</span>
     </div>
   </div>
 
-  <!-- Filter & Audio Toolbar -->
   <div class="toolbar">
     <div class="search-wrap">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="orderSearchInput" placeholder="Search orders, customers, emails...">
+      <input type="text" id="orderSearchInput" placeholder="Search order ID, customer, email, product...">
     </div>
 
     <div class="filter-group">
@@ -468,86 +489,429 @@ a{color:inherit;text-decoration:none}
       <button class="filter-btn" data-filter="unpaid">Unpaid (<span id="countUnpaid">0</span>)</button>
     </div>
 
-    <div style="display:flex;align-items:center;gap:12px;margin-left:auto;">
-      <label class="toggle-switch" title="Toggle audio chime on new orders">
+    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap;">
+      <label class="toggle-switch">
         <input type="checkbox" id="soundToggle" checked>
-        <span id="soundLabel">🔊 Chime Sound ON</span>
+        <span id="soundLabel">🔊 Chime ON</span>
       </label>
-      <button class="btn" id="reqNotificationBtn" style="height:28px;font-size:0.68rem;padding:0 8px;">🔔 Enable Desktop Push</button>
+      <button class="btn sm" id="reqNotificationBtn">🔔 Push Alerts</button>
     </div>
   </div>
 
-  <!-- Two-Pane Orders Content -->
   <div class="workspace">
     <div class="pane-list" id="ordersList">
-      <div style="padding:30px;text-align:center;color:var(--meta);font-size:0.75rem;">Loading orders...</div>
+      <div class="detail-empty">Loading orders...</div>
     </div>
-
     <div class="pane-detail" id="orderDetailPane">
-      <div class="detail-empty">
-        <div style="font-size:2.2rem;opacity:0.4;">📦</div>
-        <div>Select an order from the list to view full customer, shipping, and fulfillment details.</div>
+      <div class="mobile-back-bar">
+        <button class="btn sm" onclick="closeMobileDetail('orderDetailPane')">← Back to Orders</button>
+        <span style="font-size:.78rem;font-weight:800;color:var(--muted);">Order Inspector</span>
+      </div>
+      <div class="detail-empty" id="orderDetailBody">
+        <div style="font-size:2.2rem;opacity:.45;">📦</div>
+        <div>Select any order to inspect shipping, items, CJ fulfillment, and status controls.</div>
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<!-- SUPPORT INBOX VIEW -->
-<div class="inbox-view" id="inboxView">
+<!-- ====================================================================== -->
+<!-- TAB 2: NO-WALLET CJ QUEUE, AUTO CATALOG SYNC & ENTERPRISE CORE          -->
+<!-- ====================================================================== -->
+<section class="view-panel" id="viewCj">
+  <div class="scroll-panel">
+    <div class="grid-4">
+      <div class="metric-box">
+        <span class="metric-lbl">No-Wallet CJ Pending</span>
+        <span class="metric-val gold" id="cjMetricPending">0</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-lbl">Auto-Catalog Sync</span>
+        <span class="metric-val green" id="cjMetricSyncState">Ready</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-lbl">CJ Supplier Link</span>
+        <span class="metric-val blue" id="cjMetricApiState">Checking...</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-lbl">Mapped SKUs</span>
+        <span class="metric-val" id="cjMetricMapped">—</span>
+      </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="section-card">
+      <div class="sec-title">
+        <span>⚡ Automated Fulfillment &amp; Catalog Maintenance (Zero CJ Wallet Needed)</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn primary sm" id="btnRunCatalogSync" onclick="runAutoCatalogSync()">🔄 Sync &amp; Hide Deleted Products</button>
+          <button class="btn success sm" id="btnSyncTracking" onclick="runCjTrackingSync()">🚚 Pull Live CJ Tracking</button>
+          <button class="btn warning sm" id="btnRefreshCjQueue" onclick="loadCjHub()">↻ Refresh Queue</button>
+          <a href="/admin-orders.html" target="_blank" class="btn sm">Open Full CJ Vault ↗</a>
+        </div>
+      </div>
+      <p style="font-size:.82rem;color:var(--muted);line-height:1.55;">
+        Paid Stripe &amp; PayPal orders are automatically created in CJ Dropshipping with <code style="color:var(--gold);font-family:'JetBrains Mono',monospace;">payType=3</code> (No-Wallet Card/PayPal Settlement). Click <strong>Pay in CJ</strong> on any queued order to settle directly with your business card or PayPal without ever topping up a CJ wallet balance.
+      </p>
+      <div class="log-box" id="cjSyncLog">Ready — click "Sync &amp; Hide Deleted Products" or "Pull Live CJ Tracking" to run live operations.</div>
+    </div>
+
+    <!-- Pending No-Wallet Settlement Queue -->
+    <div class="section-card">
+      <div class="sec-title">
+        <span>💳 No-Wallet CJ Payment Settlement Queue</span>
+        <span style="font-size:.72rem;color:var(--meta);text-transform:none;" id="cjQueueSummary">Loading queue...</span>
+      </div>
+      <div id="cjQueueContainer" class="grid-2">
+        <div style="color:var(--meta);font-size:.82rem;">Loading CJ settlement queue...</div>
+      </div>
+    </div>
+
+    <!-- Enterprise CJ Variant Mapping + Health Check -->
+    <div class="grid-2">
+      <div class="section-card">
+        <div class="sec-title">
+          <span>🔗 Manual Store ↔ CJ Variant Binder</span>
+          <button class="btn sm" onclick="runEnterpriseReconcile()">Auto-Reconcile SKUs</button>
+        </div>
+        <form id="manualBindForm" style="display:flex;flex-direction:column;gap:9px;">
+          <input class="field" id="bindStoreId" placeholder="Store Product ID (e.g. 9233119608963)" required>
+          <input class="field" id="bindCjPid" placeholder="CJ Product ID (e.g. CJ-PID-882910)" required>
+          <input class="field" id="bindCjVid" placeholder="CJ Variant ID (e.g. CJ-VID-882910-01)" required>
+          <input class="field" id="bindCostUsd" type="number" step="0.01" value="6.80" placeholder="CJ Cost (USD)">
+          <button type="submit" class="btn primary">Bind Variant to CJ</button>
+        </form>
+      </div>
+
+      <div class="section-card">
+        <div class="sec-title">
+          <span>🩺 Live Site Health &amp; Diagnostics</span>
+          <button class="btn sm" onclick="loadSiteHealth()">Re-Run Health Check</button>
+        </div>
+        <div id="siteHealthContainer" style="display:flex;flex-direction:column;gap:8px;font-size:.82rem;color:var(--muted);">
+          Loading site health diagnostics...
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- TAB 3: SUPPORT INBOX (TWO-PANE VIEWER + RESEND COMPOSER)                -->
+<!-- ====================================================================== -->
+<section class="view-panel" id="viewInbox">
+  <div class="toolbar">
+    <div style="font-size:.82rem;font-weight:800;color:#fff;">Customer Support Inbox (Support@bargain-drop.online)</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn primary sm" onclick="openEmailCompose('', '')">✉ Compose Email</button>
+      <button class="btn sm" onclick="loadInbox()">↻ Reload Inbox</button>
+    </div>
+  </div>
   <div class="workspace">
     <div class="pane-list" id="inboxList">
-      <div style="padding:30px;text-align:center;color:var(--meta);font-size:0.75rem;">Loading inbox messages...</div>
+      <div class="detail-empty">Loading inbox messages...</div>
     </div>
     <div class="pane-detail" id="inboxDetailPane">
-      <div class="detail-empty">
-        <div style="font-size:2.2rem;opacity:0.4;">✉</div>
-        <div>Select a message to read.</div>
+      <div class="mobile-back-bar">
+        <button class="btn sm" onclick="closeMobileDetail('inboxDetailPane')">← Back to Inbox</button>
+        <span style="font-size:.78rem;font-weight:800;color:var(--muted);">Message Viewer</span>
+      </div>
+      <div class="detail-empty" id="inboxDetailBody">
+        <div style="font-size:2.2rem;opacity:.45;">✉</div>
+        <div>Select a support message to read and reply directly.</div>
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<!-- COMPOSE MODAL (INBOX) -->
+<!-- ====================================================================== -->
+<!-- TAB 4: STOREFRONT & CATALOG HUB (MERGED FROM PREVIEW PAGE)              -->
+<!-- ====================================================================== -->
+<section class="view-panel" id="viewCatalog">
+  <div class="scroll-panel">
+    <!-- Top Controls & Cart/Wishlist Summary -->
+    <div class="section-card">
+      <div class="sec-title">
+        <span>🛍️ Live Storefront Catalog &amp; Preview Hub</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn sm" id="btnUnder15" onclick="toggleUnder15()">🔥 Under A$15</button>
+          <button class="btn sm" id="btnSavedOnly" onclick="toggleSavedOnly()">❤️ Saved (<span id="savedCountLabel">0</span>)</button>
+          <button class="btn warning sm" onclick="openCartModal()">🛒 Bag (<span id="bagCountLabel">0</span> · A$<span id="bagTotalLabel">0.00</span>)</button>
+          <a href="/products.html" target="_blank" class="btn sm">Live Catalog ↗</a>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <div class="search-wrap" style="max-width:420px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="catalogSearchInput" placeholder="Search active products, categories, deals...">
+        </div>
+        <select class="field" id="catalogSortSelect" style="width:auto;min-width:170px;">
+          <option value="featured">Sort: Featured</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+          <option value="savings">Biggest Savings</option>
+        </select>
+        <div style="font-size:.76rem;color:var(--meta);margin-left:auto;" id="catalogStatsLine">Loading live catalog...</div>
+      </div>
+
+      <!-- 14 Departments Bar (Zero product counters on buttons) -->
+      <div class="dept-bar" id="deptBar"></div>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="prod-grid" id="catalogGrid">
+      <div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--meta);">Loading active products...</div>
+    </div>
+
+    <!-- Quick Order Lookup & Support Ticket Tester (from Preview Page) -->
+    <div class="grid-2">
+      <div class="section-card">
+        <div class="sec-title"><span>🔎 Quick Customer Order Lookup</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="field" id="quickLookupInput" placeholder="Enter Order ID (BD-...) or customer email" style="flex:1;min-width:180px;">
+          <button class="btn primary" onclick="runQuickOrderLookup()">Look Up</button>
+        </div>
+        <div id="quickLookupResult" style="font-size:.8rem;color:var(--muted);"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="sec-title"><span>🤖 Ruby AI Concierge Quick Launch</span></div>
+        <p style="font-size:.8rem;color:var(--muted);line-height:1.5;">
+          Test the upgraded Ruby AI Support Assistant live right now — ask about orders, promo codes (<code>BARGAIN26</code>), shipping, refunds, or products.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn primary sm" onclick="window.openBargainDropAI && window.openBargainDropAI()">Open Ruby AI Chat</button>
+          <button class="btn sm" onclick="window.openBargainDropAI && window.openBargainDropAI('What promo codes work right now and how much is shipping?')">Test Promo &amp; Shipping Q</button>
+          <button class="btn sm" onclick="window.openBargainDropAI && window.openBargainDropAI('Show me deals under $15')">Test Product Search</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- TAB 5: DIRECT DOWNLOADS, CPAGRIP, CLOUDFLARE & LIVE DEPLOY              -->
+<!-- ====================================================================== -->
+<section class="view-panel" id="viewDeploy">
+  <div class="scroll-panel">
+    <!-- Direct Downloads Bar (Merged from Preview Page Top Bar) -->
+    <div class="section-card" style="border-color:rgba(250,204,21,0.4);background:linear-gradient(135deg,#13171e,#1b170c);">
+      <div class="sec-title" style="color:var(--gold);">
+        <span>⬇️ Direct File Downloads (CPAGrip v2 &amp; Cloudflare Permissions)</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--muted);line-height:1.55;">
+        Download your full CPAGrip v2 source file and complete Cloudflare configuration &amp; permissions snapshot in one tap on mobile or desktop.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="/cpagrip-v2-full-code.js" download="cpagrip-v2-full-code.js" class="btn primary">⬇ Download cpagrip-v2-full-code.js (88 KB)</a>
+        <a href="/cloudflare-config-and-permissions.json" download="cloudflare-config-and-permissions.json" class="btn warning">⬇ Download cloudflare-config-and-permissions.json</a>
+        <a href="/cloudflare-config-and-permissions.txt" download="cloudflare-config-and-permissions.txt" class="btn">⬇ Download cloudflare-config-and-permissions.txt</a>
+        <a href="/cpagrip-v2" target="_blank" class="btn success">🚀 Open Live /cpagrip-v2 ↗</a>
+      </div>
+    </div>
+
+    <!-- Quick Storefront & Operations Links -->
+    <div class="section-card">
+      <div class="sec-title"><span>🧭 Storefront &amp; Operations Quick Links</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="/" target="_blank" class="btn sm">🏠 Homepage</a>
+        <a href="/categories.html" target="_blank" class="btn sm">📂 All Categories</a>
+        <a href="/products.html" target="_blank" class="btn sm">🛍️ All Products</a>
+        <a href="/checkout.html" target="_blank" class="btn sm">💳 Checkout</a>
+        <a href="/order-tracking.html" target="_blank" class="btn sm">📍 Order Tracking</a>
+        <a href="/returns.html" target="_blank" class="btn sm">↩️ Returns</a>
+        <a href="/admin-orders.html" target="_blank" class="btn sm">⚡ CJ Orders Vault</a>
+        <a href="/customer-service.html" target="_blank" class="btn sm">🛟 Customer Service</a>
+      </div>
+    </div>
+
+    <!-- Cloudflare Config Inspector + Live Deploy / QA -->
+    <div class="grid-2">
+      <div class="section-card">
+        <div class="sec-title">
+          <span>☁️ Cloudflare Settings &amp; Permissions Inspector</span>
+          <button class="btn sm" onclick="loadCloudflareSnapshot()">Load Snapshot</button>
+        </div>
+        <div class="log-box" id="cfSnapshotBox">Click "Load Snapshot" to view cloudflare-config-and-permissions.json</div>
+      </div>
+
+      <div class="section-card">
+        <div class="sec-title">
+          <span>🧪 Enterprise QA &amp; Live Deployment Tools</span>
+          <button class="btn sm" onclick="runSandboxQa()">Run Sandbox QA</button>
+        </div>
+        <p style="font-size:.8rem;color:var(--muted);line-height:1.5;">
+          Run end-to-end checkout, promo, and catalog verification, or trigger a live GitHub/Cloudflare push from the local Express server.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn primary sm" id="btnPushLive" onclick="triggerLivePush()">🚀 Push All Updates Live</button>
+          <button class="btn sm" onclick="checkLiveEndpoints()">📡 Verify Live Endpoints</button>
+        </div>
+        <div class="log-box" id="deployLogBox">Deployment &amp; QA console ready.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPOSE EMAIL MODAL -->
 <div class="compose hidden" id="composeModal">
   <div class="compose-card">
-    <h3 style="font-size:1rem;font-weight:900;color:#fff;">New Support Reply / Email</h3>
-    <input type="text" id="cTo" placeholder="To (email address)">
-    <input type="text" id="cReply" placeholder="Reply-To (optional)">
-    <input type="text" id="cSubject" placeholder="Subject">
-    <textarea id="cBody" placeholder="Message body..."></textarea>
-    <div class="row" style="display:flex;gap:8px;justify-content:flex-end;">
+    <h3 style="font-size:1.05rem;font-weight:900;color:#fff;">Send Support Reply / Customer Email</h3>
+    <input class="field" type="text" id="cTo" placeholder="To (customer email)">
+    <input class="field" type="text" id="cReply" placeholder="Reply-To (optional)">
+    <input class="field" type="text" id="cSubject" placeholder="Subject">
+    <textarea class="field" id="cBody" placeholder="Write your message..."></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn" onclick="document.getElementById('composeModal').classList.add('hidden')">Cancel</button>
       <button class="btn primary" id="sendEmailBtn">Send Email</button>
     </div>
   </div>
 </div>
 
-<!-- GLOBAL TOAST STATUS -->
+<!-- PREVIEW BAG / CART MODAL -->
+<div class="compose hidden" id="cartModal">
+  <div class="compose-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <h3 style="font-size:1.05rem;font-weight:900;color:#fff;">🛒 Shopping Bag Preview</h3>
+      <button class="btn sm" onclick="document.getElementById('cartModal').classList.add('hidden')">✕</button>
+    </div>
+    <div id="cartItemsList" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:8px;">
+      <input class="field" id="promoInput" value="BARGAIN26" placeholder="Promo code (e.g. BARGAIN26)">
+      <button class="btn warning" onclick="applyPreviewPromo()">Apply</button>
+    </div>
+    <div id="cartSummaryBox" style="font-size:.82rem;color:var(--muted);line-height:1.6;border-top:1px solid var(--line);padding-top:10px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn sm" onclick="clearPreviewCart()">Clear Bag</button>
+      <a href="/checkout.html" target="_blank" class="btn primary">Proceed to Live Checkout ↗</a>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL TOAST -->
 <div class="status-toast" id="statusToast"></div>
 
 <script>
 // ============================================================================
-// BARGAIN DROP ADMIN & LIVE ORDER NOTIFICATION ENGINE
+// BARGAIN DROP UNIFIED MASTER COMMAND CENTER (MOBILE + DESKTOP)
 // ============================================================================
-let PIN = ''; // Never hardcoded on frontend; set only after backend POST verification
+let PIN = '';
 const PIN_LENGTH = 8;
 let enteredPin = '';
 let isSubmittingPin = false;
 let lockoutCountdownTimer = null;
+
 let allOrders = [];
 let knownOrderIds = new Set();
 let selectedOrderId = null;
 let currentFilter = 'all';
 let soundEnabled = true;
-let desktopNotificationsAllowed = (typeof Notification !== 'undefined' && Notification.permission === 'granted');
 let sseConnection = null;
 let pollTimer = null;
 let titleFlashTimer = null;
 const originalDocTitle = document.title;
 
+let inboxMessages = [];
+let catalogProducts = [];
+let selectedDept = 'all';
+let filterUnder15 = false;
+let filterSavedOnly = false;
+let savedIds = new Set(JSON.parse(localStorage.getItem('bd_admin_saved') || '[]'));
+let previewCart = JSON.parse(localStorage.getItem('bd_cart') || '[]');
+let activePromoCode = '';
+
+const DEPARTMENTS = [
+  ['all', 'All Departments'],
+  ['women', 'Women'],
+  ['men', 'Men'],
+  ['home', 'Home & Living'],
+  ['electronics', 'Electronics'],
+  ['beauty', 'Beauty'],
+  ['pets', 'Pets'],
+  ['shoes', 'Shoes'],
+  ['bags', 'Bags'],
+  ['jewelry', 'Jewelry'],
+  ['kids', 'Kids & Baby'],
+  ['sports', 'Sports'],
+  ['kitchen', 'Kitchen'],
+  ['automotive', 'Automotive'],
+  ['accessories', 'Accessories'],
+];
+
 const $ = id => document.getElementById(id);
 
-// ── KEYPAD PIN SECURITY (8-Digit Masked Input + POST /api/admin/orders) ──────
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function showToast(msg, isErr = false) {
+  const t = $('statusToast');
+  t.textContent = msg;
+  t.className = 'status-toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3600);
+}
+
+// ── NORMALIZE ORDERS FROM EITHER EXPRESS SERVER OR CLOUDFLARE PAGES ────────
+function normalizeOrder(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = String(raw.id || raw.orderId || raw.orderNumber || raw.order_number || '').trim();
+  if (!id) return null;
+  const cust = raw.customer || {};
+  const ship = raw.shipping || {};
+  const status = String(raw.status || 'processing').toLowerCase();
+  const total = Number(raw.total ?? raw.totalAmount ?? raw.grandTotalAud ?? 0);
+  const date = raw.date || raw.createdAt || raw.placedAt || new Date().toISOString();
+  const items = Array.isArray(raw.items) ? raw.items.map(it => ({
+    title: it.title || it.name || 'Store Item',
+    variant: it.variant || '',
+    image: it.image || '/official-logo.jpg',
+    price: Number(it.price || 0),
+    quantity: Number(it.quantity || it.qty || 1),
+  })) : [];
+
+  return {
+    id,
+    status,
+    total,
+    subtotal: Number(raw.subtotal ?? (total * 0.9)),
+    shippingFee: raw.shippingFee != null ? Number(raw.shippingFee) : (total >= 29 ? 0 : 4.95),
+    tax: Number(raw.tax ?? (total * 0.1)),
+    date,
+    isNew: Boolean(raw.isNew),
+    source: raw.source || 'Bargain Drop Storefront',
+    customer: {
+      name: cust.name || raw.customerName || 'Store Customer',
+      email: cust.email || raw.customerEmail || '',
+      phone: cust.phone || raw.customerPhone || '',
+    },
+    shipping: {
+      fullName: ship.fullName || cust.name || raw.customerName || '',
+      street1: ship.street1 || raw.shippingAddress || '',
+      street2: ship.street2 || '',
+      city: ship.city || '',
+      state: ship.state || '',
+      postcode: ship.postcode || '',
+      country: ship.country || 'Australia',
+    },
+    payment: {
+      method: raw.payment?.method || raw.paymentMethod || 'Stripe / PayPal',
+      status: raw.payment?.status || (status === 'unpaid' ? 'UNPAID' : 'PAID'),
+    },
+    cjOrder: {
+      orderId: raw.cjOrder?.orderId || raw.cjOrderId || '',
+      carrier: raw.cjOrder?.carrier || raw.carrier || 'CJ Packet Tracked Air',
+      trackingNumber: raw.cjOrder?.trackingNumber || raw.trackingNumber || '',
+      paymentUrl: raw.cjOrder?.paymentUrl || raw.cjPaymentUrl || 'https://app.cjdropshipping.com/myCJ.html#/dropshipping/order',
+    },
+    items,
+  };
+}
+
+// ── KEYPAD PIN SECURITY ────────────────────────────────────────────────────
 const overlay = $('overlay');
 const dots = $('dots');
 const errEl = $('err');
@@ -568,18 +932,12 @@ function renderGrid(disabled = false) {
     const b = document.createElement('button');
     b.type = 'button';
     b.disabled = disabled;
-    if (k === 'C') {
-      b.className = 'keypad-btn';
-      b.style.color = 'var(--gold)';
-      b.style.fontSize = '0.95rem';
-    } else if (k === 'OK') {
-      b.className = 'keypad-btn';
-      b.style.background = 'linear-gradient(180deg, #fe3442 0%, #d32b3f 100%)';
+    b.className = 'keypad-btn';
+    if (k === 'C') { b.style.color = 'var(--gold)'; b.style.fontSize = '.95rem'; }
+    else if (k === 'OK') {
+      b.style.background = 'linear-gradient(180deg,#fe3442,#d32b3f)';
       b.style.borderColor = 'var(--accent)';
-      b.style.color = '#ffffff';
-      b.style.fontSize = '0.95rem';
-    } else {
-      b.className = 'keypad-btn';
+      b.style.fontSize = '.95rem';
     }
     if (disabled) b.style.opacity = '0.45';
     b.textContent = k;
@@ -592,36 +950,31 @@ function startLockoutCountdown(seconds) {
   clearInterval(lockoutCountdownTimer);
   let remaining = Math.max(1, Math.ceil(seconds));
   renderGrid(true);
-
   const updateMsg = () => {
     const mins = Math.floor(remaining / 60);
     const secs = String(remaining % 60).padStart(2, '0');
-    errEl.textContent = `Locked out due to >5 failed attempts. Try again in ${mins}:${secs}`;
+    errEl.textContent = `Locked out. Try again in ${mins}:${secs}`;
   };
   updateMsg();
-
   lockoutCountdownTimer = setInterval(() => {
     remaining -= 1;
     if (remaining <= 0) {
       clearInterval(lockoutCountdownTimer);
       errEl.textContent = '';
       renderGrid(false);
-    } else {
-      updateMsg();
-    }
+    } else updateMsg();
   }, 1000);
 }
 
 async function submitPinToBackend() {
   if (isSubmittingPin) return;
   if (enteredPin.length !== PIN_LENGTH) {
-    errEl.textContent = `Please enter all ${PIN_LENGTH} digits before pressing OK.`;
+    errEl.textContent = `Enter all ${PIN_LENGTH} digits then press OK.`;
     return;
   }
-
   isSubmittingPin = true;
   errEl.style.color = 'var(--muted)';
-  errEl.textContent = 'Verifying PIN...';
+  errEl.textContent = 'Verifying Master PIN...';
 
   try {
     const res = await fetch('/api/admin/orders', {
@@ -631,14 +984,13 @@ async function submitPinToBackend() {
     });
     const data = await res.json().catch(() => ({}));
 
-    if (res.status === 429 || data.lockedOut) {
+    if (res.status === 429 || data.lockedOut || data.locked) {
       enteredPin = '';
       renderDots();
       errEl.style.color = 'var(--accent)';
       startLockoutCountdown(data.retryAfterSeconds || 900);
       return;
     }
-
     if (!res.ok || !data.ok) {
       enteredPin = '';
       renderDots();
@@ -647,13 +999,12 @@ async function submitPinToBackend() {
       return;
     }
 
-    // Success! Store authenticated PIN in memory and reveal dashboard
     PIN = enteredPin;
     overlay.classList.add('hidden');
     initAdminDashboard(data);
   } catch (err) {
     errEl.style.color = 'var(--accent)';
-    errEl.textContent = 'Network error verifying PIN. Please try again.';
+    errEl.textContent = 'Network error verifying PIN.';
   } finally {
     isSubmittingPin = false;
   }
@@ -662,51 +1013,27 @@ async function submitPinToBackend() {
 function handleKey(k) {
   if (isSubmittingPin) return;
   errEl.textContent = '';
-  if (k === 'C') {
-    enteredPin = '';
+  if (k === 'C') { enteredPin = ''; renderDots(); }
+  else if (k === 'Backspace') { enteredPin = enteredPin.slice(0, -1); renderDots(); }
+  else if (k === 'OK') { submitPinToBackend(); }
+  else if (/^[0-9]$/.test(k) && enteredPin.length < PIN_LENGTH) {
+    enteredPin += k;
     renderDots();
-  } else if (k === 'Backspace') {
-    enteredPin = enteredPin.slice(0, -1);
-    renderDots();
-  } else if (k === 'OK') {
-    submitPinToBackend();
-  } else if (/^[0-9]$/.test(k)) {
-    if (enteredPin.length < PIN_LENGTH) {
-      enteredPin += k;
-      renderDots();
-    }
   }
 }
 
-// Physical keyboard support on PIN screen
 window.addEventListener('keydown', (e) => {
   if (overlay.classList.contains('hidden')) return;
-  if (e.key >= '0' && e.key <= '9') {
-    handleKey(e.key);
-  } else if (e.key === 'Backspace') {
-    handleKey('Backspace');
-  } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
-    handleKey('C');
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    handleKey('OK');
-  }
+  if (e.key >= '0' && e.key <= '9') handleKey(e.key);
+  else if (e.key === 'Backspace') handleKey('Backspace');
+  else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') handleKey('C');
+  else if (e.key === 'Enter') { e.preventDefault(); handleKey('OK'); }
 });
 
 renderDots();
 renderGrid();
 
-function showToast(msg, isErr = false) {
-  const t = $('statusToast');
-  t.textContent = msg;
-  t.className = 'status-toast show' + (isErr ? ' err' : '');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 3500);
-}
-
-// ── AUDIO CHIME ENGINE (Web Audio API Synthesizer) ─────────────────────────
-// Generates a crisp, pleasant 3-tone ascending bell chime (E5 -> G5 -> C6)
-// Zero external mp3 dependencies, reliable across all modern browsers.
+// ── AUDIO CHIME & NOTIFICATIONS ────────────────────────────────────────────
 let audioCtx = null;
 function playNewOrderChime() {
   if (!soundEnabled) return;
@@ -715,123 +1042,101 @@ function playNewOrderChime() {
     if (!AudioContext) return;
     if (!audioCtx) audioCtx = new AudioContext();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-
     const now = audioCtx.currentTime;
-    const notes = [659.25, 783.99, 1046.50]; // E5, G5, C6
-    notes.forEach((freq, idx) => {
+    [659.25, 783.99, 1046.50].forEach((freq, idx) => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now + idx * 0.12);
-
       gain.gain.setValueAtTime(0, now + idx * 0.12);
-      gain.gain.linearRampToValueAtTime(0.28, now + idx * 0.12 + 0.02);
+      gain.gain.linearRampToValueAtTime(0.25, now + idx * 0.12 + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.55);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      osc.start(now + idx * 0.12);
-      osc.stop(now + idx * 0.12 + 0.6);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now + idx * 0.12); osc.stop(now + idx * 0.12 + 0.6);
     });
-  } catch (e) {
-    console.warn('Audio chime playback failed:', e);
-  }
+  } catch (_) {}
 }
 
-// ── DESKTOP PUSH NOTIFICATIONS ──────────────────────────────────────────────
 function requestDesktopNotificationPermission() {
-  if (typeof Notification === 'undefined') {
-    showToast('Desktop notifications not supported in this browser', true);
-    return;
-  }
+  if (typeof Notification === 'undefined') { showToast('Push notifications unsupported here', true); return; }
   Notification.requestPermission().then(permission => {
     if (permission === 'granted') {
-      desktopNotificationsAllowed = true;
-      $('reqNotificationBtn').textContent = '✅ Desktop Alerts On';
+      $('reqNotificationBtn').textContent = '✅ Alerts On';
       $('reqNotificationBtn').style.color = 'var(--green)';
       showToast('Desktop push notifications enabled!');
-      new Notification('Bargain Drop Admin', {
-        body: 'Real-time order alerts are active and ready!',
-        icon: '/official-logo.jpg'
-      });
-    } else {
-      showToast('Notification permission was denied or dismissed', true);
-    }
+    } else showToast('Notification permission dismissed', true);
   });
 }
 
 function triggerDesktopNotification(order) {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   try {
-    const notif = new Notification('🎉 New Store Order Received!', {
-      body: `Order ${order.id} — A$${Number(order.total || 0).toFixed(2)} from ${order.customer?.name || 'Customer'}`,
-      icon: '/official-logo.jpg',
-      tag: order.id,
-      renotify: true
+    const n = new Notification('🎉 New Store Order!', {
+      body: `${order.id} — A$${Number(order.total || 0).toFixed(2)} from ${order.customer.name}`,
+      icon: '/official-logo.jpg', tag: order.id
     });
-    notif.onclick = () => {
-      window.focus();
-      selectOrder(order.id);
-      notif.close();
-    };
-  } catch (e) {}
+    n.onclick = () => { window.focus(); switchTab('orders'); selectOrder(order.id); n.close(); };
+  } catch (_) {}
 }
 
-// ── TAB TITLE FLASH ────────────────────────────────────────────────────────
 function startTitleFlash(orderId) {
-  clearTimeout(titleFlashTimer);
+  clearInterval(titleFlashTimer);
   let step = 0;
   titleFlashTimer = setInterval(() => {
     step++;
-    document.title = (step % 2 === 0) ? `🔔 (1) NEW ORDER ${orderId}!` : `✨ A$ NEW ORDER RECEIVED ✨`;
+    document.title = step % 2 === 0 ? `🔔 NEW ORDER ${orderId}!` : originalDocTitle;
   }, 900);
 }
-
-function stopTitleFlash() {
-  clearInterval(titleFlashTimer);
-  document.title = originalDocTitle;
-}
-
+function stopTitleFlash() { clearInterval(titleFlashTimer); document.title = originalDocTitle; }
 window.addEventListener('focus', stopTitleFlash);
-window.addEventListener('click', stopTitleFlash);
 
-// ── TAB SWITCHING (Orders vs Inbox) ────────────────────────────────────────
+// ── UNIFIED TAB SWITCHER ───────────────────────────────────────────────────
+const TAB_MAP = {
+  orders: ['tabOrders', 'viewOrders'],
+  cj: ['tabCj', 'viewCj'],
+  inbox: ['tabInbox', 'viewInbox'],
+  catalog: ['tabCatalog', 'viewCatalog'],
+  deploy: ['tabDeploy', 'viewDeploy'],
+};
+
 function switchTab(tab) {
-  if (tab === 'orders') {
-    $('tabOrders').classList.add('active');
-    $('tabInbox').classList.remove('active');
-    $('ordersView').classList.remove('hidden');
-    $('inboxView').classList.remove('active');
-  } else {
-    $('tabInbox').classList.add('active');
-    $('tabOrders').classList.remove('active');
-    $('ordersView').classList.add('hidden');
-    $('inboxView').classList.add('active');
-    loadInbox();
-  }
+  Object.keys(TAB_MAP).forEach(k => {
+    const [btnId, viewId] = TAB_MAP[k];
+    $(btnId).classList.toggle('active', k === tab);
+    $(viewId).classList.toggle('active', k === tab);
+  });
+  closeMobileDetail('orderDetailPane');
+  closeMobileDetail('inboxDetailPane');
+  if (tab === 'inbox') loadInbox();
+  if (tab === 'cj') { loadCjHub(); loadSiteHealth(); }
+  if (tab === 'catalog' && !catalogProducts.length) loadStorefrontCatalog();
+  if (tab === 'deploy') loadCloudflareSnapshot();
 }
 
-// ── INIT ADMIN DASHBOARD ────────────────────────────────────────────────────
-function initAdminDashboard() {
-  // Sound toggle setup
+function closeMobileDetail(paneId) {
+  const el = $(paneId);
+  if (el) el.classList.remove('open');
+}
+
+// ── INIT DASHBOARD AFTER PIN UNLOCK ────────────────────────────────────────
+function initAdminDashboard(initialData) {
   $('soundToggle').addEventListener('change', (e) => {
     soundEnabled = e.target.checked;
-    $('soundLabel').textContent = soundEnabled ? '🔊 Chime Sound ON' : '🔇 Chime Muted';
+    $('soundLabel').textContent = soundEnabled ? '🔊 Chime ON' : '🔇 Muted';
     if (soundEnabled) playNewOrderChime();
   });
 
-  // Desktop notification button setup
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    $('reqNotificationBtn').textContent = '✅ Desktop Alerts On';
+    $('reqNotificationBtn').textContent = '✅ Alerts On';
     $('reqNotificationBtn').style.color = 'var(--green)';
   } else {
     $('reqNotificationBtn').addEventListener('click', requestDesktopNotificationPermission);
   }
 
-  // Search and filter listeners
   $('orderSearchInput').addEventListener('input', renderOrdersList);
+  $('catalogSearchInput').addEventListener('input', renderCatalogGrid);
+  $('catalogSortSelect').addEventListener('change', renderCatalogGrid);
+
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -843,33 +1148,42 @@ function initAdminDashboard() {
 
   $('refreshAllBtn').addEventListener('click', () => {
     loadOrders(true);
-    showToast('Orders refreshed');
+    loadCjHub();
+    showToast('Dashboard data refreshed');
   });
 
   $('testOrderBtn').addEventListener('click', triggerTestOrder);
+  $('manualBindForm').addEventListener('submit', handleManualBind);
 
-  // Initial load
-  loadOrders();
+  // Hydrate initial orders immediately if returned by POST auth
+  if (initialData && Array.isArray(initialData.orders)) {
+    const parsed = initialData.orders.map(normalizeOrder).filter(Boolean);
+    parsed.forEach(o => knownOrderIds.add(o.id));
+    allOrders = parsed;
+    updateMetrics(initialData.stats || null);
+    renderOrdersList();
+  }
+
+  renderDeptBar();
+  updateBagIndicators();
+  loadOrders(false);
+  loadCjHub();
+  loadStorefrontCatalog();
   initRealtimeSSE();
 
-  // Periodic polling fallback (every 8 seconds)
-  pollTimer = setInterval(() => {
-    loadOrders(false);
-  }, 8000);
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => loadOrders(false), 10000);
 }
 
-// ── LOAD ORDERS FROM SERVER ────────────────────────────────────────────────
-async function loadOrders(isManualRefresh = false) {
+// ── ORDERS ENGINE ──────────────────────────────────────────────────────────
+async function loadOrders(isManual = false) {
   try {
-    const res = await fetch('/api/admin/orders', {
-      headers: { 'X-Admin-Pin': PIN }
-    });
-    if (!res.ok) throw new Error('Failed to load orders: HTTP ' + res.status);
+    const res = await fetch('/api/admin/orders', { headers: { 'X-Admin-Pin': PIN } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const fetched = data.orders || [];
+    const fetched = (data.orders || []).map(normalizeOrder).filter(Boolean);
 
-    // Check for newly arrived orders
-    let newlyReceived = [];
+    const newlyReceived = [];
     if (knownOrderIds.size > 0) {
       for (const ord of fetched) {
         if (!knownOrderIds.has(ord.id)) {
@@ -878,83 +1192,51 @@ async function loadOrders(isManualRefresh = false) {
         }
       }
     }
-
-    // Populate knownOrderIds
     fetched.forEach(o => knownOrderIds.add(o.id));
     allOrders = fetched;
-
-    // Update metrics and badges
-    updateMetrics(data.stats || {});
+    updateMetrics(data.stats || null);
     renderOrdersList();
 
-    // If new orders were detected during poll, alert!
-    if (newlyReceived.length > 0 && !isManualRefresh) {
-      const latest = newlyReceived[0];
-      handleNewOrderAlert(latest);
-    }
+    if (newlyReceived.length > 0 && !isManual) handleNewOrderAlert(newlyReceived[0]);
   } catch (err) {
-    if (isManualRefresh) showToast('Error: ' + err.message, true);
+    if (isManual) showToast('Order refresh error: ' + err.message, true);
   }
 }
 
-// ── REAL-TIME SERVER-SENT EVENTS (SSE) ─────────────────────────────────────
 function initRealtimeSSE() {
   try {
     if (sseConnection) sseConnection.close();
     sseConnection = new EventSource('/api/admin/orders/stream');
-
     sseConnection.addEventListener('connected', () => {
-      $('liveStatusText').textContent = 'Live Orders Stream Active';
-      $('liveStatusText').style.color = 'var(--green)';
+      $('liveStatusText').textContent = 'Live Stream Active';
     });
-
     sseConnection.addEventListener('new_order', (e) => {
       try {
-        const order = JSON.parse(e.data);
-        order.isNew = true;
-        // Avoid duplicate
-        if (!knownOrderIds.has(order.id)) {
+        const order = normalizeOrder(JSON.parse(e.data));
+        if (order && !knownOrderIds.has(order.id)) {
+          order.isNew = true;
           knownOrderIds.add(order.id);
           allOrders.unshift(order);
           renderOrdersList();
-          updateMetricsFromOrders();
+          updateMetrics(null);
           handleNewOrderAlert(order);
         }
-      } catch (err) {
-        console.error('SSE order parse error:', err);
-      }
+      } catch (_) {}
     });
-
     sseConnection.onerror = () => {
-      $('liveStatusText').textContent = 'Polling Active (Reconnect)';
-      $('liveStatusText').style.color = 'var(--gold)';
+      $('liveStatusText').textContent = 'Live Polling ON';
     };
-  } catch (e) {
-    console.warn('SSE not available, using periodic poll:', e);
-  }
+  } catch (_) {}
 }
 
-// ── HANDLE NEW ORDER ALERT (Banner, Audio, Push, Title) ───────────────────
 function handleNewOrderAlert(order) {
-  // 1. Play audio chime
   playNewOrderChime();
-
-  // 2. Trigger browser desktop notification
   triggerDesktopNotification(order);
-
-  // 3. Start browser title flash
   startTitleFlash(order.id);
-
-  // 4. Show top notification banner
-  const banner = $('orderAlertBanner');
   $('alertTitle').textContent = `🎉 New Order: ${order.id} (A$${Number(order.total || 0).toFixed(2)})`;
-  $('alertDesc').textContent = `${order.customer?.name || 'Customer'} · ${order.items?.length || 1} item(s) to ${order.shipping?.city || 'AU'}`;
-  banner.classList.add('show');
-
-  $('alertViewBtn').onclick = () => {
-    selectOrder(order.id);
-    dismissOrderAlert();
-  };
+  $('alertDesc').textContent = `${order.customer.name} · ${order.items.length || 1} item(s)`;
+  $('orderAlertBanner').classList.add('show');
+  $('alertViewBtn').onclick = () => { switchTab('orders'); selectOrder(order.id); dismissOrderAlert(); };
 }
 
 function dismissOrderAlert() {
@@ -962,151 +1244,120 @@ function dismissOrderAlert() {
   stopTitleFlash();
 }
 
-// ── TEST ORDER GENERATOR ───────────────────────────────────────────────────
 async function triggerTestOrder() {
   const btn = $('testOrderBtn');
   btn.disabled = true;
-  btn.textContent = '⚡ Generating...';
+  btn.textContent = '⚡ Sending...';
   try {
     const res = await fetch('/api/admin/orders/create-test', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Pin': PIN
-      },
-      body: JSON.stringify({
-        name: 'James Wharawhara Tuwairua',
-        email: 'jamestuwairua77@gmail.com',
-        phone: '+61460507911'
-      })
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN },
+      body: JSON.stringify({ name: 'Bargain Drop Test Buyer', email: 'Support@bargain-drop.online', phone: '+61400000000' })
     });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.message || 'Test order failed');
-    showToast('🎉 Test order created & alert fired!');
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) {
+      // Edge fallback: simulate local chime + banner so button always tests alerts cleanly
+      handleNewOrderAlert({
+        id: 'BD-TEST-' + String(Date.now()).slice(-4),
+        total: 29.95,
+        customer: { name: 'Alert Sound Test' },
+        items: [{ title: 'Test Notification' }]
+      });
+      showToast('Alert chime & banner tested locally');
+      return;
+    }
+    showToast('🎉 Test order created & live alert fired!');
     loadOrders(true);
   } catch (e) {
-    showToast('Test order failed: ' + e.message, true);
+    showToast('Alert test error: ' + e.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = '⚡ Test Notification';
+    btn.textContent = '⚡ Test Alert';
   }
 }
 
-// ── METRICS & BADGES ───────────────────────────────────────────────────────
 function updateMetrics(stats) {
-  $('metricTotalOrders').textContent = stats.totalOrders || allOrders.length;
-  $('metricTotalRevenue').textContent = 'A$' + Number(stats.totalRevenue || 0).toFixed(2);
-  $('metricTodayOrders').textContent = stats.todayCount || 0;
-  $('metricShippedOrders').textContent = stats.shippedCount || 0;
-  $('ordersCountBadge').textContent = allOrders.length;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const rev = stats?.totalRevenue ?? allOrders.reduce((s, o) => s + (o.status !== 'cancelled' ? o.total : 0), 0);
+  const today = stats?.todayCount ?? allOrders.filter(o => String(o.date || '').startsWith(todayStr)).length;
+  const shipped = stats?.shippedCount ?? allOrders.filter(o => o.status === 'shipped' || o.status === 'delivered').length;
 
-  updateFilterCounts();
-}
-
-function updateMetricsFromOrders() {
-  const rev = allOrders.reduce((sum, o) => sum + (o.status !== 'cancelled' ? o.total : 0), 0);
-  const shipped = allOrders.filter(o => o.status === 'shipped' || o.status === 'delivered').length;
-  $('metricTotalOrders').textContent = allOrders.length;
-  $('metricTotalRevenue').textContent = 'A$' + rev.toFixed(2);
+  $('metricTotalOrders').textContent = stats?.totalOrders ?? allOrders.length;
+  $('metricTotalRevenue').textContent = 'A$' + Number(rev || 0).toFixed(2);
+  $('metricTodayOrders').textContent = today;
   $('metricShippedOrders').textContent = shipped;
   $('ordersCountBadge').textContent = allOrders.length;
-  updateFilterCounts();
-}
 
-function updateFilterCounts() {
   $('countAll').textContent = allOrders.length;
   $('countPaid').textContent = allOrders.filter(o => o.status === 'paid').length;
-  $('countProcessing').textContent = allOrders.filter(o => o.status === 'processing').length;
-  $('countShipped').textContent = allOrders.filter(o => o.status === 'shipped' || o.status === 'delivered').length;
+  $('countProcessing').textContent = allOrders.filter(o => o.status === 'processing' || o.status === 'pending').length;
+  $('countShipped').textContent = shipped;
   $('countUnpaid').textContent = allOrders.filter(o => o.status === 'unpaid').length;
-}
-
-// ── RENDER ORDERS LIST ─────────────────────────────────────────────────────
-function renderOrdersList() {
-  const listEl = $('ordersList');
-  const search = $('orderSearchInput').value.trim().toLowerCase();
-
-  let filtered = allOrders.filter(o => {
-    if (currentFilter !== 'all') {
-      if (currentFilter === 'shipped') {
-        if (o.status !== 'shipped' && o.status !== 'delivered') return false;
-      } else if (o.status !== currentFilter) {
-        return false;
-      }
-    }
-    if (search) {
-      const q = [
-        o.id,
-        o.customer?.name,
-        o.customer?.email,
-        o.customer?.phone,
-        o.shipping?.city,
-        ...(o.items || []).map(i => i.title)
-      ].filter(Boolean).join(' ').toLowerCase();
-      if (!q.includes(search)) return false;
-    }
-    return true;
-  });
-
-  if (!filtered.length) {
-    listEl.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--meta);font-size:0.8rem;">
-      No orders match the current filter.
-    </div>`;
-    return;
-  }
-
-  listEl.innerHTML = filtered.map(o => {
-    const isAct = o.id === selectedOrderId;
-    const isNew = Boolean(o.isNew);
-    const dateFormatted = fmtOrderDate(o.date);
-    const itemsSummary = (o.items || []).map(i => `${i.quantity}x ${i.title}`).join(', ');
-
-    return `
-      <div class="order-card ${isAct ? 'active' : ''} ${isNew ? 'is-new' : ''}" onclick="selectOrder('${o.id}')">
-        <div class="order-top">
-          <span class="order-id">${esc(o.id)}</span>
-          <span class="order-price">A$${Number(o.total || 0).toFixed(2)}</span>
-        </div>
-        <div class="order-mid">
-          <span class="order-customer">${esc(o.customer?.name || 'Customer')}</span>
-          <span class="order-date">${dateFormatted}</span>
-        </div>
-        <div class="order-bottom">
-          <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
-          ${isNew ? '<span class="badge new-tag">NEW</span>' : ''}
-          <span class="order-snippet" title="${esc(itemsSummary)}">${esc(itemsSummary)}</span>
-        </div>
-      </div>
-    `;
-  }).join('');
 }
 
 function fmtOrderDate(d) {
   try {
     const x = new Date(d);
     if (isNaN(x.getTime())) return String(d || '');
-    const now = Date.now();
-    const diff = (now - x.getTime()) / 1000;
+    const diff = (Date.now() - x.getTime()) / 1000;
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return x.toLocaleDateString('en-AU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  } catch (e) {
-    return String(d || '');
-  }
+  } catch (_) { return String(d || ''); }
 }
 
-// ── SELECT & INSPECT AN ORDER ──────────────────────────────────────────────
+function renderOrdersList() {
+  const listEl = $('ordersList');
+  const search = $('orderSearchInput').value.trim().toLowerCase();
+
+  const filtered = allOrders.filter(o => {
+    if (currentFilter !== 'all') {
+      if (currentFilter === 'shipped') {
+        if (o.status !== 'shipped' && o.status !== 'delivered') return false;
+      } else if (currentFilter === 'processing') {
+        if (o.status !== 'processing' && o.status !== 'pending') return false;
+      } else if (o.status !== currentFilter) return false;
+    }
+    if (search) {
+      const hay = [o.id, o.customer.name, o.customer.email, o.shipping.city, ...(o.items || []).map(i => i.title)].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="detail-empty">No orders match this filter.</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(o => {
+    const summary = (o.items || []).map(i => `${i.quantity}x ${i.title}`).join(', ');
+    return `
+      <div class="order-card ${o.id === selectedOrderId ? 'active' : ''} ${o.isNew ? 'is-new' : ''}" onclick="selectOrder('${esc(o.id)}')">
+        <div class="order-top">
+          <span class="order-id">${esc(o.id)}</span>
+          <span class="order-price">A$${Number(o.total || 0).toFixed(2)}</span>
+        </div>
+        <div class="order-mid">
+          <span class="order-customer">${esc(o.customer.name)}</span>
+          <span class="order-date">${fmtOrderDate(o.date)}</span>
+        </div>
+        <div class="order-bottom">
+          <span class="badge ${esc(o.status)}">${esc(o.status)}</span>
+          ${o.isNew ? '<span class="badge new-tag">NEW</span>' : ''}
+          <span class="order-snippet">${esc(summary || 'Order details')}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function selectOrder(orderId) {
   selectedOrderId = orderId;
   const order = allOrders.find(o => o.id === orderId);
   if (!order) return;
-
-  // Clear isNew flag on click
-  if (order.isNew) {
-    delete order.isNew;
-  }
-
+  if (order.isNew) delete order.isNew;
   renderOrdersList();
 
   const pane = $('orderDetailPane');
@@ -1114,230 +1365,333 @@ function selectOrder(orderId) {
 
   const itemsHtml = (order.items || []).map(it => `
     <tr>
-      <td style="width:46px;">
-        <img src="${esc(it.image || '/official-logo.jpg')}" class="item-thumb" alt="${esc(it.title)}">
-      </td>
-      <td>
-        <div class="item-title">${esc(it.title)}</div>
-        ${it.variant ? `<div class="item-var">Variant: ${esc(it.variant)}</div>` : ''}
-      </td>
+      <td style="width:48px;"><img src="${esc(it.image || '/official-logo.jpg')}" onerror="this.src='/official-logo.jpg'" class="item-thumb" alt=""></td>
+      <td><div class="item-title">${esc(it.title)}</div>${it.variant ? `<div class="item-var">${esc(it.variant)}</div>` : ''}</td>
       <td style="text-align:right;">A$${Number(it.price || 0).toFixed(2)}</td>
-      <td style="text-align:center;">x${it.quantity || 1}</td>
+      <td style="text-align:center;">×${it.quantity || 1}</td>
       <td style="text-align:right;font-weight:900;color:#fff;">A$${(Number(it.price || 0) * Number(it.quantity || 1)).toFixed(2)}</td>
     </tr>
   `).join('');
 
-  const trackingLink = order.cjOrder?.trackingNumber
-    ? `<a href="/store/order-tracking.html?order=${encodeURIComponent(order.id)}&tracking=${encodeURIComponent(order.cjOrder.trackingNumber)}" target="_blank" style="color:var(--accent);font-weight:800;text-decoration:underline;">Track Live &rarr;</a>`
-    : '';
+  const trackUrl = `/order-tracking.html?order=${encodeURIComponent(order.id)}${order.cjOrder.trackingNumber ? `&tracking=${encodeURIComponent(order.cjOrder.trackingNumber)}` : ''}`;
 
-  pane.innerHTML = `
-    <div class="detail-scroll">
-      <!-- Header Banner -->
+  $('orderDetailBody').outerHTML = `
+    <div class="detail-scroll" id="orderDetailBody">
       <div class="section-card" style="border-left:4px solid var(--accent);">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
           <div>
-            <span style="font-size:0.7rem;color:var(--meta);text-transform:uppercase;font-weight:800;">Order Inspection</span>
-            <h2 style="font-size:1.3rem;font-weight:900;font-family:monospace;color:#fff;">${esc(order.id)}</h2>
-            <div style="font-size:0.75rem;color:var(--muted);">${new Date(order.date).toLocaleString('en-AU')}</div>
+            <span style="font-size:.68rem;color:var(--meta);text-transform:uppercase;font-weight:800;">Order Inspection</span>
+            <h2 style="font-size:1.3rem;font-weight:900;font-family:'JetBrains Mono',monospace;color:#fff;">${esc(order.id)}</h2>
+            <div style="font-size:.76rem;color:var(--muted);">${new Date(order.date).toLocaleString('en-AU')}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="badge ${order.status}" style="font-size:0.75rem;padding:4px 10px;">${order.status.toUpperCase()}</span>
-            <button class="btn" onclick="window.print()" style="font-size:0.7rem;">🖨 Print Invoice</button>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="badge ${esc(order.status)}">${esc(order.status)}</span>
+            <button class="btn sm" onclick="window.print()">🖨 Print</button>
+            <a href="${esc(trackUrl)}" target="_blank" class="btn sm">📍 Track Page ↗</a>
           </div>
         </div>
       </div>
 
-      <!-- Customer & Shipping Grid -->
       <div class="grid-2">
         <div class="section-card">
           <div class="sec-title">
-            <span>👤 Customer Information</span>
-            <button class="btn" style="height:24px;font-size:0.65rem;padding:0 8px;" onclick="openEmailCompose('${esc(order.customer?.email)}', 'Update regarding Order ${esc(order.id)}')">✉ Email</button>
+            <span>👤 Customer</span>
+            <button class="btn sm" onclick="openEmailCompose('${esc(order.customer.email)}', 'Update on Order ${esc(order.id)}')">✉ Email</button>
           </div>
-          <div class="info-row"><strong>Full Name:</strong> <span>${esc(order.customer?.name || 'Customer')}</span></div>
-          <div class="info-row"><strong>Email:</strong> <span><a href="mailto:${esc(order.customer?.email)}" style="color:var(--accent);text-decoration:underline;">${esc(order.customer?.email)}</a></span></div>
-          <div class="info-row"><strong>Phone:</strong> <span><a href="tel:${esc(order.customer?.phone)}" style="color:var(--gold);">${esc(order.customer?.phone || 'N/A')}</a></span></div>
-          <div class="info-row"><strong>Payment:</strong> <span>${esc(order.payment?.method || 'Online Checkout')} (${order.payment?.status || 'PAID'})</span></div>
+          <div class="info-row"><strong>Name:</strong><span>${esc(order.customer.name)}</span></div>
+          <div class="info-row"><strong>Email:</strong><span><a href="mailto:${esc(order.customer.email)}" style="color:var(--accent);text-decoration:underline;">${esc(order.customer.email || 'N/A')}</a></span></div>
+          <div class="info-row"><strong>Phone:</strong><span>${esc(order.customer.phone || 'N/A')}</span></div>
+          <div class="info-row"><strong>Payment:</strong><span>${esc(order.payment.method)} (${esc(order.payment.status)})</span></div>
         </div>
 
         <div class="section-card">
-          <div class="sec-title">
-            <span>🚚 Shipping Destination</span>
-          </div>
-          <div class="info-row"><strong>Recipient:</strong> <span>${esc(order.shipping?.fullName || order.customer?.name)}</span></div>
-          <div class="info-row"><strong>Address 1:</strong> <span>${esc(order.shipping?.street1 || '100 George St')}</span></div>
-          ${order.shipping?.street2 ? `<div class="info-row"><strong>Address 2:</strong> <span>${esc(order.shipping.street2)}</span></div>` : ''}
-          <div class="info-row"><strong>City, State:</strong> <span>${esc(order.shipping?.city || 'Sydney')}, ${esc(order.shipping?.state || 'NSW')} ${esc(order.shipping?.postcode || '2000')}</span></div>
-          <div class="info-row"><strong>Country:</strong> <span>${esc(order.shipping?.country || 'Australia')}</span></div>
+          <div class="sec-title"><span>🚚 Shipping Destination</span></div>
+          <div class="info-row"><strong>Recipient:</strong><span>${esc(order.shipping.fullName || order.customer.name)}</span></div>
+          <div class="info-row"><strong>Address:</strong><span>${esc([order.shipping.street1, order.shipping.street2].filter(Boolean).join(', ') || 'See checkout record')}</span></div>
+          <div class="info-row"><strong>City/State:</strong><span>${esc([order.shipping.city, order.shipping.state, order.shipping.postcode].filter(Boolean).join(' ') || 'Australia')}</span></div>
+          <div class="info-row"><strong>Country:</strong><span>${esc(order.shipping.country || 'Australia')}</span></div>
         </div>
       </div>
 
-      <!-- Line Items Table -->
       <div class="section-card">
-        <div class="sec-title">
-          <span>📦 Order Items (${(order.items || []).length})</span>
+        <div class="sec-title"><span>📦 Line Items (${order.items.length})</span></div>
+        <div class="table-wrap">
+          <table class="items-table">
+            <thead><tr><th>Item</th><th>Product</th><th style="text-align:right;">Price</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Total</th></tr></thead>
+            <tbody>${itemsHtml || '<tr><td colspan="5" style="color:var(--meta);">No line items listed.</td></tr>'}</tbody>
+          </table>
         </div>
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>Product Details</th>
-              <th style="text-align:right;">Price</th>
-              <th style="text-align:center;">Qty</th>
-              <th style="text-align:right;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-          </tbody>
-        </table>
-
-        <!-- Totals Summary -->
-        <div style="align-self:flex-end;width:260px;margin-top:12px;font-size:0.78rem;display:flex;flex-direction:column;gap:4px;">
-          <div style="display:flex;justify-content:space-between;color:var(--muted);">
-            <span>Subtotal:</span>
-            <span>A$${Number(order.subtotal || order.total * 0.9).toFixed(2)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;color:var(--muted);">
-            <span>Shipping:</span>
-            <span>${order.shippingFee === 0 ? '<strong style="color:var(--green)">FREE</strong>' : 'A$' + Number(order.shippingFee).toFixed(2)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;color:var(--muted);">
-            <span>Estimated GST (10%):</span>
-            <span>A$${Number(order.tax || order.total * 0.1).toFixed(2)}</span>
-          </div>
-          <div style="height:1px;background:var(--line);margin:4px 0;"></div>
-          <div style="display:flex;justify-content:space-between;font-size:1.05rem;font-weight:900;color:var(--gold);">
-            <span>Total Paid:</span>
-            <span>A$${Number(order.total || 0).toFixed(2)}</span>
-          </div>
+        <div style="align-self:flex-end;width:100%;max-width:260px;margin-top:8px;font-size:.82rem;display:flex;flex-direction:column;gap:5px;">
+          <div style="display:flex;justify-content:space-between;color:var(--muted);"><span>Shipping:</span><span>${order.shippingFee === 0 ? '<strong style="color:var(--green)">FREE</strong>' : 'A$' + Number(order.shippingFee).toFixed(2)}</span></div>
+          <div style="height:1px;background:var(--line);"></div>
+          <div style="display:flex;justify-content:space-between;font-size:1.05rem;font-weight:900;color:var(--gold);"><span>Total Paid:</span><span>A$${Number(order.total || 0).toFixed(2)}</span></div>
         </div>
       </div>
 
-      <!-- CJ Dropshipping & Logistics Status -->
       <div class="section-card">
         <div class="sec-title">
-          <span>⚡ CJ Dropshipping &amp; Tracking Dispatch</span>
-          ${trackingLink}
+          <span>⚡ CJ Dropshipping Fulfillment (No-Wallet Ready)</span>
+          <a href="${esc(order.cjOrder.paymentUrl)}" target="_blank" rel="noopener" class="btn warning sm">💳 Pay in CJ (Card/PayPal) ↗</a>
         </div>
         <div class="grid-2">
           <div>
-            <div class="info-row"><strong>CJ Order ID:</strong> <span>${esc(order.cjOrder?.orderId || 'CJ-DISPATCH-QUEUED')}</span></div>
-            <div class="info-row"><strong>Carrier:</strong> <span>${esc(order.cjOrder?.carrier || 'CJ Packet Tracked Air')}</span></div>
+            <div class="info-row"><strong>CJ Order ID:</strong><span style="font-family:'JetBrains Mono',monospace;">${esc(order.cjOrder.orderId || 'Queued / Sync Pending')}</span></div>
+            <div class="info-row"><strong>Carrier:</strong><span>${esc(order.cjOrder.carrier)}</span></div>
           </div>
           <div>
-            <div class="info-row"><strong>Tracking #:</strong> <span style="font-family:monospace;color:var(--gold);font-weight:700;">${esc(order.cjOrder?.trackingNumber || 'Tracking assigned on dispatch')}</span></div>
-            <div class="info-row"><strong>Source Engine:</strong> <span>${esc(order.source || 'Storefront')}</span></div>
+            <div class="info-row"><strong>Tracking #:</strong><span style="font-family:'JetBrains Mono',monospace;color:var(--gold);">${esc(order.cjOrder.trackingNumber || 'Assigned on dispatch')}</span></div>
+            <div class="info-row"><strong>Source:</strong><span>${esc(order.source)}</span></div>
           </div>
         </div>
       </div>
 
-      <!-- Status Quick-Changer Action Bar -->
-      <div class="section-card" style="background:#08090a;">
+      <div class="section-card">
         <div class="sec-title"><span>Update Order Status</span></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn" onclick="updateOrderStatus('${order.id}', 'paid')">Mark Paid</button>
-          <button class="btn" onclick="updateOrderStatus('${order.id}', 'processing')">Mark Processing</button>
-          <button class="btn primary" onclick="updateOrderStatus('${order.id}', 'shipped')">Mark Shipped</button>
-          <button class="btn" onclick="updateOrderStatus('${order.id}', 'delivered')">Mark Delivered</button>
-          <button class="btn warning" onclick="updateOrderStatus('${order.id}', 'cancelled')">Cancel Order</button>
+          <button class="btn sm" onclick="updateOrderStatus('${esc(order.id)}','paid')">Mark Paid</button>
+          <button class="btn sm" onclick="updateOrderStatus('${esc(order.id)}','processing')">Mark Processing</button>
+          <button class="btn primary sm" onclick="updateOrderStatus('${esc(order.id)}','shipped')">Mark Shipped</button>
+          <button class="btn success sm" onclick="updateOrderStatus('${esc(order.id)}','delivered')">Mark Delivered</button>
+          <button class="btn warning sm" onclick="updateOrderStatus('${esc(order.id)}','cancelled')">Cancel</button>
         </div>
       </div>
     </div>
   `;
 }
 
-// ── UPDATE ORDER STATUS ────────────────────────────────────────────────────
 async function updateOrderStatus(orderId, status) {
   try {
-    const res = await fetch('/api/admin/orders/update-status', {
+    let ok = false;
+    // Try Express endpoint first, then Cloudflare Pages POST /api/admin/orders action
+    const r1 = await fetch('/api/admin/orders/update-status', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Pin': PIN
-      },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN },
       body: JSON.stringify({ id: orderId, status })
-    });
-    const d = await res.json();
-    if (!d.ok) throw new Error('Status update failed');
-    showToast(`Order ${orderId} marked as ${status}`);
-
-    const ord = allOrders.find(o => o.id === orderId);
-    if (ord) {
-      ord.status = status;
-      selectOrder(orderId);
-      renderOrdersList();
-      updateMetricsFromOrders();
+    }).catch(() => null);
+    if (r1 && r1.ok) {
+      const d1 = await r1.json().catch(() => ({}));
+      if (d1.ok) ok = true;
     }
+    if (!ok) {
+      const r2 = await fetch('/api/admin/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN },
+        body: JSON.stringify({ pin: PIN, action: 'update_status', orderId, status })
+      });
+      const d2 = await r2.json().catch(() => ({}));
+      if (!r2.ok || !d2.ok) throw new Error(d2.error || 'Status update failed');
+    }
+    showToast(`Order ${orderId} updated to ${status.toUpperCase()}`);
+    const ord = allOrders.find(o => o.id === orderId);
+    if (ord) { ord.status = status; selectOrder(orderId); renderOrdersList(); updateMetrics(null); }
   } catch (e) {
-    showToast('Failed to update status: ' + e.message, true);
+    showToast('Update failed: ' + e.message, true);
   }
 }
 
-// ── SUPPORT INBOX MODULE ───────────────────────────────────────────────────
-let inboxMessages = [];
+// ── TAB 2: NO-WALLET CJ QUEUE, AUTO CATALOG SYNC & HEALTH ──────────────────
+async function loadCjHub() {
+  try {
+    const res = await fetch('/api/cj-admin?action=queue', { headers: { 'X-Admin-Pin': PIN } });
+    const data = await res.json().catch(() => ({}));
+    const queue = data.queue || data.orders || [];
+    $('cjQueueBadge').textContent = queue.length;
+    $('cjMetricPending').textContent = queue.length;
+    $('cjQueueSummary').textContent = `${queue.length} order(s) awaiting Card/PayPal settlement in CJ`;
+
+    if (!queue.length) {
+      $('cjQueueContainer').innerHTML = `
+        <div style="grid-column:1/-1;padding:18px;background:#0a0c10;border:1px dashed var(--line2);border-radius:10px;color:var(--muted);font-size:.82rem;">
+          ✅ Zero unpaid CJ orders right now. Whenever a customer pays via Stripe or PayPal on bargain-drop.online, their order will appear here with a 1-click Card/PayPal CJ payment link.
+        </div>`;
+    } else {
+      $('cjQueueContainer').innerHTML = queue.map(item => `
+        <div style="background:#0a0c10;border:1px solid var(--line2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <strong style="font-family:'JetBrains Mono',monospace;color:#fff;">${esc(item.orderId || item.id)}</strong>
+            <span class="badge processing">${esc(item.status || 'AWAITING_CJ_PAYMENT')}</span>
+          </div>
+          <div style="font-size:.78rem;color:var(--muted);">CJ ID: <code style="color:var(--gold);">${esc(item.cjOrderId || 'Pending')}</code> · Total: <strong>A$${Number(item.total || 0).toFixed(2)}</strong></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+            <a href="${esc(item.cjPaymentUrl || 'https://app.cjdropshipping.com/myCJ.html#/dropshipping/order')}" target="_blank" rel="noopener" class="btn primary sm">💳 Pay in CJ (Card/PayPal) ↗</a>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    $('cjQueueSummary').textContent = 'Queue endpoint unavailable on this host';
+  }
+
+  // Also check enterprise mapping count if on Express
+  try {
+    const mRes = await fetch('/api/v1/cj/mappings');
+    if (mRes.ok) {
+      const mData = await mRes.json();
+      $('cjMetricMapped').textContent = (mData.mappings || []).length;
+    }
+  } catch (_) {}
+}
+
+async function runAutoCatalogSync() {
+  const btn = $('btnRunCatalogSync');
+  btn.disabled = true;
+  btn.textContent = '⏳ Syncing Catalog...';
+  $('cjMetricSyncState').textContent = 'Running...';
+  $('cjSyncLog').textContent = 'Running automated CJ catalog availability sync & hiding deleted/out-of-stock products...';
+  try {
+    const res = await fetch('/api/auto-catalog-sync?batch=40', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN }
+    });
+    const d = await res.json().catch(() => ({}));
+    $('cjMetricSyncState').textContent = res.ok ? 'Synced' : 'Check Log';
+    $('cjSyncLog').textContent = JSON.stringify(d, null, 2);
+    showToast(res.ok ? 'Auto catalog sync completed!' : 'Catalog sync returned status ' + res.status, !res.ok);
+  } catch (e) {
+    $('cjMetricSyncState').textContent = 'Error';
+    $('cjSyncLog').textContent = 'Sync error: ' + e.message;
+    showToast('Sync error: ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Sync & Hide Deleted Products';
+  }
+}
+
+async function runCjTrackingSync() {
+  const btn = $('btnSyncTracking');
+  btn.disabled = true;
+  btn.textContent = '⏳ Pulling Tracking...';
+  $('cjSyncLog').textContent = 'Polling CJ Dropshipping for live shipment tracking numbers...';
+  try {
+    const res = await fetch('/api/sync-cj-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN }
+    });
+    const d = await res.json().catch(() => ({}));
+    $('cjSyncLog').textContent = JSON.stringify(d, null, 2);
+    showToast(res.ok ? 'Live CJ tracking refreshed!' : 'Tracking sync status ' + res.status, !res.ok);
+    loadOrders(false);
+  } catch (e) {
+    $('cjSyncLog').textContent = 'Tracking sync error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚚 Pull Live CJ Tracking';
+  }
+}
+
+async function runEnterpriseReconcile() {
+  try {
+    const res = await fetch('/api/v1/cj/reconcile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 80 })
+    });
+    const d = await res.json().catch(() => ({}));
+    $('cjSyncLog').textContent = JSON.stringify(d, null, 2);
+    showToast(d.ok ? `Reconciled ${d.totalMappingsInJunctionTable || 0} SKUs` : 'Reconcile endpoint only on local Express');
+    loadCjHub();
+  } catch (e) {
+    showToast('Reconcile unavailable on static edge', true);
+  }
+}
+
+async function handleManualBind(e) {
+  e.preventDefault();
+  try {
+    const res = await fetch('/api/v1/cj/manual-map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        storeProductId: $('bindStoreId').value.trim(),
+        cjProductId: $('bindCjPid').value.trim(),
+        cjVariantId: $('bindCjVid').value.trim(),
+        cjCostUsd: Number($('bindCostUsd').value || 6.8),
+      })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.message || 'Bind failed');
+    showToast('Store variant bound to CJ successfully!');
+    $('bindStoreId').value = ''; $('bindCjPid').value = ''; $('bindCjVid').value = '';
+    loadCjHub();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function loadSiteHealth() {
+  const el = $('siteHealthContainer');
+  try {
+    const res = await fetch('/api/site-health');
+    const d = await res.json();
+    const checks = d.checks || [];
+    const cjCheck = checks.find(c => /cj/i.test(c.name));
+    $('cjMetricApiState').textContent = cjCheck?.ok ? 'Connected' : 'Check';
+    el.innerHTML = checks.map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#0a0c10;border:1px solid var(--line);border-radius:8px;">
+        <strong style="color:#fff;">${esc(c.name)}</strong>
+        <span class="badge ${c.ok ? 'paid' : 'unpaid'}">${c.ok ? 'OK' : 'ISSUE'} · ${esc(c.detail || '')}</span>
+      </div>
+    `).join('') || '<div style="color:var(--meta);">Health check returned no items.</div>';
+  } catch (e) {
+    $('cjMetricApiState').textContent = 'Ready';
+    el.innerHTML = `<div style="color:var(--meta);">Health check unavailable: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── TAB 3: SUPPORT INBOX ───────────────────────────────────────────────────
 async function loadInbox() {
   try {
-    const res = await fetch('/api/admin-inbox?action=list', {
-      headers: { 'X-Admin-Pin': PIN }
-    });
-    if (!res.ok) throw new Error('Failed to load inbox');
+    const res = await fetch('/api/admin-inbox?action=list', { headers: { 'X-Admin-Pin': PIN } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     inboxMessages = data.messages || [];
     $('inboxCountBadge').textContent = inboxMessages.length;
     renderInboxList();
   } catch (e) {
-    $('inboxList').innerHTML = `<div style="padding:30px;text-align:center;color:var(--accent);">Failed to load inbox: ${esc(e.message)}</div>`;
+    $('inboxList').innerHTML = `<div class="detail-empty">Inbox check: ${esc(e.message)}</div>`;
   }
 }
 
 function renderInboxList() {
   const el = $('inboxList');
   if (!inboxMessages.length) {
-    el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--meta);font-size:0.75rem;">No messages in inbox.</div>';
+    el.innerHTML = '<div class="detail-empty">No messages in Support Inbox.</div>';
     return;
   }
-  el.innerHTML = inboxMessages.map((m, i) => `
-    <div class="order-card" onclick="openInboxMessage(${m.uid})">
+  el.innerHTML = inboxMessages.map(m => `
+    <div class="order-card" onclick="openInboxMessage('${esc(m.uid)}')">
       <div class="order-top">
-        <span style="font-weight:800;color:#fff;font-size:0.8rem;">${esc(m.from || 'User')}</span>
+        <span style="font-weight:800;color:#fff;font-size:.82rem;">${esc(m.from || 'Customer')}</span>
         <span class="order-date">${fmtOrderDate(m.date)}</span>
       </div>
-      <div style="font-size:0.75rem;font-weight:700;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        ${esc(m.subject || '(no subject)')}
-      </div>
-      <div style="font-size:0.68rem;color:var(--meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        ${esc(m.snippet || '')}
-      </div>
+      <div style="font-size:.78rem;font-weight:700;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.subject || '(no subject)')}</div>
+      <div class="order-snippet">${esc(m.snippet || '')}</div>
     </div>
   `).join('');
 }
 
 async function openInboxMessage(uid) {
   const pane = $('inboxDetailPane');
-  pane.innerHTML = '<div style="padding:40px;text-align:center;color:var(--meta);">Loading message...</div>';
+  pane.classList.add('open');
+  $('inboxDetailBody').outerHTML = '<div class="detail-empty" id="inboxDetailBody">Loading message...</div>';
   try {
-    const res = await fetch(`/api/admin-inbox?action=read&uid=${uid}`, {
-      headers: { 'X-Admin-Pin': PIN }
-    });
+    const res = await fetch(`/api/admin-inbox?action=read&uid=${encodeURIComponent(uid)}`, { headers: { 'X-Admin-Pin': PIN } });
     const m = await res.json();
-    pane.innerHTML = `
-      <div class="detail-scroll">
+    $('inboxDetailBody').outerHTML = `
+      <div class="detail-scroll" id="inboxDetailBody">
         <div class="section-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
             <h2 style="font-size:1.1rem;font-weight:900;color:#fff;">${esc(m.subject || '(no subject)')}</h2>
-            <button class="btn primary" onclick="openEmailCompose('${esc(m.from)}', 'Re: ${esc(m.subject)}')">✉ Reply</button>
+            <button class="btn primary sm" onclick="openEmailCompose('${esc(m.from)}','Re: ${esc(m.subject)}')">✉ Reply</button>
           </div>
-          <div class="info-row"><strong>From:</strong> <span>${esc(m.from || '')}</span></div>
-          <div class="info-row"><strong>To:</strong> <span>${esc(m.to || '')}</span></div>
-          <div class="info-row"><strong>Date:</strong> <span>${new Date(m.date).toLocaleString()}</span></div>
+          <div class="info-row"><strong>From:</strong><span>${esc(m.from || '')}</span></div>
+          <div class="info-row"><strong>Date:</strong><span>${new Date(m.date).toLocaleString('en-AU')}</span></div>
         </div>
-        <div class="section-card" style="font-size:0.85rem;line-height:1.6;color:var(--fg);white-space:pre-wrap;">${esc(m.text || m.html || '')}</div>
+        <div class="section-card" style="font-size:.86rem;line-height:1.65;color:var(--fg);white-space:pre-wrap;">${esc(m.text || m.html || '')}</div>
       </div>
     `;
   } catch (e) {
-    pane.innerHTML = `<div class="detail-empty">Error loading message: ${esc(e.message)}</div>`;
+    $('inboxDetailBody').outerHTML = `<div class="detail-empty" id="inboxDetailBody">Error: ${esc(e.message)}</div>`;
   }
 }
 
@@ -1352,24 +1706,18 @@ $('sendEmailBtn').addEventListener('click', async () => {
   const to = $('cTo').value.trim();
   const subject = $('cSubject').value.trim();
   const body = $('cBody').value.trim();
-  if (!to || !subject) {
-    showToast('Please provide a recipient and subject', true);
-    return;
-  }
+  if (!to || !subject) { showToast('Enter recipient & subject', true); return; }
+  $('sendEmailBtn').disabled = true;
+  $('sendEmailBtn').textContent = 'Sending...';
   try {
-    $('sendEmailBtn').disabled = true;
-    $('sendEmailBtn').textContent = 'Sending...';
     const res = await fetch('/api/admin-inbox?action=send', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Pin': PIN
-      },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN },
       body: JSON.stringify({ to, subject, body })
     });
     const d = await res.json();
-    if (!d.ok) throw new Error(d.error || 'Failed to send email');
-    showToast('Email successfully sent to ' + to);
+    if (!d.ok) throw new Error(d.error || 'Failed to send');
+    showToast('Email sent to ' + to);
     $('composeModal').classList.add('hidden');
   } catch (e) {
     showToast('Send failed: ' + e.message, true);
@@ -1379,12 +1727,257 @@ $('sendEmailBtn').addEventListener('click', async () => {
   }
 });
 
-function esc(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
+// ── TAB 4: STOREFRONT & CATALOG HUB (MERGED FROM PREVIEW PAGE) ─────────────
+function renderDeptBar() {
+  $('deptBar').innerHTML = DEPARTMENTS.map(([slug, label]) => `
+    <button type="button" class="dept-chip ${selectedDept === slug ? 'active' : ''}" onclick="selectDept('${slug}')">${esc(label)}</button>
+  `).join('');
+}
+
+function selectDept(slug) {
+  selectedDept = slug;
+  renderDeptBar();
+  renderCatalogGrid();
+}
+
+function toggleUnder15() {
+  filterUnder15 = !filterUnder15;
+  $('btnUnder15').classList.toggle('primary', filterUnder15);
+  renderCatalogGrid();
+}
+
+function toggleSavedOnly() {
+  filterSavedOnly = !filterSavedOnly;
+  $('btnSavedOnly').classList.toggle('primary', filterSavedOnly);
+  renderCatalogGrid();
+}
+
+async function loadStorefrontCatalog() {
+  const urls = ['/featured.json', '/products-slim-0.json', '/slim-products.json'];
+  const byId = new Map();
+  for (const url of urls) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const raw = await r.json();
+      const arr = Array.isArray(raw) ? raw : (raw?.products || raw?.items || []);
+      for (const p of arr) {
+        if (!p || p.visible === false || p.deleted === true || p.inStock === false) continue;
+        const id = String(p.id || p.handle || '');
+        const price = Number(p.variants?.[0]?.price ?? p.price ?? 0);
+        if (!id || price <= 0 || byId.has(id)) continue;
+        byId.set(id, {
+          id,
+          title: String(p.title || p.name || 'Bargain Drop Deal'),
+          price,
+          compareAt: Number(p.compareAt || p.compare_at_price || p.originalPrice || (price * 1.45)),
+          category: String(p.category || p.product_type || 'general').toLowerCase(),
+          image: p.image || (Array.isArray(p.images) ? (typeof p.images[0] === 'string' ? p.images[0] : p.images[0]?.src) : '') || '/official-logo.jpg',
+        });
+      }
+      if (byId.size >= 180) break;
+    } catch (_) {}
+  }
+  catalogProducts = Array.from(byId.values());
+  $('catalogCountBadge').textContent = catalogProducts.length;
+  renderCatalogGrid();
+}
+
+function renderCatalogGrid() {
+  const q = ($('catalogSearchInput').value || '').trim().toLowerCase();
+  const sort = $('catalogSortSelect').value;
+
+  let list = catalogProducts.filter(p => {
+    if (selectedDept !== 'all' && !p.category.includes(selectedDept) && !p.title.toLowerCase().includes(selectedDept)) return false;
+    if (filterUnder15 && p.price > 15) return false;
+    if (filterSavedOnly && !savedIds.has(p.id)) return false;
+    if (q && !(p.title.toLowerCase().includes(q) || p.category.includes(q) || p.id.includes(q))) return false;
+    return true;
+  });
+
+  if (sort === 'price-asc') list.sort((a, b) => a.price - b.price);
+  else if (sort === 'price-desc') list.sort((a, b) => b.price - a.price);
+  else if (sort === 'savings') list.sort((a, b) => (b.compareAt - b.price) - (a.compareAt - a.price));
+
+  $('catalogStatsLine').textContent = `Showing ${Math.min(list.length, 48)} of ${list.length} active products (locked .95 AUD pricing)`;
+  $('savedCountLabel').textContent = savedIds.size;
+
+  if (!list.length) {
+    $('catalogGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--meta);">No active products match your filters.</div>';
+    return;
+  }
+
+  $('catalogGrid').innerHTML = list.slice(0, 48).map(p => {
+    const savePct = p.compareAt > p.price ? Math.round(((p.compareAt - p.price) / p.compareAt) * 100) : 0;
+    const isSaved = savedIds.has(p.id);
+    return `
+      <div class="prod-card">
+        <div class="prod-img-wrap">
+          <img src="${esc(p.image)}" loading="lazy" onerror="this.src='/official-logo.jpg'" alt="${esc(p.title)}">
+          ${savePct >= 10 ? `<span class="prod-save-tag">SAVE ${savePct}%</span>` : ''}
+        </div>
+        <div class="prod-body">
+          <div class="prod-cat">${esc(p.category)}</div>
+          <div class="prod-title" title="${esc(p.title)}">${esc(p.title)}</div>
+          <div class="prod-price-row">
+            <span class="prod-price">A$${p.price.toFixed(2)}</span>
+            ${p.compareAt > p.price ? `<span class="prod-compare">A$${p.compareAt.toFixed(2)}</span>` : ''}
+          </div>
+          <div class="prod-actions">
+            <button type="button" class="btn primary sm" style="flex:1;" onclick="addToPreviewCart('${esc(p.id)}')">+ Bag</button>
+            <button type="button" class="btn sm" onclick="toggleSaveProduct('${esc(p.id)}')" title="Save item">${isSaved ? '❤️' : '🤍'}</button>
+            <a href="/product.html?id=${encodeURIComponent(p.id)}" target="_blank" class="btn sm" title="Open live page">↗</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleSaveProduct(id) {
+  if (savedIds.has(id)) savedIds.delete(id);
+  else savedIds.add(id);
+  localStorage.setItem('bd_admin_saved', JSON.stringify(Array.from(savedIds)));
+  renderCatalogGrid();
+}
+
+function addToPreviewCart(id) {
+  const p = catalogProducts.find(x => x.id === id);
+  if (!p) return;
+  const ex = previewCart.find(i => i.id === id);
+  if (ex) ex.quantity = (ex.quantity || 1) + 1;
+  else previewCart.push({ id: p.id, title: p.title, price: p.price, image: p.image, quantity: 1 });
+  localStorage.setItem('bd_cart', JSON.stringify(previewCart));
+  updateBagIndicators();
+  showToast(`Added "${p.title.slice(0, 28)}..." to Bag`);
+}
+
+function updateBagIndicators() {
+  const count = previewCart.reduce((s, i) => s + Number(i.quantity || 1), 0);
+  const total = previewCart.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
+  $('bagCountLabel').textContent = count;
+  $('bagTotalLabel').textContent = total.toFixed(2);
+}
+
+function openCartModal() {
+  renderCartModal();
+  $('cartModal').classList.remove('hidden');
+}
+
+function applyPreviewPromo() {
+  activePromoCode = ($('promoInput').value || '').trim().toUpperCase();
+  renderCartModal();
+  showToast(activePromoCode ? `Applied promo ${activePromoCode}` : 'Promo cleared');
+}
+
+function clearPreviewCart() {
+  previewCart = [];
+  localStorage.setItem('bd_cart', '[]');
+  updateBagIndicators();
+  renderCartModal();
+}
+
+function renderCartModal() {
+  const box = $('cartItemsList');
+  if (!previewCart.length) {
+    box.innerHTML = '<div style="color:var(--meta);font-size:.82rem;padding:12px 0;">Your bag is empty. Add any product from the catalog above.</div>';
+  } else {
+    box.innerHTML = previewCart.map(i => `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px;background:#0a0c10;border:1px solid var(--line);border-radius:8px;">
+        <div style="font-size:.8rem;color:#fff;font-weight:700;min-width:0;flex:1;">${esc(i.title)} <span style="color:var(--meta);">×${i.quantity || 1}</span></div>
+        <strong style="color:var(--gold);font-size:.85rem;">A$${(Number(i.price) * Number(i.quantity || 1)).toFixed(2)}</strong>
+      </div>
+    `).join('');
+  }
+  const subtotal = previewCart.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
+  let discount = 0;
+  if (activePromoCode === 'BARGAIN26') discount = subtotal * 0.30;
+  else if (activePromoCode === 'SAVE5AUD') discount = subtotal * 0.15;
+  else if (['SAVE10', 'WELCOME10', 'COMEBACK10'].includes(activePromoCode)) discount = subtotal * 0.10;
+  const afterDisc = Math.max(0, subtotal - discount);
+  const freeShip = afterDisc >= 29 || activePromoCode === 'FREESHIP' || activePromoCode === 'FREESHIP29' || subtotal === 0;
+  const shipping = freeShip ? 0 : 4.95;
+  $('cartSummaryBox').innerHTML = `
+    <div>Subtotal: <strong style="color:#fff;">A$${subtotal.toFixed(2)}</strong></div>
+    ${discount > 0 ? `<div style="color:#4ade80;">Promo (${esc(activePromoCode)}): -A$${discount.toFixed(2)}</div>` : ''}
+    <div>Shipping: <strong style="color:${freeShip ? '#4ade80' : '#fff'};">${freeShip ? 'FREE' : 'A$4.95'}</strong> ${!freeShip && subtotal > 0 ? `(Add A$${(29 - afterDisc).toFixed(2)} for Free Shipping)` : ''}</div>
+    <div style="font-size:1rem;color:var(--gold);font-weight:900;margin-top:4px;">Estimated Total: A$${(afterDisc + shipping).toFixed(2)} AUD</div>
+  `;
+}
+
+function runQuickOrderLookup() {
+  const q = ($('quickLookupInput').value || '').trim().toLowerCase();
+  if (!q) return;
+  const hit = allOrders.find(o => o.id.toLowerCase() === q || (o.customer.email || '').toLowerCase() === q);
+  if (hit) {
+    $('quickLookupResult').innerHTML = `✅ Found <strong style="color:#fff;">${esc(hit.id)}</strong> · Status: <span class="badge ${esc(hit.status)}">${esc(hit.status)}</span> · Total: <strong style="color:var(--gold);">A$${hit.total.toFixed(2)}</strong> — <button class="btn sm" onclick="switchTab('orders');selectOrder('${esc(hit.id)}')">Inspect Order</button>`;
+  } else {
+    $('quickLookupResult').innerHTML = `No loaded order matched "${esc(q)}". Try <a href="/order-tracking.html" target="_blank" style="color:var(--accent);text-decoration:underline;">Live Order Tracking Page ↗</a>.`;
+  }
+}
+
+// ── TAB 5: CLOUDFLARE SNAPSHOT, SANDBOX QA & LIVE DEPLOY ───────────────────
+async function loadCloudflareSnapshot() {
+  try {
+    const r = await fetch('/cloudflare-config-and-permissions.json');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const txt = await r.text();
+    $('cfSnapshotBox').textContent = txt;
+  } catch (e) {
+    $('cfSnapshotBox').textContent = 'Snapshot not found: ' + e.message;
+  }
+}
+
+async function runSandboxQa() {
+  $('deployLogBox').textContent = 'Running end-to-end Sandbox QA Self-Test...';
+  try {
+    const res = await fetch('/api/v1/devops/sandbox-self-test', { method: 'POST' });
+    const d = await res.json();
+    $('deployLogBox').textContent = JSON.stringify(d, null, 2);
+    showToast(d.ok ? 'Sandbox QA passed!' : 'Check QA output', !d.ok);
+  } catch (e) {
+    $('deployLogBox').textContent = 'Sandbox QA endpoint runs on Express preview server.\nUse "Verify Live Endpoints" below when on Cloudflare Pages.';
+  }
+}
+
+async function checkLiveEndpoints() {
+  $('deployLogBox').textContent = 'Checking live endpoints (/api/site-health, /api/chat, /cpagrip-v2-full-code.js)...';
+  const results = [];
+  for (const ep of ['/api/site-health', '/cpagrip-v2-full-code.js', '/cloudflare-config-and-permissions.json', '/chat-widget/chat.js?v=20261123']) {
+    try {
+      const r = await fetch(ep);
+      results.push(`${r.ok ? '✅' : '❌'} ${ep} → HTTP ${r.status}`);
+    } catch (e) {
+      results.push(`❌ ${ep} → ${e.message}`);
+    }
+  }
+  $('deployLogBox').textContent = results.join('\n');
+}
+
+async function triggerLivePush() {
+  const btn = $('btnPushLive');
+  btn.disabled = true;
+  btn.textContent = '⏳ Pushing Live...';
+  $('deployLogBox').textContent = 'Initiating live deployment via /api/agent/push-live...';
+  try {
+    const res = await fetch('/api/agent/push-live', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN },
+      body: JSON.stringify({ adminPin: PIN })
+    });
+    const d = await res.json().catch(() => ({}));
+    $('deployLogBox').textContent = JSON.stringify(d, null, 2);
+    showToast(d.ok ? 'Live push succeeded!' : (d.error || 'Push finished — inspect log'), !d.ok);
+  } catch (e) {
+    $('deployLogBox').textContent = 'Push endpoint error: ' + e.message;
+    showToast('Push error: ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Push All Updates Live';
+  }
 }
 </script>
-<script src="/js/logo-handler.js"></script>
+<script src="/js/logo-handler.js?v=bd20261029v4"></script>
+<script src="/chat-widget/chat.js?v=20261123"></script>
 </body>
 </html>

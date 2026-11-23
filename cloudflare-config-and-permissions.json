@@ -1,0 +1,99 @@
+{
+  "project_name": "bargain-drop-v2",
+  "domain": "bargain-drop.online",
+  "cloudflare_account": {
+    "account_id": "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID",
+    "zone_id": "REPLACE_WITH_CLOUDFLARE_ZONE_ID"
+  },
+  "required_api_permissions": [
+    {
+      "permission": "Cloudflare Pages: Edit",
+      "scope": "Account",
+      "purpose": "Deploy static assets and edge Functions to Cloudflare Pages"
+    },
+    {
+      "permission": "Workers Scripts: Edit",
+      "scope": "Account",
+      "purpose": "Deploy unified Worker fetch handlers and background execution threads"
+    },
+    {
+      "permission": "D1: Edit",
+      "scope": "Account",
+      "purpose": "Provision and execute SQL queries against Cloudflare D1 database (DB)"
+    },
+    {
+      "permission": "Workers KV Storage: Edit",
+      "scope": "Account",
+      "purpose": "Read/write cross-datacenter state partitions (CPAGRIP_CAMPAIGNS, CPAGRIP_BALANCE)"
+    },
+    {
+      "permission": "Zone Settings: Edit",
+      "scope": "Zone (bargain-drop.online)",
+      "purpose": "Configure SSL/TLS, Caching Rules, edge headers, and security firewall rules"
+    },
+    {
+      "permission": "Cache Purge: Purge",
+      "scope": "Zone (bargain-drop.online)",
+      "purpose": "Invalidate CDN edge cache upon campaign or storage state updates"
+    }
+  ],
+  "wrangler_configuration": {
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "bargain-drop-v2",
+    "main": "public/store/functions/cpagrip.js",
+    "compatibility_date": "2026-11-02",
+    "compatibility_flags": [
+      "nodejs_compat",
+      "transformstream_enable_standard_constructor"
+    ],
+    "pages_build_output_dir": "./public",
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "bargain-drop-d1",
+        "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      }
+    ],
+    "kv_namespaces": [
+      {
+        "binding": "CPAGRIP_CAMPAIGNS",
+        "id": "REPLACE_WITH_KV_CAMPAIGNS_NAMESPACE_ID"
+      },
+      {
+        "binding": "CPAGRIP_BALANCE",
+        "id": "REPLACE_WITH_KV_BALANCE_NAMESPACE_ID"
+      }
+    ],
+    "vars": {
+      "ADMIN_PIN": "03091996",
+      "PUBLIC_DOMAIN": "https://bargain-drop.online",
+      "ENVIRONMENT": "production"
+    },
+    "secrets_required": [
+      "STRIPE_SECRET_KEY",
+      "SHOPIFY_STOREFRONT_TOKEN"
+    ]
+  },
+  "routes_configuration": {
+    "version": 1,
+    "include": [
+      "/cpagrip-v2/*",
+      "/cpagrip/*",
+      "/api/*"
+    ],
+    "exclude": [
+      "/assets/*",
+      "/*.jpg",
+      "/*.png",
+      "/*.css",
+      "/*.json"
+    ]
+  },
+  "security_headers": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "no-referrer-when-downgrade",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
+  }
+}
