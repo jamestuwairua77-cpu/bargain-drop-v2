@@ -22,45 +22,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .form-row{display:flex;gap:10px;margin-bottom:12px}
 .form-group{flex:1;margin-bottom:12px}
 .form-group label{display:block;font-size:.65rem;font-weight:700;margin-bottom:4px;color:var(--muted)}
-.form-group input,.form-group select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:.72rem;outline:none}
+.form-group input,.form-group select{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:.82rem;outline:none;background:#16161f;color:#ffffff}
+.form-group input::placeholder{color:#8c8c9a}
+.form-group input:focus,.form-group select:focus{border-color:#fe3442}
 .summary-card{background: #0e0e14; color: #ffffff;border-radius:14px;border:1.5px solid var(--line);padding:18px}
-.summary-row{display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:8px;color:var(--muted)}
-.summary-row.total{font-size:.9rem;font-weight:800;color:var(--fg);border-top:1px solid var(--line);padding-top:12px;margin-top:8px;margin-bottom:0}
+.summary-row{display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:8px;color:#d4d4d8}
+.summary-row.total{font-size:1rem;font-weight:800;color:var(--fg);border-top:1px solid var(--line);padding-top:12px;margin-top:8px;margin-bottom:0}
 .pay-btns{display:flex;flex-direction:column;gap:12px;margin-top:16px}
-.pay-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:15px 20px;border:none;border-radius:14px;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;letter-spacing:.3px}
+.pay-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:15px 20px;border:none;border-radius:14px;font-size:.88rem;font-weight:800;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;letter-spacing:.2px}
 .pay-btn:active{transform:scale(.985)}
 .pay-btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(1)}
 .pay-btn .btn-logo{flex-shrink:0;display:flex;align-items:center}
-.pay-btn .btn-text{line-height:1}
-.pay-btn .btn-sub{display:block;font-size:.58rem;font-weight:500;opacity:.75;margin-top:1px}
+.pay-btn .btn-text{line-height:1.1}
+.pay-btn .btn-sub{display:block;font-size:.66rem;font-weight:500;opacity:.85;margin-top:2px}
 /* PayPal */
 .btn-paypal{background:#ffc439;color:#003087;box-shadow:0 2px 8px rgba(0,0,0,.1)}
 .btn-paypal:hover{box-shadow:0 4px 16px rgba(0,0,0,.18);background:#f5bb2a}
-.btn-paypal .spinner{border-color:#003087;border-top-color:transparent}
 .pay-paypal-wrapper{width:100%}
-.pay-paypal-wrapper .paypal-button{width:100%!important;border-radius:14px!important;overflow:hidden!important}
-/* Stripe */
-.btn-stripe{background:#635bff;color:#fff;box-shadow:0 2px 8px rgba(99,91,255,.25)}
-.btn-stripe:hover{box-shadow:0 4px 16px rgba(99,91,255,.4);background:#574deb}
-.pay-or{display:flex;align-items:center;gap:10px;font-size:.65rem;color:var(--muted)}
-.pay-or::before,.pay-or::after{content:'';flex:1;height:1px;background:var(--line)}
-.spinner{display:none;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+.pay-paypal-wrapper .paypal-button{width:100%!important;border-radius:12px!important;overflow:hidden!important}
+/* Payment Method Tabs */
+.pm-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;margin-bottom:14px}
+@media (max-width:480px){.pm-tabs{grid-template-columns:1fr;}}
+.pm-tab{background:#15161f;border:1.5px solid rgba(255,255,255,.18);border-radius:12px;padding:12px 10px;text-align:left;color:#e4e4e7;cursor:pointer;transition:all .16s;display:flex;flex-direction:column;gap:3px}
+.pm-tab:hover{border-color:rgba(255,255,255,.45);background:#1b1d28}
+.pm-tab.active{border-color:#fe3442;background:rgba(254,52,66,.12);box-shadow:0 0 0 1px rgba(254,52,66,.45)}
+.pm-tab-title{font-size:.8rem;font-weight:800;color:#ffffff;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.pm-tab-sub{font-size:.66rem;color:#b4b4c0;line-height:1.3}
+.pm-tag{font-size:.58rem;font-weight:800;padding:2px 6px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px;background:rgba(16,185,129,.18);color:#4ade80}
+.pm-tag.gold{background:rgba(250,204,21,.18);color:#facc15}
+.pm-panel{display:none;background:#12131b;border:1.5px solid rgba(255,255,255,.15);border-radius:14px;padding:16px}
+.pm-panel.active{display:block}
+.pm-info{font-size:.76rem;color:#d4d4d8;line-height:1.55;margin-bottom:12px}
+.pm-info strong{color:#ffffff}
+.btn-payid{background:linear-gradient(135deg,#10b981,#059669);color:#ffffff;box-shadow:0 3px 14px rgba(16,185,129,.3)}
+.btn-payid:hover{background:linear-gradient(135deg,#059669,#047857)}
+.btn-crypto{background:linear-gradient(135deg,#f59e0b,#d97706);color:#09090b;box-shadow:0 3px 14px rgba(245,158,11,.3)}
+.btn-crypto:hover{background:linear-gradient(135deg,#fbbf24,#f59e0b)}
+.coin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.coin-opt{background:#181a24;border:1.5px solid rgba(255,255,255,.16);border-radius:10px;padding:10px 8px;text-align:center;color:#e4e4e7;cursor:pointer;transition:all .15s}
+.coin-opt.active{border-color:#facc15;background:rgba(250,204,21,.12);color:#ffffff}
+.coin-opt .c-code{font-size:.82rem;font-weight:800;color:#ffffff}
+.coin-opt .c-net{font-size:.62rem;color:#a1a1aa;margin-top:2px}
+.coin-opt .c-est{font-size:.68rem;color:#facc15;font-weight:700;margin-top:4px;font-family:monospace}
+.inst-box{margin-top:12px;background:#090a0f;border:1.5px solid rgba(250,204,21,.45);border-radius:12px;padding:14px;display:none}
+.inst-box.show{display:block}
+.inst-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:.76rem}
+.inst-row:last-child{border-bottom:none}
+.inst-lbl{color:#a1a1aa;font-weight:600}
+.inst-val{color:#ffffff;font-family:monospace;font-weight:700;word-break:break-all;text-align:right}
+.copy-mini{background:#232533;color:#ffffff;border:1px solid rgba(255,255,255,.22);border-radius:6px;padding:4px 8px;font-size:.66rem;font-weight:700;cursor:pointer;flex-shrink:0}
+.copy-mini:hover{background:#fe3442;border-color:#fe3442}
+.spinner{display:none;width:16px;height:16px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
 .pay-btn.loading .spinner{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .promo-row{display:flex;gap:8px;margin-bottom:12px}
-.promo-row input{flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:.72rem;outline:none;text-transform:uppercase}
+.promo-row input{flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:.78rem;outline:none;text-transform:uppercase;background:#16161f;color:#ffffff}
 .promo-row input:focus{border-color:var(--red)}
-.promo-apply{background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:.3px}
+.promo-apply{background:#fe3442;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:.76rem;font-weight:800;cursor:pointer;letter-spacing:.3px}
 .promo-apply:disabled{opacity:.45;cursor:not-allowed}
-.promo-msg{font-size:.68rem;margin-top:-6px;margin-bottom:12px;font-weight:600}
+.promo-msg{font-size:.74rem;margin-top:-6px;margin-bottom:12px;font-weight:600}
 .promo-msg.ok{color:var(--green)}
-.promo-msg.bad{color:var(--red)}
+.promo-msg.bad{color:#ff6b78}
 .summary-row.discount span:last-child{color:var(--green);font-weight:700}
 
-.pay-badges{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
-.pay-badge{font-size:.6rem;color:var(--muted);display:flex;align-items:center;gap:4px}
-.error-box{display:none;color:var(--red);font-size:.7rem;text-align:center;margin-top:10px;padding:10px 14px;background:#fef2f2;border-radius:8px;line-height:1.5}
+.pay-badges{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.pay-badge{font-size:.68rem;color:#c4c4d0;display:flex;align-items:center;gap:4px}
+.error-box{display:none;color:#fecaca;font-size:.78rem;text-align:center;margin-top:10px;padding:10px 14px;background:rgba(220,38,38,.18);border:1px solid rgba(248,113,113,.5);border-radius:8px;line-height:1.5}
 .toast{position:fixed;bottom:140px;left:50%;transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:12px 22px;border-radius:30px;font-size:.78rem;font-weight:600;opacity:0;transition:all .25s;z-index:300;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -173,7 +201,6 @@ html, body {
 }
 
 </style>
-  <script src="https://js.stripe.com/v3/"></script>
   <script src="https://www.paypal.com/sdk/js?client-id=Afb8aEAzOEhf6Y80Sx3a4xNIVFIsyKGqXGAASYxlrg1O-K5hSxfqQCit-ClqREEhiWdLEw7lU49EXZFG&currency=AUD&intent=capture"></script>
 
 <script src="/js/currency.js?v=282a4853cc"></script>
@@ -839,34 +866,78 @@ input::placeholder, textarea::placeholder {
 <div class="summary-row discount" id="discount-row" style="display:none"><span>Discount (30%)</span><span id="summary-discount">-$0.00</span></div>
 <div class="summary-row total"><span>Total</span><span id="summary-total">$0.00</span></div>
 <div class="error-box" id="checkout-error"></div>
-<div class="pay-btns">
-  <!-- PayPal -->
-  <div id="paypal-btn-container" class="pay-paypal-wrapper" style="width:100%;min-height:52px"></div>
-  <!-- Stripe -->
-  <button class="pay-btn btn-stripe" id="pay-stripe" onclick="payWithStripe()"><span class="spinner"></span><span class="btn-logo"><svg width="22" height="22" viewBox="0 0 32 14" fill="none"><rect x="1.5" y="1.5" width="29" height="11" rx="2.5" stroke="#fff" stroke-width="1.8" fill="none"/><path d="M11 4h-1.8l-.8 6h1.8l.8-6z" fill="#fff"/><path d="M15 4l-1.2 3-1-3h-1.8l2 5-1.2 2h1.8l3.2-7h-2z" fill="#fff"/><path d="M19.5 4v6.5h1.8v-2.5l2 2.5h2.2l-2.5-3 2.5-3.5h-2.2l-2 3v-3h-1.8z" fill="#fff"/></svg></span><span class="btn-text">Pay with Stripe</span><span class="btn-sub">Card • Afterpay • Klarna • Zip • Link</span></button>
+<div class="pm-tabs" role="tablist">
+  <button type="button" class="pm-tab active" id="tab-paypal" onclick="selectPayMethod('paypal')">
+    <span class="pm-tab-title">PayPal <span class="pm-tag">Instant</span></span>
+    <span class="pm-tab-sub">PayPal, Debit/Credit Card &amp; Pay in 4</span>
+  </button>
+  <button type="button" class="pm-tab" id="tab-payid" onclick="selectPayMethod('payid')">
+    <span class="pm-tab-title">PayID / Osko <span class="pm-tag">0% Fee</span></span>
+    <span class="pm-tab-sub">Instant Australian Bank Transfer</span>
+  </button>
+  <button type="button" class="pm-tab" id="tab-crypto" onclick="selectPayMethod('crypto')">
+    <span class="pm-tab-title">Crypto <span class="pm-tag gold">Global</span></span>
+    <span class="pm-tab-sub">USDT (TRC20), USDC or BTC</span>
+  </button>
 </div>
+
+<!-- Panel 1: PayPal Instant Checkout -->
+<div class="pm-panel active" id="panel-paypal">
+  <div class="pm-info">Pay instantly in <strong>AUD</strong> using PayPal, Debit/Credit Card, or Pay in 4. Verified orders are automatically dispatched to our fulfillment hub within seconds.</div>
+  <div id="paypal-btn-container" class="pay-paypal-wrapper" style="width:100%;min-height:52px"></div>
+</div>
+
+<!-- Panel 2: Australian PayID / Osko Instant Bank Transfer -->
+<div class="pm-panel" id="panel-payid">
+  <div class="pm-info">Pay directly from any Australian banking app using <strong>PayID / Osko</strong> with <strong>zero card surcharges</strong>. Your order locks stock immediately and dispatches as soon as your Osko transfer lands.</div>
+  <button type="button" class="pay-btn btn-payid" id="pay-payid" onclick="payWithPayID()">
+    <span class="spinner"></span>
+    <span class="btn-text">Reserve Order &amp; Show PayID Details<span class="btn-sub">Instant Osko Transfer • AUD • Zero Fees</span></span>
+  </button>
+  <div class="inst-box" id="payid-inst-box"></div>
+</div>
+
+<!-- Panel 3: Non-Custodial Crypto Checkout (USDT / USDC / BTC) -->
+<div class="pm-panel" id="panel-crypto">
+  <div class="pm-info">Pay globally with zero intermediary fees using <strong>USDT, USDC, or Bitcoin</strong>. Live AUD conversion rate locked on order creation.</div>
+  <div class="coin-grid" id="coin-grid">
+    <button type="button" class="coin-opt active" data-coin="USDT" onclick="selectCryptoCoin('USDT')">
+      <div class="c-code">USDT</div>
+      <div class="c-net">TRC20</div>
+      <div class="c-est" id="est-USDT">—</div>
+    </button>
+    <button type="button" class="coin-opt" data-coin="USDC" onclick="selectCryptoCoin('USDC')">
+      <div class="c-code">USDC</div>
+      <div class="c-net">ERC20</div>
+      <div class="c-est" id="est-USDC">—</div>
+    </button>
+    <button type="button" class="coin-opt" data-coin="BTC" onclick="selectCryptoCoin('BTC')">
+      <div class="c-code">BTC</div>
+      <div class="c-net">Bitcoin</div>
+      <div class="c-est" id="est-BTC">—</div>
+    </button>
+  </div>
+  <button type="button" class="pay-btn btn-crypto" id="pay-crypto" onclick="payWithCrypto()">
+    <span class="spinner"></span>
+    <span class="btn-text">Continue with <span id="crypto-btn-coin">USDT</span><span class="btn-sub">Direct Blockchain Settlement • Zero Card Bans</span></span>
+  </button>
+  <div class="inst-box" id="crypto-inst-box"></div>
+</div>
+
 <div class="pay-badges">
-<div class="pay-badge">🔒 SSL Encrypted &bull; Secure Checkout</div>
+<div class="pay-badge">🔒 256-Bit SSL Encrypted</div>
+<div class="pay-badge">⚡ Direct Auto-Fulfillment</div>
+<div class="pay-badge">🇦🇺 AUD Checkout &amp; 30-Day Guarantee</div>
 </div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
 
-<div class="pp-overlay" id="pp-overlay">
-<div class="pp-dialog">
-<button class="pp-close" onclick="closePayPal()">&times;</button>
-<h3>Pay with PayPal</h3>
-<div class="pp-amount" id="pp-amount">$0.00</div>
-<div id="pp-btn-container"></div>
-<div class="pp-sub">You will be redirected to PayPal to complete payment</div>
-</div>
-</div>
-
-
 <script>
 var API_BASE = window.location.origin;
-var STRIPE_PK='';
-fetch(API_BASE+'/api/stripe-pk').then(function(r){return r.json()}).then(function(d){STRIPE_PK=d.key;}).catch(function(){});
+var PAYMENT_CONFIG = null;
+var SELECTED_PAY_METHOD = 'paypal';
+var SELECTED_COIN = 'USDT';
 try { BD.initCurrency().then(function(){
 var cart=JSON.parse(localStorage.getItem('bd_cart')||'[]');
 function renderCkItems(){
@@ -1110,14 +1181,13 @@ function validateShip(s){
 
 function computeCartIdempotencyKey(email, method){
   var sig = cart.map(function(i){return (i.id||i.sku||i.title)+':'+(i.variant_id||'')+':'+(i.qty||1);}).join('|');
-  var raw = [String(email||'').toLowerCase(), method||'Stripe', sig, total.toFixed(2), appliedCode||''].join('::');
+  var raw = [String(email||'').toLowerCase(), method||'PayPal', sig, total.toFixed(2), appliedCode||''].join('::');
   var hash = 0;
   for(var i=0;i<raw.length;i++){hash=((hash<<5)-hash)+raw.charCodeAt(i);hash|=0;}
-  var bucket = Math.floor(Date.now() / (10 * 60 * 1000)); // 10-minute idempotency window
+  var bucket = Math.floor(Date.now() / (10 * 60 * 1000));
   return 'idem_' + Math.abs(hash).toString(36) + '_' + bucket.toString(36);
 }
 
-// --- Order saving ---
 function saveOrder(oid,email,fname,lname,method,s,idemKey){
   s=s||{};
   var normPhone = normalizeCheckoutPhoneE164(s.phone, s.country_code||'AU');
@@ -1143,8 +1213,9 @@ function saveOrder(oid,email,fname,lname,method,s,idemKey){
     }),
     email:email,
     phone:normPhone,
-    name:fname+' '+lname,
+    name:(fname+' '+lname).trim(),
     payment:method,
+    paymentMethod:method,
     method:method,
     shipping:{
       first_name:fname,last_name:lname,fullName:(fname+' '+lname).trim(),email:email,
@@ -1159,7 +1230,6 @@ function saveOrder(oid,email,fname,lname,method,s,idemKey){
   return order;
 }
 
-// Persist order to the server ledger with atomic inventory row lock BEFORE payment capture
 async function persistOrderServer(order){
   var r = await fetch(API_BASE+'/api/save-order',{
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -1172,107 +1242,74 @@ async function persistOrderServer(order){
   return data;
 }
 
-// --- Disable all payment buttons during processing ---
 function setAllBtnsDisabled(d){
-  var btns=['pay-stripe'];
-  btns.forEach(function(id){var b=document.getElementById(id);if(b)b.disabled=d;});
+  ['pay-payid','pay-crypto'].forEach(function(id){var b=document.getElementById(id);if(b)b.disabled=d;});
 }
 
-// --- PayPal modal popup ---
-function closePayPal(){
-  var o=document.getElementById('pp-overlay');
-  if(o)o.classList.remove('show');
-  setAllBtnsDisabled(false);
-}
-
-function openPayPal(){
-  var o=document.getElementById('pp-overlay');
-  if(o)o.classList.add('show');
-}
-
-// --- Build line items ---
-function buildLineItems(){
-  // Send full-price line items; the server applies the promo_code discount.
-  return cart.map(function(item){
-    return {
-      product_id: item.product_id || item.id || null,
-      variant_id: item.variant_id || null,
-      sku: item.sku || null,
-      price_data:{
-        currency:(BD.getCurrency()||'AUD').toLowerCase(),
-        product_data:{name:(item.title||'Product').substring(0,200),images:item.image?[item.image]:[]},
-        unit_amount:Math.round((item.price||0)*100)
-      },
-      quantity:item.qty||1
-    };
-  });
-}
-
-// Payment functions below
-// --- Stripe Checkout (atomic inventory lock + idempotency key) ---
-async function stripeCheckout(oid,s,pm,ord){
-  var label=pm==='paypal'?'PayPal':pm==='card'?'Card':'Stripe';
-  try{
-    var shipping_options=shipping>0?[{
-      shipping_rate_data:{display_name:'Standard Shipping',type:'fixed_amount',
-      fixed_amount:{amount:Math.round(shipping*100),currency:(BD.getCurrency()||'AUD').toLowerCase()}}
-    }]:[];
-
-    var idemKey = (ord && ord.idempotency_key) || computeCartIdempotencyKey(s.email, 'Stripe');
-    var body={
-      idempotency_key:idemKey,
-      order:ord||null,
-      line_items:buildLineItems(),
-      customer_email:s.email,
-      success_url:API_BASE+'/order-success.html?id='+oid,
-      cancel_url:API_BASE+'/checkout.html',
-      metadata:{order_id:oid,idempotency_key:idemKey,source:'bargain-drop-v10',discount_code:(appliedCode||''),discount_percent:String(discountPct)},
-      payment_method:pm||null,
-      shipping_options:shipping_options,
-      promo_code:(appliedCode||null)
-    };
-
-    var resp=await fetch(API_BASE+'/api/create-checkout-session',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    });
-
-    if(!resp.ok){
-      var errText='';
-      try{var ed=await resp.json();errText=ed.error||ed.message||JSON.stringify(ed)}catch(e){errText='Server error ('+resp.status+')'}
-      throw new Error(errText);
-    }
-
-    var data=await resp.json();
-    if(data.url){
-      // Cart is NOT cleared here; bd_cart is only cleared after verified payment webhook on order-success.html
-      window.location.href=data.url;
-    }else{
-      throw new Error('No checkout URL returned');
-    }
-  }catch(e){
-    showError(label+' failed: '+e.message+' — Please try another method');
-    setAllBtnsDisabled(false);
-    ['pay-stripe'].forEach(function(id){var b=document.getElementById(id);if(b)b.classList.remove('loading');});
+function copyText(val, label){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(String(val)).then(function(){showToast('Copied '+(label||'text')+'!');}).catch(function(){showToast(String(val));});
+  } else {
+    showToast(String(val));
   }
 }
+window.copyText = copyText;
 
-// --- PAYMENT BUTTON HANDLERS ---
+function updateCryptoEstimates(){
+  var rates = (PAYMENT_CONFIG && PAYMENT_CONFIG.methods && PAYMENT_CONFIG.methods.crypto && PAYMENT_CONFIG.methods.crypto.rates) || { audPerUsdt: 1.54, audPerUsdc: 1.54, audPerBtc: 148000 };
+  var amt = Math.max(0.5, Number(total || 0));
+  var eUsdt = document.getElementById('est-USDT');
+  var eUsdc = document.getElementById('est-USDC');
+  var eBtc = document.getElementById('est-BTC');
+  if(eUsdt) eUsdt.textContent = (amt / (rates.audPerUsdt || 1.54)).toFixed(2) + ' USDT';
+  if(eUsdc) eUsdc.textContent = (amt / (rates.audPerUsdc || 1.54)).toFixed(2) + ' USDC';
+  if(eBtc) eBtc.textContent = (amt / (rates.audPerBtc || 148000)).toFixed(6) + ' BTC';
+}
 
-// PayPal SDK — authentic PayPal native popup with inventory lock + verified capture forwarding
+// Fetch live public payment configuration (PayID + Crypto rates/wallets)
+fetch(API_BASE+'/api/payment-config').then(function(r){return r.json();}).then(function(cfg){
+  PAYMENT_CONFIG = cfg;
+  updateCryptoEstimates();
+}).catch(function(){ updateCryptoEstimates(); });
+
+var _origRecalc = recalcTotals;
+recalcTotals = function(){ _origRecalc(); updateCryptoEstimates(); };
+updateCryptoEstimates();
+
+window.selectPayMethod = function(m){
+  SELECTED_PAY_METHOD = m;
+  ['paypal','payid','crypto'].forEach(function(k){
+    var tab = document.getElementById('tab-'+k);
+    var pan = document.getElementById('panel-'+k);
+    if(tab) tab.classList.toggle('active', k===m);
+    if(pan) pan.classList.toggle('active', k===m);
+  });
+  var err = document.getElementById('checkout-error');
+  if(err) err.style.display='none';
+};
+
+window.selectCryptoCoin = function(coin){
+  SELECTED_COIN = coin;
+  document.querySelectorAll('#coin-grid .coin-opt').forEach(function(el){
+    el.classList.toggle('active', el.getAttribute('data-coin') === coin);
+  });
+  var lbl = document.getElementById('crypto-btn-coin');
+  if(lbl) lbl.textContent = coin;
+};
+
+// 1. PayPal Checkout (Instant AUD — PayPal Balance, Cards, Pay in 4 -> Automatic CJ Fulfillment)
 (function initPayPal(){
   function renderPP(){
     if(typeof paypal==='undefined'){setTimeout(renderPP,200);return;}
     paypal.Buttons({
-      style:{layout:'horizontal',color:'gold',shape:'rect',label:'paypal',height:48,tagline:false},
+      style:{layout:'vertical',color:'gold',shape:'rect',label:'paypal',height:46,tagline:false},
       onClick:async function(data,actions){
-        if(cart.length===0){showError('Cart is empty');return actions.reject();}
+        if(cart.length===0){showError('Your cart is empty');return actions.reject();}
         var s=getShippingInfo();
         if(!validateShip(s)){return actions.reject();}
         setAllBtnsDisabled(true);
         var idemKey=computeCartIdempotencyKey(s.email,'PayPal');
-        var oid=window._ppOid||('BD-PP-'+Date.now().toString(36).toUpperCase());
+        var oid=window._ppOid||('BD-PP-'+Date.now().toString(36).toUpperCase().slice(-6));
         var ord=saveOrder(oid,s.email,s.fname,s.lname,'PayPal',s,idemKey);
         try{
           await persistOrderServer(ord);
@@ -1286,7 +1323,6 @@ async function stripeCheckout(oid,s,pm,ord){
         }
       },
       createOrder:function(data,actions){
-        // PayPal SDK is initialized with currency=AUD; always send matching AUD value to avoid CURRENCY_MISMATCH
         var ppAmount = Math.max(0.5, Number(total || 0)).toFixed(2);
         return actions.order.create({
           purchase_units:[{amount:{value:ppAmount,currency_code:'AUD'},description:'Bargain Drop Order #'+(window._ppOid||'')}]
@@ -1301,6 +1337,7 @@ async function stripeCheckout(oid,s,pm,ord){
             payment_verified: true,
             cartCleared: true,
             method: 'PayPal',
+            paymentMethod: 'PayPal',
             paidAt: new Date().toISOString(),
             payment: {
               gateway: 'paypal',
@@ -1315,30 +1352,124 @@ async function stripeCheckout(oid,s,pm,ord){
             localStorage.removeItem('bd_cart_items_v1');
             localStorage.removeItem('bd_promo');
           } catch(e) {}
-          window.location.href=API_BASE+'/order-success.html?id='+(window._ppOid||'')+'&verified=1';
+          window.location.href=API_BASE+'/order-success.html?id='+(window._ppOid||'')+'&verified=1&method=paypal';
         });
       },
-      onError:function(err){setAllBtnsDisabled(false);showError('PayPal: '+(err.message||err));},
+      onError:function(err){setAllBtnsDisabled(false);showError('PayPal error: '+(err.message||err));},
       onCancel:function(){setAllBtnsDisabled(false);}
     }).render('#paypal-btn-container');
   }
   renderPP();
 })();
 
-window.payWithStripe = async function(){
-  if(cart.length===0){showError('Your cart is empty');return}
+// 2. Australian PayID / Osko Instant Bank Transfer
+window.payWithPayID = async function(){
+  if(cart.length===0){showError('Your cart is empty');return;}
   var s=getShippingInfo();if(!validateShip(s))return;
-  var btn=document.getElementById('pay-stripe');
+  var btn=document.getElementById('pay-payid');
   if(btn && btn.disabled) return;
-  btn.classList.add('loading');setAllBtnsDisabled(true);
-  var idemKey=computeCartIdempotencyKey(s.email,'Stripe');
-  var existingOrders=JSON.parse(localStorage.getItem('bd_orders')||'[]');
-  var prev=existingOrders.find(function(o){return o.idempotency_key===idemKey && o.status==='pending_payment';});
-  var oid=(prev && prev.id) ? prev.id : ('BD-CC-'+Date.now().toString(36).toUpperCase());
-  var ord=saveOrder(oid,s.email,s.fname,s.lname,'Stripe',s,idemKey);
-  await stripeCheckout(oid,s,null,ord);
+  btn.classList.add('loading'); setAllBtnsDisabled(true);
+  try{
+    var idemKey=computeCartIdempotencyKey(s.email,'PayID');
+    var oid='BD-PID-'+Date.now().toString(36).toUpperCase().slice(-6);
+    var ord=saveOrder(oid,s.email,s.fname,s.lname,'PayID / Osko',s,idemKey);
+    var resp=await fetch(API_BASE+'/api/payid-order',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({order:ord})
+    });
+    var d=await resp.json().catch(function(){return {};});
+    if(!resp.ok || !d.ok){
+      throw new Error(d.error || 'Could not create PayID order');
+    }
+    // Persist latest order locally & clear cart since inventory is now reserved
+    if(d.order) saveOrder(d.orderId, s.email, s.fname, s.lname, 'PayID / Osko', s, idemKey);
+    try{
+      var allOrd = JSON.parse(localStorage.getItem('bd_orders')||'[]');
+      var idx = allOrd.findIndex(function(o){return o.id===d.orderId;});
+      if(idx>=0 && d.order) allOrd[idx] = d.order;
+      localStorage.setItem('bd_orders', JSON.stringify(allOrd));
+      localStorage.removeItem('bd_cart');
+      localStorage.removeItem('bd_cart_items_v1');
+      localStorage.removeItem('bd_promo');
+    }catch(e){}
+    var p = d.payid || {};
+    var box = document.getElementById('payid-inst-box');
+    if(box){
+      box.innerHTML =
+        '<div style="font-size:.82rem;font-weight:800;color:#4ade80;margin-bottom:8px">✅ Order Reserved — Send Osko Transfer Now</div>'+
+        '<div class="inst-row"><span class="inst-lbl">PayID</span><span class="inst-val">'+String(p.payid||'')+'</span><button type="button" class="copy-mini" onclick="copyText(\''+String(p.payid||'').replace(/'/g,"\\'")+'\',\'PayID\')">Copy</button></div>'+
+        '<div class="inst-row"><span class="inst-lbl">Account Name</span><span class="inst-val">'+String(p.accountName||'Bargain Drop Australia')+'</span></div>'+
+        (p.bsb && p.accountNumber ? '<div class="inst-row"><span class="inst-lbl">BSB / Account</span><span class="inst-val">'+String(p.bsb)+' / '+String(p.accountNumber)+'</span></div>' : '')+
+        '<div class="inst-row"><span class="inst-lbl">Exact Amount</span><span class="inst-val" style="color:#facc15">A$'+Number(p.amountAud||total).toFixed(2)+'</span><button type="button" class="copy-mini" onclick="copyText(\''+Number(p.amountAud||total).toFixed(2)+'\',\'Amount\')">Copy</button></div>'+
+        '<div class="inst-row"><span class="inst-lbl">Reference (Required)</span><span class="inst-val" style="color:#fe3442">'+String(d.orderId)+'</span><button type="button" class="copy-mini" onclick="copyText(\''+String(d.orderId)+'\',\'Reference\')">Copy</button></div>'+
+        '<a href="'+API_BASE+'/order-success.html?id='+encodeURIComponent(d.orderId)+'&method=payid" class="pay-btn btn-payid" style="margin-top:12px;text-decoration:none">I\'ve Sent the PayID Transfer → View Order Status</a>';
+      box.classList.add('show');
+    }
+    btn.style.display='none';
+    showToast('Order #'+d.orderId+' reserved!');
+  }catch(e){
+    showError(e.message || 'PayID order creation failed');
+    setAllBtnsDisabled(false);
+    btn.classList.remove('loading');
+  }
 };
 
+// 3. Non-Custodial Crypto Checkout (USDT / USDC / BTC or NOWPayments)
+window.payWithCrypto = async function(){
+  if(cart.length===0){showError('Your cart is empty');return;}
+  var s=getShippingInfo();if(!validateShip(s))return;
+  var btn=document.getElementById('pay-crypto');
+  if(btn && btn.disabled) return;
+  btn.classList.add('loading'); setAllBtnsDisabled(true);
+  try{
+    var idemKey=computeCartIdempotencyKey(s.email,'Crypto-'+SELECTED_COIN);
+    var oid='BD-CRY-'+Date.now().toString(36).toUpperCase().slice(-6);
+    var ord=saveOrder(oid,s.email,s.fname,s.lname,'Crypto ('+SELECTED_COIN+')',s,idemKey);
+    var resp=await fetch(API_BASE+'/api/crypto-order',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({order:ord, coin:SELECTED_COIN})
+    });
+    var d=await resp.json().catch(function(){return {};});
+    if(!resp.ok || !d.ok){
+      throw new Error(d.error || 'Could not initialize Crypto checkout');
+    }
+    try{
+      var allOrd = JSON.parse(localStorage.getItem('bd_orders')||'[]');
+      var idx = allOrd.findIndex(function(o){return o.id===d.orderId;});
+      if(idx>=0 && d.order) allOrd[idx] = d.order;
+      else if(d.order) allOrd.push(d.order);
+      localStorage.setItem('bd_orders', JSON.stringify(allOrd));
+      localStorage.removeItem('bd_cart');
+      localStorage.removeItem('bd_cart_items_v1');
+      localStorage.removeItem('bd_promo');
+    }catch(e){}
+
+    // If automated NOWPayments hosted invoice is returned, redirect straight there
+    if(d.invoiceUrl){
+      window.location.href = d.invoiceUrl;
+      return;
+    }
+
+    // Otherwise display direct non-custodial wallet transfer details + instant TxID submission
+    var c = d.crypto || {};
+    var box = document.getElementById('crypto-inst-box');
+    if(box){
+      box.innerHTML =
+        '<div style="font-size:.82rem;font-weight:800;color:#facc15;margin-bottom:8px">⚡ Send '+String(c.coin||SELECTED_COIN)+' ('+String(c.network||'')+')</div>'+
+        '<div class="inst-row"><span class="inst-lbl">Exact Amount</span><span class="inst-val" style="color:#facc15">'+String(c.cryptoAmount)+' '+String(c.coin)+'</span><button type="button" class="copy-mini" onclick="copyText(\''+String(c.cryptoAmount)+'\',\'Crypto Amount\')">Copy</button></div>'+
+        '<div class="inst-row"><span class="inst-lbl">Wallet Address</span><span class="inst-val" style="font-size:.68rem">'+String(c.walletAddress||'')+'</span><button type="button" class="copy-mini" onclick="copyText(\''+String(c.walletAddress||'').replace(/'/g,"\\'")+'\',\'Wallet Address\')">Copy</button></div>'+
+        '<div class="inst-row"><span class="inst-lbl">Order Ref</span><span class="inst-val">'+String(d.orderId)+'</span></div>'+
+        '<a href="'+API_BASE+'/order-success.html?id='+encodeURIComponent(d.orderId)+'&method=crypto" class="pay-btn btn-crypto" style="margin-top:12px;text-decoration:none">I\'ve Sent Crypto → Submit TxID &amp; Track Order</a>';
+      box.classList.add('show');
+    }
+    btn.style.display='none';
+    showToast('Crypto order #'+d.orderId+' created!');
+  }catch(e){
+    showError(e.message || 'Crypto checkout failed');
+    setAllBtnsDisabled(false);
+    btn.classList.remove('loading');
+  }
+};
 
 }).catch(function(e){console.error('Init failed:',e);document.getElementById('checkout-error').style.display='block';document.getElementById('checkout-error').textContent='Loading error — please refresh the page';});
 }catch(e){console.error('BD error:',e);}

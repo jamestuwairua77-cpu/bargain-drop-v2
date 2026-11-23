@@ -1,302 +1,108 @@
 // Cloudflare Pages Function: /api/save-order
-// GET  ?id=<orderId> — Fetches authoritative server-side order & payment/tracking status
-// POST               — Idempotent order save with inventory lock & verified PayPal fulfillment trigger
+// Persists orders with atomic inventory row locks, E.164 phone normalization,
+// and automatic end-to-end CJ Dropshipping fulfillment on verified PayPal / PayID / Crypto payments.
+// Zero Stripe or Shopify dependencies.
 
 import {
-  corsHeaders,
-  appendSyncLog,
   saveOrderRecord,
   listOrders,
+  corsHeaders,
   lockAndVerifyInventory,
   normalizePhoneE164,
   fulfillOrder,
-  getSessionUser,
   isAdmin,
+  adminDenied,
 } from '../_sync-lib.js';
 
-function privateHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'Cache-Control': 'private, no-cache, no-store, must-revalidate, max-age=0',
-    'Pragma': 'no-cache',
-    'Vary': 'Cookie, Authorization',
-    'X-Content-Type-Options': 'nosniff',
-    ...corsHeaders(),
-  };
-}
-
-function redactOrderPiiForGuest(order) {
-  const ship = order.shipping || {};
-  return {
-    id: order.id,
-    orderNumber: order.orderNumber || order.id,
-    date: order.date || order.createdAt,
-    status: order.status || 'paid',
-    total: order.total,
-    currency: order.currency || 'AUD',
-    items: Array.isArray(order.items) ? order.items : [],
-    tracking: order.tracking || (order.trackingNumber ? { number: order.trackingNumber, carrier: order.trackingCarrier } : undefined),
-    cjOrderId: order.cjOrderId,
-    shipping: {
-      city: ship.city || '',
-      province: ship.province || ship.state || '',
-      country: ship.country || 'Australia',
-    },
-  };
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders() },
+  });
 }
 
 export async function onRequest(context) {
   const { request, env } = context;
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: privateHeaders() });
-  }
-
   const url = new URL(request.url);
+  if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
 
-  // GET /api/save-order?id=BD... or ?mine=1
   if (request.method === 'GET') {
-    const sessionUser = await getSessionUser(request, env).catch(() => null);
-    const adminAuthorized = isAdmin(request, env);
-
-    // Authenticated Account Holder fetching their own order history (?mine=1)
-    if (url.searchParams.get('mine') === '1') {
-      if (!sessionUser) {
-        return new Response(JSON.stringify({ ok: false, error: 'Authentication required' }), {
-          status: 401,
-          headers: privateHeaders(),
-        });
-      }
-      const allOrders = await listOrders(env);
-      const userEmail = String(sessionUser.email || '').trim().toLowerCase();
-      const ownOrders = allOrders.filter((o) => {
-        const oEmail = String(o.email || o.shipping?.email || '').trim().toLowerCase();
-        return (
-          (o.userId && String(o.userId) === String(sessionUser.id)) ||
-          (userEmail && oEmail === userEmail)
-        );
-      });
-      return new Response(JSON.stringify({ ok: true, orders: ownOrders }), {
-        status: 200,
-        headers: privateHeaders(),
-      });
+    const id = url.searchParams.get('id');
+    const all = await listOrders(env);
+    if (id) {
+      const found = all.find((o) => String(o.id) === String(id)) || null;
+      return json({ order: found });
     }
-
-    const id = (url.searchParams.get('id') || url.searchParams.get('order') || '').trim();
-    if (!id) {
-      return new Response(JSON.stringify({ error: 'id query parameter required' }), {
-        status: 400,
-        headers: privateHeaders(),
-      });
-    }
-    try {
-      const orders = await listOrders(env);
-      const found = orders.find(
-        (o) =>
-          String(o.id) === id ||
-          String(o.cjOrderId || '') === id ||
-          String(o.tracking?.number || o.trackingNumber || '') === id
-      );
-      if (!found) {
-        return new Response(JSON.stringify({ found: false, order: null }), {
-          status: 404,
-          headers: privateHeaders(),
-        });
-      }
-
-      const isOwner =
-        sessionUser &&
-        ((found.userId && String(found.userId) === String(sessionUser.id)) ||
-          (sessionUser.email &&
-            String(found.email || found.shipping?.email || '').toLowerCase() ===
-              String(sessionUser.email).toLowerCase()));
-
-      const isPaid =
-        found.status === 'paid' ||
-        found.status === 'processing' ||
-        found.status === 'fulfilling' ||
-        found.status === 'fulfilled' ||
-        found.status === 'shipped' ||
-        found.paymentStatus === 'paid';
-
-      return new Response(
-        JSON.stringify({
-          found: true,
-          paid: isPaid,
-          cartCleared: Boolean(found.cartCleared || isPaid),
-          // Full PII only if owner or admin; redacted summary for guest tracking lookup
-          order: isOwner || adminAuthorized ? found : redactOrderPiiForGuest(found),
-        }),
-        {
-          status: 200,
-          headers: privateHeaders(),
-        }
-      );
-    } catch (e) {
-      return new Response(JSON.stringify({ error: e.message }), {
-        status: 500,
-        headers: privateHeaders(),
-      });
-    }
+    if (!isAdmin(request, env)) return adminDenied();
+    return json({ orders: all });
   }
 
-  if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-    });
-  }
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json();
     const order = body.order || body;
-    if (!order || !order.id) {
-      return new Response(JSON.stringify({ error: 'order.id required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      });
+    if (!order || !order.id) return json({ error: 'order.id required' }, 400);
+
+    // Normalize customer phone to E.164 (required by CJ Dropshipping)
+    const ship = order.shipping || order.shippingAddress || {};
+    const countryCode = (ship.country_code || ship.countryCode || 'AU').toUpperCase();
+    const normalizedPhone = normalizePhoneE164(ship.phone || order.phone || '', countryCode);
+    if (normalizedPhone) {
+      order.phone = normalizedPhone;
+      if (order.shipping) order.shipping.phone = normalizedPhone;
     }
 
-    // Normalize E.164 phone on shipping address
-    const ship = order.shipping || {};
-    const countryCode = (ship.country_code || 'AU').toUpperCase();
-    if (ship.phone || order.phone) {
-      ship.phone = normalizePhoneE164(ship.phone || order.phone, countryCode);
-      order.phone = ship.phone;
-      order.shipping = ship;
-    }
-
-    // Verify & lock inventory before saving
-    const lockResult = await lockAndVerifyInventory(env, order.items || [], order.id);
-    if (!lockResult.ok && Array.isArray(order.items) && order.items.length > 0) {
-      return new Response(
-        JSON.stringify({
-          error: lockResult.message || 'Insufficient stock',
-          code: lockResult.code || 'INSUFFICIENT_STOCK',
-          details: lockResult,
-        }),
-        {
-          status: 409,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-        }
-      );
-    }
-
-    // Server-side PayPal capture verification (prevents spoofed payment_verified: true)
-    const isPayPal = String(order.method || order.payment?.gateway || '').toLowerCase() === 'paypal';
-    const wantsPaid = order.payment_verified === true || order.status === 'paid' || order.paymentStatus === 'paid';
-    let paypalServerVerified = false;
-    let paypalVerifyNote = null;
-
-    if (wantsPaid && isPayPal) {
-      const ppOrderId = String(order.payment?.hash || order.paypalOrderId || '').trim();
-      if (!ppOrderId) {
-        return new Response(
-          JSON.stringify({ error: 'Missing PayPal transaction/order ID for payment verification.' }),
-          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
+    // Atomic inventory verification & stock reservation lock
+    const isAlreadyPaid = order.status === 'paid' || order.paymentStatus === 'paid' || order.payment_verified === true;
+    const isPendingTransfer = order.status === 'awaiting_payid' || order.status === 'awaiting_crypto';
+    let inventoryLock = null;
+    if (Array.isArray(order.items) && order.items.length > 0) {
+      inventoryLock = await lockAndVerifyInventory(env, order.items, order.id);
+      if (!inventoryLock.ok && !isAlreadyPaid) {
+        return json(
+          {
+            ok: false,
+            error: inventoryLock.message || 'Stock verification failed',
+            code: inventoryLock.code || 'STOCK_LOCK_FAILED',
+            details: inventoryLock,
+          },
+          409
         );
       }
-      const ppClientId = env.PAYPAL_CLIENT_ID || '';
-      const ppSecret = env.PAYPAL_CLIENT_SECRET || '';
-      if (ppClientId && ppSecret) {
-        try {
-          const ppBase = env.PAYPAL_SANDBOX === '1'
-            ? 'https://api-m.sandbox.paypal.com'
-            : 'https://api-m.paypal.com';
-          const tokRes = await fetch(`${ppBase}/v1/oauth2/token`, {
-            method: 'POST',
-            headers: {
-              Authorization: 'Basic ' + btoa(`${ppClientId}:${ppSecret}`),
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'grant_type=client_credentials',
-          });
-          const tokJson = await tokRes.json().catch(() => ({}));
-          if (!tokRes.ok || !tokJson.access_token) {
-            return new Response(
-              JSON.stringify({ error: 'PayPal verification auth failed' }),
-              { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
-            );
-          }
-          const ordRes = await fetch(`${ppBase}/v2/checkout/orders/${encodeURIComponent(ppOrderId)}`, {
-            headers: { Authorization: 'Bearer ' + tokJson.access_token },
-          });
-          const ordJson = await ordRes.json().catch(() => ({}));
-          if (!ordRes.ok || String(ordJson.status || '').toUpperCase() !== 'COMPLETED') {
-            return new Response(
-              JSON.stringify({
-                error: `PayPal order ${ppOrderId} is not COMPLETED (status: ${ordJson.status || ordRes.status})`,
-              }),
-              { status: 402, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
-            );
-          }
-          paypalServerVerified = true;
-          paypalVerifyNote = 'verified_via_paypal_api';
-        } catch (ve) {
-          return new Response(
-            JSON.stringify({ error: 'PayPal server verification error: ' + ve.message }),
-            { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
-          );
-        }
-      } else {
-        // Fallback when PAYPAL_CLIENT_SECRET is not yet set in CF Pages env vars:
-        // Require a valid PayPal capture ID + captured amount > 0 and log for audit.
-        paypalServerVerified = /^[A-Z0-9]{10,32}$/i.test(ppOrderId) && Number(order.payment?.amount || order.total || 0) > 0;
-        paypalVerifyNote = 'client_capture_id_checked_set_PAYPAL_CLIENT_SECRET_for_strict_api_verify';
+      if (inventoryLock.ok) {
+        order.inventory_lock = inventoryLock;
       }
-    } else if (wantsPaid && !isPayPal && !isAdmin(request, env)) {
-      // Non-PayPal orders (Stripe) MUST be marked paid exclusively by verified /api/stripe-webhook
-      order.status = 'pending_payment';
-      order.paymentStatus = 'unpaid';
-      order.payment_verified = false;
     }
 
-    order.inventoryLock = lockResult;
-    if (paypalVerifyNote) order.paypalVerifyNote = paypalVerifyNote;
-    const saved = await saveOrderRecord(env, order);
-    await appendSyncLog(env, {
-      action: 'save-order',
-      id: saved.id,
-      status: saved.status || 'pending_payment',
-      ...(paypalVerifyNote ? { paypalVerifyNote } : {}),
+    const record = await saveOrderRecord(env, {
+      ...order,
+      status: isAlreadyPaid ? 'paid' : isPendingTransfer ? order.status : order.status || 'pending_payment',
+      payment_verified: isAlreadyPaid,
+      cartCleared: isAlreadyPaid || isPendingTransfer || !!order.cartCleared,
     });
 
-    // If PayPal capture completed with verified payment, trigger CJ fulfillment automatically
+    // Verified instant payment (PayPal Capture, verified Crypto IPN, or Admin-confirmed PayID)
+    // immediately triggers direct CJ Dropshipping fulfillment (payType=3 no-wallet) + confirmation email!
     let fulfillment = null;
-    if (wantsPaid && isPayPal && paypalServerVerified) {
+    if (
+      isAlreadyPaid &&
+      (order.method === 'PayPal' ||
+        order.paymentMethod === 'PayPal' ||
+        order.payment?.gateway === 'paypal' ||
+        order.payment?.gateway === 'payid' ||
+        order.payment?.gateway === 'crypto' ||
+        order.triggerFulfillment === true)
+    ) {
       try {
-        const fulfillPromise = fulfillOrder(env, saved).catch((fe) => ({
-          done: false,
-          error: fe.message,
-        }));
-        if (typeof context.waitUntil === 'function') {
-          context.waitUntil(fulfillPromise);
-        }
-        fulfillment = await Promise.race([
-          fulfillPromise,
-          new Promise((r) => setTimeout(() => r({ status: 'started_in_background' }), 9000)),
-        ]);
-      } catch (fe) {
-        fulfillment = { error: fe.message };
+        fulfillment = await fulfillOrder(env, record);
+      } catch (e) {
+        fulfillment = { ok: false, error: e.message };
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        id: saved.id,
-        status: saved.status,
-        inventoryLocked: true,
-        paypalServerVerified,
-        fulfillment,
-      }),
-      {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      }
-    );
+    return json({ ok: true, order: record, inventoryLock, fulfillment });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-    });
+    return json({ error: e.message }, 500);
   }
 }

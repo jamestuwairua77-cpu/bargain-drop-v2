@@ -1,18 +1,9 @@
-// Shared helpers for CJ↔Shopify sync — Cloudflare Workers edition.
-// All Node.js built-ins (fs, crypto, Buffer) replaced with Web APIs.
-
-// ─── Environment ─────────────────────────────────────────────────────────
-// In Cloudflare Pages Functions, env vars are accessed via context.env
-// This module receives env when called from the handler.
-
-import { getShopifyToken, invalidateShopifyToken } from './_shopify-token.js';
+// Shared helpers for Bargain Drop ↔ CJ Dropshipping — Cloudflare Workers edition.
+// 100% direct storefront + CJ Dropshipping (Shopify & Stripe permanently removed).
 
 export function getEnv(env) {
   return {
-    SHOPIFY_DOMAIN: env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com',
-    SHOPIFY_TOKEN: env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '',
     CJ_API_KEY: env.CJ_ACCESS_TOKEN || '',
-    SHOPIFY_API: `https://${env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com'}/admin/api/2025-10`,
     CJ_BASE: 'https://developers.cjdropshipping.com/api2.0/v1',
   };
 }
@@ -109,40 +100,29 @@ function _setExhausted(apiKey) {
   if (_preferredKey === apiKey) _preferredKey = null; // step off the dead key
 }
 
-// ── DURABLE key-health persistence (survives isolate recycling) ───────────
-// Cloudflare Pages Functions recycle isolates per request, so in-memory state
-// (pointsInfo / preferred key) is lost between webhook events. To make "use one
-// key until exhausted, then the next" actually hold across requests, we persist
-// a small health map to a Shopify shop metafield (namespace cjkeys / key health).
-// Only MASKS (first 10 chars) + point counts are stored — never the key secret.
-const SHOP_GID = 'gid://shopify/Shop/73594044547';
-const KEYHEALTH_NS = 'cjkeys';
-const KEYHEALTH_KEY = 'health';
+// ── DURABLE key-health persistence (Cloudflare KV + isolate memory) ───────
+const KEYHEALTH_KV_KEY = 'cjkeys_health_v1';
 function maskKey(apiKey) {
   return typeof apiKey === 'string' ? apiKey.slice(0, 10) : '';
 }
-let _healthLoaded = false;         // have we read the metafield this isolate?
-let _healthDirty = false;          // pending write?
-let _healthLastSaved = 0;          // throttle metafield writes
-const HEALTH_TTL_MS = 20 * 1000;   // re-read persisted health at most every 20s
+let _healthLoaded = false;
+let _healthDirty = false;
+let _healthLastSaved = 0;
 
-// Read persisted key health from Shopify. Returns { preferred, keys: { mask: {remaining,usedToday,at} } }.
 async function _loadKeyHealth(env) {
   try {
-    const q = `query { shop { metafields(first:1, keys: ["${KEYHEALTH_NS}.${KEYHEALTH_KEY}"]) { edges { node { value } } } } }`;
-    const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
-    const edges = body?.data?.shop?.metafields?.edges || [];
-    if (!edges.length) return { preferred: null, keys: {} };
-    const parsed = JSON.parse(edges[0].node.value || '{}');
+    const kv = env && (env.ORDERS_KV || env.BD_KV);
+    if (!kv) return { preferred: null, keys: {} };
+    const raw = await kv.get(KEYHEALTH_KV_KEY);
+    if (!raw) return { preferred: null, keys: {} };
+    const parsed = JSON.parse(raw);
     return { preferred: parsed.preferred || null, keys: parsed.keys || {} };
   } catch { return { preferred: null, keys: {} }; }
 }
 
-// Apply persisted health to the in-memory _keyTokens map (mask -> full key).
 function _applyHealthToMemory(env, health) {
   const byMask = new Map();
   for (const k of cjKeys(env)) byMask.set(maskKey(k), k);
-  // restore preferred
   if (health.preferred && byMask.has(health.preferred)) _preferredKey = byMask.get(health.preferred);
   for (const [mask, info] of Object.entries(health.keys || {})) {
     const full = byMask.get(mask);
@@ -155,7 +135,6 @@ function _applyHealthToMemory(env, health) {
   }
 }
 
-// Build the health snapshot to persist (only masks, never secrets).
 function _healthSnapshot(env) {
   const keys = {};
   for (const k of cjKeys(env)) {
@@ -171,11 +150,8 @@ async function _saveKeyHealth(env) {
   if (!_healthDirty) return;
   const snap = _healthSnapshot(env);
   try {
-    const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
-    await shopifyFetch(env, '/graphql.json', {
-      method: 'POST',
-      body: JSON.stringify({ query: mq, variables: { m: [{ ownerId: SHOP_GID, namespace: KEYHEALTH_NS, key: KEYHEALTH_KEY, type: 'json', value: JSON.stringify(snap) }] } }),
-    });
+    const kv = env && (env.ORDERS_KV || env.BD_KV);
+    if (kv) await kv.put(KEYHEALTH_KV_KEY, JSON.stringify(snap));
     _healthDirty = false;
     _healthLastSaved = Date.now();
   } catch { /* non-fatal: keep in-memory state for this isolate */ }
@@ -419,51 +395,14 @@ export async function cjFetchMulti(env, path, opts = {}) {
   throw lastErr || new Error('all CJ keys failed');
 }
 
-export async function shopifyFetch(env, path, opts = {}) {
-  const SHOPIFY_DOMAIN = env.SHOPIFY_DOMAIN || 'bargain-drop-8194.myshopify.com';
-  let token;
-  try {
-    token = await getShopifyToken(env);
-  } catch (e) {
-    token = env.SHOPIFY_ACCESS_TOKEN || env.SHOPIFY_TOKEN || '';
-    if (!token) throw new Error('SHOPIFY_ACCESS_TOKEN not configured');
-  }
-
-  const doFetch = async (tk) => fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2025-10${path}`, {
-    ...opts,
-    headers: {
-      'X-Shopify-Access-Token': tk,
-      'Content-Type': 'application/json',
-      ...(opts.headers || {}),
-    },
-  });
-
-  let r = await doFetch(token);
-
-  if (r.status === 401) {
-    invalidateShopifyToken();
-    try {
-      token = await getShopifyToken(env, true);
-      r = await doFetch(token);
-    } catch {}
-  }
-
-  let attempts = 1;
-  const MAX_429_ATTEMPTS = opts.skip429Retry ? 0 : 5;
-  while (r.status === 429 && attempts <= MAX_429_ATTEMPTS) {
-    const ra = parseFloat(r.headers.get('retry-after'));
-    const waitMs = Number.isFinite(ra) && ra > 0
-      ? Math.min(ra * 1000, 20000)
-      : Math.min(500 * Math.pow(2, attempts), 20000);
-    await new Promise((res) => setTimeout(res, waitMs));
-    r = await doFetch(token);
-    attempts++;
-  }
-
-  const text = await r.text();
-  let body;
-  try { body = JSON.parse(text); } catch { body = { raw: text }; }
-  return { ok: r.ok, status: r.status, body, headers: r.headers };
+// Legacy compatibility stub (zero external network calls; Shopify is permanently removed)
+export async function shopifyFetch() {
+  return {
+    ok: false,
+    status: 410,
+    body: { error: 'Legacy external store bridge removed. Bargain Drop runs 100% direct via Cloudflare + CJ Dropshipping.' },
+    headers: new Headers(),
+  };
 }
 
 export function nextPageCursor(headers) {
@@ -481,7 +420,7 @@ export function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, GET, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Pin, Authorization, X-Shopify-Hmac-Sha256, X-Shopify-Topic',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Pin, Authorization',
   };
 }
 
@@ -785,25 +724,25 @@ export async function ghWrite(env, path, content, msg, existingSha) {
   throw lastErr || new Error('GH write failed after retries');
 }
 
-// ─── Sync log via GitHub (no /tmp in Cloudflare) ─────────────────────────
-// ─── State via Shopify metafields (NOT GitHub) ─────────────────────────
-const STATE_NS = 'zstate';
+// ─── State via Cloudflare KV / Isolate Memory ────────────────────────────
+const _memState = new Map();
 export async function shopMetaGet(env, key) {
   try {
-    const q = `query { shop { metafields(first:1, keys: ["${STATE_NS}.${key}"]) { edges { node { value } } } } }`;
-    const { body } = await shopifyFetch(env, '/graphql.json', { method: 'POST', body: JSON.stringify({ query: q }) });
-    const edges = body?.data?.shop?.metafields?.edges || [];
-    if (!edges.length) return null;
-    return { value: edges[0].node.value };
+    const kv = env && (env.ORDERS_KV || env.BD_KV);
+    if (kv) {
+      const val = await kv.get('bd_state_' + key);
+      if (val != null) return { value: val };
+    }
+    if (_memState.has(key)) return { value: _memState.get(key) };
+    return null;
   } catch { return null; }
 }
 export async function shopMetaSet(env, key, value) {
   try {
-    const mq = `mutation set($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id } userErrors { field message } } }`;
-    await shopifyFetch(env, '/graphql.json', {
-      method: 'POST',
-      body: JSON.stringify({ query: mq, variables: { m: [{ ownerId: SHOP_GID, namespace: STATE_NS, key, type: 'json', value: JSON.stringify(value) }] } }),
-    });
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    _memState.set(key, serialized);
+    const kv = env && (env.ORDERS_KV || env.BD_KV);
+    if (kv) await kv.put('bd_state_' + key, serialized);
     return true;
   } catch { return false; }
 }
@@ -1209,9 +1148,9 @@ export function buildCjOrderFromBody(body) {
     shippingAddress: streetAddress,
     email: body.customer_email || body.email || sa.email || '',
     remark: body.remark || ('BD order ' + orderNumber),
-    platform: 'shopify',
+    platform: 'api',
     // payType 3 = Create order cleanly without requiring CJ wallet balance;
-    // pushOrderToCj upgrades to wallet payBalance automatically if CJ wallet is funded.
+    // pushOrderToCj confirms it cleanly for 1-click Card/PayPal settlement.
     payType: body.payType != null ? Number(body.payType) : 3,
     fromCountryCode: 'CN',
     logisticName: body.logisticName || 'CJPacket Ordinary',
@@ -1453,48 +1392,6 @@ export async function pushOrderToCj(env, order) {
   };
 }
 
-async function pushOrderToShopify(env, order) {
-  const ship = order.shipping || order.shippingAddress || {};
-  const countryCode = (ship.country_code || ship.countryCode || 'AU').toUpperCase();
-  const normalizedPhone = normalizePhoneE164(ship.phone || order.phone || '', countryCode);
-  const payNotes = (order.payment && (order.payment.gateway || order.payment.hash))
-    ? [
-        { name: 'payment_gateway', value: String(order.payment.gateway || 'stripe') },
-        { name: 'transaction_hash', value: String(order.payment.hash || '') },
-        { name: 'amount_paid', value: String(order.payment.amount || order.total || '') + ' ' + (order.payment.currency || 'AUD') },
-      ]
-    : [];
-  const shopOrder = {
-    email: order.email || ship.email || '',
-    financial_status: 'paid',
-    line_items: (order.items || []).map((it) => ({
-      variant_id: it.variant_id || null,
-      title: it.title || 'Item',
-      price: it.price || 0,
-      quantity: it.qty || it.quantity || 1,
-      sku: it.sku || '',
-    })),
-    shipping_address: {
-      first_name: ship.first_name || (order.name ? order.name.split(' ')[0] : ''),
-      last_name: ship.last_name || (order.name ? order.name.split(' ').slice(1).join(' ') : ''),
-      address1: ship.address1 || ship.streetLine1 || ship.addr || '',
-      address2: ship.address2 || ship.streetLine2 || '',
-      city: ship.city || '',
-      province: ship.province || ship.state || ship.stateProvince || '',
-      zip: ship.zip || ship.postalZipCode || '',
-      country: ship.country || 'Australia',
-      country_code: countryCode,
-      phone: normalizedPhone,
-    },
-    note_attributes: [
-      { name: 'bd_order_id', value: String(order.id) },
-      ...(order.cjOrderId ? [{ name: 'cj_order_id', value: String(order.cjOrderId) }] : []),
-      ...payNotes,
-    ],
-  };
-  return await shopifyFetch(env, '/orders.json', { method: 'POST', body: JSON.stringify({ order: shopOrder }) });
-}
-
 // ─── Customer Order Confirmation Email + Admin 1-Click Non-Wallet Pay Alert ───
 async function sendResendEmail(env, { to, subject, html, text }) {
   const fromAddr =
@@ -1524,6 +1421,7 @@ export async function sendOrderConfirmationEmail(env, order) {
   const trackUrl = `${publicOrigin}/order-tracking.html?order=${encodeURIComponent(orderId)}`;
   const customerName = order.name || order.shipping?.fullName || 'Valued Customer';
   const totalAud = Number(order.total || 0).toFixed(2);
+  const payLabel = order.paymentMethod || order.method || (typeof order.payment === 'string' ? order.payment : order.payment?.gateway) || 'PayPal / PayID / Crypto';
   const itemsHtml = (order.items || [])
     .map(
       (it) =>
@@ -1535,16 +1433,45 @@ export async function sendOrderConfirmationEmail(env, order) {
     <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:32px;">
       <div style="margin-bottom:20px;"><span style="color:#fe3442;font-weight:900;font-size:20px;">BARGAIN</span> <span style="color:#ffffff;font-weight:900;font-size:20px;">DROP</span></div>
       <h2 style="margin:0 0 10px;font-size:22px;color:#ffffff;">Order Confirmed, ${customerName}!</h2>
-      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 20px;">Thank you for shopping with Bargain Drop. We have received your payment of <strong style="color:#ffffff;">A$${totalAud}</strong> for order <strong style="color:#fe3442;">#${orderId}</strong> and queued it for dispatch.</p>
+      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 20px;">Thank you for shopping with Bargain Drop. We have received your payment of <strong style="color:#ffffff;">A$${totalAud}</strong> via <strong style="color:#ffffff;">${payLabel}</strong> for order <strong style="color:#fe3442;">#${orderId}</strong> and queued it for direct fulfillment.</p>
       ${itemsHtml ? `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">${itemsHtml}</table>` : ''}
       <a href="${trackUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 24px;border-radius:8px;">Track Order Status →</a>
-      <p style="color:#a1a1aa;font-size:12px;margin-top:24px;">We will email your carrier tracking number as soon as your package leaves the warehouse.</p>
+      <p style="color:#a1a1aa;font-size:12px;margin-top:24px;">We will email your carrier tracking number as soon as your package leaves the fulfillment hub.</p>
     </div>`;
   return sendResendEmail(env, {
     to: recipientEmail,
     subject: `Order Confirmed — Bargain Drop #${orderId}`,
     html,
-    text: `Thank you for your Bargain Drop order #${orderId} (Total: A$${totalAud}). Track your order: ${trackUrl}`,
+    text: `Thank you for your Bargain Drop order #${orderId} (Total: A$${totalAud} via ${payLabel}). Track your order: ${trackUrl}`,
+  });
+}
+
+export async function sendPaymentInstructionsEmail(env, order, instructions = {}) {
+  const recipientEmail = String(order?.email || order?.shipping?.email || '').trim().toLowerCase();
+  if (!recipientEmail || !recipientEmail.includes('@')) return { sent: false, reason: 'no customer email' };
+  const orderId = String(order.id || 'BD-ORDER');
+  const publicOrigin = String((env && env.PUBLIC_STORE_ORIGIN) || 'https://bargain-drop.online').replace(/\/+$/, '');
+  const statusUrl = `${publicOrigin}/order-success.html?id=${encodeURIComponent(orderId)}`;
+  const customerName = order.name || order.shipping?.fullName || 'Valued Customer';
+  const totalAud = Number(order.total || 0).toFixed(2);
+  const title = instructions.title || 'Complete Your Bargain Drop Payment';
+  const detailLines = (instructions.lines || [])
+    .map((ln) => `<div style="padding:6px 0;border-bottom:1px solid #222425;font-size:13px;color:#e4e4e7;"><strong>${ln.label}:</strong> <span style="font-family:monospace;color:#facc15;">${ln.value}</span></div>`)
+    .join('');
+
+  const html = `
+    <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:32px;">
+      <div style="margin-bottom:20px;"><span style="color:#fe3442;font-weight:900;font-size:20px;">BARGAIN</span> <span style="color:#ffffff;font-weight:900;font-size:20px;">DROP</span></div>
+      <h2 style="margin:0 0 10px;font-size:21px;color:#ffffff;">${title}</h2>
+      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 18px;">Hi ${customerName}, your order <strong style="color:#fe3442;">#${orderId}</strong> (A$${totalAud}) is reserved. Complete your transfer using the exact details below so we can dispatch immediately:</p>
+      <div style="background:#121515;border:1px solid #222425;border-radius:8px;padding:14px;margin-bottom:20px;">${detailLines}</div>
+      <a href="${statusUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 24px;border-radius:8px;">View Order &amp; Payment Status →</a>
+    </div>`;
+  return sendResendEmail(env, {
+    to: recipientEmail,
+    subject: `${title} — Order #${orderId}`,
+    html,
+    text: `${title} for Order #${orderId} (A$${totalAud}). ${(instructions.lines || []).map((l) => l.label + ': ' + l.value).join(' | ')}. View status: ${statusUrl}`,
   });
 }
 
@@ -1555,11 +1482,12 @@ export async function sendAdminOrderPayAlertEmail(env, order, cjResult) {
   const orderId = String(order.id || 'BD-ORDER');
   const cjId = String((cjResult && cjResult.cjOrderId) || 'PENDING');
   const cjPayUrl = (cjResult && cjResult.cjDirectPayUrl) || 'https://app.cjdropshipping.com/myCJ.html#/order-list';
-  const adminVaultUrl = `${publicOrigin}/admin-orders.html`;
+  const adminVaultUrl = `${publicOrigin}/admin.html`;
   const customerPaidAud = Number(order.total || 0);
   const cjCostUsd = Number((cjResult && cjResult.cjTotalUsd) || 0);
   const estCjAud = +(cjCostUsd * 1.54).toFixed(2);
   const estMarginAud = +(customerPaidAud - estCjAud).toFixed(2);
+  const payLabel = order.paymentMethod || order.method || (typeof order.payment === 'string' ? order.payment : order.payment?.gateway) || 'PayPal / PayID / Crypto';
 
   const html = `
     <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:28px;">
@@ -1567,18 +1495,18 @@ export async function sendAdminOrderPayAlertEmail(env, order, cjResult) {
       <h2 style="margin:0 0 12px;font-size:20px;color:#ffffff;">New Paid Order #${orderId} → CJ #${cjId}</h2>
       <p style="color:#d4d4d8;font-size:14px;line-height:1.5;margin:0 0 18px;">Order has been automatically created &amp; confirmed on CJ Dropshipping via <strong>payType=3 (No CJ Wallet)</strong>. Settle directly with Card or PayPal in 1 click:</p>
       <div style="background:#121515;border:1px solid #222425;border-radius:8px;padding:14px;margin-bottom:18px;font-size:13px;color:#e4e4e7;">
-        <div><strong>Customer Paid:</strong> A$${customerPaidAud.toFixed(2)} (${order.method || order.payment || 'Stripe/PayPal'})</div>
+        <div><strong>Customer Paid:</strong> A$${customerPaidAud.toFixed(2)} (${payLabel})</div>
         <div><strong>CJ Wholesale + Freight:</strong> ${cjCostUsd > 0 ? ('US$' + cjCostUsd.toFixed(2) + ' (~A$' + estCjAud.toFixed(2) + ')') : 'Calculated in CJ Checkout'}</div>
         ${cjCostUsd > 0 ? `<div style="color:#4ade80;margin-top:4px;"><strong>Est. Gross Margin:</strong> A$${estMarginAud.toFixed(2)}</div>` : ''}
       </div>
       <a href="${cjPayUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 22px;border-radius:8px;margin-right:10px;">Pay CJ Order (Card / PayPal) →</a>
-      <a href="${adminVaultUrl}" style="display:inline-block;background:#171a1d;border:1px solid #32373d;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:13px 18px;border-radius:8px;">Open Admin Orders</a>
+      <a href="${adminVaultUrl}" style="display:inline-block;background:#171a1d;border:1px solid #32373d;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:13px 18px;border-radius:8px;">Open Admin Command Center</a>
     </div>`;
   return sendResendEmail(env, {
     to: adminEmail,
     subject: `[Action: 1-Click Pay] Paid Order #${orderId} Created on CJ (#${cjId})`,
     html,
-    text: `Paid Order #${orderId} (A$${customerPaidAud.toFixed(2)}) created on CJ (#${cjId}). Pay via Card/PayPal (no CJ wallet): ${cjPayUrl}`,
+    text: `Paid Order #${orderId} (A$${customerPaidAud.toFixed(2)} via ${payLabel}) created on CJ (#${cjId}). Pay via Card/PayPal (no CJ wallet): ${cjPayUrl}`,
   });
 }
 
@@ -1593,10 +1521,10 @@ export async function fulfillOrder(env, order) {
     return { skipped: true, already: true, fulfillment: existing.fulfillment, cjOrderId: existing.cjOrderId };
   }
   const mergedOrder = { ...(existing || {}), ...order };
-  const result = { done: false, at: new Date().toISOString(), cj: null, shopify: null, emails: {}, errors: [] };
+  const result = { done: false, at: new Date().toISOString(), cj: null, emails: {}, errors: [] };
   let cjOrderId = mergedOrder.cjOrderId || null;
 
-  // 1. Push order to CJ Dropshipping (No-Wallet payType=3 + auto wallet settle if funded)
+  // 1. Push order directly to CJ Dropshipping (No-Wallet payType=3)
   try {
     result.cj = await pushOrderToCj(env, mergedOrder);
     if (result.cj && result.cj.cjOrderId) {
@@ -1611,19 +1539,7 @@ export async function fulfillOrder(env, order) {
     result.errors.push('cj: ' + e.message);
   }
 
-  // 2. Mirror order to Shopify (non-blocking — HTTP 402/billing pause will NEVER break fulfillment)
-  try {
-    const shopRes = await pushOrderToShopify(env, mergedOrder);
-    result.shopify = shopRes;
-    if (!shopRes.ok) {
-      result.errors.push(`shopify_nonfatal_${shopRes.status}`);
-    }
-  } catch (e) {
-    result.shopify = { ok: false, error: e.message };
-    result.errors.push('shopify_nonfatal: ' + e.message);
-  }
-
-  // 3. Send customer confirmation receipt + admin 1-click Card/PayPal pay alert if awaiting external settlement
+  // 2. Send customer confirmation receipt + admin 1-click Card/PayPal pay alert if awaiting external settlement
   if (!mergedOrder.confirmationEmailSent) {
     try {
       result.emails.customer = await sendOrderConfirmationEmail(env, mergedOrder);
@@ -1806,62 +1722,7 @@ export async function sendOrderShippedEmail(env, order, trackingInfo = {}) {
 export async function syncCustomer(env, profile) {
   const email = (profile.email || '').trim().toLowerCase();
   if (!email) return { error: 'email required' };
-  const search = await shopifyFetch(env, `/customers/search.json?query=${encodeURIComponent('email:' + email)}`);
-  const existing = (search.body && search.body.customers && search.body.customers[0]) || null;
-  if (existing) {
-    const patch = { customer: { id: existing.id } };
-    const c = patch.customer;
-    if (profile.first_name != null) c.first_name = profile.first_name;
-    if (profile.last_name != null) c.last_name = profile.last_name;
-    if (profile.phone != null) c.phone = profile.phone;
-    if (profile.addresses && profile.addresses.length) {
-      const a = profile.addresses[0];
-      c.addresses = [{
-        first_name: a.first_name || profile.first_name || existing.first_name || '',
-        last_name: a.last_name || profile.last_name || existing.last_name || '',
-        address1: a.address1 || a.addr || '',
-        address2: a.address2 || '',
-        city: a.city || '',
-        province: a.province || a.state || '',
-        zip: a.zip || a.postal_code || '',
-        country: a.country || 'Australia',
-        country_code: a.country_code || 'AU',
-        phone: a.phone || profile.phone || '',
-        default: true,
-      }];
-    }
-    const upd = await shopifyFetch(env, `/customers/${existing.id}.json`, { method: 'PUT', body: JSON.stringify(patch) });
-    return { updated: true, shopifyId: existing.id, ok: upd.ok, error: upd.ok ? null : (upd.body?.errors || upd.body) };
-  }
-  const a = (profile.addresses && profile.addresses[0]) || {};
-  const create = {
-    customer: {
-      email,
-      first_name: profile.first_name || '',
-      last_name: profile.last_name || '',
-      phone: profile.phone || '',
-      tags: 'bargain-drop',
-      send_email_invite: true,
-      addresses: [{
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        address1: a.address1 || a.addr || '',
-        address2: a.address2 || '',
-        city: a.city || '',
-        province: a.province || a.state || '',
-        zip: a.zip || a.postal_code || '',
-        country: a.country || 'Australia',
-        country_code: a.country_code || 'AU',
-        phone: a.phone || profile.phone || '',
-        default: true,
-      }],
-    },
-  };
-  const res = await shopifyFetch(env, '/customers.json', { method: 'POST', body: JSON.stringify(create) });
-  if (res.ok && res.body?.customer) {
-    return { created: true, shopifyId: res.body.customer.id, ok: true };
-  }
-  return { created: false, ok: false, error: res.body?.errors || res.body };
+  return { ok: true, local: true, email };
 }
 
 export async function recordShopifyTransaction(env, shopifyOrderId, tx) {

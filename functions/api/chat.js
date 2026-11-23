@@ -53,11 +53,14 @@ COMPLETE BARGAIN DROP STORE FACTS (SOURCE OF TRUTH):
    - How to apply: Go to [Shopping Cart](/cart.html) or [Checkout](/checkout.html), enter the code in the Promo Code box, and click Apply. Only one promo code can be used per order.
 
 4. Payment Methods & Checkout Troubleshooting:
-   - Accepted payments: Credit & Debit Cards (Visa, Mastercard, Amex), Apple Pay, Google Pay via Stripe Checkout, AND PayPal (AUD).
-   - All transactions are SSL-encrypted; Bargain Drop never stores raw card numbers.
-   - If card payment declines: Verify card expiry/CVC, check bank international/online spend limit, try Apple Pay/Google Pay or PayPal as an instant alternative, or refresh [Checkout](/checkout.html).
-   - If PayPal window doesn't open: Disable popup blockers for bargain-drop.online or switch to Card / Stripe Checkout.
-   - If charged twice or stuck after payment: Do NOT reorder; check email for confirmation or look up the order at [Order Tracking](/order-tracking.html), or email Support@bargain-drop.online with your email & timestamp for an immediate refund of any duplicate charge.
+   - Accepted payments at [Checkout](/checkout.html):
+     a) **PayPal Checkout (Instant in AUD):** Pay with PayPal Balance, Visa/Mastercard Debit or Credit Card (via PayPal), or PayPal Pay in 4. Verified orders auto-dispatch to fulfillment immediately.
+     b) **Australian PayID / Osko Instant Bank Transfer (0% Fees):** Instant bank-to-bank transfer in AUD from any Australian bank app using your unique order reference (\`BD-PID-...\`).
+     c) **Crypto Checkout (USDT TRC20 / USDC ERC20 / BTC):** Global blockchain checkout with live AUD conversion rate lock and TxID verification.
+   - All transactions are 256-bit SSL encrypted; Bargain Drop never stores raw card numbers or CVVs.
+   - If PayPal window doesn't open: Disable popup blockers for bargain-drop.online, or switch directly to PayID / Osko (instant AU transfer) or Crypto right on [Checkout](/checkout.html).
+   - If you sent a PayID transfer or Crypto payment: Make sure your exact Order Reference (\`BD-...\`) is included or submit your blockchain TxID on your confirmation page — orders dispatch automatically once confirmed.
+   - If charged twice or stuck after payment: Do NOT reorder; check email for confirmation or look up the order at [Order Tracking](/order-tracking.html), or email Support@bargain-drop.online with your email & timestamp for an immediate refund of any duplicate payment.
 
 5. Returns, Refunds, Exchanges & Order Problems (30-Day Guarantee):
    - 30-day hassle-free return & refund guarantee from delivery date.
@@ -66,7 +69,7 @@ COMPLETE BARGAIN DROP STORE FACTS (SOURCE OF TRUTH):
    - Wrong size / change of mind: Submit a request at [Returns & Refunds](/returns.html) within 30 days.
    - Cancel or change shipping address: Contact Support@bargain-drop.online immediately with your Order ID and corrected address. If the parcel hasn't shipped yet, we update or cancel it immediately.
    - Missing parcel / tracking hasn't moved in 5+ days: Check [Order Tracking](/order-tracking.html) first; if stuck over 7 days or marked delivered but not received, contact Support@bargain-drop.online and we will open a carrier investigation and reship/refund if lost.
-   - Refund processing: Approved refunds return to your original Stripe card or PayPal account within 3–5 business days.
+   - Refund processing: Approved refunds return to your original PayPal account, Australian bank account (PayID), or crypto wallet within 1–5 business days.
 
 6. All 14 Departments & Store Pages:
    - Departments: ${DEPARTMENTS.map(d => `[${d.name}](${d.url})`).join(', ')}
@@ -347,11 +350,11 @@ function buildDirectFallbackAnswer(userText, liveContext) {
   }
 
   if (/\b(return|refund|exchange|damaged|broken|cracked|wrong item|defective|missing|cancel)\b/i.test(q)) {
-    parts.push(`**30-Day Return, Replacement & Refund Guarantee:**\n- **Damaged, cracked, or wrong item?** Email **Support@bargain-drop.online** with your Order ID + 1 clear photo for an **immediate free replacement or full refund** (no return postage needed).\n- **Returns / Exchanges:** Submit a 1-minute request at [Returns & Refunds](/returns.html).\n- **Cancel or edit address:** Email **Support@bargain-drop.online** right away with your Order ID before dispatch.\n- Approved refunds return to your Stripe card or PayPal within **3–5 business days**.`);
+    parts.push(`**30-Day Return, Replacement & Refund Guarantee:**\n- **Damaged, cracked, or wrong item?** Email **Support@bargain-drop.online** with your Order ID + 1 clear photo for an **immediate free replacement or full refund** (no return postage needed).\n- **Returns / Exchanges:** Submit a 1-minute request at [Returns & Refunds](/returns.html).\n- **Cancel or edit address:** Email **Support@bargain-drop.online** right away with your Order ID before dispatch.\n- Approved refunds return to your original PayPal account, PayID bank account, or crypto wallet within **1–5 business days**.`);
   }
 
-  if (/\b(pay|payment|stripe|paypal|card|decline|checkout|apple pay|google pay)\b/i.test(q)) {
-    parts.push(`**Checkout & Payment Help:**\n- We accept **Visa, Mastercard, Amex, Apple Pay, Google Pay (Stripe)** and **PayPal** in AUD at [Checkout](/checkout.html).\n- If a card declines, verify CVC/expiry or try Apple Pay/PayPal. If PayPal doesn't open, allow popups for bargain-drop.online.`);
+  if (/\b(pay|payment|paypal|payid|osko|bank|crypto|usdt|usdc|btc|bitcoin|card|decline|checkout)\b/i.test(q)) {
+    parts.push(`**Checkout & Payment Options at [Checkout](/checkout.html):**\n- **PayPal (Instant AUD):** Pay with PayPal Balance, Visa/Mastercard Debit or Credit Card, or Pay in 4.\n- **Australian PayID / Osko Bank Transfer:** 0% card surcharges — instant bank transfer with your unique Order Reference.\n- **Crypto (USDT TRC20 / USDC ERC20 / BTC):** Direct global blockchain payment.\n- If PayPal doesn't open, allow popups for bargain-drop.online or switch to PayID / Osko or Crypto right on the checkout page.`);
   }
 
   if (/\b(promo|coupon|discount|code|voucher|sale|off|bargain26|save10|welcome10|freeship)\b/i.test(q)) {

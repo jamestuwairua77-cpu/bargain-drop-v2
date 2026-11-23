@@ -551,7 +551,7 @@ textarea.field{min-height:110px;resize:vertical}
         </div>
       </div>
       <p style="font-size:.82rem;color:var(--muted);line-height:1.55;">
-        Paid Stripe &amp; PayPal orders are automatically created in CJ Dropshipping with <code style="color:var(--gold);font-family:'JetBrains Mono',monospace;">payType=3</code> (No-Wallet Card/PayPal Settlement). Click <strong>Pay in CJ</strong> on any queued order to settle directly with your business card or PayPal without ever topping up a CJ wallet balance.
+        Paid PayPal, PayID / Osko &amp; Crypto orders are automatically created in CJ Dropshipping with <code style="color:var(--gold);font-family:'JetBrains Mono',monospace;">payType=3</code> (No-Wallet Card/PayPal Settlement). Click <strong>Pay in CJ</strong> on any queued order to settle directly with your business card or PayPal without ever topping up a CJ wallet balance.
       </p>
       <div class="log-box" id="cjSyncLog">Ready — click "Sync &amp; Hide Deleted Products" or "Pull Live CJ Tracking" to run live operations.</div>
     </div>
@@ -742,11 +742,15 @@ textarea.field{min-height:110px;resize:vertical}
           <button class="btn sm" onclick="runSandboxQa()">Run Sandbox QA</button>
         </div>
         <p style="font-size:.8rem;color:var(--muted);line-height:1.5;">
-          Run end-to-end checkout, promo, and catalog verification, or trigger a live GitHub/Cloudflare push from the local Express server.
+          Push all 35 updated storefront &amp; payment files and delete all 12 removed Stripe/Shopify functions from <strong style="color:#fff;">jamestuwairua77-cpu/bargain-drop-v2</strong> in a single atomic commit (auto-deploys to <strong style="color:#fff;">bargain-drop.online</strong> via Cloudflare Pages).
         </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input class="field" type="password" id="deployGithubToken" placeholder="GitHub Personal Access Token (ghp_... / github_pat_...)" style="flex:1;min-width:220px;margin:0;" autocomplete="off">
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn primary sm" id="btnPushLive" onclick="triggerLivePush()">🚀 Push All Updates Live</button>
-          <button class="btn sm" onclick="checkLiveEndpoints()">📡 Verify Live Endpoints</button>
+          <button class="btn success sm" onclick="checkLiveProductionStatus()">🌐 Check Live Site Status</button>
+          <button class="btn sm" onclick="checkLiveEndpoints()">📡 Verify Local Endpoints</button>
         </div>
         <div class="log-box" id="deployLogBox">Deployment &amp; QA console ready.</div>
       </div>
@@ -898,8 +902,9 @@ function normalizeOrder(raw) {
       country: ship.country || 'Australia',
     },
     payment: {
-      method: raw.payment?.method || raw.paymentMethod || 'Stripe / PayPal',
-      status: raw.payment?.status || (status === 'unpaid' ? 'UNPAID' : 'PAID'),
+      method: raw.payment?.method || raw.paymentMethod || raw.method || (typeof raw.payment === 'string' ? raw.payment : 'PayPal / PayID / Crypto'),
+      status: raw.payment?.status || (['unpaid','awaiting_payid','awaiting_crypto','pending_payment'].includes(status) ? status.toUpperCase() : 'PAID'),
+      hash: raw.cryptoTxHash || raw.payment?.hash || '',
     },
     cjOrder: {
       orderId: raw.cjOrder?.orderId || raw.cjOrderId || '',
@@ -1446,7 +1451,15 @@ function selectOrder(orderId) {
       </div>
 
       <div class="section-card">
-        <div class="sec-title"><span>Update Order Status</span></div>
+        <div class="sec-title"><span>Update Order Status &amp; Payment Verification</span></div>
+        ${['awaiting_payid','awaiting_crypto','unpaid','pending_payment'].includes(order.status) ? `
+        <div style="margin-bottom:10px;padding:12px;border-radius:10px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.4);">
+          <div style="font-size:.78rem;color:#a7f3d0;margin-bottom:8px;">
+            <strong>Awaiting Transfer Confirmation (${esc(order.payment.method)})</strong>
+            ${order.payment.hash ? `<div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;margin-top:4px;word-break:break-all;color:#facc15;">TxID / Ref: ${esc(order.payment.hash)}</div>` : ''}
+          </div>
+          <button class="btn success" id="btnConfirmPay-${esc(order.id)}" onclick="confirmPaymentAndDispatch('${esc(order.id)}')">✅ Confirm Payment Received &amp; Auto-Dispatch to CJ</button>
+        </div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn sm" onclick="updateOrderStatus('${esc(order.id)}','paid')">Mark Paid</button>
           <button class="btn sm" onclick="updateOrderStatus('${esc(order.id)}','processing')">Mark Processing</button>
@@ -1457,6 +1470,35 @@ function selectOrder(orderId) {
       </div>
     </div>
   `;
+}
+
+async function confirmPaymentAndDispatch(orderId) {
+  const btn = document.getElementById('btnConfirmPay-' + orderId);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Confirming & Dispatching to CJ...'; }
+  try {
+    const res = await fetch('/api/confirm-order-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN },
+      body: JSON.stringify({ orderId })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) throw new Error(d.error || 'Confirmation failed');
+    showToast(`✅ Payment confirmed! ${d.cjOrderId ? 'CJ Order #' + d.cjOrderId + ' created!' : 'Order marked PAID & queued!'}`);
+    const ord = allOrders.find(o => o.id === orderId);
+    if (ord) {
+      ord.status = d.status || 'awaiting_supplier_payment';
+      ord.payment.status = 'PAID';
+      if (d.cjOrderId) ord.cjOrder.orderId = d.cjOrderId;
+      if (d.cjDirectPayUrl) ord.cjOrder.paymentUrl = d.cjDirectPayUrl;
+      selectOrder(orderId);
+      renderOrdersList();
+      updateMetrics(null);
+      loadCjHub();
+    }
+  } catch (e) {
+    showToast('Confirm failed: ' + e.message, true);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirm Payment Received & Auto-Dispatch to CJ'; }
+  }
 }
 
 async function updateOrderStatus(orderId, status) {
@@ -1502,7 +1544,7 @@ async function loadCjHub() {
     if (!queue.length) {
       $('cjQueueContainer').innerHTML = `
         <div style="grid-column:1/-1;padding:18px;background:#0a0c10;border:1px dashed var(--line2);border-radius:10px;color:var(--muted);font-size:.82rem;">
-          ✅ Zero unpaid CJ orders right now. Whenever a customer pays via Stripe or PayPal on bargain-drop.online, their order will appear here with a 1-click Card/PayPal CJ payment link.
+          ✅ Zero unpaid CJ orders right now. Whenever a customer pays via PayPal, PayID / Osko, or Crypto on bargain-drop.online, their order will appear here with a 1-click Card/PayPal CJ payment link.
         </div>`;
     } else {
       $('cjQueueContainer').innerHTML = queue.map(item => `
@@ -1956,24 +1998,43 @@ async function checkLiveEndpoints() {
 
 async function triggerLivePush() {
   const btn = $('btnPushLive');
+  const ghToken = ($('deployGithubToken')?.value || '').trim();
   btn.disabled = true;
   btn.textContent = '⏳ Pushing Live...';
-  $('deployLogBox').textContent = 'Initiating live deployment via /api/agent/push-live...';
+  $('deployLogBox').textContent = ghToken
+    ? 'Creating atomic GitHub commit (35 updated files + deleting 12 Stripe/Shopify files)...'
+    : 'Initiating live deployment via /api/agent/push-live...';
   try {
     const res = await fetch('/api/agent/push-live', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN },
-      body: JSON.stringify({ adminPin: PIN })
+      body: JSON.stringify({
+        adminPin: PIN,
+        ...(ghToken ? { githubToken: ghToken } : {})
+      })
     });
     const d = await res.json().catch(() => ({}));
     $('deployLogBox').textContent = JSON.stringify(d, null, 2);
-    showToast(d.ok ? 'Live push succeeded!' : (d.error || 'Push finished — inspect log'), !d.ok);
+    if (d.ok && $('deployGithubToken')) $('deployGithubToken').value = '';
+    showToast(d.ok ? 'Live push succeeded! Cloudflare Pages building...' : (d.error || 'Push finished — inspect log'), !d.ok);
   } catch (e) {
     $('deployLogBox').textContent = 'Push endpoint error: ' + e.message;
     showToast('Push error: ' + e.message, true);
   } finally {
     btn.disabled = false;
     btn.textContent = '🚀 Push All Updates Live';
+  }
+}
+
+async function checkLiveProductionStatus() {
+  $('deployLogBox').textContent = 'Checking live https://bargain-drop.online status...';
+  try {
+    const res = await fetch('/api/agent/live-status');
+    const d = await res.json().catch(() => ({}));
+    $('deployLogBox').textContent = JSON.stringify(d, null, 2);
+    showToast(d.isUpToDate ? 'bargain-drop.online is LIVE with latest build!' : 'Live site still on previous build — push to GitHub first.', !d.isUpToDate);
+  } catch (e) {
+    $('deployLogBox').textContent = 'Live status check failed: ' + e.message;
   }
 }
 </script>

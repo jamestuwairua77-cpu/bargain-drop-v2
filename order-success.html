@@ -684,17 +684,17 @@ input::placeholder, textarea::placeholder {
   <div class="search-overlay" id="search-overlay" onclick="this.classList.remove('show')"><div class="search-box" onclick="event.stopPropagation()"><input id="search-input" type="text" placeholder="Search products..." onkeydown="if(event.key==='Enter'){location.href='category.html?search='+encodeURIComponent(this.value)}"></div></div>
   
 <div class="card">
-  <div class="check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
-  <h1>Order Confirmed!</h1>
-  <p>Payment processed successfully. Your order is now processing.</p>
+  <div class="check" id="status-icon"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+  <h1 id="success-title">Order Confirmed!</h1>
+  <p id="success-subtitle">Payment processed successfully. Your order is now queued for direct fulfillment.</p>
   <div class="oid" id="oid"></div>
+  <div id="transfer-panel" style="display:none;text-align:left;background:#12131b;border:1.5px solid rgba(250,204,21,.45);border-radius:12px;padding:14px;margin:14px 0;font-size:.78rem;color:#e4e4e7;"></div>
   <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:12px;">
     <a class="primary-cta" id="track-order-cta" href="order-tracking.html">Track My Order</a>
     <a class="secondary-cta" href="orders.html">View My Orders</a>
   </div>
   <a href="/" style="display:inline-block;margin-top:6px;background:none;color:#d4d4d8;font-size:.78rem;text-decoration:underline">← Continue Shopping</a>
   <div class="cj-section">
-    <button class="cj-btn" id="cj-btn" onclick="syncCJ()" style="display:none">🔄 Sync to Fulfillment</button>
     <div class="cj-status" id="cj-status"></div>
   </div>
 </div>
@@ -704,9 +704,11 @@ input::placeholder, textarea::placeholder {
   var p=new URLSearchParams(location.search);
   var oid=p.get('id')||p.get('oid')||'';
   var verifiedParam=p.get('verified')==='1';
+  var methodParam=(p.get('method')||'').toLowerCase();
   var trackCta=document.getElementById('track-order-cta');
   if(trackCta&&oid) trackCta.href='order-tracking.html?order='+encodeURIComponent(oid);
 
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function clearCartCleanly(){
     try{
       localStorage.removeItem('bd_cart');
@@ -722,11 +724,7 @@ input::placeholder, textarea::placeholder {
       var orders=JSON.parse(localStorage.getItem('bd_orders')||'[]');
       var idx=orders.findIndex(function(o){return o.id===oid;});
       if(idx>=0){
-        orders[idx]=Object.assign({}, orders[idx], serverOrder||{}, {
-          status:(serverOrder && serverOrder.status) || 'processing',
-          cartCleared:true,
-          paidAt:(serverOrder && serverOrder.paidAt) || new Date().toISOString()
-        });
+        orders[idx]=Object.assign({}, orders[idx], serverOrder||{});
       }else if(serverOrder){
         orders.unshift(serverOrder);
       }
@@ -734,98 +732,118 @@ input::placeholder, textarea::placeholder {
     }catch(e){}
   }
 
+  function renderTransferInstructions(ord){
+    var panel = document.getElementById('transfer-panel');
+    var titleEl = document.getElementById('success-title');
+    var subEl = document.getElementById('success-subtitle');
+    if(!panel) return;
+    var status = String((ord && ord.status) || '').toLowerCase();
+    var isPaid = (ord && (ord.payment_verified === true || status === 'paid' || status === 'fulfilling' || status === 'awaiting_supplier_payment' || status === 'shipped' || status === 'delivered')) || verifiedParam;
+
+    if(isPaid){
+      panel.style.display = 'none';
+      if(titleEl) titleEl.textContent = 'Order Confirmed!';
+      if(subEl) subEl.textContent = 'Payment verified! Your order is automatically queued for direct CJ Dropshipping fulfillment.';
+      clearCartCleanly();
+      return;
+    }
+
+    if(status === 'awaiting_payid' || methodParam === 'payid'){
+      var pi = (ord && ord.payidInstructions) || { payid:'Support@bargain-drop.online', accountName:'Bargain Drop Australia', amountAud:(ord&&ord.total)||0, reference:oid };
+      if(titleEl) titleEl.textContent = 'Order Reserved — Awaiting PayID';
+      if(subEl) subEl.textContent = 'Send your instant Australian PayID / Osko transfer below. As soon as it arrives, we verify and auto-dispatch your parcel.';
+      panel.style.display = 'block';
+      panel.innerHTML =
+        '<div style="font-weight:800;color:#4ade80;margin-bottom:8px;">🇦🇺 Australian PayID / Osko Transfer Details</div>'+
+        '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span>PayID</span><strong style="font-family:monospace;color:#fff">'+esc(pi.payid)+'</strong></div>'+
+        '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span>Account Name</span><strong>'+esc(pi.accountName||'Bargain Drop Australia')+'</strong></div>'+
+        '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span>Exact Amount</span><strong style="font-family:monospace;color:#facc15">A$'+Number(pi.amountAud||0).toFixed(2)+'</strong></div>'+
+        '<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>Required Reference</span><strong style="font-family:monospace;color:#fe3442">'+esc(pi.reference||oid)+'</strong></div>'+
+        '<div style="font-size:.7rem;color:#a1a1aa;margin-top:8px;">This page automatically refreshes your status every 15 seconds once verified.</div>';
+      return;
+    }
+
+    if(status === 'awaiting_crypto' || methodParam === 'crypto'){
+      var ci = (ord && ord.cryptoInstructions) || {};
+      var txSaved = (ord && ord.cryptoTxHash) || (ord && ord.payment && ord.payment.hash) || '';
+      if(titleEl) titleEl.textContent = 'Order Reserved — Awaiting Crypto';
+      if(subEl) subEl.textContent = 'Send your exact crypto amount below and paste your transaction hash (TxID) for rapid dispatch.';
+      panel.style.display = 'block';
+      panel.innerHTML =
+        '<div style="font-weight:800;color:#facc15;margin-bottom:8px;">⚡ Crypto Payment ('+esc(ci.coin||'USDT')+' — '+esc(ci.network||'')+')</div>'+
+        (ci.cryptoAmount ? '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span>Exact Amount</span><strong style="font-family:monospace;color:#facc15">'+esc(ci.cryptoAmount)+' '+esc(ci.coin)+'</strong></div>' : '')+
+        (ci.walletAddress ? '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)"><div style="color:#a1a1aa;margin-bottom:2px">Receiving Wallet Address</div><div style="font-family:monospace;font-size:.72rem;word-break:break-all;color:#fff">'+esc(ci.walletAddress)+'</div></div>' : '')+
+        (txSaved ? '<div style="margin-top:10px;color:#4ade80;font-weight:700">✅ TxID Recorded: <span style="font-family:monospace;word-break:break-all">'+esc(txSaved)+'</span></div>' :
+          '<div style="margin-top:10px;display:flex;gap:6px;"><input id="txid-input" type="text" placeholder="Paste Blockchain Transaction Hash (TxID)" style="flex:1;padding:9px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#090a0f;color:#fff;font-size:.74rem"><button id="txid-btn" type="button" onclick="submitCryptoTx()" style="background:#f59e0b;color:#09090b;border:none;border-radius:8px;padding:0 12px;font-weight:800;font-size:.74rem;cursor:pointer">Submit TxID</button></div><div id="txid-msg" style="font-size:.7rem;margin-top:6px;color:#4ade80"></div>');
+    }
+  }
+
+  window.submitCryptoTx = async function(){
+    var inp = document.getElementById('txid-input');
+    var msg = document.getElementById('txid-msg');
+    var tx = inp ? inp.value.trim() : '';
+    if(!tx || tx.length < 16){ if(msg){ msg.style.color='#f87171'; msg.textContent='Please enter a valid transaction hash (TxID).'; } return; }
+    try{
+      var r = await fetch(API+'/api/crypto-order?action=submit-tx',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({orderId:oid, txHash:tx})
+      });
+      var d = await r.json();
+      if(d.ok){
+        if(msg){ msg.style.color='#4ade80'; msg.textContent='✅ TxID saved! Verification & auto-dispatch queued.'; }
+        verifyPaymentAndFulfillment();
+      } else {
+        if(msg){ msg.style.color='#f87171'; msg.textContent=d.error||'Failed to submit TxID'; }
+      }
+    }catch(e){
+      if(msg){ msg.style.color='#f87171'; msg.textContent='Network error — please try again.'; }
+    }
+  };
+
   if(oid){
     document.getElementById('oid').textContent='Order #'+oid;
     var st=document.getElementById('cj-status');
-    var btn=document.getElementById('cj-btn');
-    if(st) st.textContent='Verifying payment confirmation with processor...';
+    if(st) st.textContent='Checking order & fulfillment status...';
 
-    var attempts=0;
     function verifyPaymentAndFulfillment(){
-      attempts++;
       fetch(API+'/api/save-order?id='+encodeURIComponent(oid))
         .then(function(r){return r.json();})
         .then(function(d){
-          if((d && d.paid) || verifiedParam){
-            // Cleanly empty cart ONLY after verified payment confirmation
+          var srvOrd = (d && d.order) || null;
+          if(srvOrd) updateLocalOrderRecord(srvOrd);
+          renderTransferInstructions(srvOrd);
+
+          var status = String((srvOrd && srvOrd.status) || '').toLowerCase();
+          var isPaid = (srvOrd && (srvOrd.payment_verified === true || status === 'paid' || status === 'fulfilling' || status === 'awaiting_supplier_payment' || status === 'shipped' || status === 'delivered')) || verifiedParam;
+
+          if(isPaid){
             clearCartCleanly();
-            updateLocalOrderRecord(d && d.order);
-            var srvOrd = (d && d.order) || {};
-            if(srvOrd.cjOrderId){
+            if(srvOrd && srvOrd.cjOrderId){
               if(st) st.textContent='Fulfillment Active · CJ Order #'+srvOrd.cjOrderId;
-              if(btn) btn.style.display='none';
-            }else if(srvOrd.fulfillment && srvOrd.fulfillment.done){
+            }else if(srvOrd && srvOrd.fulfillment && srvOrd.fulfillment.done){
               if(st) st.textContent='Order automatically forwarded to CJ Dropshipping fulfillment hub.';
-              if(btn) btn.style.display='none';
             }else{
-              if(st) st.textContent='Payment verified · Automated CJ fulfillment pipeline queued.';
-              if(btn) btn.style.display='inline-block';
+              if(st) st.textContent='Payment verified · Automated CJ Dropshipping fulfillment queued.';
             }
-          }else if(attempts < 6){
-            setTimeout(verifyPaymentAndFulfillment, 1500);
+          }else if(status === 'awaiting_payid' || methodParam === 'payid'){
+            if(st) st.textContent='Awaiting PayID / Osko transfer — auto-checking every 15s...';
+            setTimeout(verifyPaymentAndFulfillment, 15000);
+          }else if(status === 'awaiting_crypto' || methodParam === 'crypto'){
+            if(st) st.textContent='Awaiting blockchain confirmation — auto-checking every 15s...';
+            setTimeout(verifyPaymentAndFulfillment, 15000);
           }else{
-            if(st) st.textContent='Awaiting final webhook confirmation — your cart is safely preserved until payment clears.';
+            if(st) st.textContent='Order saved · Status: '+(status||'pending');
           }
         })
         .catch(function(){
           if(verifiedParam){
             clearCartCleanly();
-            updateLocalOrderRecord({id:oid,status:'processing'});
-          }else if(attempts < 5){
-            setTimeout(verifyPaymentAndFulfillment, 1500);
+            updateLocalOrderRecord({id:oid,status:'processing',paymentMethod:methodParam||'PayPal'});
           }
         });
     }
     verifyPaymentAndFulfillment();
   }
-
-  window.syncCJ = function(){
-    var oid2=new URLSearchParams(location.search).get('id')||'';
-    var orders2=JSON.parse(localStorage.getItem('bd_orders')||'[]');
-    var ord=orders2.find(function(o){return o.id===oid2});
-    if(!ord) return;
-
-    var btn=document.getElementById('cj-btn');
-    var st=document.getElementById('cj-status');
-    btn.disabled=true;btn.textContent='Syncing to fulfillment...';
-
-    fetch(API+'/api/cj-order',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        order_id:oid2,
-        customer_email:ord.email||'',
-        customer_phone:ord.phone||(ord.shipping&&ord.shipping.phone)||'',
-        shipping_address:ord.shipping||{first_name:'',last_name:'',country:'Australia',country_code:'AU'},
-        payment_method:ord.payment||'Stripe',
-        products:(ord.items||[]).map(function(it,i){
-          return {
-            product_id:it.product_id||it.id||null,
-            variant_id:it.variant_id||null,
-            cj_variant_id:it.cj_variant_id||it.vid||it.sku||null,
-            vid:it.cj_variant_id||it.vid||it.sku||null,
-            sku:it.sku||null,
-            quantity:it.qty||1,
-            storeLineItemId:oid2+'-'+i
-          };
-        })
-      })
-    }).then(function(r){return r.json()}).then(function(d){
-      if(d && (d.code===200 || d.result===true || d.success || d.cjOrderId)){
-        btn.textContent='Synced to fulfillment';
-        btn.style.background='#10b981';
-        st.textContent='CJ Order #'+(d.cjOrderId||d.order_number||oid2);
-      }else{
-        btn.textContent='Sync failed — try again';
-        btn.style.background='#dc3545';
-        btn.disabled=false;
-        st.textContent=d.error||d.message||'';
-      }
-    }).catch(function(){
-      btn.textContent='Network error — try again';
-      btn.style.background='#dc3545';
-      btn.disabled=false;
-    });
-  };
 })();
 </script>
 <script>

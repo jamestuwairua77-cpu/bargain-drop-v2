@@ -1,176 +1,141 @@
 // Cloudflare Pages Function: /api/cj-order
-// POST — Maps local variant IDs/SKUs to cj_variant_id (vid), normalizes E.164 phone,
-// enforces idempotency so orders are never forwarded twice, and submits to CJ createOrderV2.
+// Creates & confirms a real CJ Dropshipping order using payType=3 (No CJ Wallet required).
+// Supports direct order submission from Admin Command Center or storefront automation.
 
 import {
-  corsHeaders,
   cjFetchMulti,
-  shopifyFetch,
-  shopifyToCjOrder,
   buildCjOrderFromBody,
   resolveCjVid,
+  appendSyncLog,
+  corsHeaders,
   listOrders,
   updateOrderStatus,
-  appendSyncLog,
+  sendAdminOrderPayAlertEmail,
+  isAdmin,
+  adminDenied,
 } from '../_sync-lib.js';
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders() },
+  });
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders() });
-  }
+  if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: corsHeaders() });
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (!isAdmin(request, env)) return adminDenied();
 
   try {
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json();
 
-    // 1. Shopify Order ID forwarding path
-    if (body.shopifyOrderId) {
-      const { body: res } = await shopifyFetch(
-        env,
-        '/orders/' + body.shopifyOrderId + '.json'
-      );
-      const cjPayload = shopifyToCjOrder(res.order);
-      for (const p of cjPayload.products || []) {
-        p.vid = await resolveCjVid(env, p.vid, p.vid);
-      }
-      const result = await cjFetchMulti(env, '/shopping/order/createOrderV2', {
-        method: 'POST',
-        body: JSON.stringify(cjPayload),
-      });
-      return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      });
+    // Optional lookup by order_id from durable order ledger
+    let sourceOrder = null;
+    if (body.order_id && (!body.products || !body.products.length)) {
+      const orders = await listOrders(env);
+      sourceOrder = orders.find((o) => String(o.id) === String(body.order_id)) || null;
+      if (!sourceOrder) return json({ error: 'Order not found in ledger: ' + body.order_id }, 404);
     }
 
-    // 2. Idempotency check against durable order ledger
-    const orderId = body.order_id || body.orderNumber || null;
-    if (orderId) {
-      const existingOrders = await listOrders(env);
-      const existing = existingOrders.find((o) => String(o.id) === String(orderId));
-      if (existing && existing.cjOrderId) {
-        return new Response(
-          JSON.stringify({
-            code: 200,
-            result: true,
-            idempotentReplay: true,
-            orderId,
-            cjOrderId: existing.cjOrderId,
-            message: 'Order already forwarded to CJ Dropshipping',
-          }),
-          {
-            headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-          }
-        );
-      }
-    }
+    const rawProducts = body.products || body.line_items || (sourceOrder && sourceOrder.items) || [];
+    if (!rawProducts.length) return json({ error: 'No line items found for CJ order creation' }, 400);
 
-    // 3. Resolve local product/variant IDs or SKUs to cj_variant_id (vid)
-    const rawItems = body.products || body.line_items || [];
     const resolvedProducts = [];
-    for (let i = 0; i < rawItems.length; i++) {
-      const item = rawItems[i];
-      const resolvedVid = await resolveCjVid(
+    for (let i = 0; i < rawProducts.length; i++) {
+      const it = rawProducts[i];
+      const vid = await resolveCjVid(
         env,
-        item.sku || null,
-        item.cj_variant_id || item.vid || item.variant_id || null,
-        item.product_id || item.id || null
+        it.sku || null,
+        it.cj_variant_id || it.vid || it.variant_id || null,
+        it.product_id || it.id || null
       );
+      if (!vid) {
+        return json({ error: `Could not resolve CJ variant ID for item: ${it.title || it.sku || i}` }, 400);
+      }
       resolvedProducts.push({
-        ...item,
-        vid: resolvedVid,
-        cj_variant_id: resolvedVid,
-        quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
-        storeLineItemId: item.storeLineItemId || `${orderId || 'BD'}-${i}`,
+        vid,
+        cj_variant_id: vid,
+        quantity: Math.max(1, Number(it.quantity || it.qty || 1)),
+        storeLineItemId: `${body.order_id || (sourceOrder && sourceOrder.id) || 'BD'}-${i}`,
       });
     }
 
-    const payload =
-      rawItems.length > 0
-        ? buildCjOrderFromBody({
-            ...body,
-            products: resolvedProducts,
-          })
-        : body;
+    const ship = body.shipping_address || (sourceOrder && (sourceOrder.shipping || sourceOrder.shippingAddress)) || {};
+    const cjPayload = buildCjOrderFromBody({
+      order_id: body.order_id || (sourceOrder && sourceOrder.id),
+      customer_email: body.customer_email || (sourceOrder && sourceOrder.email) || ship.email || '',
+      customer_phone: body.customer_phone || (sourceOrder && sourceOrder.phone) || ship.phone || '',
+      shipping_address: ship,
+      products: resolvedProducts,
+      payType: 3, // No-Wallet Card/PayPal Settlement Mode
+      logisticName: body.logisticName || 'CJPacket Ordinary',
+      remark: body.remark || `Bargain Drop direct order ${body.order_id || (sourceOrder && sourceOrder.id) || ''}`.trim(),
+    });
 
-    const result = await cjFetchMulti(env, '/shopping/order/createOrderV2', {
+    const createRes = await cjFetchMulti(env, '/shopping/order/createOrderV2', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(cjPayload),
     });
 
     const cjOrderId =
-      (result &&
-        result.data &&
-        (result.data.orderId ||
-          result.data.cjOrderId ||
-          (typeof result.data === 'string' ? result.data : null))) ||
-      null;
+      createRes?.data?.orderId ||
+      createRes?.data?.cjOrderId ||
+      (typeof createRes?.data === 'string' ? createRes.data : null);
 
+    if (!cjOrderId) {
+      return json({ ok: false, error: createRes?.message || 'CJ order creation failed', cjResponse: createRes }, 400);
+    }
+
+    // Confirm order cleanly on CJ (moves to UNPAID ready for 1-click Card/PayPal payment — NEVER uses CJ Wallet)
     let confirmRes = null;
-    let payRes = null;
-    if (cjOrderId) {
+    if (/^\d+$/.test(String(cjOrderId))) {
       try {
-        let numericOrderId =
-          result?.data?.orderId && /^\d+$/.test(String(result.data.orderId))
-            ? String(result.data.orderId)
-            : /^\d+$/.test(String(cjOrderId))
-            ? String(cjOrderId)
-            : '';
-        if (!numericOrderId) {
-          const det = await cjFetchMulti(
-            env,
-            '/shopping/order/getOrderDetail?orderId=' + encodeURIComponent(cjOrderId)
-          );
-          if (det?.data?.orderId) numericOrderId = String(det.data.orderId);
-        }
-        if (numericOrderId) {
-          confirmRes = await cjFetchMulti(env, '/shopping/order/confirmOrder', {
-            method: 'PATCH',
-            body: JSON.stringify({ orderId: numericOrderId }),
-          });
-          payRes = await cjFetchMulti(env, '/shopping/pay/payBalance', {
-            method: 'POST',
-            body: JSON.stringify({ orderId: numericOrderId }),
-          });
-        }
+        confirmRes = await cjFetchMulti(env, '/shopping/order/confirmOrder', {
+          method: 'PATCH',
+          body: JSON.stringify({ orderId: String(cjOrderId) }),
+        });
       } catch {}
     }
 
-    if (orderId && cjOrderId) {
-      await updateOrderStatus(env, orderId, 'fulfilling', {
-        cjOrderId,
-        cjConfirmed: !!(confirmRes && confirmRes.code === 200),
-        cjPaidFromBalance: !!(payRes && payRes.code === 200),
-        cjForwardedAt: new Date().toISOString(),
-      }).catch(() => null);
+    const cjDirectPayUrl = `https://app.cjdropshipping.com/myCJ.html#/order-list?orderId=${encodeURIComponent(cjOrderId)}`;
+    const cjTotalUsd = Number(createRes?.data?.orderAmount || 0) || null;
+
+    if (body.order_id || (sourceOrder && sourceOrder.id)) {
+      const targetId = body.order_id || sourceOrder.id;
+      await updateOrderStatus(env, targetId, 'awaiting_supplier_payment', {
+        cjOrderId: String(cjOrderId),
+        cjPayStatus: 'awaiting_external_payment',
+        cjDirectPayUrl,
+        ...(cjTotalUsd ? { cjTotalUsd } : {}),
+      });
+      if (sourceOrder) {
+        try {
+          await sendAdminOrderPayAlertEmail(env, sourceOrder, { cjOrderId, cjDirectPayUrl, cjTotalUsd });
+        } catch {}
+      }
     }
 
     await appendSyncLog(env, {
-      action: 'cj-order-forward',
-      orderId,
+      action: 'cj-order-create-nowallet',
+      orderId: cjPayload.orderNumber,
       cjOrderId,
-      code: result?.code,
-      confirmed: confirmRes?.code === 200,
-      paid: payRes?.code === 200,
-      message: result?.message,
-    }).catch(() => null);
-
-    return new Response(
-      JSON.stringify({
-        ...result,
-        orderId,
-        cjOrderId,
-        confirm: confirmRes,
-        pay: payRes,
-        forwardedPayload: payload,
-      }),
-      {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      }
-    );
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      payType: 3,
+      ok: true,
     });
+
+    return json({
+      ok: true,
+      orderNumber: cjPayload.orderNumber,
+      cjOrderId: String(cjOrderId),
+      payMode: 'no_wallet_card_paypal',
+      cjPayStatus: 'awaiting_external_payment',
+      cjDirectPayUrl,
+      confirm: confirmRes,
+      cjResponse: createRes,
+    });
+  } catch (e) {
+    return json({ ok: false, error: e.message }, 500);
   }
 }
