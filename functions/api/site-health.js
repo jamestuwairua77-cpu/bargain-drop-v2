@@ -1,8 +1,8 @@
 // Cloudflare Pages Function: /api/site-health
-// Direct end-to-end health probe for Bargain Drop (CJ Dropshipping, Payment Rails, Catalog, Order Ledger).
-// Zero Shopify or Stripe dependencies.
+// Direct end-to-end health probe for Bargain Drop (CJ Dropshipping Autopilot, Payment Rails, Catalog, Order Ledger).
+// Zero Shopify, zero Stripe, zero discounts.
 
-import { corsHeaders, cjFetchMulti, listOrders } from '../_sync-lib.js';
+import { corsHeaders, cjFetch, cjFetchMulti, listOrders } from '../_sync-lib.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -17,21 +17,29 @@ export async function onRequest(context) {
 
   const checks = {};
 
-  // 1. Live CJ Dropshipping API check
+  // 1. Live CJ Dropshipping API & Wallet Auto-Pay check
   try {
     const t0 = Date.now();
-    const res = await cjFetchMulti(env, '/product/list?pageNum=1&pageSize=1');
+    const [res, balRes] = await Promise.all([
+      cjFetchMulti(env, '/product/list?pageNum=1&pageSize=1'),
+      cjFetch(env, '/shopping/pay/getBalance').catch(() => null),
+    ]);
+    const walletBalanceUsd = Number(balRes?.data?.amount || 0);
     checks.cj_dropshipping = {
       ok: !!(res && (res.code === 200 || res.result === true)),
       code: res?.code || null,
       ms: Date.now() - t0,
-      payMode: String((env && env.CJ_PAY_MODE) || 'no_wallet'),
+      payMode: ['manual', 'no_wallet'].includes(String((env && env.CJ_PAY_MODE) || 'auto').toLowerCase().trim())
+        ? String(env.CJ_PAY_MODE).toLowerCase().trim()
+        : 'auto',
+      autoPayEnabled: !['manual', 'no_wallet'].includes(String((env && env.CJ_PAY_MODE) || 'auto').toLowerCase().trim()),
+      walletBalanceUsd: +walletBalanceUsd.toFixed(2),
     };
   } catch (e) {
     checks.cj_dropshipping = { ok: false, error: e.message };
   }
 
-  // 2. Active Payment Rails (PayPal AUD + Australian PayID/Osko + Non-Custodial Crypto)
+  // 2. Active 100% Automated Payment Rails
   const payidId = String((env && env.PAYID_IDENTIFIER) || 'Support@bargain-drop.online').trim();
   const hasCryptoWallet = !!(
     (env && env.CRYPTO_USDT_TRC20_ADDRESS) ||
@@ -41,12 +49,16 @@ export async function onRequest(context) {
   );
   checks.payments = {
     ok: true,
-    paypal: { active: true, currency: 'AUD', mode: 'live_sdk_capture' },
-    payid: { active: !!payidId, identifier: payidId, mode: 'instant_osko_au' },
+    autopilot: '100_percent_automatic',
+    discounts_enabled: false,
+    paypal: { active: true, currency: 'AUD', mode: 'instant_capture_and_webhook', webhook: '/api/paypal-webhook' },
+    payid: { active: !!payidId, identifier: payidId, mode: 'auto_npp_webhook', webhook: '/api/payid-webhook' },
     crypto: {
       active: true,
-      mode: env && env.NOWPAYMENTS_API_KEY ? 'nowpayments_automated_ipn' : hasCryptoWallet ? 'non_custodial_wallet' : 'configurable_wallet',
+      mode: env && env.NOWPAYMENTS_API_KEY ? 'nowpayments_automated_ipn' : hasCryptoWallet ? 'onchain_auto_verifier' : 'configurable_wallet',
+      webhook: '/api/crypto-webhook',
     },
+    cron: '/api/auto-fulfill-cron',
     stripe_removed: true,
     shopify_removed: true,
   };
@@ -78,7 +90,7 @@ export async function onRequest(context) {
   const allOk = Object.values(checks).every((c) => c && c.ok);
   return json({
     ok: allOk,
-    platform: 'Bargain Drop Direct (Cloudflare + CJ Dropshipping)',
+    platform: 'Bargain Drop Autonomous Direct (100% Automatic CJ Fulfillment • Zero Discounts)',
     checkedAt: new Date().toISOString(),
     checks,
   });

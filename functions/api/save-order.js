@@ -75,8 +75,12 @@ export async function onRequest(context) {
       }
     }
 
+    // Enforce zero active discounts across all storefront orders
+    order.discount = { code: null, percent: 0, amount: 0 };
+
     const record = await saveOrderRecord(env, {
       ...order,
+      discount: { code: null, percent: 0, amount: 0 },
       status: isAlreadyPaid ? 'paid' : isPendingTransfer ? order.status : order.status || 'pending_payment',
       payment_verified: isAlreadyPaid,
       cartCleared: isAlreadyPaid || isPendingTransfer || !!order.cartCleared,

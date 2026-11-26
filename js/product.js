@@ -239,9 +239,8 @@ function renderRelatedProducts(){
       related.forEach(function(p){
         var a=document.createElement('a');a.className='product-card fade-in';a.href='product.html?id='+p.id;
         var ri=p.image||(Array.isArray(p.images)?p.images[0]:'')||'';
-        var pc=p.compare_at_price&&p.compare_at_price>p.price?'<span class="prod-compare">'+money(p.compare_at_price||0)+'</span>':'';
-        if(ri){a.innerHTML='<div class="prod-img"><img src="'+esc(ri)+'" alt="'+esc(p.title)+'" width="200" height="200" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'"></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span>'+pc+'</div></div>'}
-        else{a.innerHTML='<div class="prod-img"><div class="prod-img-placeholder">📦</div></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span>'+pc+'</div></div>'}
+        if(ri){a.innerHTML='<div class="prod-img"><img src="'+esc(ri)+'" alt="'+esc(p.title)+'" width="200" height="200" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=prod-img-placeholder>📦</div>\'"></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span></div></div>'}
+        else{a.innerHTML='<div class="prod-img"><div class="prod-img-placeholder">📦</div></div><div class="prod-info"><div class="prod-title">'+esc(p.title)+'</div><div class="prod-price-row"><span class="prod-price">'+money(p.price||0)+'</span></div></div>'}
         grid.appendChild(a)
       })
     }catch(e){}
@@ -272,11 +271,8 @@ function showProduct(){
   document.head.appendChild(schema);
   var pt=document.getElementById('product-title');if(pt)pt.textContent=p.title;
   var pp=document.getElementById('product-price');if(pp)pp.textContent=money(p.price);
-  if(p.compare_at_price&&p.compare_at_price>p.price){
-    var op=document.getElementById('original-price');if(op){op.textContent=money(p.compare_at_price);op.style.display=''}
-    var save=p.compare_at_price-p.price,pct=Math.round(save/p.compare_at_price*100);
-    var sv=document.getElementById('savings');if(sv){sv.innerHTML='Save '+money(save)+' ('+pct+'%)';sv.style.display=''}
-  }
+  var op=document.getElementById('original-price');if(op){op.textContent='';op.style.display='none'}
+  var sv=document.getElementById('savings');if(sv){sv.textContent='';sv.style.display='none'}
 
   var imgs=Array.isArray(p.images)?p.images:(p.image?[p.image]:[]);if(imgs.length>0){
     allImages=imgs;var pi=document.getElementById('product-img');if(pi)pi.src=imgs[0];

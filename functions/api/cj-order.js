@@ -1,8 +1,9 @@
 // Cloudflare Pages Function: /api/cj-order
-// Creates & confirms a real CJ Dropshipping order using payType=3 (No CJ Wallet required).
-// Supports direct order submission from Admin Command Center or storefront automation.
+// Creates, confirms, and AUTOMATICALLY PAYS a CJ Dropshipping order via CJ Wallet (zero clicks).
+// Falls back cleanly to queued_auto_pay (auto-retried by /api/auto-fulfill-cron) if CJ wallet balance is temporarily low.
 
 import {
+  cjFetch,
   cjFetchMulti,
   buildCjOrderFromBody,
   resolveCjVid,
@@ -31,7 +32,6 @@ export async function onRequest(context) {
   try {
     const body = await request.json();
 
-    // Optional lookup by order_id from durable order ledger
     let sourceOrder = null;
     if (body.order_id && (!body.products || !body.products.length)) {
       const orders = await listOrders(env);
@@ -69,9 +69,9 @@ export async function onRequest(context) {
       customer_phone: body.customer_phone || (sourceOrder && sourceOrder.phone) || ship.phone || '',
       shipping_address: ship,
       products: resolvedProducts,
-      payType: 3, // No-Wallet Card/PayPal Settlement Mode
+      payType: 3,
       logisticName: body.logisticName || 'CJPacket Ordinary',
-      remark: body.remark || `Bargain Drop direct order ${body.order_id || (sourceOrder && sourceOrder.id) || ''}`.trim(),
+      remark: body.remark || `Bargain Drop automated order ${body.order_id || (sourceOrder && sourceOrder.id) || ''}`.trim(),
     });
 
     const createRes = await cjFetchMulti(env, '/shopping/order/createOrderV2', {
@@ -88,40 +88,73 @@ export async function onRequest(context) {
       return json({ ok: false, error: createRes?.message || 'CJ order creation failed', cjResponse: createRes }, 400);
     }
 
-    // Confirm order cleanly on CJ (moves to UNPAID ready for 1-click Card/PayPal payment — NEVER uses CJ Wallet)
+    let numericOrderId = /^\d+$/.test(String(cjOrderId)) ? String(cjOrderId) : '';
+    let cjTotalUsd = Number(createRes?.data?.orderAmount || 0) || 0;
+    try {
+      const det = await cjFetchMulti(env, '/shopping/order/getOrderDetail?orderId=' + encodeURIComponent(cjOrderId));
+      if (det?.code === 200 && det.data) {
+        if (!numericOrderId && det.data.orderId) numericOrderId = String(det.data.orderId);
+        const amt = Number(det.data.orderAmount || 0) + Number(det.data.postageAmount || 0);
+        if (amt > 0) cjTotalUsd = +amt.toFixed(2);
+      }
+    } catch {}
+
+    // Confirm order cleanly on CJ
     let confirmRes = null;
-    if (/^\d+$/.test(String(cjOrderId))) {
+    if (numericOrderId) {
       try {
         confirmRes = await cjFetchMulti(env, '/shopping/order/confirmOrder', {
           method: 'PATCH',
-          body: JSON.stringify({ orderId: String(cjOrderId) }),
+          body: JSON.stringify({ orderId: numericOrderId }),
         });
       } catch {}
     }
 
+    // Automatically pay CJ via CJ Wallet (zero clicks) when balance covers the order
+    const payMode = String((env && env.CJ_PAY_MODE) || 'auto').toLowerCase();
+    let payRes = null;
+    let cjPayStatus = 'queued_auto_pay';
+    let walletBalanceUsd = 0;
+    if (payMode !== 'manual' && payMode !== 'no_wallet' && numericOrderId) {
+      try {
+        const balRes = await cjFetch(env, '/shopping/pay/getBalance');
+        walletBalanceUsd = Number(balRes?.data?.amount || 0);
+        if (walletBalanceUsd > 0 && (cjTotalUsd <= 0 || walletBalanceUsd >= cjTotalUsd)) {
+          payRes = await cjFetchMulti(env, '/shopping/pay/payBalance', {
+            method: 'POST',
+            body: JSON.stringify({ orderId: numericOrderId }),
+          });
+          if (payRes && (payRes.code === 200 || payRes.result === true)) {
+            cjPayStatus = 'paid_auto_wallet';
+          }
+        }
+      } catch {}
+    }
+
     const cjDirectPayUrl = `https://app.cjdropshipping.com/myCJ.html#/order-list?orderId=${encodeURIComponent(cjOrderId)}`;
-    const cjTotalUsd = Number(createRes?.data?.orderAmount || 0) || null;
+    const nextStatus = cjPayStatus === 'paid_auto_wallet' ? 'fulfilling' : 'queued_auto_pay';
 
     if (body.order_id || (sourceOrder && sourceOrder.id)) {
       const targetId = body.order_id || sourceOrder.id;
-      await updateOrderStatus(env, targetId, 'awaiting_supplier_payment', {
+      await updateOrderStatus(env, targetId, nextStatus, {
         cjOrderId: String(cjOrderId),
-        cjPayStatus: 'awaiting_external_payment',
+        cjPayStatus,
         cjDirectPayUrl,
         ...(cjTotalUsd ? { cjTotalUsd } : {}),
       });
-      if (sourceOrder) {
+      if (sourceOrder && cjPayStatus !== 'paid_auto_wallet') {
         try {
-          await sendAdminOrderPayAlertEmail(env, sourceOrder, { cjOrderId, cjDirectPayUrl, cjTotalUsd });
+          await sendAdminOrderPayAlertEmail(env, sourceOrder, { cjOrderId, cjDirectPayUrl, cjTotalUsd, walletBalanceUsd });
         } catch {}
       }
     }
 
     await appendSyncLog(env, {
-      action: 'cj-order-create-nowallet',
+      action: 'cj-order-create-autopay',
       orderId: cjPayload.orderNumber,
       cjOrderId,
-      payType: 3,
+      cjPayStatus,
+      walletBalanceUsd,
       ok: true,
     });
 
@@ -129,10 +162,13 @@ export async function onRequest(context) {
       ok: true,
       orderNumber: cjPayload.orderNumber,
       cjOrderId: String(cjOrderId),
-      payMode: 'no_wallet_card_paypal',
-      cjPayStatus: 'awaiting_external_payment',
+      payMode,
+      cjPayStatus,
+      walletBalanceUsd: +walletBalanceUsd.toFixed(2),
+      cjTotalUsd: cjTotalUsd || null,
       cjDirectPayUrl,
       confirm: confirmRes,
+      pay: payRes,
       cjResponse: createRes,
     });
   } catch (e) {

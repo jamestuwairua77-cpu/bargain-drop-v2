@@ -1339,15 +1339,16 @@ export async function pushOrderToCj(env, order) {
     ? Number(cjOrderDetail.orderAmount || 0) + Number(cjOrderDetail.postageAmount || 0)
     : Number((cjRes && cjRes.data && cjRes.data.orderAmount) || 0);
 
-  const payMode = String((env && env.CJ_PAY_MODE) || 'no_wallet').toLowerCase();
+  const payMode = String((env && env.CJ_PAY_MODE) || 'auto').toLowerCase();
   const cjDirectPayUrl = `https://app.cjdropshipping.com/myCJ.html#/order-list?orderId=${encodeURIComponent(cjOrderId)}`;
 
   let confirmRes = null;
   let payRes = null;
-  let cjPayStatus = 'awaiting_external_payment';
+  let cjPayStatus = 'queued_auto_pay';
   let walletBalanceUsd = 0;
+  let cjShortfallUsd = 0;
 
-  // Always confirm order if numericOrderId exists so it moves to UNPAID (ready for card/PayPal/wallet settlement)
+  // Always confirm order if numericOrderId exists so it moves immediately to UNPAID -> ready for automatic payment
   if (numericOrderId) {
     try {
       confirmRes = await cjFetchMulti(env, '/shopping/order/confirmOrder', {
@@ -1357,10 +1358,11 @@ export async function pushOrderToCj(env, order) {
     } catch {}
   }
 
-  // Smart Payment Routing:
-  // - If CJ_PAY_MODE is 'auto' or 'wallet' AND wallet balance covers cost, pay automatically via balance.
-  // - Otherwise (default 'no_wallet' or $0 balance), leave cleanly created & confirmed on CJ for 1-click Card/PayPal settlement without failing!
-  if (payMode !== 'no_wallet' && numericOrderId) {
+  // 100% Autonomous Payment Engine (Default: 'auto'):
+  // Immediately pays CJ Dropshipping from your CJ Wallet balance via /shopping/pay/payBalance with ZERO clicks.
+  // If CJ Wallet balance is temporarily below the wholesale cost, the order is still preserved on CJ and
+  // queued for the autonomous background autopilot (/api/auto-fulfill-cron) to auto-pay the instant funds arrive.
+  if (payMode !== 'manual' && payMode !== 'no_wallet' && numericOrderId) {
     try {
       const balRes = await cjFetch(env, '/shopping/pay/getBalance');
       walletBalanceUsd = Number((balRes && balRes.data && balRes.data.amount) || 0);
@@ -1370,10 +1372,14 @@ export async function pushOrderToCj(env, order) {
           body: JSON.stringify({ orderId: numericOrderId }),
         });
         if (payRes && (payRes.code === 200 || payRes.result === true)) {
-          cjPayStatus = 'paid_wallet';
+          cjPayStatus = 'paid_auto_wallet';
         }
+      } else if (cjTotalUsd > 0) {
+        cjShortfallUsd = +Math.max(0, cjTotalUsd - walletBalanceUsd).toFixed(2);
       }
     } catch {}
+  } else if (payMode === 'no_wallet' || payMode === 'manual') {
+    cjPayStatus = 'awaiting_external_payment';
   }
 
   return {
@@ -1384,7 +1390,8 @@ export async function pushOrderToCj(env, order) {
     cjPayMode: payMode,
     cjPayStatus,
     cjTotalUsd: Number.isFinite(cjTotalUsd) ? +cjTotalUsd.toFixed(2) : null,
-    walletBalanceUsd,
+    walletBalanceUsd: Number.isFinite(walletBalanceUsd) ? +walletBalanceUsd.toFixed(2) : 0,
+    cjShortfallUsd,
     cjDirectPayUrl,
     confirm: confirmRes,
     pay: payRes,
@@ -1392,7 +1399,175 @@ export async function pushOrderToCj(env, order) {
   };
 }
 
-// ─── Customer Order Confirmation Email + Admin 1-Click Non-Wallet Pay Alert ───
+// ─── Autonomous Zero-Click CJ Auto-Pay Retry Helper ──────────────────────────
+export async function autoPayCjOrder(env, order) {
+  const cjId = String(order?.cjOrderId || '').trim();
+  if (!cjId) return { ok: false, paid: false, reason: 'no_cj_order_id' };
+
+  let numericOrderId = /^\d+$/.test(cjId) ? cjId : '';
+  let cjTotalUsd = Number(order?.cjTotalUsd || 0);
+  try {
+    const det = await cjFetchMulti(env, '/shopping/order/getOrderDetail?orderId=' + encodeURIComponent(cjId));
+    if (det && det.code === 200 && det.data) {
+      if (!numericOrderId && det.data.orderId) numericOrderId = String(det.data.orderId);
+      const st = String(det.data.orderStatus || '').toUpperCase();
+      if (['IN_CART', 'PAID', 'UNSHIPPED', 'SHIPPED', 'DELIVERED'].includes(st)) {
+        await updateOrderStatus(env, order.id, st === 'SHIPPED' || st === 'DELIVERED' ? 'shipped' : 'fulfilling', {
+          cjPayStatus: 'paid_auto_wallet',
+          cjOrderStatus: st,
+        });
+        return { ok: true, paid: true, alreadyPaidOnCj: true, cjOrderStatus: st };
+      }
+      const amt = Number(det.data.orderAmount || 0) + Number(det.data.postageAmount || 0);
+      if (amt > 0) cjTotalUsd = +amt.toFixed(2);
+    }
+  } catch {}
+
+  if (!numericOrderId) return { ok: false, paid: false, reason: 'unresolved_numeric_order_id' };
+
+  // Confirm first in case it's still CREATED
+  try {
+    await cjFetchMulti(env, '/shopping/order/confirmOrder', {
+      method: 'PATCH',
+      body: JSON.stringify({ orderId: numericOrderId }),
+    });
+  } catch {}
+
+  const balRes = await cjFetch(env, '/shopping/pay/getBalance').catch(() => null);
+  const walletBalanceUsd = Number((balRes && balRes.data && balRes.data.amount) || 0);
+  if (walletBalanceUsd <= 0 || (cjTotalUsd > 0 && walletBalanceUsd < cjTotalUsd)) {
+    return {
+      ok: false,
+      paid: false,
+      reason: 'insufficient_cj_wallet_balance',
+      walletBalanceUsd: +walletBalanceUsd.toFixed(2),
+      cjTotalUsd,
+      shortfallUsd: cjTotalUsd > 0 ? +Math.max(0, cjTotalUsd - walletBalanceUsd).toFixed(2) : null,
+    };
+  }
+
+  const payRes = await cjFetchMulti(env, '/shopping/pay/payBalance', {
+    method: 'POST',
+    body: JSON.stringify({ orderId: numericOrderId }),
+  });
+
+  if (payRes && (payRes.code === 200 || payRes.result === true)) {
+    await updateOrderStatus(env, order.id, 'fulfilling', {
+      cjPayStatus: 'paid_auto_wallet',
+      cjAutoPaidAt: new Date().toISOString(),
+      cjTotalUsd: cjTotalUsd || null,
+    });
+    return { ok: true, paid: true, cjOrderId: cjId, numericOrderId, walletBalanceUsd, cjTotalUsd };
+  }
+
+  return {
+    ok: false,
+    paid: false,
+    reason: (payRes && payRes.message) || 'payBalance_rejected',
+    cjResponse: payRes,
+  };
+}
+
+// ─── Real On-Chain Blockchain Auto-Verifier (Zero Manual Clicks for Direct Crypto) ───
+export async function verifyCryptoTxOnChain(coin, txHash, expectedAddress, expectedCryptoAmount) {
+  const c = String(coin || '').toUpperCase();
+  const hash = String(txHash || '').trim();
+  const targetAddr = String(expectedAddress || '').trim();
+  const minAmount = Math.max(0, Number(expectedCryptoAmount || 0) * 0.98); // allow 2% slippage/fee tolerance
+  if (!hash || hash.length < 16 || !targetAddr) {
+    return { verified: false, reason: 'missing_hash_or_address' };
+  }
+
+  try {
+    // 1. USDT on Tron TRC20 via public TronGrid / Tronscan API
+    if (c === 'USDT') {
+      const r = await fetch(`https://apilist.tronscanapi.com/api/transaction-info?hash=${encodeURIComponent(hash)}`, {
+        headers: { Accept: 'application/json', 'User-Agent': 'bargain-drop-autopilot' },
+      });
+      if (!r.ok) return { verified: false, reason: 'tronscan_http_' + r.status };
+      const d = await r.json();
+      if (!d || d.confirmed !== true || d.contractRet !== 'SUCCESS') {
+        return { verified: false, pending: true, reason: 'tron_tx_unconfirmed_or_failed' };
+      }
+      const transfers = Array.isArray(d.trc20TransferInfo) ? d.trc20TransferInfo : [];
+      const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+      for (const tr of transfers) {
+        const toAddr = String(tr.to_address || '').trim();
+        const contract = String(tr.contract_address || '').trim();
+        const decimals = Number(tr.decimals || 6);
+        const amount = Number(tr.amount_str || 0) / Math.pow(10, decimals);
+        if (toAddr === targetAddr && contract === USDT_CONTRACT && amount >= minAmount) {
+          return { verified: true, chain: 'tron_trc20', receivedAmount: +amount.toFixed(6), txHash: hash };
+        }
+      }
+      return { verified: false, reason: 'tron_transfer_mismatch' };
+    }
+
+    // 2. BTC on Bitcoin Mainnet via Blockstream Esplora API
+    if (c === 'BTC') {
+      const r = await fetch(`https://blockstream.info/api/tx/${encodeURIComponent(hash)}`, {
+        headers: { Accept: 'application/json', 'User-Agent': 'bargain-drop-autopilot' },
+      });
+      if (!r.ok) return { verified: false, reason: 'blockstream_http_' + r.status };
+      const d = await r.json();
+      if (!d?.status?.confirmed) {
+        return { verified: false, pending: true, reason: 'btc_tx_unconfirmed' };
+      }
+      const vouts = Array.isArray(d.vout) ? d.vout : [];
+      let receivedSats = 0;
+      for (const v of vouts) {
+        if (String(v.scriptpubkey_address || '').trim() === targetAddr) {
+          receivedSats += Number(v.value || 0);
+        }
+      }
+      const receivedBtc = receivedSats / 1e8;
+      if (receivedBtc >= minAmount) {
+        return { verified: true, chain: 'bitcoin_mainnet', receivedAmount: +receivedBtc.toFixed(8), txHash: hash };
+      }
+      return { verified: false, reason: 'btc_output_mismatch' };
+    }
+
+    // 3. USDC on Ethereum / Polygon via Public JSON-RPC eth_getTransactionReceipt
+    if (c === 'USDC') {
+      const rpcs = [
+        { name: 'ethereum', url: 'https://ethereum-rpc.publicnode.com', usdc: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' },
+        { name: 'polygon', url: 'https://polygon-bor-rpc.publicnode.com', usdc: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359' },
+      ];
+      const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+      const targetHex = targetAddr.toLowerCase().replace(/^0x/, '');
+      for (const rpc of rpcs) {
+        const res = await fetch(rpc.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [hash] }),
+        }).catch(() => null);
+        if (!res || !res.ok) continue;
+        const j = await res.json().catch(() => null);
+        const rcpt = j?.result;
+        if (!rcpt || rcpt.status !== '0x1') continue;
+        const logs = Array.isArray(rcpt.logs) ? rcpt.logs : [];
+        for (const lg of logs) {
+          if (String(lg.address || '').toLowerCase() !== rpc.usdc) continue;
+          const topics = Array.isArray(lg.topics) ? lg.topics : [];
+          if (String(topics[0] || '').toLowerCase() !== TRANSFER_TOPIC) continue;
+          const toTopic = String(topics[2] || '').toLowerCase().replace(/^0x/, '').slice(-40);
+          if (toTopic !== targetHex) continue;
+          const rawVal = parseInt(String(lg.data || '0x0'), 16);
+          const amount = rawVal / 1e6;
+          if (amount >= minAmount) {
+            return { verified: true, chain: rpc.name, receivedAmount: +amount.toFixed(6), txHash: hash };
+          }
+        }
+      }
+      return { verified: false, pending: true, reason: 'usdc_receipt_not_confirmed_or_mismatch' };
+    }
+  } catch (e) {
+    return { verified: false, reason: 'verifier_error: ' + e.message };
+  }
+  return { verified: false, reason: 'unsupported_coin' };
+}
+
+// ─── Customer Order Confirmation Email + Admin Low-Balance Alert ───
 async function sendResendEmail(env, { to, subject, html, text }) {
   const fromAddr =
     (env && (env.EMAIL_FROM_ADDRESS || env.RESEND_FROM)) ||
@@ -1433,10 +1608,10 @@ export async function sendOrderConfirmationEmail(env, order) {
     <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:32px;">
       <div style="margin-bottom:20px;"><span style="color:#fe3442;font-weight:900;font-size:20px;">BARGAIN</span> <span style="color:#ffffff;font-weight:900;font-size:20px;">DROP</span></div>
       <h2 style="margin:0 0 10px;font-size:22px;color:#ffffff;">Order Confirmed, ${customerName}!</h2>
-      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 20px;">Thank you for shopping with Bargain Drop. We have received your payment of <strong style="color:#ffffff;">A$${totalAud}</strong> via <strong style="color:#ffffff;">${payLabel}</strong> for order <strong style="color:#fe3442;">#${orderId}</strong> and queued it for direct fulfillment.</p>
+      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 20px;">Thank you for shopping with Bargain Drop. We have received your payment of <strong style="color:#ffffff;">A$${totalAud}</strong> via <strong style="color:#ffffff;">${payLabel}</strong> for order <strong style="color:#fe3442;">#${orderId}</strong> and automatically sent it to our fulfillment hub for dispatch.</p>
       ${itemsHtml ? `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">${itemsHtml}</table>` : ''}
       <a href="${trackUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 24px;border-radius:8px;">Track Order Status →</a>
-      <p style="color:#a1a1aa;font-size:12px;margin-top:24px;">We will email your carrier tracking number as soon as your package leaves the fulfillment hub.</p>
+      <p style="color:#a1a1aa;font-size:12px;margin-top:24px;">We will email your carrier tracking number automatically as soon as your package leaves the fulfillment hub.</p>
     </div>`;
   return sendResendEmail(env, {
     to: recipientEmail,
@@ -1463,7 +1638,7 @@ export async function sendPaymentInstructionsEmail(env, order, instructions = {}
     <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:32px;">
       <div style="margin-bottom:20px;"><span style="color:#fe3442;font-weight:900;font-size:20px;">BARGAIN</span> <span style="color:#ffffff;font-weight:900;font-size:20px;">DROP</span></div>
       <h2 style="margin:0 0 10px;font-size:21px;color:#ffffff;">${title}</h2>
-      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 18px;">Hi ${customerName}, your order <strong style="color:#fe3442;">#${orderId}</strong> (A$${totalAud}) is reserved. Complete your transfer using the exact details below so we can dispatch immediately:</p>
+      <p style="color:#d4d4d8;font-size:14px;line-height:1.6;margin:0 0 18px;">Hi ${customerName}, your order <strong style="color:#fe3442;">#${orderId}</strong> (A$${totalAud}) is reserved. Complete your transfer using the exact details below and our system will automatically confirm and dispatch your parcel:</p>
       <div style="background:#121515;border:1px solid #222425;border-radius:8px;padding:14px;margin-bottom:20px;">${detailLines}</div>
       <a href="${statusUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 24px;border-radius:8px;">View Order &amp; Payment Status →</a>
     </div>`;
@@ -1481,32 +1656,32 @@ export async function sendAdminOrderPayAlertEmail(env, order, cjResult) {
   const publicOrigin = String((env && env.PUBLIC_STORE_ORIGIN) || 'https://bargain-drop.online').replace(/\/+$/, '');
   const orderId = String(order.id || 'BD-ORDER');
   const cjId = String((cjResult && cjResult.cjOrderId) || 'PENDING');
-  const cjPayUrl = (cjResult && cjResult.cjDirectPayUrl) || 'https://app.cjdropshipping.com/myCJ.html#/order-list';
+  const cjWalletTopupUrl = 'https://app.cjdropshipping.com/myCJ.html#/myWallet';
   const adminVaultUrl = `${publicOrigin}/admin.html`;
   const customerPaidAud = Number(order.total || 0);
   const cjCostUsd = Number((cjResult && cjResult.cjTotalUsd) || 0);
-  const estCjAud = +(cjCostUsd * 1.54).toFixed(2);
-  const estMarginAud = +(customerPaidAud - estCjAud).toFixed(2);
+  const walletBalUsd = Number((cjResult && cjResult.walletBalanceUsd) || 0);
+  const shortfallUsd = Number((cjResult && cjResult.cjShortfallUsd) || Math.max(0, cjCostUsd - walletBalUsd));
   const payLabel = order.paymentMethod || order.method || (typeof order.payment === 'string' ? order.payment : order.payment?.gateway) || 'PayPal / PayID / Crypto';
 
   const html = `
     <div style="font-family:'Plus Jakarta Sans',-apple-system,sans-serif;max-width:580px;margin:0 auto;background:#08090a;color:#ffffff;border:1px solid #222425;border-radius:12px;padding:28px;">
-      <div style="color:#facc15;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">No-Wallet Auto-Fulfillment Ready</div>
-      <h2 style="margin:0 0 12px;font-size:20px;color:#ffffff;">New Paid Order #${orderId} → CJ #${cjId}</h2>
-      <p style="color:#d4d4d8;font-size:14px;line-height:1.5;margin:0 0 18px;">Order has been automatically created &amp; confirmed on CJ Dropshipping via <strong>payType=3 (No CJ Wallet)</strong>. Settle directly with Card or PayPal in 1 click:</p>
+      <div style="color:#facc15;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">CJ Autopilot — Wallet Top-Up Needed</div>
+      <h2 style="margin:0 0 12px;font-size:20px;color:#ffffff;">Order #${orderId} Created on CJ (#${cjId}) — Queued for Auto-Pay</h2>
+      <p style="color:#d4d4d8;font-size:14px;line-height:1.5;margin:0 0 18px;">Your order was automatically created &amp; confirmed on CJ Dropshipping, but your CJ Wallet balance (<strong>US$${walletBalUsd.toFixed(2)}</strong>) is currently below the wholesale cost. Top up your CJ Wallet and the Autopilot Daemon will <strong>automatically pay and dispatch</strong> this order with zero clicks:</p>
       <div style="background:#121515;border:1px solid #222425;border-radius:8px;padding:14px;margin-bottom:18px;font-size:13px;color:#e4e4e7;">
         <div><strong>Customer Paid:</strong> A$${customerPaidAud.toFixed(2)} (${payLabel})</div>
-        <div><strong>CJ Wholesale + Freight:</strong> ${cjCostUsd > 0 ? ('US$' + cjCostUsd.toFixed(2) + ' (~A$' + estCjAud.toFixed(2) + ')') : 'Calculated in CJ Checkout'}</div>
-        ${cjCostUsd > 0 ? `<div style="color:#4ade80;margin-top:4px;"><strong>Est. Gross Margin:</strong> A$${estMarginAud.toFixed(2)}</div>` : ''}
+        <div><strong>CJ Wholesale + Freight:</strong> ${cjCostUsd > 0 ? 'US$' + cjCostUsd.toFixed(2) : 'Pending CJ calc'}</div>
+        <div><strong>CJ Wallet Balance:</strong> US$${walletBalUsd.toFixed(2)} ${shortfallUsd > 0 ? `(Shortfall: US$${shortfallUsd.toFixed(2)})` : ''}</div>
       </div>
-      <a href="${cjPayUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 22px;border-radius:8px;margin-right:10px;">Pay CJ Order (Card / PayPal) →</a>
+      <a href="${cjWalletTopupUrl}" style="display:inline-block;background:#fe3442;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 22px;border-radius:8px;margin-right:10px;">Top Up CJ Wallet →</a>
       <a href="${adminVaultUrl}" style="display:inline-block;background:#171a1d;border:1px solid #32373d;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:13px 18px;border-radius:8px;">Open Admin Command Center</a>
     </div>`;
   return sendResendEmail(env, {
     to: adminEmail,
-    subject: `[Action: 1-Click Pay] Paid Order #${orderId} Created on CJ (#${cjId})`,
+    subject: `[Autopilot Low CJ Balance] Order #${orderId} Queued for Auto-Pay (CJ #${cjId})`,
     html,
-    text: `Paid Order #${orderId} (A$${customerPaidAud.toFixed(2)} via ${payLabel}) created on CJ (#${cjId}). Pay via Card/PayPal (no CJ wallet): ${cjPayUrl}`,
+    text: `Order #${orderId} created on CJ (#${cjId}). CJ Wallet balance is US$${walletBalUsd.toFixed(2)} (order cost US$${cjCostUsd.toFixed(2)}). Top up CJ Wallet (${cjWalletTopupUrl}) and Autopilot will pay and dispatch automatically.`,
   });
 }
 
@@ -1517,42 +1692,66 @@ export async function fulfillOrder(env, order) {
       o.id === order.id ||
       (order.idempotency_key && o.idempotency_key === order.idempotency_key)
   );
-  if (existing && existing.fulfillment && existing.fulfillment.done && existing.cjOrderId) {
-    return { skipped: true, already: true, fulfillment: existing.fulfillment, cjOrderId: existing.cjOrderId };
+  if (
+    existing &&
+    existing.fulfillment &&
+    existing.fulfillment.done &&
+    existing.cjOrderId &&
+    (existing.cjPayStatus === 'paid_auto_wallet' || existing.cjPayStatus === 'paid_wallet')
+  ) {
+    return { skipped: true, already: true, fulfillment: existing.fulfillment, cjOrderId: existing.cjOrderId, status: existing.status };
   }
   const mergedOrder = { ...(existing || {}), ...order };
   const result = { done: false, at: new Date().toISOString(), cj: null, emails: {}, errors: [] };
   let cjOrderId = mergedOrder.cjOrderId || null;
 
-  // 1. Push order directly to CJ Dropshipping (No-Wallet payType=3)
-  try {
-    result.cj = await pushOrderToCj(env, mergedOrder);
-    if (result.cj && result.cj.cjOrderId) {
-      cjOrderId = result.cj.cjOrderId;
-      mergedOrder.cjOrderId = cjOrderId;
-      result.done = true;
-    } else {
-      result.errors.push('cj: ' + ((result.cj && result.cj.message) || 'no cjOrderId returned'));
+  // 1. If already created on CJ but still awaiting auto-pay, run autoPayCjOrder directly
+  if (cjOrderId && mergedOrder.cjPayStatus !== 'paid_auto_wallet' && mergedOrder.cjPayStatus !== 'paid_wallet') {
+    const payAttempt = await autoPayCjOrder(env, mergedOrder);
+    result.cj = {
+      ok: true,
+      cjOrderId,
+      cjPayStatus: payAttempt.paid ? 'paid_auto_wallet' : 'queued_auto_pay',
+      ...payAttempt,
+    };
+    result.done = true;
+  } else {
+    // 2. Push order directly to CJ Dropshipping AND automatically pay via CJ Wallet
+    try {
+      result.cj = await pushOrderToCj(env, mergedOrder);
+      if (result.cj && result.cj.cjOrderId) {
+        cjOrderId = result.cj.cjOrderId;
+        mergedOrder.cjOrderId = cjOrderId;
+        result.done = true;
+      } else {
+        result.errors.push('cj: ' + ((result.cj && result.cj.message) || 'no cjOrderId returned'));
+      }
+    } catch (e) {
+      result.cj = { ok: false, error: e.message };
+      result.errors.push('cj: ' + e.message);
     }
-  } catch (e) {
-    result.cj = { ok: false, error: e.message };
-    result.errors.push('cj: ' + e.message);
   }
 
-  // 2. Send customer confirmation receipt + admin 1-click Card/PayPal pay alert if awaiting external settlement
+  // 3. Send customer confirmation receipt + admin low-CJ-balance alert ONLY if CJ wallet was short
   if (!mergedOrder.confirmationEmailSent) {
     try {
       result.emails.customer = await sendOrderConfirmationEmail(env, mergedOrder);
     } catch {}
   }
-  if (cjOrderId && result.cj && result.cj.cjPayStatus === 'awaiting_external_payment' && !mergedOrder.adminPayAlertSent) {
+  if (
+    cjOrderId &&
+    result.cj &&
+    (result.cj.cjPayStatus === 'queued_auto_pay' || result.cj.cjPayStatus === 'awaiting_external_payment') &&
+    !mergedOrder.adminPayAlertSent
+  ) {
     try {
       result.emails.adminPayAlert = await sendAdminOrderPayAlertEmail(env, mergedOrder, result.cj);
     } catch {}
   }
 
+  const isAutoPaid = result.cj && (result.cj.cjPayStatus === 'paid_auto_wallet' || result.cj.cjPayStatus === 'paid_wallet');
   const nextStatus = cjOrderId
-    ? (result.cj && result.cj.cjPayStatus === 'paid_wallet' ? 'fulfilling' : 'awaiting_supplier_payment')
+    ? (isAutoPaid ? 'fulfilling' : 'queued_auto_pay')
     : 'paid';
 
   await updateOrderStatus(env, mergedOrder.id, nextStatus, {
@@ -1565,6 +1764,175 @@ export async function fulfillOrder(env, order) {
     ...(result.emails.adminPayAlert && result.emails.adminPayAlert.sent ? { adminPayAlertSent: true } : {}),
   });
   return { ...result, cjOrderId, status: nextStatus };
+}
+
+// ─── 100% Autonomous End-to-End Autopilot Daemon Cycle ────────────────────────
+// Stage 1: Auto-verify pending crypto TxIDs on-chain -> mark paid -> push & pay CJ
+// Stage 2: Retry any paid orders not yet created on CJ -> create & auto-pay CJ
+// Stage 3: Auto-pay any queued CJ orders the instant CJ Wallet balance covers them
+// Stage 4: Sync live CJ courier tracking -> update ledger -> auto-email customer
+export async function runFullAutopilotCycle(env) {
+  const startedAt = new Date().toISOString();
+  const report = {
+    ok: true,
+    startedAt,
+    cryptoAutoVerified: [],
+    pushedToCj: [],
+    cjAutoPaid: [],
+    trackingSynced: [],
+    lowBalanceQueued: [],
+    errors: [],
+  };
+
+  let orders = [];
+  try {
+    orders = await listOrders(env);
+  } catch (e) {
+    return { ok: false, startedAt, error: 'Failed reading order ledger: ' + e.message };
+  }
+
+  // Stage 1: On-chain auto-verification for pending direct crypto orders with a submitted TxHash
+  for (const ord of orders) {
+    if (ord.status === 'awaiting_crypto' && (ord.cryptoTxHash || ord.payment?.hash)) {
+      const txHash = ord.cryptoTxHash || ord.payment?.hash;
+      const coin = ord.cryptoInstructions?.coin || ord.payment?.coin || 'USDT';
+      const addr = ord.cryptoInstructions?.walletAddress || ord.payment?.walletAddress || '';
+      const amt = ord.cryptoInstructions?.cryptoAmount || ord.payment?.cryptoAmount || 0;
+      try {
+        const check = await verifyCryptoTxOnChain(coin, txHash, addr, amt);
+        if (check.verified) {
+          const paidOrd = await updateOrderStatus(env, ord.id, 'paid', {
+            paymentStatus: 'paid',
+            payment_verified: true,
+            paidAt: new Date().toISOString(),
+            onChainVerification: check,
+          });
+          const ff = await fulfillOrder(env, paidOrd || ord);
+          report.cryptoAutoVerified.push({
+            orderId: ord.id,
+            coin,
+            txHash,
+            cjOrderId: ff?.cjOrderId || null,
+            status: ff?.status || 'paid',
+          });
+        }
+      } catch (e) {
+        report.errors.push(`crypto-verify ${ord.id}: ${e.message}`);
+      }
+    }
+  }
+
+  // Refresh ledger after Stage 1
+  try { orders = await listOrders(env); } catch {}
+
+  // Stage 2: Push any paid orders that don't yet have a CJ order ID
+  for (const ord of orders) {
+    if (ord.status === 'paid' && !ord.cjOrderId) {
+      try {
+        const ff = await fulfillOrder(env, ord);
+        report.pushedToCj.push({
+          orderId: ord.id,
+          cjOrderId: ff?.cjOrderId || null,
+          status: ff?.status || 'paid',
+        });
+      } catch (e) {
+        report.errors.push(`cj-push ${ord.id}: ${e.message}`);
+      }
+    }
+  }
+
+  // Stage 3: Auto-pay any CJ orders queued awaiting wallet funds
+  for (const ord of orders) {
+    const needsAutoPay =
+      ord.cjOrderId &&
+      (ord.status === 'queued_auto_pay' ||
+        ord.status === 'awaiting_supplier_payment' ||
+        ord.cjPayStatus === 'queued_auto_pay' ||
+        ord.cjPayStatus === 'awaiting_external_payment');
+    if (needsAutoPay) {
+      try {
+        const payRes = await autoPayCjOrder(env, ord);
+        if (payRes.paid) {
+          report.cjAutoPaid.push({ orderId: ord.id, cjOrderId: ord.cjOrderId, cjTotalUsd: payRes.cjTotalUsd || null });
+        } else if (payRes.reason === 'insufficient_cj_wallet_balance') {
+          report.lowBalanceQueued.push({
+            orderId: ord.id,
+            cjOrderId: ord.cjOrderId,
+            walletBalanceUsd: payRes.walletBalanceUsd,
+            shortfallUsd: payRes.shortfallUsd,
+          });
+        }
+      } catch (e) {
+        report.errors.push(`cj-autopay ${ord.id}: ${e.message}`);
+      }
+    }
+  }
+
+  // Stage 4: Poll CJ for tracking numbers on fulfilling/processing orders & email customers automatically
+  try {
+    const cjListRes = await cjFetchMulti(env, '/shopping/order/list?pageNum=1&pageSize=50');
+    const cjList = Array.isArray(cjListRes?.data?.list) ? cjListRes.data.list : [];
+    for (const cjOrd of cjList) {
+      const trackNum = String(cjOrd.trackNumber || cjOrd.trackingNumber || cjOrd.logisticTrackNumber || '').trim();
+      const cjStatus = String(cjOrd.orderStatus || '').toUpperCase();
+      if (!trackNum && cjStatus !== 'SHIPPED' && cjStatus !== 'DELIVERED') continue;
+      const match = orders.find(
+        (o) =>
+          (o.cjOrderId && String(o.cjOrderId) === String(cjOrd.orderId || cjOrd.cjOrderId)) ||
+          (cjOrd.orderNumber && String(o.id) === String(cjOrd.orderNumber))
+      );
+      if (!match) continue;
+      if (match.status === 'shipped' && match.trackingNumber === trackNum && match.shippedEmailSent) continue;
+
+      const carrierName = cjOrd.logisticName || cjOrd.logisticsName || 'CJ Packet Tracked Air';
+      const trackingUrl = trackNum ? `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}` : '';
+      const updated = await updateOrderStatus(env, match.id, cjStatus === 'DELIVERED' ? 'delivered' : 'shipped', {
+        trackingNumber: trackNum || match.trackingNumber || null,
+        carrierName,
+        tracking: {
+          number: trackNum,
+          carrier: carrierName,
+          url: trackingUrl,
+          status: cjStatus || 'SHIPPED',
+          syncedAt: new Date().toISOString(),
+        },
+        cjOrderStatus: cjStatus || 'SHIPPED',
+      });
+      let emailRes = null;
+      if (trackNum && !match.shippedEmailSent) {
+        emailRes = await sendOrderShippedEmail(env, updated || match, {
+          trackingNumber: trackNum,
+          carrierName,
+          trackingUrl,
+        }).catch(() => null);
+        if (emailRes?.sent) {
+          await updateOrderStatus(env, match.id, cjStatus === 'DELIVERED' ? 'delivered' : 'shipped', {
+            shippedEmailSent: true,
+          });
+        }
+      }
+      report.trackingSynced.push({
+        orderId: match.id,
+        cjOrderId: match.cjOrderId,
+        trackingNumber: trackNum,
+        carrierName,
+        emailSent: Boolean(emailRes?.sent),
+      });
+    }
+  } catch (e) {
+    report.errors.push('tracking-sync: ' + e.message);
+  }
+
+  report.finishedAt = new Date().toISOString();
+  if (
+    report.cryptoAutoVerified.length ||
+    report.pushedToCj.length ||
+    report.cjAutoPaid.length ||
+    report.trackingSynced.length
+  ) {
+    await appendSyncLog(env, { action: 'autopilot-cycle', ...report }).catch(() => null);
+  }
+  return report;
 }
 
 // ─── Transactional Dispatch Email when Order transitions to 'Shipped' (Module 4 Step B) ───

@@ -542,24 +542,25 @@ textarea.field{min-height:110px;resize:vertical}
     <!-- Action Bar -->
     <div class="section-card">
       <div class="sec-title">
-        <span>⚡ Automated Fulfillment &amp; Catalog Maintenance (Zero CJ Wallet Needed)</span>
+        <span>🤖 100% Autonomous Fulfillment &amp; Auto-Pay Engine (<code style="color:#4ade80;">CJ_PAY_MODE=auto</code>)</span>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn primary sm" id="btnRunCatalogSync" onclick="runAutoCatalogSync()">🔄 Sync &amp; Hide Deleted Products</button>
+          <button class="btn primary sm" id="btnRunAutopilot" onclick="runFullAutopilotNow()">⚡ Run Full Autopilot Cycle</button>
+          <button class="btn sm" id="btnRunCatalogSync" onclick="runAutoCatalogSync()">🔄 Sync &amp; Hide Deleted Products</button>
           <button class="btn success sm" id="btnSyncTracking" onclick="runCjTrackingSync()">🚚 Pull Live CJ Tracking</button>
           <button class="btn warning sm" id="btnRefreshCjQueue" onclick="loadCjHub()">↻ Refresh Queue</button>
           <a href="/admin-orders.html" target="_blank" class="btn sm">Open Full CJ Vault ↗</a>
         </div>
       </div>
       <p style="font-size:.82rem;color:var(--muted);line-height:1.55;">
-        Paid PayPal, PayID / Osko &amp; Crypto orders are automatically created in CJ Dropshipping with <code style="color:var(--gold);font-family:'JetBrains Mono',monospace;">payType=3</code> (No-Wallet Card/PayPal Settlement). Click <strong>Pay in CJ</strong> on any queued order to settle directly with your business card or PayPal without ever topping up a CJ wallet balance.
+        Zero-click end-to-end autopilot is active: PayPal (<code style="color:var(--gold);">/api/paypal-webhook</code>), Australian PayID/Osko (<code style="color:var(--gold);">/api/payid-webhook</code>), and On-Chain Crypto (Tronscan / Blockstream / RPC + <code style="color:var(--gold);">/api/crypto-webhook</code>) verify automatically, push to CJ Dropshipping, auto-pay via CJ Wallet (<code style="color:#4ade80;">/shopping/pay/payBalance</code>), and email tracking directly to the customer's door. Background heartbeat runs automatically every 3 minutes via <code style="color:var(--gold);">/api/auto-fulfill-cron</code>.
       </p>
-      <div class="log-box" id="cjSyncLog">Ready — click "Sync &amp; Hide Deleted Products" or "Pull Live CJ Tracking" to run live operations.</div>
+      <div class="log-box" id="cjSyncLog">Autopilot active — 0-click payment → CJ order → CJ auto-pay → courier tracking email.</div>
     </div>
 
-    <!-- Pending No-Wallet Settlement Queue -->
+    <!-- Auto-Pay Queue (Only shows items waiting for CJ Wallet top-up if balance temporarily ran low) -->
     <div class="section-card">
       <div class="sec-title">
-        <span>💳 No-Wallet CJ Payment Settlement Queue</span>
+        <span>⚡ Autonomous CJ Settlement &amp; Retry Queue</span>
         <span style="font-size:.72rem;color:var(--meta);text-transform:none;" id="cjQueueSummary">Loading queue...</span>
       </div>
       <div id="cjQueueContainer" class="grid-2">
@@ -650,7 +651,6 @@ textarea.field{min-height:110px;resize:vertical}
           <option value="featured">Sort: Featured</option>
           <option value="price-asc">Price: Low to High</option>
           <option value="price-desc">Price: High to Low</option>
-          <option value="savings">Biggest Savings</option>
         </select>
         <div style="font-size:.76rem;color:var(--meta);margin-left:auto;" id="catalogStatsLine">Loading live catalog...</div>
       </div>
@@ -678,11 +678,11 @@ textarea.field{min-height:110px;resize:vertical}
       <div class="section-card">
         <div class="sec-title"><span>🤖 Ruby AI Concierge Quick Launch</span></div>
         <p style="font-size:.8rem;color:var(--muted);line-height:1.5;">
-          Test the upgraded Ruby AI Support Assistant live right now — ask about orders, promo codes (<code>BARGAIN26</code>), shipping, refunds, or products.
+          Test the upgraded Ruby AI Support Assistant live right now — ask about orders, shipping, refunds, payments, or products.
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn primary sm" onclick="window.openBargainDropAI && window.openBargainDropAI()">Open Ruby AI Chat</button>
-          <button class="btn sm" onclick="window.openBargainDropAI && window.openBargainDropAI('What promo codes work right now and how much is shipping?')">Test Promo &amp; Shipping Q</button>
+          <button class="btn sm" onclick="window.openBargainDropAI && window.openBargainDropAI('How much is shipping and what payment methods do you accept?')">Test Shipping &amp; Payment Q</button>
           <button class="btn sm" onclick="window.openBargainDropAI && window.openBargainDropAI('Show me deals under $15')">Test Product Search</button>
         </div>
       </div>
@@ -742,7 +742,7 @@ textarea.field{min-height:110px;resize:vertical}
           <button class="btn sm" onclick="runSandboxQa()">Run Sandbox QA</button>
         </div>
         <p style="font-size:.8rem;color:var(--muted);line-height:1.5;">
-          Push all 35 updated storefront &amp; payment files and delete all 12 removed Stripe/Shopify functions from <strong style="color:#fff;">jamestuwairua77-cpu/bargain-drop-v2</strong> in a single atomic commit (auto-deploys to <strong style="color:#fff;">bargain-drop.online</strong> via Cloudflare Pages).
+          Push all updated storefront, zero-discount, and 100% autonomous payment/CJ autopilot files (and delete removed Stripe/Shopify/discount files) to <strong style="color:#fff;">jamestuwairua77-cpu/bargain-drop-v2</strong> in a single atomic commit (auto-deploys to <strong style="color:#fff;">bargain-drop.online</strong> via Cloudflare Pages).
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input class="field" type="password" id="deployGithubToken" placeholder="GitHub Personal Access Token (ghp_... / github_pat_...)" style="flex:1;min-width:220px;margin:0;" autocomplete="off">
@@ -781,10 +781,6 @@ textarea.field{min-height:110px;resize:vertical}
       <button class="btn sm" onclick="document.getElementById('cartModal').classList.add('hidden')">✕</button>
     </div>
     <div id="cartItemsList" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;"></div>
-    <div style="display:flex;gap:8px;">
-      <input class="field" id="promoInput" value="BARGAIN26" placeholder="Promo code (e.g. BARGAIN26)">
-      <button class="btn warning" onclick="applyPreviewPromo()">Apply</button>
-    </div>
     <div id="cartSummaryBox" style="font-size:.82rem;color:var(--muted);line-height:1.6;border-top:1px solid var(--line);padding-top:10px;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn sm" onclick="clearPreviewCart()">Clear Bag</button>
@@ -823,7 +819,6 @@ let filterUnder15 = false;
 let filterSavedOnly = false;
 let savedIds = new Set(JSON.parse(localStorage.getItem('bd_admin_saved') || '[]'));
 let previewCart = JSON.parse(localStorage.getItem('bd_cart') || '[]');
-let activePromoCode = '';
 
 const DEPARTMENTS = [
   ['all', 'All Departments'],
@@ -1660,18 +1655,46 @@ async function handleManualBind(e) {
   }
 }
 
+async function runFullAutopilotNow() {
+  const btn = $('btnRunAutopilot');
+  const log = $('cjSyncLog');
+  if (btn) { btn.disabled = true; btn.textContent = 'Running Autopilot...'; }
+  if (log) log.textContent = 'Running 4-stage autonomous fulfillment cycle (Crypto on-chain verify → Unpushed CJ push → Auto-pay CJ Wallet → Tracking email dispatch)...';
+  try {
+    const res = await fetch('/api/auto-fulfill-cron', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': PIN }
+    });
+    const d = await res.json();
+    if (log) log.textContent = JSON.stringify(d, null, 2);
+    showToast(d.ok ? 'Autopilot cycle complete!' : (d.error || 'Autopilot warning'), !d.ok);
+    loadCjHub();
+  } catch (e) {
+    if (log) log.textContent = 'Autopilot error: ' + e.message;
+    showToast('Autopilot failed: ' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Run Full Autopilot Cycle'; }
+  }
+}
+
 async function loadSiteHealth() {
   const el = $('siteHealthContainer');
   try {
     const res = await fetch('/api/site-health');
     const d = await res.json();
-    const checks = d.checks || [];
-    const cjCheck = checks.find(c => /cj/i.test(c.name));
-    $('cjMetricApiState').textContent = cjCheck?.ok ? 'Connected' : 'Check';
-    el.innerHTML = checks.map(c => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#0a0c10;border:1px solid var(--line);border-radius:8px;">
+    const checksArr = Array.isArray(d.checks)
+      ? d.checks
+      : Object.entries(d.checks || {}).map(([name, val]) => ({
+          name,
+          ok: Boolean(val && val.ok !== false),
+          detail: typeof val === 'object' ? JSON.stringify(val).slice(0, 90) : String(val),
+        }));
+    const cjCheck = checksArr.find(c => /cj/i.test(c.name));
+    $('cjMetricApiState').textContent = d.autopilot === '100_percent_automatic' ? 'Autopilot ON' : (cjCheck?.ok ? 'Connected' : 'Check');
+    el.innerHTML = checksArr.map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#0a0c10;border:1px solid var(--line);border-radius:8px;gap:8px;">
         <strong style="color:#fff;">${esc(c.name)}</strong>
-        <span class="badge ${c.ok ? 'paid' : 'unpaid'}">${c.ok ? 'OK' : 'ISSUE'} · ${esc(c.detail || '')}</span>
+        <span class="badge ${c.ok ? 'paid' : 'unpaid'}" style="max-width:65%;overflow:hidden;text-overflow:ellipsis;">${c.ok ? 'OK' : 'ISSUE'} · ${esc(c.detail || '')}</span>
       </div>
     `).join('') || '<div style="color:var(--meta);">Health check returned no items.</div>';
   } catch (e) {
@@ -1812,7 +1835,6 @@ async function loadStorefrontCatalog() {
           id,
           title: String(p.title || p.name || 'Bargain Drop Deal'),
           price,
-          compareAt: Number(p.compareAt || p.compare_at_price || p.originalPrice || (price * 1.45)),
           category: String(p.category || p.product_type || 'general').toLowerCase(),
           image: p.image || (Array.isArray(p.images) ? (typeof p.images[0] === 'string' ? p.images[0] : p.images[0]?.src) : '') || '/official-logo.jpg',
         });
@@ -1839,9 +1861,8 @@ function renderCatalogGrid() {
 
   if (sort === 'price-asc') list.sort((a, b) => a.price - b.price);
   else if (sort === 'price-desc') list.sort((a, b) => b.price - a.price);
-  else if (sort === 'savings') list.sort((a, b) => (b.compareAt - b.price) - (a.compareAt - a.price));
 
-  $('catalogStatsLine').textContent = `Showing ${Math.min(list.length, 48)} of ${list.length} active products (locked .95 AUD pricing)`;
+  $('catalogStatsLine').textContent = `Showing ${Math.min(list.length, 48)} of ${list.length} active products (everyday .95 AUD pricing)`;
   $('savedCountLabel').textContent = savedIds.size;
 
   if (!list.length) {
@@ -1850,20 +1871,17 @@ function renderCatalogGrid() {
   }
 
   $('catalogGrid').innerHTML = list.slice(0, 48).map(p => {
-    const savePct = p.compareAt > p.price ? Math.round(((p.compareAt - p.price) / p.compareAt) * 100) : 0;
     const isSaved = savedIds.has(p.id);
     return `
       <div class="prod-card">
         <div class="prod-img-wrap">
           <img src="${esc(p.image)}" loading="lazy" onerror="this.src='/official-logo.jpg'" alt="${esc(p.title)}">
-          ${savePct >= 10 ? `<span class="prod-save-tag">SAVE ${savePct}%</span>` : ''}
         </div>
         <div class="prod-body">
           <div class="prod-cat">${esc(p.category)}</div>
           <div class="prod-title" title="${esc(p.title)}">${esc(p.title)}</div>
           <div class="prod-price-row">
             <span class="prod-price">A$${p.price.toFixed(2)}</span>
-            ${p.compareAt > p.price ? `<span class="prod-compare">A$${p.compareAt.toFixed(2)}</span>` : ''}
           </div>
           <div class="prod-actions">
             <button type="button" class="btn primary sm" style="flex:1;" onclick="addToPreviewCart('${esc(p.id)}')">+ Bag</button>
@@ -1906,12 +1924,6 @@ function openCartModal() {
   $('cartModal').classList.remove('hidden');
 }
 
-function applyPreviewPromo() {
-  activePromoCode = ($('promoInput').value || '').trim().toUpperCase();
-  renderCartModal();
-  showToast(activePromoCode ? `Applied promo ${activePromoCode}` : 'Promo cleared');
-}
-
 function clearPreviewCart() {
   previewCart = [];
   localStorage.setItem('bd_cart', '[]');
@@ -1932,18 +1944,12 @@ function renderCartModal() {
     `).join('');
   }
   const subtotal = previewCart.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
-  let discount = 0;
-  if (activePromoCode === 'BARGAIN26') discount = subtotal * 0.30;
-  else if (activePromoCode === 'SAVE5AUD') discount = subtotal * 0.15;
-  else if (['SAVE10', 'WELCOME10', 'COMEBACK10'].includes(activePromoCode)) discount = subtotal * 0.10;
-  const afterDisc = Math.max(0, subtotal - discount);
-  const freeShip = afterDisc >= 29 || activePromoCode === 'FREESHIP' || activePromoCode === 'FREESHIP29' || subtotal === 0;
+  const freeShip = subtotal >= 29 || subtotal === 0;
   const shipping = freeShip ? 0 : 4.95;
   $('cartSummaryBox').innerHTML = `
     <div>Subtotal: <strong style="color:#fff;">A$${subtotal.toFixed(2)}</strong></div>
-    ${discount > 0 ? `<div style="color:#4ade80;">Promo (${esc(activePromoCode)}): -A$${discount.toFixed(2)}</div>` : ''}
-    <div>Shipping: <strong style="color:${freeShip ? '#4ade80' : '#fff'};">${freeShip ? 'FREE' : 'A$4.95'}</strong> ${!freeShip && subtotal > 0 ? `(Add A$${(29 - afterDisc).toFixed(2)} for Free Shipping)` : ''}</div>
-    <div style="font-size:1rem;color:var(--gold);font-weight:900;margin-top:4px;">Estimated Total: A$${(afterDisc + shipping).toFixed(2)} AUD</div>
+    <div>Shipping: <strong style="color:${freeShip ? '#4ade80' : '#fff'};">${freeShip ? 'FREE' : 'A$4.95'}</strong> ${!freeShip && subtotal > 0 ? `(Add A$${(29 - subtotal).toFixed(2)} for Free Shipping)` : ''}</div>
+    <div style="font-size:1rem;color:var(--gold);font-weight:900;margin-top:4px;">Estimated Total: A$${(subtotal + shipping).toFixed(2)} AUD</div>
   `;
 }
 

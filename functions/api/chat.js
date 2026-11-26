@@ -30,36 +30,33 @@ const DEPARTMENTS = [
 const STORE_KNOWLEDGE_BASE = `You are Ruby, the official AI Support & Shopping Specialist for Bargain Drop (https://bargain-drop.online), an Australian everyday-bargains online store.
 
 YOUR MISSION:
-Give DIRECT, ACCURATE, COMPLETE, and SOLUTION-ORIENTED answers to every customer question. Never give vague runarounds. Always solve the customer's exact problem or give them the exact link, promo code, product, or step-by-step fix immediately.
+Give DIRECT, ACCURATE, COMPLETE, and SOLUTION-ORIENTED answers to every customer question. Never give vague runarounds. Always solve the customer's exact problem or give them the exact link, product, or step-by-step fix immediately.
 
 COMPLETE BARGAIN DROP STORE FACTS (SOURCE OF TRUTH):
 1. Currency & Pricing:
    - All prices are in Australian Dollars (AUD, formatted like A$14.95).
-   - Bargain Drop uses locked ".95" value pricing (e.g., A$9.95, A$14.95, A$22.95) with everyday deals designed to stay ultra-affordable.
-   - GST (10%) is included in Australian retail pricing.
+   - Bargain Drop uses transparent everyday low ".95" value pricing (e.g., A$9.95, A$14.95, A$22.95) with GST (10%) included in Australian retail pricing.
 
 2. Shipping & Delivery (Australia-Wide):
    - FREE Express Tracked Shipping on all orders A$29.00 AUD and over.
-   - Orders under A$29.00 AUD have a flat A$4.95 shipping fee (or use promo code FREESHIP / FREESHIP29 when eligible).
-   - Processing time: Orders are automatically queued for supplier fulfillment immediately after payment confirmation (typically 1–3 business days handling).
+   - Orders under A$29.00 AUD have a flat A$4.95 shipping fee (or live tracked courier rate at checkout).
+   - Processing time: Paid orders are 100% automatically created, settled with our fulfillment partner, and queued for dispatch immediately after payment confirmation (typically 1–3 business days handling).
    - Delivery estimate: 7–15 business days across Australia via tracked courier (CJ Packet Tracked Air / Australia Post last-mile).
    - Live Tracking: Customers can track any order anytime at [Track Your Order](/order-tracking.html) using their Order ID (e.g. BD-...) or email address.
 
-3. Active Promo & Discount Codes:
-   - \`BARGAIN26\` — 30% OFF storewide (best discount!)
-   - \`SAVE10\` or \`WELCOME10\` or \`COMEBACK10\` — 10% OFF
-   - \`SAVE5AUD\` — 15% OFF
-   - \`FREESHIP\` or \`FREESHIP29\` — Free Shipping
-   - How to apply: Go to [Shopping Cart](/cart.html) or [Checkout](/checkout.html), enter the code in the Promo Code box, and click Apply. Only one promo code can be used per order.
+3. Discounts & Promo Codes:
+   - Bargain Drop does NOT currently have any active promo codes, coupons, or sitewide discounts.
+   - Every product is already listed at our everyday low AUD price, and orders of A$29.00+ AUD automatically receive FREE Express Tracked Shipping with no code needed.
+   - Never invent or share any coupon or promo code.
 
 4. Payment Methods & Checkout Troubleshooting:
    - Accepted payments at [Checkout](/checkout.html):
-     a) **PayPal Checkout (Instant in AUD):** Pay with PayPal Balance, Visa/Mastercard Debit or Credit Card (via PayPal), or PayPal Pay in 4. Verified orders auto-dispatch to fulfillment immediately.
+     a) **PayPal Checkout (Instant in AUD):** Pay with PayPal Balance, Visa/Mastercard Debit or Credit Card (via PayPal), or PayPal Pay in 4. Verified orders automatically flow straight to fulfillment and courier dispatch.
      b) **Australian PayID / Osko Instant Bank Transfer (0% Fees):** Instant bank-to-bank transfer in AUD from any Australian bank app using your unique order reference (\`BD-PID-...\`).
-     c) **Crypto Checkout (USDT TRC20 / USDC ERC20 / BTC):** Global blockchain checkout with live AUD conversion rate lock and TxID verification.
+     c) **Crypto Checkout (USDT TRC20 / USDC ERC20 / BTC):** Global blockchain checkout with live AUD conversion rate lock and automatic on-chain verification.
    - All transactions are 256-bit SSL encrypted; Bargain Drop never stores raw card numbers or CVVs.
    - If PayPal window doesn't open: Disable popup blockers for bargain-drop.online, or switch directly to PayID / Osko (instant AU transfer) or Crypto right on [Checkout](/checkout.html).
-   - If you sent a PayID transfer or Crypto payment: Make sure your exact Order Reference (\`BD-...\`) is included or submit your blockchain TxID on your confirmation page — orders dispatch automatically once confirmed.
+   - If you sent a PayID transfer or Crypto payment: Make sure your exact Order Reference (\`BD-...\`) is included or submit your blockchain TxID on your confirmation page — orders verify and dispatch automatically once confirmed.
    - If charged twice or stuck after payment: Do NOT reorder; check email for confirmation or look up the order at [Order Tracking](/order-tracking.html), or email Support@bargain-drop.online with your email & timestamp for an immediate refund of any duplicate payment.
 
 5. Returns, Refunds, Exchanges & Order Problems (30-Day Guarantee):
@@ -87,7 +84,8 @@ RESPONSE RULES:
 - Use clickable Markdown links like [Track Your Order](/order-tracking.html) or [Product Name](/product.html?id=123) so the customer can act in 1 tap.
 - NEVER invent products, prices, or order statuses that aren't in the LIVE DATA block below.
 - If a customer asks about a specific order and no order ID/email was provided yet, tell them they can paste their Order ID (like BD-...) or email right here in chat and you'll check it instantly, AND link [Order Tracking](/order-tracking.html).
-- If the customer's cart subtotal is provided and under A$29, proactively tell them the exact dollar gap to unlock Free Shipping (and remind them about promo code \`BARGAIN26\` for 30% off!).
+- If the customer's cart subtotal is provided and under A$29, proactively tell them the exact dollar gap to unlock FREE Express Shipping.
+- Never invent or offer promo codes or discounts (there are currently no active discount codes).
 - Never expose admin PINs, internal API tokens, or backend architecture to shoppers.`;
 
 function normalizeStr(s) {
@@ -320,16 +318,14 @@ async function resolveLiveContext(env, origin, userText, clientCtx = {}) {
       const cur = catalog.find(p => String(p.id) === String(clientCtx.productId));
       if (cur) {
         chunks.push(
-          `[CURRENT PRODUCT VIEWED]\nTitle: ${cur.title} | Price: A$${cur.price.toFixed(2)}` +
-          (cur.compareAt ? ` (Was A$${cur.compareAt.toFixed(2)})` : '') +
-          ` | Category: ${cur.category || 'Bargain Drop'} | Link: ${cur.url}`
+          `[CURRENT PRODUCT VIEWED]\nTitle: ${cur.title} | Price: A$${cur.price.toFixed(2)} | Category: ${cur.category || 'Bargain Drop'} | Link: ${cur.url}`
         );
       }
     }
     const matches = searchCatalog(catalog, text);
     if (matches.length) {
       const list = matches.map(p =>
-        `- [${p.title}](${p.url}) — A$${p.price.toFixed(2)}${p.compareAt && p.compareAt > p.price ? ` (was A$${p.compareAt.toFixed(2)})` : ''} [${p.category || 'Deal'}]`
+        `- [${p.title}](${p.url}) — A$${p.price.toFixed(2)} [${p.category || 'Deal'}]`
       ).join('\n');
       chunks.push(`[LIVE IN-STOCK PRODUCT MATCHES]\n${list}`);
     }
@@ -357,8 +353,8 @@ function buildDirectFallbackAnswer(userText, liveContext) {
     parts.push(`**Checkout & Payment Options at [Checkout](/checkout.html):**\n- **PayPal (Instant AUD):** Pay with PayPal Balance, Visa/Mastercard Debit or Credit Card, or Pay in 4.\n- **Australian PayID / Osko Bank Transfer:** 0% card surcharges — instant bank transfer with your unique Order Reference.\n- **Crypto (USDT TRC20 / USDC ERC20 / BTC):** Direct global blockchain payment.\n- If PayPal doesn't open, allow popups for bargain-drop.online or switch to PayID / Osko or Crypto right on the checkout page.`);
   }
 
-  if (/\b(promo|coupon|discount|code|voucher|sale|off|bargain26|save10|welcome10|freeship)\b/i.test(q)) {
-    parts.push(`**Active Bargain Drop Promo Codes** (apply in [Cart](/cart.html) or [Checkout](/checkout.html)):\n- \`BARGAIN26\` — **30% OFF** storewide (works on any order!)\n- \`SAVE5AUD\` — **15% OFF**\n- \`WELCOME10\` / \`SAVE10\` — **10% OFF**\n- \`FREESHIP\` — **Free Shipping**`);
+  if (/\b(promo|coupon|discount|code|voucher|sale|off)\b/i.test(q)) {
+    parts.push(`We don't currently have any active discount or promo codes — every item in our store is already listed at our everyday low AUD price, and orders **A$29.00+ AUD** automatically qualify for **FREE Express Tracked Shipping** at [Checkout](/checkout.html) with no code needed.`);
   }
 
   if (/\b(ship|shipping|deliver|delivery|how long|days|postage|freight|australia)\b/i.test(q)) {
@@ -368,7 +364,7 @@ function buildDirectFallbackAnswer(userText, liveContext) {
   if (parts.length === 0 && liveContext && liveContext.includes('[LIVE IN-STOCK PRODUCT MATCHES]')) {
     const prodBlock = liveContext.split('[LIVE IN-STOCK PRODUCT MATCHES]\n')[1]?.split('\n\n')[0];
     if (prodBlock) {
-      parts.push(`Here are the best in-stock Bargain Drop matches I found for you:\n\n${prodBlock}\n\n💡 Apply \`BARGAIN26\` at [Checkout](/checkout.html) for **30% OFF**, plus **FREE Express Shipping** on orders A$29+!`);
+      parts.push(`Here are the best in-stock Bargain Drop matches I found for you:\n\n${prodBlock}\n\n🚚 Orders **A$29.00+ AUD** automatically get **FREE Express Tracked Shipping** at [Checkout](/checkout.html)!`);
     }
   }
 
@@ -382,7 +378,7 @@ function buildDirectFallbackAnswer(userText, liveContext) {
     return `Here are direct links to manage your Bargain Drop account:\n- [Sign In](/sign-in.html) | [Create Account](/register.html)\n- [Reset Forgotten Password](/forgot-password.html)\n- [Saved Shipping Addresses](/addresses.html) | [Saved Wishlist](/wishlist.html)`;
   }
 
-  return `I can help you with anything on Bargain Drop! Here are the fastest shortcuts:\n- **30% OFF Promo:** Use \`BARGAIN26\` at [Checkout](/checkout.html) (Free Shipping A$29+)\n- **Track an Order:** Paste your \`BD-...\` order number here or open [Order Tracking](/order-tracking.html)\n- **Browse Deals:** [All Categories](/categories.html) or [All Products](/products.html)\n- **Returns / Refunds:** [Returns Portal](/returns.html) or **Support@bargain-drop.online**\n\nTell me what you're looking for or what issue you've hit and I'll sort it out right away!`;
+  return `I can help you with anything on Bargain Drop! Here are the fastest shortcuts:\n- **Free Express Shipping:** Automatically unlocked on orders **A$29+ AUD** at [Checkout](/checkout.html)\n- **Track an Order:** Paste your \`BD-...\` order number here or open [Order Tracking](/order-tracking.html)\n- **Browse Store:** [All Categories](/categories.html) or [All Products](/products.html)\n- **Returns / Refunds:** [Returns Portal](/returns.html) or **Support@bargain-drop.online**\n\nTell me what you're looking for or what issue you've hit and I'll sort it out right away!`;
 }
 
 export async function onRequest(context) {

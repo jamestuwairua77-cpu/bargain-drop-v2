@@ -858,8 +858,6 @@ input::placeholder, textarea::placeholder {
       <h1 class="p-title" id="p-title">Loading…</h1>
       <div class="price-row">
         <span class="promo-price" id="promo-price">AU$--</span>
-        <span class="original-price" id="original-price"></span>
-        <span class="discount-badge" id="discount-badge"></span>
       </div>
       <div class="rating-line">
         <span class="rating-num" id="rating-num">4.7</span>
@@ -1180,26 +1178,9 @@ function updatePricing(){
   }
   if (!match && vs.length) match = vs[0];
   var base = match && Number(match.price) ? Number(match.price) : Number(product.price || 0);
-  var comp = match && Number(match.compare_at_price) ? Number(match.compare_at_price) : Number(product.compare_at_price || (base * 1.45).toFixed(2));
 
   var promoEl = document.getElementById('promo-price');
   if (promoEl) promoEl.textContent = fm(base);
-
-  var origEl = document.getElementById('original-price');
-  if (origEl) {
-    origEl.textContent = comp > base ? fm(comp) : '';
-  }
-
-  var discEl = document.getElementById('discount-badge');
-  if (discEl) {
-    if (comp > base) {
-      var pct = Math.round(((comp - base) / comp) * 100);
-      discEl.textContent = 'SAVE ' + pct + '%';
-      discEl.style.display = 'inline-block';
-    } else {
-      discEl.style.display = 'none';
-    }
-  }
 
   var sp=document.getElementById('ship-promo');if(sp)sp.textContent='Free Shipping (Orders ≥ '+fm(I18N.freeShipThreshold)+')';
   var sc=document.getElementById('ship-country');if(sc)sc.textContent=I18N.country;

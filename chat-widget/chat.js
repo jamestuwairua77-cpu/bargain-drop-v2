@@ -4,14 +4,14 @@
 
   const STORAGE_KEY = 'bd_ruby_chat_history_v2';
   const WELCOME_MSG =
-    "G'day! I'm **Ruby**, your Bargain Drop AI Specialist. I know every product, promo code, shipping rule, and order status on the site.\n\n- Use code `BARGAIN26` for **30% OFF** + **FREE Express Shipping** on A$29+\n- Paste your `BD-...` Order ID to track live\n- Tell me what you're shopping for or any issue you've hit — I'll solve it right away!";
+    "G'day! I'm **Ruby**, your Bargain Drop AI Specialist. I know every product, shipping rule, payment option, and live order status on the site.\n\n- **FREE Express Shipping** on orders A$29+ AUD\n- Paste your `BD-...` Order ID to track live\n- Tell me what you're shopping for or any issue you've hit — I'll solve it right away!";
 
   const QUICK_PROMPTS = [
     { label: '📦 Track My Order', text: 'How do I track my order and check live delivery status?' },
-    { label: '🏷️ Best Promo Codes', text: 'What promo codes work right now and how do I get free shipping?' },
-    { label: '🔍 Deals Under A$15', text: 'Show me your best in-stock bargain deals under $15' },
+    { label: '🚚 Shipping & Delivery', text: 'How much is shipping and how long does delivery take?' },
+    { label: '🔍 Items Under A$15', text: 'Show me your best in-stock items under $15' },
     { label: '↩️ Returns & Refunds', text: 'How do returns, damaged item replacements, and refunds work?' },
-    { label: '💳 Payment Help', text: 'My payment or checkout is having an issue, how do I fix it?' },
+    { label: '💳 Payment Options', text: 'What payment methods do you accept at checkout?' },
   ];
 
   let history = [];

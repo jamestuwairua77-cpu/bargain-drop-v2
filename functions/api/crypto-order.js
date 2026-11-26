@@ -1,8 +1,8 @@
 // Cloudflare Pages Function: /api/crypto-order
-// Supports two 100% real non-Stripe crypto rails:
+// Supports two 100% automated non-Stripe crypto rails (zero discounts applied):
 // A) Automated NOWPayments hosted invoice + instant IPN webhook (when NOWPAYMENTS_API_KEY is configured)
-// B) Direct non-custodial self-custody wallet transfer (USDT TRC20 / USDC ERC20 / BTC) + TxID submission
-// Also supports POST ?action=submit-tx to record the customer's on-chain TxID for fast confirmation & CJ dispatch.
+// B) Direct non-custodial self-custody wallet transfer + AUTOMATIC on-chain blockchain verification (Tronscan / Blockstream / Public RPC)
+//    -> Automatically marks order PAID and triggers fulfillOrder() -> CJ create & auto-pay -> doorstep delivery with ZERO clicks!
 
 import {
   corsHeaders,
@@ -12,6 +12,8 @@ import {
   lockAndVerifyInventory,
   normalizePhoneE164,
   sendPaymentInstructionsEmail,
+  verifyCryptoTxOnChain,
+  fulfillOrder,
 } from '../_sync-lib.js';
 
 function json(data, status = 200) {
@@ -20,16 +22,6 @@ function json(data, status = 200) {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders() },
   });
 }
-
-const VALID_PROMOS = {
-  BARGAIN26: 30,
-  SAVE10: 10,
-  WELCOME10: 10,
-  COMEBACK10: 10,
-  SAVE5AUD: 15,
-  FREESHIP: 0,
-  FREESHIP29: 0,
-};
 
 async function getAudCryptoRate(coin) {
   const c = String(coin || 'USDT').toUpperCase();
@@ -59,7 +51,7 @@ export async function onRequest(context) {
     const body = await request.json();
     const action = url.searchParams.get('action') || body.action || 'create';
 
-    // ── Action: Customer submits blockchain TxID for an existing crypto order ──
+    // ── Action: Customer submits blockchain TxID -> REAL-TIME ON-CHAIN AUTO-VERIFY & DISPATCH ──
     if (action === 'submit-tx') {
       const orderId = String(body.orderId || body.order_id || '').trim();
       const txHash = String(body.txHash || body.txid || body.hash || '').trim();
@@ -70,6 +62,40 @@ export async function onRequest(context) {
       const found = orders.find((o) => String(o.id) === orderId);
       if (!found) return json({ ok: false, error: 'Order not found' }, 404);
 
+      const coin = found.cryptoInstructions?.coin || found.payment?.coin || 'USDT';
+      const targetAddr = found.cryptoInstructions?.walletAddress || found.payment?.walletAddress || '';
+      const expectedAmt = found.cryptoInstructions?.cryptoAmount || found.payment?.cryptoAmount || 0;
+
+      // Immediately check blockchain explorer for instant zero-click confirmation!
+      const verification = await verifyCryptoTxOnChain(coin, txHash, targetAddr, expectedAmt);
+      if (verification.verified) {
+        const paidOrd = await updateOrderStatus(env, orderId, 'paid', {
+          cryptoTxHash: txHash,
+          cryptoTxSubmittedAt: new Date().toISOString(),
+          paymentStatus: 'paid',
+          payment_verified: true,
+          paidAt: new Date().toISOString(),
+          onChainVerification: verification,
+          payment: {
+            ...(typeof found.payment === 'object' && found.payment ? found.payment : { gateway: 'crypto' }),
+            hash: txHash,
+            verifiedBy: 'onchain_auto_verifier',
+            verifiedAt: new Date().toISOString(),
+          },
+        });
+        const fulfillment = await fulfillOrder(env, paidOrd || found);
+        return json({
+          ok: true,
+          verifiedOnChain: true,
+          orderId,
+          txHash,
+          status: fulfillment?.status || 'fulfilling',
+          cjOrderId: fulfillment?.cjOrderId || null,
+          message: 'Payment verified on-chain! Your order has been automatically sent to fulfillment for dispatch.',
+        });
+      }
+
+      // Still confirming in mempool -> save TxID so background autopilot auto-verifies & dispatches on next block
       const updated = await updateOrderStatus(env, orderId, 'awaiting_crypto', {
         cryptoTxHash: txHash,
         cryptoTxSubmittedAt: new Date().toISOString(),
@@ -81,14 +107,16 @@ export async function onRequest(context) {
       });
       return json({
         ok: true,
+        verifiedOnChain: false,
         orderId,
         txHash,
         status: updated?.status || 'awaiting_crypto',
-        message: 'Transaction hash recorded. Your order will auto-dispatch to CJ Dropshipping as soon as confirmed.',
+        verificationReason: verification.reason,
+        message: 'Transaction hash saved! Our automated blockchain verifier is watching for confirmation and will dispatch to CJ automatically.',
       });
     }
 
-    // ── Action: Create new Crypto order ──
+    // ── Action: Create new Crypto order (zero discounts) ──
     const rawOrder = body.order || body;
     const coin = String(body.coin || rawOrder.coin || 'USDT').toUpperCase();
     if (!['USDT', 'USDC', 'BTC'].includes(coin)) {
@@ -116,18 +144,9 @@ export async function onRequest(context) {
     const subtotal = +items
       .reduce((sum, it) => sum + Math.max(0, Number(it.price || 0)) * Math.max(1, Number(it.qty || it.quantity || 1)), 0)
       .toFixed(2);
-    const promoCode = String(rawOrder.discount?.code || rawOrder.promo_code || '').trim().toUpperCase();
-    const discountPct =
-      promoCode && Object.prototype.hasOwnProperty.call(VALID_PROMOS, promoCode)
-        ? VALID_PROMOS[promoCode]
-        : promoCode.startsWith('COMEBACK10')
-        ? 10
-        : 0;
-    const discountAmount = +(subtotal * (discountPct / 100)).toFixed(2);
-    const afterDiscount = Math.max(0, +(subtotal - discountAmount).toFixed(2));
-    const freeShip = promoCode === 'FREESHIP' || promoCode === 'FREESHIP29' || afterDiscount >= 29;
-    const shippingCost = freeShip ? 0 : Math.max(0, Number(rawOrder.shippingCost || 0));
-    const totalAud = Math.max(0.5, +(afterDiscount + shippingCost).toFixed(2));
+    const freeShip = subtotal >= 29;
+    const shippingCost = freeShip ? 0 : Math.max(0, Number(rawOrder.shippingCost || 4.95));
+    const totalAud = Math.max(0.5, +(subtotal + shippingCost).toFixed(2));
 
     const inventoryLock = await lockAndVerifyInventory(env, items, orderId);
     if (!inventoryLock.ok) {
@@ -153,7 +172,6 @@ export async function onRequest(context) {
     let invoiceUrl = null;
     let nowPaymentsId = null;
 
-    // Optional live NOWPayments hosted invoice (100% automated blockchain IPN webhook -> CJ dispatch)
     if (env && env.NOWPAYMENTS_API_KEY) {
       const origin = String(env.PUBLIC_STORE_ORIGIN || new URL(request.url).origin).replace(/\/+$/, '');
       const payCurrency = coin === 'USDT' ? 'usdttrc20' : coin === 'USDC' ? 'usdcerc20' : 'btc';
@@ -205,6 +223,7 @@ export async function onRequest(context) {
       invoiceUrl,
       nowPaymentsId,
       reference: orderId,
+      autoVerifyOnChain: true,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     };
 
@@ -237,7 +256,7 @@ export async function onRequest(context) {
       cryptoInstructions,
       subtotal,
       shippingCost,
-      discount: { code: promoCode || null, percent: discountPct, amount: discountAmount },
+      discount: { code: null, percent: 0, amount: 0 },
       total: totalAud,
       currency: 'AUD',
       shipping: {

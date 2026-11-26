@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: /api/payid-order
-// Creates a real Australian PayID / Osko bank transfer order with atomic inventory lock,
+// Creates an Australian PayID / Osko bank transfer order with atomic inventory lock,
 // unique payment reference (BD-PID-XXXXXX), durable order ledger write, and email instructions.
-// Once payment arrives in the store bank account, 1-click confirmation in Admin auto-dispatches to CJ (payType=3).
+// Zero discounts applied. Auto-settles via /api/payid-webhook -> CJ create & auto-pay -> doorstep dispatch.
 
 import {
   corsHeaders,
@@ -17,16 +17,6 @@ function json(data, status = 200) {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders() },
   });
 }
-
-const VALID_PROMOS = {
-  BARGAIN26: 30,
-  SAVE10: 10,
-  WELCOME10: 10,
-  COMEBACK10: 10,
-  SAVE5AUD: 15,
-  FREESHIP: 0,
-  FREESHIP29: 0,
-};
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -54,22 +44,13 @@ export async function onRequest(context) {
         ? String(rawOrder.id)
         : 'BD-PID-' + Date.now().toString(36).toUpperCase().slice(-6);
 
-    // Server-side subtotal & promo verification
+    // Server-side subtotal & shipping calculation (all discounts disabled)
     const subtotal = +items
       .reduce((sum, it) => sum + Math.max(0, Number(it.price || 0)) * Math.max(1, Number(it.qty || it.quantity || 1)), 0)
       .toFixed(2);
-    const promoCode = String(rawOrder.discount?.code || rawOrder.promo_code || '').trim().toUpperCase();
-    const discountPct =
-      promoCode && Object.prototype.hasOwnProperty.call(VALID_PROMOS, promoCode)
-        ? VALID_PROMOS[promoCode]
-        : promoCode.startsWith('COMEBACK10')
-        ? 10
-        : 0;
-    const discountAmount = +(subtotal * (discountPct / 100)).toFixed(2);
-    const afterDiscount = Math.max(0, +(subtotal - discountAmount).toFixed(2));
-    const freeShip = promoCode === 'FREESHIP' || promoCode === 'FREESHIP29' || afterDiscount >= 29;
-    const shippingCost = freeShip ? 0 : Math.max(0, Number(rawOrder.shippingCost || 0));
-    const totalAud = Math.max(0.5, +(afterDiscount + shippingCost).toFixed(2));
+    const freeShip = subtotal >= 29;
+    const shippingCost = freeShip ? 0 : Math.max(0, Number(rawOrder.shippingCost || 4.95));
+    const totalAud = Math.max(0.5, +(subtotal + shippingCost).toFixed(2));
 
     // Lock stock atomically
     const inventoryLock = await lockAndVerifyInventory(env, items, orderId);
@@ -98,6 +79,7 @@ export async function onRequest(context) {
       accountNumber: payidAccountNumber || null,
       amountAud: totalAud,
       reference: orderId,
+      autoSettleWebhook: '/api/payid-webhook',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     };
 
@@ -126,7 +108,7 @@ export async function onRequest(context) {
       payidInstructions,
       subtotal,
       shippingCost,
-      discount: { code: promoCode || null, percent: discountPct, amount: discountAmount },
+      discount: { code: null, percent: 0, amount: 0 },
       total: totalAud,
       currency: 'AUD',
       shipping: {
@@ -138,7 +120,6 @@ export async function onRequest(context) {
       cartCleared: true,
     });
 
-    // Send customer PayID instructions email (best-effort)
     try {
       const lines = [
         { label: 'PayID', value: payidIdentifier },
